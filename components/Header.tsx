@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import { useState, useEffect, type ComponentType, type CSSProperties } from 'react'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { Home, Moon, Sun, Menu, X, LogOut, Settings, Layout, ShieldCheck, Palette, LayoutDashboard, Users, AlertCircle, ChevronDown, Globe, Link2, ClipboardList, Newspaper, Search, Building2, Calculator, Lock, HelpCircle, Clapperboard, Mail, ToolCase, CalendarClock, Activity as ActivityIcon, Plug, Send, Star, ListChecks, FileClock, ClipboardCheck } from 'lucide-react'
+import { Home, Moon, Sun, Menu, X, LogOut, Settings, Layout, ShieldCheck, Palette, LayoutDashboard, Users, AlertCircle, ChevronDown, Globe, Link2, ClipboardList, Newspaper, Search, Building2, Calculator, Lock, HelpCircle, Clapperboard, Mail, ToolCase, CalendarClock, Activity as ActivityIcon, Plug, Send, Star, ListChecks, FileClock, ClipboardCheck, ChevronRight, SwatchBook } from 'lucide-react'
 import api from '@/lib/api-service'
 import { hasValidSubscription } from '@/lib/auth-helpers'
 import { useAuth } from '@/contexts/AuthContext'
@@ -195,6 +195,84 @@ export default function Header({ mode = 'app' }: HeaderProps) {
     { href: '/leads/tasks', label: 'Follow-ups', icon: CalendarClock, iconClass: 'ohp-icon-assemble-calendar' },
     { href: '/activity', label: 'Activity', icon: ActivityIcon },
   ]
+
+  // The phone menu (owner, 10/26): every section is a card with all of its pages as big buttons in
+  // a two-column grid - the same layout as the admin panel's tabs - so nothing is a hover-only
+  // dropdown away. Desktop keeps its hover menus above.
+  type MobileTile = { href: string; label: string; icon: ComponentType<{ className?: string }>; badge?: number; alert?: boolean; locked?: boolean; soon?: boolean; on?: boolean }
+  type MobileSection = { key: string; label: string; icon: ComponentType<{ className?: string }>; href: string; on: boolean; badge?: number; tiles: MobileTile[]; dimmed?: boolean }
+  const gateHref = (href: string) => (!user?.is_admin && !hasValidSubscription(user) ? '/checkout' : href)
+  const navTile = (item: { href: string; label: string; icon: ComponentType<{ className?: string }>; feature?: NavFeatureKey }, extra: Partial<MobileTile> = {}): MobileTile | null => {
+    const access = item.feature ? getNavFeatureAccess(user?.plan_tier, item.feature) : { visible: true, locked: false, upgradeHref: '' }
+    if (!access.visible) return null
+    return { href: access.locked ? access.upgradeHref : gateHref(item.href), label: item.label, icon: item.icon, locked: access.locked, on: pathname === item.href, ...extra }
+  }
+  const isTile = (t: MobileTile | null): t is MobileTile => !!t
+  const mobileSections: MobileSection[] = []
+  if (user?.is_admin) {
+    ADMIN_SECTIONS.forEach(sec => {
+      const href = sec.key === 'overview' ? '/admin' : `/admin/${sec.key}`
+      mobileSections.push({
+        key: sec.key, label: sec.label, icon: sec.icon, href,
+        on: sec.key === 'overview' ? pathname === '/admin' : pathname.startsWith(href),
+        badge: sec.key === 'inbox' ? adminUnread.support + adminUnread.questions : 0,
+        tiles: sec.tabs.length > 1 ? sec.tabs.map(t => ({
+          href: adminHref(t.key), label: t.label, icon: t.icon, on: pathname === adminHref(t.key),
+          badge: t.key === 'support' ? adminUnread.support : t.key === 'questions' ? adminUnread.questions : 0,
+        })) : [],
+      })
+    })
+  } else if (user?.broker_authorized) {
+    const dim = isFullyExpired
+    mobileSections.push({ key: 'dash', label: 'Dashboard', icon: LayoutDashboard, href: gateHref('/dash'), on: pathname === '/dash', tiles: [], dimmed: dim })
+    mobileSections.push({
+      key: 'opens', label: 'Open Houses', icon: Home, href: gateHref('/open-houses'), dimmed: dim,
+      on: pathname.startsWith('/open-houses') || pathname.startsWith('/discovery'), badge: pendingHostRequestCount,
+      tiles: hasCoreAccess ? openHousesSubNav.map(item => navTile(item, {
+        badge: item.href === '/open-houses/my-listings' ? listingAgentCount : item.href === '/discovery' ? hostCount : openRequestsCount,
+      })).filter(isTile) : [],
+    })
+    if (showcasesAccess.visible) {
+      mobileSections.push({
+        key: 'showcases', label: 'Showcases', icon: Layout, dimmed: dim, on: pathname === '/showcases', tiles: [],
+        href: hasValidSubscription(user) && showcasesAccess.locked ? showcasesAccess.upgradeHref : gateHref('/showcases'),
+        badge: showcasesAccess.locked ? 0 : showcasesActionCount,
+      })
+    }
+    mobileSections.push({
+      key: 'leads', label: 'Leads', icon: Users, href: gateHref('/leads'), dimmed: dim,
+      on: pathname.startsWith('/leads') || pathname.startsWith('/activity'),
+      tiles: hasCoreAccess ? [
+        ...leadsSubNav.map(item => navTile(item, { on: item.href === '/leads' ? pathname === '/leads' : pathname === item.href })).filter(isTile),
+        { href: '', label: 'Action Plans', icon: ListChecks, soon: true },
+      ] : [],
+    })
+    mobileSections.push({
+      key: 'tools', label: 'Tools', icon: ToolCase, href: gateHref('/studio'), dimmed: dim, badge: formsActionCount,
+      on: pathname.startsWith('/studio') && !pathname.startsWith('/studio/website'),
+      tiles: hasCoreAccess ? [
+        { href: gateHref('/studio'), label: 'All tools', icon: ToolCase, on: pathname === '/studio' },
+        { href: gateHref('/studio/brand-kit'), label: 'Branding', icon: SwatchBook, on: pathname.startsWith('/studio/brand-kit') },
+        ...studioSubNav.map(item => navTile(item, { badge: item.href === '/studio/forms' ? formsActionCount : 0, on: pathname.startsWith(item.href) })).filter(isTile),
+        { href: '', label: 'Deadlines', icon: FileClock, soon: true },
+      ] : [],
+    })
+    if (idxAccess.visible) {
+      mobileSections.push({
+        key: 'idx', label: 'IDX Website', icon: Globe, dimmed: dim, on: pathname.startsWith('/studio/website'), tiles: [],
+        href: hasValidSubscription(user) && idxAccess.locked ? idxAccess.upgradeHref : gateHref('/studio/website'),
+      })
+    }
+  }
+  if (!user?.is_admin) {
+    mobileSections.push({
+      key: 'account', label: 'Account', icon: Settings, href: '/settings', on: false, tiles: [
+        { href: '/setup', label: 'Account setup', icon: ClipboardCheck, on: pathname === '/setup' },
+        { href: '/settings', label: 'Settings', icon: Settings, alert: settingsIncomplete, on: pathname.startsWith('/settings') && !pathname.startsWith('/settings/help') },
+        { href: '/settings/help', label: 'Help', icon: HelpCircle, badge: supportUnreadCount, on: pathname.startsWith('/settings/help') },
+      ],
+    })
+  }
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
@@ -685,272 +763,95 @@ export default function Header({ mode = 'app' }: HeaderProps) {
         </div>
       )}
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile Menu - a full-height sheet: each section a card, its pages a two-column grid. */}
       {isMobileMenuOpen && (
-        <div data-scroll-lock="on" className="fixed inset-0 z-50 overscroll-contain xl:hidden">
-          {/* Backdrop */}
-          <div 
-            className="absolute inset-0 bg-black/60 "
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-          
-          {/* Menu Card */}
-          <div className="absolute right-4 top-20 left-4 bg-white dark:bg-[#151517] rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden transform transition-all">
-            <div className="p-2 space-y-1">
-              {user?.is_admin && ADMIN_SECTIONS.map(sec => (
-                <div key={sec.key} className="rounded-2xl">
-                  <Link
-                    href={sec.key === 'overview' ? '/admin' : `/admin/${sec.key}`}
-                    className={`flex items-center space-x-4 px-4 py-3 rounded-2xl font-bold transition-all ${
-                      (sec.key === 'overview' ? pathname === '/admin' : pathname.startsWith(`/admin/${sec.key}`))
-                        ? 'bg-[#C9A24D]/10 text-[#C9A24D]'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    <sec.icon className="w-5 h-5" />
-                    <span className="flex-1">{sec.label}</span>
-                    {sec.key === 'inbox' && adminUnread.support + adminUnread.questions > 0 && (
-                      <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">{adminUnread.support + adminUnread.questions}</span>
-                    )}
-                  </Link>
-                  {sec.tabs.length > 1 && (
-                    <div className="ml-12 mb-1 flex flex-wrap gap-1.5">
-                      {sec.tabs.map(t => (
-                        <Link key={t.key} href={adminHref(t.key)}
-                          className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${pathname === adminHref(t.key) ? 'bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8c97a]' : 'bg-gray-50 text-gray-500 dark:bg-white/[0.05] dark:text-gray-400'}`}>
-                          {t.label}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
+        <div data-scroll-lock="on" className="fixed inset-0 z-[10000] xl:hidden">
+          <div className="absolute inset-0 bg-black/55" onClick={() => setIsMobileMenuOpen(false)} />
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+            className="absolute inset-x-2.5 top-2.5 bottom-2.5 flex flex-col overflow-hidden rounded-[28px] bg-[#f6f4ef] shadow-[0_32px_80px_-16px_rgba(0,0,0,0.55)] ring-1 ring-black/5 dark:bg-[#0B0B0B] dark:ring-white/10 sm:inset-x-auto sm:right-4 sm:w-[440px]"
+          >
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#C9A24D]/15 bg-white px-4 py-3 dark:bg-[#111113]">
+              <div className="flex min-w-0 items-center gap-3">
+                <OhpHouse className="h-8 shrink-0 text-[#111827] dark:text-white" title="OpenHousePal" />
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b6a2b] dark:text-[#e8c97a]">{user?.is_admin ? 'Admin menu' : 'Menu'}</p>
+                  <p className="truncate text-[15px] font-black text-[#111827] dark:text-white">{[user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email}</p>
                 </div>
-              ))}
-
-              {!user?.is_admin && (
-              !user?.broker_authorized ? (
-                <Link
-                  href="/broker-authorization"
-                  className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
-                    isActive('/broker-authorization') 
-                      ? 'bg-[#C9A24D]/10 text-[#C9A24D]' 
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`}
-                >
-                  <ShieldCheck className="w-5 h-5" />
-                  <span>Broker Authorization</span>
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    href={
-                      !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
-                      "/dash"
-                    }
-                    className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
-                      isActive('/dash')
-                        ? 'bg-[#C9A24D]/10 text-[#C9A24D]'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    } ${isFullyExpired ? 'pointer-events-none opacity-50 grayscale' : ''}`}
-                  >
-                    <LayoutDashboard className="w-5 h-5" />
-                    <span>Dash</span>
-                  </Link>
-
-                  <Link
-                    href={
-                      !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
-                      "/open-houses"
-                    }
-                    className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
-                      isActive('/open-houses')
-                        ? 'bg-[#C9A24D]/10 text-[#C9A24D]'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    } ${isFullyExpired ? 'pointer-events-none opacity-50 grayscale' : ''}`}
-                  >
-                    <Home className="w-5 h-5" />
-                    <span>Open Houses</span>
-                    {pendingHostRequestCount > 0 && (
-                      <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
-                        {pendingHostRequestCount > 9 ? '9+' : pendingHostRequestCount}
-                      </span>
-                    )}
-                  </Link>
-
-                  {showcasesAccess.visible && (
-                  <Link
-                    href={
-                      !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
-                      !user?.is_admin && showcasesAccess.locked ? showcasesAccess.upgradeHref :
-                      "/showcases"
-                    }
-                    className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
-                      showcasesAccess.locked
-                        ? 'text-gray-400 dark:text-gray-600'
-                        : isActive('/showcases')
-                          ? 'bg-[#C9A24D]/10 text-[#C9A24D]'
-                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    } ${isFullyExpired ? 'pointer-events-none opacity-50 grayscale' : ''}`}
-                  >
-                    <Layout className="w-5 h-5" />
-                    <span>Showcases</span>
-                    {showcasesAccess.locked && <Lock className="w-4 h-4 text-gray-300 dark:text-gray-700" />}
-                    {!showcasesAccess.locked && showcasesActionCount > 0 && (
-                      <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
-                        {showcasesActionCount > 9 ? '9+' : showcasesActionCount}
-                      </span>
-                    )}
-                  </Link>
-                  )}
-
-                  <Link
-                    href={
-                      !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
-                      "/leads"
-                    }
-                    className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
-                      pathname === '/leads'
-                        ? 'bg-[#C9A24D]/10 text-[#C9A24D]'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    } ${isFullyExpired ? 'pointer-events-none opacity-50 grayscale' : ''}`}
-                  >
-                    <Users className="w-5 h-5" />
-                    <span>Leads</span>
-                  </Link>
-                  {hasCoreAccess && (
-                    <div className={`-mt-1 ml-9 space-y-0.5 border-l border-[#C9A24D]/25 pl-3 ${isFullyExpired ? 'pointer-events-none opacity-50 grayscale' : ''}`}>
-                      {leadsSubNav.slice(1).map(item => (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-all ${
-                            isActive(item.href)
-                              ? 'bg-[#C9A24D]/10 text-[#C9A24D]'
-                              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
-                          }`}
-                        >
-                          <item.icon className="w-4 h-4" />
-                          <span>{item.label}</span>
-                        </Link>
-                      ))}
-                      <div aria-disabled className="flex cursor-default items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-gray-400 dark:text-gray-500">
-                        <ListChecks className="w-4 h-4" />
-                        <span>Action Plans</span>
-                        <span className="rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-1.5 text-[9px] font-black uppercase leading-4 tracking-wide text-[#111827]">Soon</span>
-                      </div>
-                    </div>
-                  )}
-
-                  <Link
-                    href={
-                      !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
-                      "/studio"
-                    }
-                    className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
-                      pathname.startsWith('/studio') && !pathname.startsWith('/studio/website')
-                        ? 'bg-[#C9A24D]/10 text-[#C9A24D]'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    } ${isFullyExpired ? 'pointer-events-none opacity-50 grayscale' : ''}`}
-                  >
-                    <ToolCase className="w-5 h-5" />
-                    <span>Tools</span>
-                    {formsActionCount > 0 && (
-                      <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">
-                        {formsActionCount > 9 ? '9+' : formsActionCount}
-                      </span>
-                    )}
-                  </Link>
-
-                  {idxAccess.visible && (
-                  <Link
-                    href={
-                      !user?.is_admin && !hasValidSubscription(user) ? "/checkout" :
-                      !user?.is_admin && idxAccess.locked ? idxAccess.upgradeHref :
-                      "/studio/website"
-                    }
-                    className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
-                      idxAccess.locked
-                        ? 'text-gray-400 dark:text-gray-600'
-                        : pathname.startsWith('/studio/website')
-                          ? 'bg-[#C9A24D]/10 text-[#C9A24D]'
-                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    } ${isFullyExpired ? 'pointer-events-none opacity-50 grayscale' : ''}`}
-                  >
-                    <Globe className="w-5 h-5" />
-                    <span>IDX</span>
-                    {idxAccess.locked && <Lock className="w-4 h-4 text-gray-300 dark:text-gray-700" />}
-                  </Link>
-                  )}
-                </>
-              ))}
-
-              {!user?.is_admin && (
-              <Link
-                href="/settings/help"
-                className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
-                  pathname.startsWith('/settings/help')
-                    ? 'bg-[#C9A24D]/10 text-[#C9A24D]'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }`}
-              >
-                <span className="relative inline-flex">
-                  <HelpCircle className="w-5 h-5" />
-                  {supportUnreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5" aria-label="Unread support reply">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white dark:border-[#151517]" />
-                    </span>
-                  )}
-                </span>
-                <span>Help</span>
-                {supportUnreadCount > 0 && (
-                  <span className="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-white">New reply</span>
-                )}
-              </Link>
-              )}
-
-              {!user?.is_admin && (
-              <Link
-                href="/settings"
-                className={`flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all ${
-                  pathname.startsWith('/settings') && !pathname.startsWith('/settings/help')
-                    ? 'bg-[#C9A24D]/10 text-[#C9A24D]'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }`}
-              >
-                <span className="relative inline-flex">
-                  <Settings className="w-5 h-5" />
-                  {settingsIncomplete && (
-                    <AlertCircle className="absolute -top-1 -right-1 h-3.5 w-3.5 fill-red-500 text-white" aria-label="Settings incomplete" />
-                  )}
-                </span>
-                <span>Settings</span>
-                {settingsIncomplete && (
-                  <span className="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-white">Action needed</span>
-                )}
-              </Link>
-              )}
-
-              {!user?.is_admin && (
-              <Link
-                href="/setup"
-                className="flex items-center space-x-4 p-4 rounded-2xl font-bold transition-all text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                <ClipboardCheck className="w-5 h-5" />
-                <span>Account setup</span>
-              </Link>
-              )}
-
-              <div className="border-t border-gray-100 dark:border-gray-800 my-2"></div>
-
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center space-x-4 p-4 rounded-2xl font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all"
-              >
-                <LogOut className="w-5 h-5" />
-                <span>{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
+              </div>
+              <button onClick={() => setIsMobileMenuOpen(false)} aria-label="Close menu"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gray-100 text-gray-600 transition hover:bg-gray-200 dark:bg-white/10 dark:text-gray-300 dark:hover:bg-white/15">
+                <X className="h-5 w-5" />
               </button>
             </div>
-          </div>
+
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-3">
+              {!user?.is_admin && !user?.broker_authorized && (
+                <Link href="/broker-authorization"
+                  className={`flex items-center gap-3 rounded-3xl border bg-white p-3 shadow-[0_8px_24px_-14px_rgba(17,24,39,0.25)] dark:bg-[#151517] ${isActive('/broker-authorization') ? 'border-[#C9A24D]' : 'border-gray-200/80 dark:border-gray-800'}`}>
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#C9A24D]/15 text-[#8b6a2b] dark:text-[#e8c97a]"><ShieldCheck className="h-5 w-5" /></span>
+                  <span className="flex-1 text-[17px] font-black text-[#111827] dark:text-white">Broker Authorization</span>
+                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                </Link>
+              )}
+
+              {mobileSections.map(sec => (
+                <section key={sec.key}
+                  className={`rounded-3xl border bg-white p-2.5 shadow-[0_8px_24px_-14px_rgba(17,24,39,0.25)] dark:bg-[#151517] ${sec.on ? 'border-[#C9A24D]/60' : 'border-gray-200/80 dark:border-gray-800'} ${sec.dimmed ? 'pointer-events-none opacity-50 grayscale' : ''}`}>
+                  <Link href={sec.href} className="flex min-h-[48px] items-center gap-3 rounded-2xl px-1.5 py-1">
+                    <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${sec.on ? 'bg-[#111827] text-[#e8c97a] dark:bg-[#C9A24D] dark:text-[#111827]' : 'bg-[#C9A24D]/15 text-[#8b6a2b] dark:text-[#e8c97a]'}`}>
+                      <sec.icon className="h-5 w-5" />
+                    </span>
+                    <span className="flex-1 text-[17px] font-black tracking-tight text-[#111827] dark:text-white">{sec.label}</span>
+                    {!!sec.badge && sec.badge > 0 && (
+                      <span className="flex h-6 min-w-[24px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-black text-white">{sec.badge > 9 ? '9+' : sec.badge}</span>
+                    )}
+                    <ChevronRight className="h-5 w-5 text-gray-400" />
+                  </Link>
+                  {sec.tiles.length > 0 && (
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      {sec.tiles.map(t => {
+                        const inner = (
+                          <>
+                            <t.icon className={`h-[18px] w-[18px] shrink-0 ${t.on ? 'text-[#e8c97a] dark:text-[#111827]' : t.locked || t.soon ? 'text-gray-300 dark:text-gray-600' : 'text-[#C9A24D]'}`} />
+                            <span className="min-w-0 flex-1 leading-tight">
+                              {t.label}
+                              {t.soon && <span className="mt-0.5 block text-[10px] font-black uppercase tracking-wider text-[#C9A24D]">Coming soon</span>}
+                            </span>
+                            {t.locked && <Lock className="h-3.5 w-3.5 shrink-0 text-gray-300 dark:text-gray-600" />}
+                            {!t.locked && !!t.badge && t.badge > 0 && (
+                              <span className="flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">{t.badge > 9 ? '9+' : t.badge}</span>
+                            )}
+                            {t.alert && <AlertCircle className="h-4 w-4 shrink-0 fill-red-500 text-white" aria-label="Needs attention" />}
+                          </>
+                        )
+                        const cls = `flex min-h-[52px] items-center gap-2.5 rounded-2xl border px-3 py-2 text-[14px] font-bold transition-colors ${
+                          t.on ? 'border-[#111827] bg-[#111827] text-white shadow-md dark:border-[#C9A24D] dark:bg-[#C9A24D] dark:text-[#111827]'
+                            : t.locked || t.soon ? 'border-gray-100 bg-gray-50 text-gray-400 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-500'
+                              : 'border-gray-200 bg-[#faf9f7] text-[#111827] active:bg-[#C9A24D]/10 dark:border-gray-800 dark:bg-white/[0.04] dark:text-gray-100'
+                        }`
+                        return t.soon
+                          ? <div key={t.label} aria-disabled className={`${cls} cursor-default`}>{inner}</div>
+                          : <Link key={t.href + t.label} href={t.href} className={cls}>{inner}</Link>
+                      })}
+                    </div>
+                  )}
+                </section>
+              ))}
+            </div>
+
+            <div className="shrink-0 border-t border-gray-200/80 bg-white px-3 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] dark:border-gray-800 dark:bg-[#111113]">
+              <button
+                onClick={handleLogout}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 text-[15px] font-black text-red-600 transition hover:bg-red-50 dark:border-red-500/25 dark:text-red-400 dark:hover:bg-red-900/10"
+              >
+                <LogOut className="h-5 w-5" />
+                <span>{isLoggingOut ? 'Logging out...' : 'Log out'}</span>
+              </button>
+            </div>
+          </motion.div>
         </div>
       )}
     </header>

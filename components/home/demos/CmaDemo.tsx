@@ -425,8 +425,8 @@ export default function CmaDemo() {
                   const cardScored = isActive ? scored : true
                   const cardAdded = c.strength !== 'weak'
                   return (
-                    <div key={c.address} className={`rounded-xl border-2 p-2 flex items-center gap-2 transition-all duration-500 ${!isRevealed ? 'opacity-0 scale-95' : cardScored && cardAdded ? 'border-emerald-400 bg-emerald-50/50 dark:bg-emerald-500/5 opacity-100 scale-100' : 'border-gray-100 dark:border-gray-800 opacity-100 scale-100'}`}>
-                      <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-800">
+                    <div key={c.address} className={`rounded-xl border-2 p-2 flex items-center gap-2 max-sm:gap-1.5 max-sm:p-1.5 transition-all duration-500 ${!isRevealed ? 'opacity-0 scale-95' : cardScored && cardAdded ? 'border-emerald-400 bg-emerald-50/50 dark:bg-emerald-500/5 opacity-100 scale-100' : 'border-gray-100 dark:border-gray-800 opacity-100 scale-100'}`}>
+                      <div className="relative w-14 h-14 max-sm:w-11 max-sm:h-11 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-800">
                         {isRevealed && <Image src={c.photo} alt={c.address} fill className="object-cover" unoptimized />}
                         {isRevealed && cardScored && (
                           <span className={`absolute top-1 left-1 rounded-full px-1.5 py-0.5 text-[7px] font-black text-white shadow ${c.score >= 70 ? 'bg-emerald-600' : 'bg-gray-500'}`}>{c.score}%</span>
@@ -438,8 +438,8 @@ export default function CmaDemo() {
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-1">
-                          <p className="min-w-0 truncate text-[9.5px] font-black text-[#111827] dark:text-white">{c.address}</p>
+                        <div className="flex items-center justify-between gap-1 max-sm:flex-col max-sm:items-start max-sm:gap-0">
+                          <p className="min-w-0 truncate text-[9.5px] font-black text-[#111827] dark:text-white max-sm:max-w-full">{c.address}</p>
                           <span className="shrink-0 text-[9.5px] font-black text-[#8b7355] dark:text-[#d7b974]">{formatPrice(c.price)}</span>
                         </div>
                         <p className="text-[7.5px] text-gray-400">{c.beds}bd &middot; {c.baths}ba &middot; {c.sqft.toLocaleString()}sf</p>

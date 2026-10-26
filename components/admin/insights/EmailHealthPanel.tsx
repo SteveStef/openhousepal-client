@@ -233,24 +233,24 @@ export default function EmailHealthPanel({ title, blurb }: { title: string; blur
           <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">{blurb}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div role="radiogroup" aria-label="Period" className="flex flex-wrap rounded-xl bg-white p-1 shadow-sm ring-1 ring-gray-200 dark:bg-[#151517] dark:ring-white/10">
+          <div role="radiogroup" aria-label="Period" className="flex flex-wrap rounded-xl bg-white p-1 shadow-sm ring-1 ring-gray-200 dark:bg-[#151517] dark:ring-white/10 max-sm:w-full max-sm:flex-nowrap">
             {PRESETS.map(p => (
               <button key={p.key} role="radio" aria-checked={preset === p.key} onClick={() => pick(p.key)}
-                className={`rounded-lg px-2.5 py-1.5 text-[11px] font-black transition sm:px-3 ${preset === p.key ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
+                className={`rounded-lg px-2.5 py-1.5 text-[11px] font-black transition sm:px-3 max-sm:flex-1 max-sm:whitespace-nowrap max-sm:px-1 max-sm:py-2.5 ${preset === p.key ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
                 {p.label}
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-1.5 rounded-xl bg-white px-2 py-1 shadow-sm ring-1 ring-gray-200 dark:bg-[#151517] dark:ring-white/10">
-            <CalendarDays className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+          <div className="flex items-center gap-1.5 rounded-xl bg-white px-2 py-1 shadow-sm ring-1 ring-gray-200 dark:bg-[#151517] dark:ring-white/10 max-sm:min-h-[44px] max-sm:min-w-0 max-sm:flex-1">
+            <CalendarDays className="h-3.5 w-3.5 shrink-0 text-gray-400 max-sm:hidden" />
             <input type="date" aria-label="From" value={start} max={shift(0)} onChange={e => setDay('start', e.target.value)}
-              className="w-[118px] bg-transparent text-[11px] font-black text-[#111827] outline-none dark:text-white dark:[color-scheme:dark]" />
+              className="w-[118px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-1 max-sm:font-bold bg-transparent text-[11px] font-black text-[#111827] outline-none dark:text-white dark:[color-scheme:dark]" />
             <span className="text-[11px] font-bold text-gray-400">to</span>
             <input type="date" aria-label="To" value={end} min={start} max={shift(0)} onChange={e => setDay('end', e.target.value)}
-              className="w-[118px] bg-transparent text-[11px] font-black text-[#111827] outline-none dark:text-white dark:[color-scheme:dark]" />
+              className="w-[118px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-1 max-sm:font-bold bg-transparent text-[11px] font-black text-[#111827] outline-none dark:text-white dark:[color-scheme:dark]" />
           </div>
           <button onClick={load} aria-label="Refresh" title="Refresh"
-            className="rounded-xl bg-white p-2 text-gray-500 shadow-sm ring-1 ring-gray-200 hover:text-[#111827] dark:bg-[#151517] dark:text-gray-400 dark:ring-white/10 dark:hover:text-white">
+            className="rounded-xl bg-white p-2 max-sm:p-3 text-gray-500 shadow-sm ring-1 ring-gray-200 hover:text-[#111827] dark:bg-[#151517] dark:text-gray-400 dark:ring-white/10 dark:hover:text-white">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>

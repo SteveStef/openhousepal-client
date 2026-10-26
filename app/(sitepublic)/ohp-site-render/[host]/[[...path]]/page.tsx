@@ -338,11 +338,11 @@ async function baseMetadata({
   // No page-builder page matched - might be a community page (e.g. /villanova-pa), which lives
   // in the shared Area system rather than published_snapshot.pages. See findPage's caller.
   if (path?.length === 1) {
-    const area = await fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/areas/${encodeURIComponent(path[0])}`)
+    const area = await fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/areas/${encodeURIComponent(path[0])}`, TOWN_TAGS)
     if (area) {
       const [profile, areaList] = await Promise.all([
         fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/profile`),
-        fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/areas`),
+        fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/areas`, TOWN_TAGS),
       ])
       const summary = ((areaList || []) as any[]).find(a => a.slug === area.slug) || {}
       const auto = autoTownMeta({ ...summary, ...area, active_count: summary.active_count ?? area.facts?.market_stats?.active_count, median_price: summary.median_price ?? area.facts?.market_stats?.median_price }, { agent: profile || {}, towns: [] })
@@ -369,7 +369,7 @@ export async function generateMetadata(args: {
   if (!resolved || resolved.redirect_to || (path?.[0] === 'listings' && path[1] && !path[2])) return meta
   const [profile, areaList] = await Promise.all([
     fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/profile`),
-    fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/areas`),
+    fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/areas`, TOWN_TAGS),
   ])
   const ctx: SeoCtx = {
     agent: profile || {},
@@ -610,11 +610,15 @@ async function pageStructuredData(resolved: ResolveResponse, host: string, path:
   return out
 }
 
-async function fetchJson(url: string) {
-  const res = await fetch(url, { next: { revalidate: 30 } })
+// tags: town pages are tagged so an admin edit (Neighborhoods tab) can expire them at once -
+// app/api/website-areas/revalidate.
+async function fetchJson(url: string, tags?: string[]) {
+  const res = await fetch(url, { next: { revalidate: 30, ...(tags ? { tags } : {}) } })
   if (!res.ok) return null
   return res.json()
 }
+
+const TOWN_TAGS = ['town-pages']
 
 async function fetchFreshJson(url: string) {
   const res = await fetch(url, { cache: 'no-store' })
@@ -1013,7 +1017,7 @@ function AreaCard({ area, theme, basePrefix, featured = false }: { area: any; th
 }
 
 async function CommunitiesIndex({ siteId, theme, basePrefix }: { siteId: string; theme: any; basePrefix: string }) {
-  const areas = (await fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas`)) || []
+  const areas = (await fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas`, TOWN_TAGS)) || []
   if (!areas.length) {
     return <main className="mx-auto max-w-3xl px-6 pb-24 pt-40 text-center text-gray-400">No neighborhoods listed yet.</main>
   }
@@ -1050,7 +1054,7 @@ async function PropertyDetailView({ p, theme, basePrefix, siteId }: { p: any; th
     forms: (slug ? (await fetchJson(`${INTERNAL_API_URL}/agent-hub/forms/public/${encodeURIComponent(slug)}`)) || [] : []) as any[],
   })) : Promise.resolve({ slug: null as string | null, forms: [] as any[] })
   const [areasRaw, agentProfile, { slug: hubSlug, forms }] = await Promise.all([
-    siteId ? fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas`) : Promise.resolve(null),
+    siteId ? fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas`, TOWN_TAGS) : Promise.resolve(null),
     siteId ? fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/profile`) : Promise.resolve(null),
     hubAndForms,
   ])
@@ -1206,7 +1210,7 @@ async function MyShowcaseRoute({ siteId, basePrefix, theme, create, town }: { si
   const visitor = await siteVisitorCookie()
   const [summary, areas, profile] = await Promise.all([
     visitor?.showcase ? fetchFreshJson(`${INTERNAL_API_URL}/public/sites/${siteId}/my-showcase/${encodeURIComponent(visitor.showcase)}`) : Promise.resolve(null),
-    fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas`),
+    fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas`, TOWN_TAGS),
     fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/profile`),
   ])
   const accent = theme.secondary_color || '#C9A24D'
@@ -1671,7 +1675,7 @@ function CompareSection({ title, subtitle, left, right, children }: { title: str
 async function NeighborhoodComparePage({ siteId, theme, basePrefix, compareParams }: { siteId: string; theme: any; basePrefix: string; compareParams: NeighborhoodCompareParams }) {
   const areasParam = (compareParams.areas || '').trim()
   if (!areasParam) {
-    const selectable = (await fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas`)) || []
+    const selectable = (await fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas`, TOWN_TAGS)) || []
     return (
       <main>
       {theme.template === 'default' ? (
@@ -1693,7 +1697,7 @@ async function NeighborhoodComparePage({ siteId, theme, basePrefix, compareParam
 
   const [compare, selectable] = await Promise.all([
     fetchFreshJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas/compare?${new URLSearchParams({ slugs: areasParam }).toString()}`),
-    fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas`),
+    fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas`, TOWN_TAGS),
   ])
   if (!compare?.areas || compare.areas.length !== 2) notFound()
   const [left, right] = compare.areas
@@ -2017,7 +2021,7 @@ function TownGlanceRow({ label, value }: { label: string; value: string }) {
 }
 
 async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: { siteId: string; slug: string; theme: any; basePrefix: string; homesParams: CommunityHomesParams }) {
-  const area = await fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas/${encodeURIComponent(slug)}`)
+  const area = await fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas/${encodeURIComponent(slug)}`, TOWN_TAGS)
   if (!area) notFound()
 
   const homesLimit = Math.min(Math.max(parseInt(homesParams.homes || '9', 10) || 9, 9), 48)
@@ -2029,7 +2033,7 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
   const [listingsRes, profile, areaList] = await Promise.all([
     fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas/${encodeURIComponent(slug)}/listings?${listingsQs.toString()}`),
     fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/profile`),
-    fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas`),
+    fetchJson(`${INTERNAL_API_URL}/public/sites/${siteId}/areas`, TOWN_TAGS),
   ])
   const inventory = listingsRes?.listings || []
   const inventoryTotal: number = listingsRes?.total || 0
@@ -2761,7 +2765,7 @@ export default async function PublicSitePage({
     // "What's my home worth?" landing page - for ads, mailers and the agent's email signature.
     const [hvProfile, hvAreas, hvReviews] = await Promise.all([
       fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/profile`),
-      fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/areas`),
+      fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/areas`, TOWN_TAGS),
       fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/reviews`),
     ])
     content = <HomeValuePage theme={theme} basePrefix={basePrefix} profile={hvProfile} areas={hvAreas || []} reviews={hvReviews} />
@@ -2827,7 +2831,7 @@ export default async function PublicSitePage({
   }
 
   const [footerAreas, footerProfile, footerReviews] = await Promise.all([
-    fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/areas`),
+    fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/areas`, TOWN_TAGS),
     fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/profile`),
     fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/reviews`),
   ])

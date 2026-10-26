@@ -1,8 +1,8 @@
 'use client'
 
-import AuthLuxeStyle, { AuthKicker, GoldPal } from '@/components/auth/AuthLuxeStyle'
+import AuthLuxeStyle, { AuthKicker, AuthPhoneHeader, GoldPal } from '@/components/auth/AuthLuxeStyle'
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AUTH_FEATURE_SLIDES } from '@/lib/authFeatureSlides'
 import PageBackgroundGrid from '@/components/PageBackgroundGrid'
 import { QrBadge } from '@/components/home/LineArtMotifs'
@@ -32,6 +32,39 @@ const US_STATES = [
   { code: 'VT', name: 'Vermont' }, { code: 'VA', name: 'Virginia' }, { code: 'WA', name: 'Washington' },
   { code: 'WV', name: 'West Virginia' }, { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' }
 ]
+
+// ---- Phone sign-up flow (under md) ------------------------------------------------------------
+// Phones get the same form as a short step-by-step flow: 1 which MLS, 2 name + email, 3 MLS ID or
+// license + state + brokerage, 4 password + terms -> Create Account, 5 the 6-digit email code.
+// Same form state and the same handleSubmit as the desktop page; desktop is untouched.
+const PHONE_STEP_COUNT = 5
+const PHONE_FIELD_LABELS: Record<string, string> = {
+  firstName: 'First name', lastName: 'Last name', email: 'Email', mlsId: 'MLS ID',
+  licenseNumber: 'License number', state: 'State', brokerage: 'Brokerage', password: 'Password',
+  confirmPassword: 'Confirm password', agreeToTerms: 'Terms checkbox',
+}
+function phoneStepFields(step: number, bright: boolean): string[] {
+  if (step === 2) return ['firstName', 'lastName', 'email']
+  if (step === 3) return [bright ? 'mlsId' : 'licenseNumber', 'state', 'brokerage']
+  if (step === 4) return ['password', 'confirmPassword', 'agreeToTerms']
+  return []
+}
+// The earliest step holding one of these field errors (0 = none of them are on a step).
+function phoneStepForErrors(errs: { [key: string]: string }): number {
+  for (const step of [2, 3, 4]) {
+    if ([...phoneStepFields(step, true), ...phoneStepFields(step, false)].some(f => errs[f])) return step
+  }
+  return 0
+}
+const phoneLabelCls = 'mb-1.5 ml-1 block text-[11px] font-bold uppercase tracking-wider text-[#6B7280] dark:text-gray-400'
+const phoneInputCls = (err?: string) =>
+  `block w-full rounded-xl border px-4 py-3 text-base font-medium text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 transition-colors focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] focus:bg-white dark:focus:bg-[#111827] ${
+    err ? 'border-red-300 dark:border-red-500/60 bg-red-50/40 dark:bg-red-500/5' : 'border-gray-200 dark:border-gray-700 bg-[#FAFAF7] dark:bg-[#0B0B0B]'
+  }`
+function PhoneFieldError({ msg }: { msg?: string }) {
+  if (!msg) return null
+  return <p className="mt-1.5 pl-1 text-xs font-semibold text-red-500 dark:text-red-400">{msg}</p>
+}
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -102,6 +135,18 @@ export default function RegisterPage() {
     setFieldErrors(prev => ({ ...prev, mlsId: '', licenseNumber: '', brokerage: '' }))
   }
 
+  // Phone flow state (see the PHONE_* helpers above). phoneFocusTick asks the flow to scroll to and
+  // focus the first field with an error; phoneNotice is a server error with no field to sit on.
+  const [phoneStep, setPhoneStep] = useState(1)
+  const [phoneFocusTick, setPhoneFocusTick] = useState(0)
+  const [phoneNotice, setPhoneNotice] = useState('')
+  const phoneMainRef = useRef<HTMLDivElement>(null)
+  const showPhoneErrors = (errs: { [key: string]: string }) => {
+    const step = phoneStepForErrors(errs)
+    if (step) setPhoneStep(step)
+    setPhoneFocusTick(t => t + 1)
+  }
+
   // Clear notifications after 5 seconds
   const showNotification = (type: 'success' | 'error' | 'info', message: string) => {
     setNotification({ type, message })
@@ -147,16 +192,18 @@ export default function RegisterPage() {
     return newErrors
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
     setErrors({})
     setFieldErrors({})
     setNotification({ type: null, message: '' })
+    setPhoneNotice('')
 
     // Validate form
     const validationErrors = validateForm()
     if (Object.keys(validationErrors).length > 0) {
       setFieldErrors(validationErrors)
+      showPhoneErrors(validationErrors)
       showNotification('error', 'Please correct the errors below')
       return
     }
@@ -194,8 +241,10 @@ export default function RegisterPage() {
 
       if (Object.keys(newFieldErrors).length > 0) {
         setFieldErrors(newFieldErrors)
+        showPhoneErrors(newFieldErrors)
         showNotification('error', 'Please correct the errors in the form')
       } else {
+        setPhoneNotice(errorMessage)
         showNotification('error', errorMessage)
       }
       setIsLoading(false)
@@ -224,10 +273,323 @@ export default function RegisterPage() {
         [name]: ''
       })
     }
+    if (phoneNotice) setPhoneNotice('')
   }
 
+  // ---- Phone flow behaviour ----
+  const phoneDisplayStep = registrationStep === 'verify' ? PHONE_STEP_COUNT : phoneStep
+  const phoneStepLabel = ['Your MLS', 'About you', isBright ? 'Your MLS ID' : 'Your license', 'Password', 'Verify email'][phoneDisplayStep - 1]
+
+  // Continue on steps 1-3: check just this step's fields; errors show on the field and by the button.
+  const phoneContinue = (e?: React.FormEvent) => {
+    e?.preventDefault()
+    setPhoneNotice('')
+    const all = validateForm()
+    const errs: { [key: string]: string } = {}
+    for (const f of phoneStepFields(phoneStep, isBright)) if (all[f]) errs[f] = all[f]
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(prev => ({ ...prev, ...errs }))
+      setPhoneFocusTick(t => t + 1)
+      return
+    }
+    setPhoneStep(s => Math.min(4, s + 1))
+  }
+  const phoneBack = () => {
+    setPhoneNotice('')
+    setPhoneStep(s => Math.max(1, s - 1))
+  }
+
+  // New step: start at its top.
+  useEffect(() => {
+    phoneMainRef.current?.scrollTo({ top: 0 })
+  }, [phoneDisplayStep])
+
+  // Scroll to + focus the first field with an error on the current phone step (phones only).
+  useEffect(() => {
+    if (!phoneFocusTick || window.matchMedia('(min-width: 768px)').matches) return
+    const raf = requestAnimationFrame(() => {
+      const f = phoneStepFields(phoneStep, isBright).find(k => fieldErrors[k])
+      if (!f) return
+      const wrap = document.getElementById(`m-field-${f}`)
+      const input = (document.getElementById(`m-${f}`) || wrap?.querySelector('input, select')) as HTMLElement | null
+      wrap?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      input?.focus({ preventScroll: true })
+    })
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phoneFocusTick])
+
+  // What sits right above the Back / Continue buttons: this step's field errors, else a server error.
+  const phoneStepErrs = registrationStep === 'verify' ? [] : phoneStepFields(phoneStep, isBright).filter(f => fieldErrors[f])
+  const phoneFooterError = phoneStepErrs.length === 1
+    ? fieldErrors[phoneStepErrs[0]]
+    : phoneStepErrs.length > 1
+      ? `Fix ${phoneStepErrs.length} fields to continue: ${phoneStepErrs.map(f => PHONE_FIELD_LABELS[f]).join(', ')}.`
+      : phoneNotice
+
+  const verifyScreen = (
+    <EmailVerificationInput
+      email={formData.email}
+      onVerified={async () => {
+        // Backend now creates user and returns token during verify-code
+        // Refresh local auth state to reflect the new account
+        await refreshUser()
+        // Outside Bright there's no data feed to approve - straight to picking a plan.
+        router.push(isBright ? '/broker-authorization' : '/checkout')
+      }}
+      onBack={() => {
+        setRegistrationStep('form')
+        setNotification({ type: null, message: '' })
+        // Phone flow: "Wrong email? Go back" lands on the email step.
+        setPhoneStep(2)
+      }}
+    />
+  )
+
   return (
-    <div className="h-screen flex flex-col lg:flex-row overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B]">
+    <>
+    {/* ---- Phones (under md): step-by-step sign-up ---- */}
+    <div className="md:hidden flex h-screen supports-[height:100dvh]:h-[100dvh] flex-col bg-[#FAFAF7] dark:bg-[#0B0B0B]">
+      <AuthLuxeStyle />
+      <AuthPhoneHeader linkHref="/login" linkLabel="Sign in" prompt="Have an account?" />
+
+      {/* Progress */}
+      <div className="shrink-0 px-5 pt-3 pb-2">
+        <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest">
+          <span className="text-[#8b7355] dark:text-[#e8c97a]">Step {phoneDisplayStep} of {PHONE_STEP_COUNT}</span>
+          <span className="text-[#6B7280] dark:text-gray-400">{phoneStepLabel}</span>
+        </div>
+        <div className="mt-2 grid grid-cols-5 gap-1.5" role="progressbar" aria-label="Sign-up progress" aria-valuemin={1} aria-valuemax={PHONE_STEP_COUNT} aria-valuenow={phoneDisplayStep}>
+          {Array.from({ length: PHONE_STEP_COUNT }, (_, i) => (
+            <span key={i} className={`h-1.5 rounded-full transition-colors duration-300 ${i < phoneDisplayStep ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-gray-800'}`} />
+          ))}
+        </div>
+      </div>
+
+      {/* The step itself - scrolls on its own so the buttons below never move or get cut off */}
+      <div ref={phoneMainRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-3 pb-8">
+        {registrationStep === 'verify' ? (
+          <div className="pt-2">{verifyScreen}</div>
+        ) : (
+          <form id="m-signup" method="post" noValidate onSubmit={(e) => (phoneStep === 4 ? handleSubmit(e) : phoneContinue(e))}>
+            {/* 1 - Which MLS */}
+            <section className={phoneStep === 1 ? '' : 'hidden'} aria-hidden={phoneStep !== 1}>
+              <div className="mb-5 text-center">
+                <AuthKicker>Start free</AuthKicker>
+                <h2 className="mb-1 font-serif text-[34px] leading-tight font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Create <em className="ohp-home-em">Account.</em></h2>
+                <p className="text-sm font-medium text-[#6B7280] dark:text-gray-400">Start your {TRIAL_PERIOD_DAYS}-day free trial today.</p>
+              </div>
+              <p className={phoneLabelCls}>Which MLS are you in?</p>
+              <div role="radiogroup" aria-label="Which MLS are you in?" className="space-y-3">
+                {([
+                  ['bright', 'Bright MLS agent', 'Sign up with your Bright MLS ID.'],
+                  ['other', 'Not in Bright MLS', "No MLS data needed - you'll get the No-MLS plans and can start right away."],
+                ] as const).map(([id, label, sub]) => {
+                  const on = audience === id
+                  return (
+                    <button key={id} type="button" role="radio" aria-checked={on} onClick={() => switchAudience(id)}
+                      className={`flex w-full items-start gap-3 rounded-2xl border-2 p-4 text-left transition-colors ${on
+                        ? 'border-[#C9A24D] bg-white dark:bg-[#151517] shadow-[0_18px_40px_-28px_rgba(139,115,85,.8)]'
+                        : 'border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-[#111113]'}`}>
+                      <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${on ? 'border-[#C9A24D]' : 'border-gray-300 dark:border-gray-600'}`}>
+                        {on && <span className="h-2.5 w-2.5 rounded-full bg-[#C9A24D]" />}
+                      </span>
+                      <span>
+                        <span className="block text-base font-bold text-[#111827] dark:text-white">{label}</span>
+                        <span className="mt-0.5 block text-[13px] leading-snug font-medium text-[#6B7280] dark:text-gray-400">{sub}</span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+
+            {/* 2 - Name + email */}
+            <section className={phoneStep === 2 ? '' : 'hidden'} aria-hidden={phoneStep !== 2}>
+              <div className="mb-5">
+                <h2 className="font-serif text-[30px] leading-tight font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">About <em className="ohp-home-em">you.</em></h2>
+                <p className="mt-1 text-sm font-medium text-[#6B7280] dark:text-gray-400">Your name and the email you&apos;ll sign in with.</p>
+              </div>
+              <div className="space-y-4">
+                <div id="m-field-firstName">
+                  <label htmlFor="m-firstName" className={phoneLabelCls}>First name</label>
+                  <input id="m-firstName" name="firstName" type="text" autoComplete="given-name" enterKeyHint="next"
+                    value={formData.firstName} onChange={handleChange} className={phoneInputCls(fieldErrors.firstName)} placeholder="John" />
+                  <PhoneFieldError msg={fieldErrors.firstName} />
+                </div>
+                <div id="m-field-lastName">
+                  <label htmlFor="m-lastName" className={phoneLabelCls}>Last name</label>
+                  <input id="m-lastName" name="lastName" type="text" autoComplete="family-name" enterKeyHint="next"
+                    value={formData.lastName} onChange={handleChange} className={phoneInputCls(fieldErrors.lastName)} placeholder="Smith" />
+                  <PhoneFieldError msg={fieldErrors.lastName} />
+                </div>
+                <div id="m-field-email">
+                  <label htmlFor="m-email" className={phoneLabelCls}>Email address</label>
+                  <input id="m-email" name="email" type="email" inputMode="email" autoComplete="email" autoCapitalize="off" enterKeyHint="next"
+                    value={formData.email} onChange={handleChange} className={phoneInputCls(fieldErrors.email)} placeholder="john.smith@example.com" />
+                  <PhoneFieldError msg={fieldErrors.email} />
+                </div>
+              </div>
+            </section>
+
+            {/* 3 - MLS ID or license, state, brokerage */}
+            <section className={phoneStep === 3 ? '' : 'hidden'} aria-hidden={phoneStep !== 3}>
+              <div className="mb-5">
+                <h2 className="font-serif text-[30px] leading-tight font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">
+                  Your <em className="ohp-home-em">{isBright ? 'MLS.' : 'license.'}</em>
+                </h2>
+                <p className="mt-1 text-sm font-medium text-[#6B7280] dark:text-gray-400">
+                  {isBright ? 'Your Bright MLS ID, state and brokerage.' : 'Your license number, state and brokerage.'}
+                </p>
+              </div>
+              <div className="space-y-4">
+                {isBright ? (
+                  <div id="m-field-mlsId">
+                    <label htmlFor="m-mlsId" className={phoneLabelCls}>MLS ID</label>
+                    <input id="m-mlsId" name="mlsId" type="text" inputMode="numeric" autoComplete="off" enterKeyHint="next"
+                      value={formData.mlsId}
+                      onChange={(e) => { if (/^\d*$/.test(e.target.value)) handleChange(e) }}
+                      className={phoneInputCls(fieldErrors.mlsId)} placeholder="1234567" />
+                    <PhoneFieldError msg={fieldErrors.mlsId} />
+                    {signupCode && <p className="mt-1.5 pl-1 text-xs font-semibold text-[#8b7355] dark:text-[#d7b974]">Test account code {signupCode} applied</p>}
+                  </div>
+                ) : (
+                  <div id="m-field-licenseNumber">
+                    <label htmlFor="m-licenseNumber" className={phoneLabelCls}>License number</label>
+                    <input id="m-licenseNumber" name="licenseNumber" type="text" maxLength={40} autoComplete="off" autoCapitalize="characters" enterKeyHint="next"
+                      value={formData.licenseNumber} onChange={handleChange} className={phoneInputCls(fieldErrors.licenseNumber)} placeholder="e.g. RS123456" />
+                    <PhoneFieldError msg={fieldErrors.licenseNumber} />
+                  </div>
+                )}
+                <div id="m-field-state">
+                  <label htmlFor="m-state" className={phoneLabelCls}>State</label>
+                  <div className="relative">
+                    <select id="m-state" name="state" value={formData.state} onChange={(e: any) => handleChange(e)}
+                      className={`${phoneInputCls(fieldErrors.state)} appearance-none pr-10`}>
+                      <option value="" disabled>Select state</option>
+                      {US_STATES.map((s) => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}
+                    </select>
+                    <svg className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                  <PhoneFieldError msg={fieldErrors.state} />
+                </div>
+                {/* Bright: on focus, lift the field to the top so the pick-list below has room
+                    (the extra bottom padding lets it scroll that far). */}
+                <div id="m-field-brokerage" className={isBright ? 'scroll-mt-2 pb-56' : ''}
+                  onFocusCapture={isBright ? (e) => {
+                    const el = e.currentTarget
+                    setTimeout(() => el.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60)
+                  } : undefined}>
+                  <label htmlFor={isBright ? undefined : 'm-brokerage'} className={phoneLabelCls}>Brokerage</label>
+                  {isBright ? (
+                    <BrokerageAutocomplete
+                      value={formData.brokerage}
+                      onChange={(val) => {
+                        setFormData(prev => ({ ...prev, brokerage: val }))
+                        if (fieldErrors.brokerage) setFieldErrors(prev => ({ ...prev, brokerage: '' }))
+                      }}
+                      onValidationChange={setIsBrokerageValid}
+                      error={!!fieldErrors.brokerage}
+                      placeholder="Start typing, e.g. Re/Max..."
+                    />
+                  ) : (
+                    <input id="m-brokerage" name="brokerage" type="text" maxLength={120} autoComplete="organization" enterKeyHint="next"
+                      value={formData.brokerage} onChange={handleChange} className={phoneInputCls(fieldErrors.brokerage)} placeholder="Your brokerage" />
+                  )}
+                  <PhoneFieldError msg={fieldErrors.brokerage} />
+                  {isBright && !fieldErrors.brokerage && (
+                    <p className="mt-1.5 pl-1 text-xs font-medium text-[#6B7280] dark:text-gray-400">Pick your brokerage from the list as you type.</p>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* 4 - Password + terms */}
+            <section className={phoneStep === 4 ? '' : 'hidden'} aria-hidden={phoneStep !== 4}>
+              <div className="mb-5">
+                <h2 className="font-serif text-[30px] leading-tight font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Set a <em className="ohp-home-em">password.</em></h2>
+                <p className="mt-1 text-sm font-medium text-[#6B7280] dark:text-gray-400">At least 8 characters. Then we&apos;ll email you a code.</p>
+              </div>
+              <div className="space-y-4">
+                <div id="m-field-password">
+                  <label htmlFor="m-password" className={phoneLabelCls}>Password</label>
+                  <div className="relative">
+                    <input id="m-password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" enterKeyHint="next"
+                      value={formData.password} onChange={handleChange} className={`${phoneInputCls(fieldErrors.password)} pr-12`} placeholder="Strong password" />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-gray-400 hover:text-[#111827] dark:hover:text-white">
+                      {showPassword ? (
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                      ) : (
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                      )}
+                    </button>
+                  </div>
+                  <PhoneFieldError msg={fieldErrors.password} />
+                </div>
+                <div id="m-field-confirmPassword">
+                  <label htmlFor="m-confirmPassword" className={phoneLabelCls}>Confirm password</label>
+                  <input id="m-confirmPassword" name="confirmPassword" type={showPassword ? 'text' : 'password'} autoComplete="new-password" enterKeyHint="done"
+                    value={formData.confirmPassword} onChange={handleChange} className={phoneInputCls(fieldErrors.confirmPassword)} placeholder="Confirm password" />
+                  <PhoneFieldError msg={fieldErrors.confirmPassword} />
+                </div>
+                <div id="m-field-agreeToTerms">
+                  <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${fieldErrors.agreeToTerms ? 'border-red-300 dark:border-red-500/60 bg-red-50/40 dark:bg-red-500/5' : 'border-transparent'}`}>
+                    <span className="relative mt-0.5 shrink-0">
+                      <input id="m-agreeToTerms" type="checkbox" name="agreeToTerms" checked={formData.agreeToTerms} onChange={handleChange} className="peer sr-only" />
+                      <span className={`block h-6 w-6 rounded-md border-2 transition-colors peer-checked:border-[#111827] peer-checked:bg-[#111827] dark:peer-checked:border-[#C9A24D] dark:peer-checked:bg-[#C9A24D] peer-focus-visible:ring-4 peer-focus-visible:ring-[#C9A24D]/30 ${fieldErrors.agreeToTerms ? 'border-red-400' : 'border-gray-300 dark:border-gray-600'}`} />
+                      <svg className="pointer-events-none absolute left-1 top-1 h-4 w-4 text-white opacity-0 transition-opacity peer-checked:opacity-100 dark:text-[#111827]" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </span>
+                    <span className="text-sm font-medium leading-relaxed text-[#6B7280] dark:text-gray-400">
+                      I agree to the{' '}
+                      <Link href="/terms" target="_blank" rel="noopener noreferrer" className="font-bold text-[#C9A24D] underline-offset-4 hover:underline">Terms</Link>{' '}and{' '}
+                      <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="font-bold text-[#C9A24D] underline-offset-4 hover:underline">Privacy Policy</Link>
+                    </span>
+                  </label>
+                  <PhoneFieldError msg={fieldErrors.agreeToTerms} />
+                </div>
+              </div>
+            </section>
+          </form>
+        )}
+      </div>
+
+      {/* Back / Continue - always on screen, above the iPhone home bar */}
+      {registrationStep !== 'verify' && (
+        <div className="shrink-0 border-t border-gray-200/80 dark:border-gray-800 bg-white dark:bg-[#111113] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-10px_30px_-18px_rgba(0,0,0,0.25)]">
+          {phoneFooterError && (
+            <div role="alert" aria-live="assertive" data-testid="phone-footer-error" className="mb-2.5 flex items-start gap-2 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-[13px] font-semibold leading-snug text-red-600 dark:text-red-300">
+              <svg className="mt-0.5 h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+              <span>{phoneFooterError}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-3">
+            {phoneStep > 1 && (
+              <button type="button" onClick={phoneBack} disabled={isLoading}
+                className="h-12 shrink-0 rounded-xl border border-gray-300 dark:border-gray-700 px-5 text-sm font-bold text-[#111827] dark:text-white transition-colors active:bg-gray-100 dark:active:bg-gray-800 disabled:opacity-60">
+                Back
+              </button>
+            )}
+            <button type="submit" form="m-signup" disabled={isLoading}
+              className="ohp-auth-btn flex h-12 flex-1 items-center justify-center rounded-xl bg-[#111827] px-4 text-sm font-black uppercase tracking-widest text-white shadow-xl transition-colors active:bg-[#C9A24D] dark:bg-white dark:text-[#111827] disabled:opacity-70">
+              {phoneStep < 4 ? 'Continue' : isLoading ? (
+                <span className="flex items-center">
+                  <svg className="-ml-1 mr-2.5 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  Creating account...
+                </span>
+              ) : 'Create account'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+
+    {/* ---- Tablet / desktop (md and up): the single-page layout, unchanged ---- */}
+    <div className="hidden md:flex h-screen flex-col lg:flex-row overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B]">
       {/* Left Section - Form (55%) */}
       <div className="w-full lg:w-[55%] h-full relative z-0 flex flex-col overflow-hidden transition-colors duration-300">
         <PageBackgroundGrid />
@@ -288,20 +650,7 @@ export default function RegisterPage() {
 
       {registrationStep === 'verify' ? (
         // Step 2: Email Verification
-        <EmailVerificationInput
-          email={formData.email}
-          onVerified={async () => {
-            // Backend now creates user and returns token during verify-code
-            // Refresh local auth state to reflect the new account
-            await refreshUser()
-            // Outside Bright there's no data feed to approve - straight to picking a plan.
-            router.push(isBright ? '/broker-authorization' : '/checkout')
-          }}
-          onBack={() => {
-            setRegistrationStep('form')
-            setNotification({ type: null, message: '' })
-          }}
-        />
+        verifyScreen
       ) : (
         // Step 1: Registration Form
         <div className="max-w-[640px] w-full">
@@ -775,5 +1124,6 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }

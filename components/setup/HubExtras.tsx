@@ -54,9 +54,7 @@ export function HubContentPicker({ ctx, onSaved }: { ctx: StepCtx; onSaved: () =
 
   const save = (patch: Record<string, unknown> | ((c: Record<string, any>) => Record<string, unknown>)) => {
     setCfg(c => (c ? { ...c, ...(typeof patch === 'function' ? patch(c) : patch) } : c))
-    const p = serial(() => patchHubConfig(patch)).then(r => { onSaved(); return r })
-    ctx.markSaving(p)
-    return p
+    return ctx.markSaving(() => serial(() => patchHubConfig(patch)).then(r => { onSaved(); return r }), typeof patch === 'function' ? undefined : `hub-${Object.keys(patch).sort().join('-')}`)
   }
 
   const channel = cfg ? channelFrom(cfg) : ''
@@ -238,8 +236,7 @@ export function HubFormButtons({ ctx, onSaved }: { ctx: StepCtx; onSaved: () => 
   const toggle = (type: string) => {
     const next = picked.includes(type) ? picked.filter(t => t !== type) : HUB_BUTTONS.map(b => b.type).filter(t => t === type || picked.includes(t))
     setPicked(next)
-    const p = serial(() => patchHubConfig({ hubFormButtons: next })).then(r => { onSaved(); return r })
-    ctx.markSaving(p)
+    ctx.markSaving(() => serial(() => patchHubConfig({ hubFormButtons: next })).then(r => { onSaved(); return r }), 'hub-form-buttons')
   }
   const formOf = (type: string) => forms.find(f => f.form_type === type)
   const title = (type: string, fallback: string) => formOf(type)?.title || fallback

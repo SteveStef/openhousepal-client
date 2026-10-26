@@ -79,6 +79,15 @@ export default function AgentControlPanel({ users, setUsers, groups, onToast, on
   const cur = Math.min(page, pages)
   const resetPage = () => setPage(1)
 
+  // Approve / take away access - always asked first (owner, 10/26: one tap on a phone took access away).
+  const [authChange, setAuthChange] = useState<User | null>(null)
+  const confirmAuth = async () => {
+    if (!authChange) return
+    setBusy(true)
+    await toggleAuth(authChange)
+    setBusy(false)
+    setAuthChange(null)
+  }
   const toggleAuth = async (u: User) => {
     const r = await api.admin.toggleAuthorization(u.id, !!u.broker_authorized)
     if (r.success) {
@@ -153,14 +162,14 @@ export default function AgentControlPanel({ users, setUsers, groups, onToast, on
           [sort, (v: string) => setSort(v as Sort), [['newest', 'Newest first'], ['seen', 'Last in the app'], ['name', 'Name A-Z']]],
         ] as [string, (v: string) => void, string[][]][]).map(([value, set, opts], i) => (
           <label key={i} className="relative min-w-[calc(50%-0.25rem)] flex-1 sm:min-w-0 sm:flex-none">
-            <select value={value} onChange={e => { set(e.target.value); resetPage() }} className={`w-full ${selectCls}`}>
+            <select value={value} onChange={e => { set(e.target.value); resetPage() }} className={`w-full ${selectCls} max-sm:min-h-[44px]`}>
               {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
             <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
           </label>
         ))}
-        <button onClick={onRefresh} title="Reload agents" className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-3 text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700">
-          <RefreshCw className="h-4 w-4" />
+        <button onClick={onRefresh} title="Reload agents" className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-3 text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 max-sm:min-h-[44px] max-sm:w-full max-sm:gap-1.5 max-sm:text-xs max-sm:font-black">
+          <RefreshCw className="h-4 w-4" /><span className="sm:hidden">Reload agents</span>
         </button>
       </div>
 
@@ -205,18 +214,18 @@ export default function AgentControlPanel({ users, setUsers, groups, onToast, on
                 </p>
                 <p className="mt-0.5">Last in the app: <b className="text-[#111827] dark:text-gray-200">{u.last_seen_at ? timeAgo(u.last_seen_at) : 'not since tracking began'}</b></p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${b.cls}`} title="How they pay">{b.label}</span>
-                <label className="relative">
+              <div className="flex flex-wrap items-center gap-2 lg:justify-end max-sm:grid max-sm:grid-cols-2">
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${b.cls} max-sm:col-span-2 max-sm:justify-self-start`} title="How they pay">{b.label}</span>
+                <label className="relative max-sm:block max-sm:min-w-0">
                   <select value={tier} onChange={e => e.target.value !== tier && setPlanChange({ u, tier: e.target.value })} aria-label="Plan"
-                    className={`appearance-none rounded-xl py-2 pl-3 pr-7 text-[11px] font-black outline-none ${PLAN_CHIP[tier]}`}>
+                    className={`appearance-none rounded-xl py-2 pl-3 pr-7 text-[11px] font-black outline-none ${PLAN_CHIP[tier]} max-sm:min-h-[44px] max-sm:w-full`}>
                     {PLAN_TIERS.map(t => <option key={t} value={t} className="bg-white text-[#111827]">{PLAN_LABEL[t]}</option>)}
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 opacity-70" />
                 </label>
-                <label className="relative">
+                <label className="relative max-sm:block max-sm:min-w-0">
                   <select value={u.billing_group_id || ''} onChange={e => setGroupChange({ u, groupId: e.target.value })} aria-label="Brokerage group"
-                    className={selectCls + ' py-2 text-[11px]'}>
+                    className={selectCls + ' py-2 text-[11px] max-sm:min-h-[44px] max-sm:w-full'}>
                     <option value="">No group</option>
                     {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
@@ -224,16 +233,16 @@ export default function AgentControlPanel({ users, setUsers, groups, onToast, on
                 </label>
                 {(u.test_copy_of_user_id || !u.mls_id) && (
                   <button onClick={() => setTestCopy({ u, sourceId: u.test_copy_of_user_id || '' })} title="Make this a test account that shares a real agent's MLS ID and data"
-                    className="inline-flex items-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-black text-gray-600 hover:border-violet-300 hover:text-violet-700 dark:border-gray-700 dark:text-gray-300">
+                    className="inline-flex items-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-black text-gray-600 hover:border-violet-300 hover:text-violet-700 dark:border-gray-700 dark:text-gray-300 max-sm:min-h-[44px] max-sm:justify-center">
                     <FlaskConical className="h-3.5 w-3.5" /> Test copy
                   </button>
                 )}
                 <button onClick={() => setActivityFor(u.id)} title="What they've been doing"
-                  className="inline-flex items-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-black text-gray-600 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-300">
+                  className="inline-flex items-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-black text-gray-600 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-300 max-sm:min-h-[44px] max-sm:justify-center">
                   <Activity className="h-3.5 w-3.5" /> Activity
                 </button>
-                <button onClick={() => toggleAuth(u)}
-                  className={`group/a inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-black transition ${u.broker_authorized
+                <button onClick={() => setAuthChange(u)}
+                  className={`group/a inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-black transition max-sm:min-h-[44px] max-sm:justify-center ${(u.test_copy_of_user_id || !u.mls_id) ? 'max-sm:col-span-2' : ''} ${u.broker_authorized
                     ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300'
                     : 'bg-[#111827] text-white hover:bg-[#C9A24D] dark:bg-white dark:text-[#111827]'}`}>
                   {u.broker_authorized ? (
@@ -248,6 +257,17 @@ export default function AgentControlPanel({ users, setUsers, groups, onToast, on
       </div>
       <Pager page={cur} pages={pages} onChange={n => setPage(Math.min(Math.max(1, n), pages))} />
 
+      <ConfirmationModal
+        isOpen={!!authChange}
+        onClose={() => setAuthChange(null)}
+        onConfirm={confirmAuth}
+        title={authChange?.broker_authorized ? `Take away ${name(authChange)}'s access?` : `Approve ${authChange ? name(authChange) : ''}?`}
+        message={authChange?.broker_authorized
+          ? 'They lose access to OpenHousePal right away and go back to "waiting for approval". Their account, data and plan stay - you can approve them again any time.'
+          : "They get an email saying they're approved and can pick their plan."}
+        confirmText={authChange?.broker_authorized ? 'Yes, take away access' : 'Yes, approve'}
+        isLoading={busy}
+      />
       <ConfirmationModal
         isOpen={!!planChange}
         onClose={() => setPlanChange(null)}

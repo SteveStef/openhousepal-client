@@ -44,12 +44,12 @@ export function AlertsStep({ ctx }: { ctx: StepCtx }) {
   const setEmail = (cat: string, on: boolean) => {
     setEs({ ...es, receive: es.receive.map(t => ({ ...t, categories: t.categories.map(c => (c.id === cat ? { ...c, email: on } : c)) })) })
     if (cat === 'leads') setPrefs({ ...prefs, preferences: { ...prefs.preferences, leads: { ...prefs.preferences.leads, email: on } } })
-    ctx.markSaving(api.emailSettings.update({ receive: { [cat]: on } }))
+    ctx.markSaving(() => api.emailSettings.update({ receive: { [cat]: on } }), `email-receive-${cat}`)
   }
   const setPush = (v: boolean) => {
     const next = { ...prefs, preferences: { ...prefs.preferences, leads: { ...prefs.preferences.leads, push: v } } }
     setPrefs(next)
-    ctx.markSaving(api.notifications.updatePreferences(next.preferences))
+    ctx.markSaving(() => api.notifications.updatePreferences(next.preferences), 'notification-prefs')
   }
   const followOn = enabled !== false
   return (
@@ -319,7 +319,7 @@ export function HomesStep({ ctx }: { ctx: StepCtx }) {
   const hero = home?.blocks?.find(b => b.type === 'hero') || null
   const save = (patch: { pages?: SitePage[]; featured_settings?: FeaturedSettings }) => {
     setSite(s => (s ? { ...s, draft_data: { ...s.draft_data, ...patch } } : s))
-    ctx.markSaving(api.sites.updateDraft(patch).then(r => { if (r.success && r.data) setSite(r.data) }))
+    ctx.markSaving(() => api.sites.updateDraft(patch).then(r => { if (r.success && r.data) setSite(r.data); return r }), `site-draft-${Object.keys(patch).sort().join('-')}`)
   }
   const featured = { ...DEFAULT_FEATURED, ...((site.draft_data?.featured_settings || { mode: 'served_areas' }) as FeaturedSettings) }
   const hasFeaturedSection = pages.some(p => p.is_home && p.blocks.some(b => b.type === 'featured_listings' && !b.hidden))
@@ -435,7 +435,7 @@ export function WebsiteStep({ ctx }: { ctx: StepCtx }) {
   const toggleReviews = (v: boolean) => {
     setShowReviews(v)
     setNote(v ? (reviewCount ? 'Reviews added to your menu' : 'Reviews shows once you have one') : 'Reviews off')
-    ctx.markSaving(api.agentHub.updateReviewSettings({ show_on_idx: v }))
+    ctx.markSaving(() => api.agentHub.updateReviewSettings({ show_on_idx: v }), 'reviews-on-idx')
   }
   const live = site?.status === 'PUBLISHED' && site?.is_enabled !== false
   const setTheme = (patch: Partial<SiteTheme>) => {
@@ -446,7 +446,7 @@ export function WebsiteStep({ ctx }: { ctx: StepCtx }) {
       : patch.luxe_metal ? `${LUXE_METALS[patch.luxe_metal].label} finish`
       : patch.secondary_color ? `${accentLabel(patch.secondary_color) || 'New'} accent` : undefined)
     setSite({ ...site, draft_data: { ...site.draft_data, theme: next } })
-    ctx.markSaving(api.sites.updateDraft({ theme: next }).then(r => { if (r.success && r.data) setSite(r.data) }))
+    ctx.markSaving(() => api.sites.updateDraft({ theme: next }).then(r => { if (r.success && r.data) setSite(r.data); return r }), 'site-theme')
   }
   const publish = async () => {
     setBusy(true); setErr('')

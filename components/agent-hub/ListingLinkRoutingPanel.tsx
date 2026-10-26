@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ChevronDown, ExternalLink, MapPinned, Sparkles } from 'lucide-react'
 import api from '@/lib/api-service'
+import { useSaveTracker } from '@/components/ui/SaveStatus'
 import { getStreetOnly } from '@/lib/agentSales'
 import { SettingToggleRow } from './RecentSalesPanel'
 import { HubCollapse } from './HubPanelChrome'
@@ -33,6 +34,8 @@ export default function ListingLinkRoutingPanel() {
   const [loading, setLoading] = useState(false)
   const [rows, setRows] = useState<RoutingRow[]>([])
   const [pendingKey, setPendingKey] = useState<string | null>(null)
+  // On Settings the page's save status shows this save too (components/ui/SaveStatus).
+  const tracker = useSaveTracker()
 
   const load = async () => {
     setLoading(true)
@@ -50,7 +53,9 @@ export default function ListingLinkRoutingPanel() {
     if (!row.overrideKey) return
     const nextOverride = row.overridden ? 'auto' : 'property_page'
     setPendingKey(row.overrideKey)
-    const response = await api.agentHub.updateListingRoutingOverride(row.overrideKey, nextOverride)
+    const key = row.overrideKey
+    const job = () => api.agentHub.updateListingRoutingOverride(key, nextOverride)
+    const response = await (tracker ? tracker.track(job, { key: `listing-routing-${key}` }) : job())
     if (response.success) await load()
     setPendingKey(null)
   }

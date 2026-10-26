@@ -27,8 +27,10 @@ import AgentControlPanel from '@/components/admin/AgentControlPanel'
 import BrokerageGroupsPanel from '@/components/admin/BrokerageGroupsPanel'
 import AdminOverviewPanel from '@/components/admin/AdminOverviewPanel'
 import PromoCodesPanel from '@/components/admin/PromoCodesPanel'
+import NeighborhoodsPanel from '@/components/admin/NeighborhoodsPanel'
 import InsightsPanel from '@/components/admin/insights/InsightsPanel'
 import EmailHealthPanel from '@/components/admin/insights/EmailHealthPanel'
+import AdminMobileStyles from '@/components/admin/AdminMobileStyles'
 
 // One admin page: its section's header + tabs, and the open tab's panel. The sections are the
 // admin's own items in the top bar (lib/adminNav.ts); /admin/<section>/<tab> picks the tab.
@@ -78,10 +80,11 @@ export default function AdminShell({ sectionKey, tabKey }: { sectionKey: string;
   const count = (k: string) => k === 'support' ? supportUnread : k === 'questions' ? questionsUnread : k === 'agents' ? pending : 0
   const k = tab.key
   // Panels with their own big heading skip the small one.
-  const ownHeading = ['overview', 'activity', 'groups', 'codes'].includes(k) || section.key === 'insights'
+  const ownHeading = ['overview', 'activity', 'groups', 'codes', 'neighborhoods'].includes(k) || section.key === 'insights'
 
   return (
-    <div className="min-h-screen bg-[#faf9f7] pb-20 transition-colors duration-300 dark:bg-[#0B0B0B]">
+    <div className="ohp-admin min-h-screen bg-[#faf9f7] pb-20 transition-colors duration-300 dark:bg-[#0B0B0B]">
+      <AdminMobileStyles />
       <div className="mx-auto max-w-[1400px] px-4 py-4 sm:px-6 sm:py-6">
         <LuxeHero
           compact
@@ -89,6 +92,12 @@ export default function AdminShell({ sectionKey, tabKey }: { sectionKey: string;
           icon={section.key === 'overview' ? ShieldCheck : section.icon}
           title={<em>{section.title}</em>}
           subtitle={section.subtitle}
+          subtitleClassName="max-sm:hidden"
+          // Phones: a back arrow on every admin page but the Overview (the admin's home) - back to
+          // the admin page you came from, or the Overview on a fresh tab. Computers unchanged.
+          backHref={section.key === 'overview' ? undefined : '/admin'}
+          backLabel="Admin overview"
+          backPhoneOnly
           asideClassName="w-full lg:w-[420px] lg:-mt-5"
           aside={<LuxeStats stats={[
             { label: 'Agents', value: agents.length, icon: Users, onClick: () => go('agents') },
@@ -101,6 +110,7 @@ export default function AdminShell({ sectionKey, tabKey }: { sectionKey: string;
               items={section.tabs.map(t => ({ id: t.key, label: count(t.key) ? `${t.label} (${count(t.key)})` : t.label, icon: t.icon }))}
               active={k}
               onChange={go}
+              wrapOnPhone
             />
           ) : undefined}
         />
@@ -131,6 +141,7 @@ export default function AdminShell({ sectionKey, tabKey }: { sectionKey: string;
             {k === 'storage' && <AgentStorageUsagePanel />}
             {k === 'cma' && <CmaLookupPanel />}
             {k === 'cmatest' && <CmaBacktestPanel />}
+            {k === 'neighborhoods' && <NeighborhoodsPanel onToast={showToast} />}
             {k === 'flows' && <FeatureFlowsPanel />}
           </motion.div>
         </main>

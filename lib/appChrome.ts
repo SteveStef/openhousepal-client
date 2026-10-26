@@ -28,7 +28,7 @@ const NO_HEADER_PATHS = [
 
 export function isPublicAgentPage(pathname: string | null | undefined): boolean {
   return Boolean(
-    pathname?.match(/^\/(?!admin$|agent-hub$|activity$|dash$|leads(?:\/|$)|studio(?:\/|$)|assistant(?:\/|$)|login$|register$|forgot-password$|reset-password$|open-house(?:\/|$)|open-houses(?:\/|$)|privacy$|terms$|unsubscribe$|checkout$|discovery$|broker-authorization$|showcase(?:s)?(?:\/|$)|settings(?:\/|$)|setup$|upgrade-required$)[^/]+(?:\/[^/]+)?\/?$/) ||
+    pathname?.match(/^\/(?!admin(?:\/|$)|agent-hub$|activity$|dash$|leads(?:\/|$)|studio(?:\/|$)|assistant(?:\/|$)|login$|register$|forgot-password$|reset-password$|open-house(?:\/|$)|open-houses(?:\/|$)|privacy$|terms$|unsubscribe$|checkout$|discovery$|broker-authorization$|showcase(?:s)?(?:\/|$)|settings(?:\/|$)|setup$|upgrade-required$)[^/]+(?:\/[^/]+)?\/?$/) ||
     // A public article (/{hub}/blogs/{slug}) - never the Studio's own blog editor (/studio/blogs/{id}).
     pathname?.match(/^\/(?!studio\/)[^/]+\/blogs\/[^/]+\/?$/) ||
     pathname?.startsWith('/AgentHub/')

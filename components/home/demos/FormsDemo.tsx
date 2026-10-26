@@ -113,7 +113,7 @@ function MiniQr({ size }: { size: number }) {
 
 function AgentBrandPill() {
   return (
-    <div className="mx-auto mb-4 flex h-[52px] w-fit max-w-full items-center gap-2.5 rounded-full border border-gray-100 bg-white py-1.5 pl-1.5 pr-4 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
+    <div className="mx-auto mb-4 flex h-[52px] w-fit max-w-full items-center max-sm:mb-2 max-sm:h-[44px] gap-2.5 rounded-full border border-gray-100 bg-white py-1.5 pl-1.5 pr-4 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
       <div className="relative aspect-square h-full shrink-0 overflow-hidden rounded-full bg-gray-100">
         <Image src={AGENT.photo} alt={AGENT.name} fill className="object-cover object-[50%_18%]" unoptimized />
       </div>
@@ -179,7 +179,7 @@ export default function FormsDemo() {
         {isEditor && (
           <div className="flex h-full pt-12">
             {/* left rail */}
-            <div className="flex w-[186px] flex-shrink-0 flex-col border-r border-gray-200 bg-white p-3.5 dark:border-gray-800 dark:bg-[#151517]">
+            <div className="flex w-[186px] flex-shrink-0 flex-col border-r border-gray-200 bg-white p-3.5 dark:border-gray-800 dark:bg-[#151517] max-sm:w-[136px] max-sm:px-2.5 max-sm:pb-2.5">
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{REAL_FORM.title}</p>
               <p className="mb-3 text-[9px] text-gray-400">{fieldsAdded} question{fieldsAdded === 1 ? '' : 's'} · drag to reorder</p>
               <div className="flex-1 space-y-1.5 overflow-hidden">
@@ -210,7 +210,7 @@ export default function FormsDemo() {
             </div>
 
             {/* right panel */}
-            <div className="flex flex-1 items-center justify-center p-5">
+            <div className="flex flex-1 items-center justify-center p-5 max-sm:min-w-0 max-sm:p-3">
               {beat.k === 'click-add' && (
                 <div key="click-add" className="w-full max-w-[240px] animate-fadeIn text-center">
                   <p className="text-[9px] font-bold text-gray-300 dark:text-gray-600">Click &quot;Add question&quot; to continue</p>
@@ -220,7 +220,7 @@ export default function FormsDemo() {
               {beat.k === 'pick-type' && (
                 <div key="pick" className="w-full max-w-[240px] animate-fadeIn">
                   <p className="mb-2.5 text-[9px] font-black uppercase tracking-widest text-gray-400">Pick your questions</p>
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <div className="grid grid-cols-2 gap-1.5 max-sm:grid-cols-1">
                     {QUESTION_TYPES.map((t, idx) => {
                       const Icon = t.icon
                       const on = idx === pickingType
@@ -342,13 +342,13 @@ export default function FormsDemo() {
                 return (
                   <div key={`q${beat.idx}`} className="w-full max-w-[280px] animate-fadeIn">
                     <AgentBrandPill />
-                    <div className="rounded-2xl bg-white p-5 shadow-xl dark:bg-[#151517]">
+                    <div className="rounded-2xl bg-white p-5 shadow-xl dark:bg-[#151517] max-sm:p-4">
                       {q.section && <span className="mb-1.5 block text-[9px] font-black uppercase tracking-widest" style={{ color: REAL_FORM.accentColor }}>{q.section}</span>}
                       <div className="mb-3 h-1 w-full rounded-full bg-gray-200 dark:bg-gray-800"><div className="h-1 rounded-full" style={{ width: `${(beat.idx + 1) * 25}%`, backgroundColor: REAL_FORM.accentColor }} /></div>
                       <h4 className="mb-2.5 text-sm font-black leading-snug text-[#0B0B0B] dark:text-white">{q.label}</h4>
 
                       {q.options && (
-                        <div className="mb-3 space-y-1.5">
+                        <div className="mb-3 space-y-1.5 max-sm:space-y-1">
                           {q.options.map((opt, idx) => {
                             const chosen = beat.filled && idx === a.chosen
                             return (

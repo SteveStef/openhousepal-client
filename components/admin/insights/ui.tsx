@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp, Search } from 'lucide-react'
 import Pager from '@/components/ui/Pager'
 
@@ -75,19 +75,34 @@ function bucketLabel(d: string, unit: string, long = false) {
   return unit === 'week' ? `${long ? 'Week of ' : ''}${s}` : s
 }
 
+/** True on phone-width screens - charts draw on a narrower canvas there so their labels stay readable. */
+function usePhone() {
+  const [phone, setPhone] = useState(false)
+  useEffect(() => {
+    const m = window.matchMedia('(max-width: 639px)')
+    const read = () => setPhone(m.matches)
+    read()
+    m.addEventListener('change', read)
+    return () => m.removeEventListener('change', read)
+  }, [])
+  return phone
+}
+
 /** Up to 3 series over time, one axis, crosshair + tooltip on hover (and tap). */
 export function TrendChart({ data, series, unit, height = 200 }: {
   data: Point[]; series: { key: string; label: string }[]; unit: string; height?: number
 }) {
   const [hover, setHover] = useState<number | null>(null)
   const ref = useRef<SVGSVGElement>(null)
-  const W = 720, H = height, PL = 34, PR = 12, PT = 10, PB = 24
+  // Phones: a 360-wide canvas (not 720) so the axis text isn't shrunk to a few pixels.
+  const phone = usePhone()
+  const W = phone ? 360 : 720, H = phone ? Math.round(height * 0.8) : height, PL = 34, PR = 12, PT = 10, PB = 24
   const max = Math.max(1, ...data.flatMap(p => series.map(s => Number(p[s.key]) || 0)))
   const nice = (() => { const m = Math.pow(10, Math.floor(Math.log10(max))); return Math.ceil(max / m) * m })()
   const x = (i: number) => PL + (data.length <= 1 ? (W - PL - PR) / 2 : (i * (W - PL - PR)) / (data.length - 1))
   const y = (v: number) => PT + (H - PT - PB) * (1 - v / nice)
   const ticks = [0, nice / 2, nice]
-  const every = Math.max(1, Math.ceil(data.length / 7))
+  const every = Math.max(1, Math.ceil(data.length / (phone ? 4 : 7)))
   const total = (k: string) => data.reduce((a, p) => a + (Number(p[k]) || 0), 0)
 
   const onMove = (e: React.PointerEvent) => {
@@ -267,13 +282,13 @@ export function AgentTable<R extends { id: string; name: string; plan_tier?: str
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <label className="relative flex-1 sm:max-w-xs">
+        <label className="relative flex-1 sm:max-w-xs max-sm:basis-full">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
           <input value={q} onChange={e => { setQ(e.target.value); setPage(1) }} placeholder="Find an agent" aria-label="Find an agent"
-            className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-8 pr-3 text-xs font-semibold text-[#111827] outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0f0f10] dark:text-white" />
+            className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-8 pr-3 max-sm:py-2.5 text-xs font-semibold text-[#111827] outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0f0f10] dark:text-white" />
         </label>
-        <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400">
-          <input type="checkbox" checked={hideZero} onChange={e => { setHideZero(e.target.checked); setPage(1) }} className="accent-[#C9A24D]" /> Hide agents with nothing
+        <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 max-sm:min-h-[40px]">
+          <input type="checkbox" checked={hideZero} onChange={e => { setHideZero(e.target.checked); setPage(1) }} className="accent-[#C9A24D] max-sm:h-5 max-sm:w-5" /> Hide agents with nothing
         </label>
         <span className="ml-auto text-[11px] font-semibold text-gray-400">{list.length} agent{list.length === 1 ? '' : 's'}</span>
       </div>
@@ -281,7 +296,7 @@ export function AgentTable<R extends { id: string; name: string; plan_tier?: str
         <table className="w-full min-w-[640px] text-left text-xs">
           <thead className="bg-gray-50/80 text-[10px] uppercase tracking-wider text-gray-500 dark:bg-white/[0.03] dark:text-gray-400">
             <tr>
-              <th className="px-3 py-2.5 font-black">
+              <th className="px-3 py-2.5 font-black max-sm:sticky max-sm:left-0 max-sm:z-[1] max-sm:bg-[#f9fafb] dark:max-sm:bg-[#1a1a1c]">
                 <button onClick={() => flip('__name')} className="font-black uppercase">Agent</button>
               </th>
               {cols.map(c => (
@@ -296,7 +311,8 @@ export function AgentTable<R extends { id: string; name: string; plan_tier?: str
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
             {shown.map(r => (
               <tr key={r.id} className={`text-gray-700 dark:text-gray-200 ${onOpen ? 'cursor-pointer hover:bg-[#C9A24D]/[0.06]' : ''}`} onClick={onOpen ? () => onOpen(r) : undefined}>
-                <td className="px-3 py-2.5">
+                {/* Phones: the name column stays put while the numbers scroll sideways. */}
+                <td className="px-3 py-2.5 max-sm:sticky max-sm:left-0 max-sm:z-[1] max-sm:min-w-[118px] max-sm:max-w-[140px] max-sm:bg-white max-sm:shadow-[1px_0_0_rgba(17,24,39,0.06)] dark:max-sm:bg-[#151517]">
                   <p className="font-black text-[#111827] dark:text-white">{r.name}</p>
                   <p className="text-[10px] font-semibold text-gray-400">{planName(r.plan_tier)}</p>
                 </td>

@@ -77,12 +77,12 @@ export default function PublicQuestionsPanel({ onRead }: { onRead?: () => void }
             </div>
             <span className="shrink-0 text-[10px] font-bold text-gray-400">{formatDateTime(q.created_at)}</span>
           </div>
-          <p className="whitespace-pre-wrap text-sm font-medium leading-relaxed text-gray-600 dark:text-gray-300">{q.message}</p>
+          <p className="whitespace-pre-wrap break-words text-sm font-medium leading-relaxed text-gray-600 dark:text-gray-300">{q.message}</p>
           {!q.is_read && (
             <button
               onClick={() => handleMarkRead(q.id)}
               disabled={markingId === q.id}
-              className="inline-flex w-fit items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-gray-500 transition hover:border-[#C9A24D] hover:text-[#C9A24D] disabled:opacity-40 dark:border-gray-700 dark:text-gray-400"
+              className="inline-flex w-fit items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 max-sm:py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-500 transition hover:border-[#C9A24D] hover:text-[#C9A24D] disabled:opacity-40 dark:border-gray-700 dark:text-gray-400"
             >
               {markingId === q.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check size={12} />}
               Mark Read

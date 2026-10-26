@@ -70,11 +70,11 @@ export function ReviewsStep({ ctx }: { ctx: StepCtx }) {
   const save = (data: { google_review_url?: string; zillow_review_url?: string; show_on_hub?: boolean }, now = false) => {
     latest.current = { ...latest.current, ...data }
     window.clearTimeout(timer.current)
-    const run = () => ctx.markSaving(api.agentHub.updateReviewSettings(latest.current))
+    const run = () => { const body = latest.current; void ctx.markSaving(() => api.agentHub.updateReviewSettings(body), 'review-settings') }
     if (now) run(); else timer.current = window.setTimeout(run, 600)
   }
   // leaving the step before the timer fires still saves what was typed
-  useEffect(() => () => { if (timer.current) { window.clearTimeout(timer.current); api.agentHub.updateReviewSettings(latest.current) } }, [])
+  useEffect(() => () => { if (timer.current) { window.clearTimeout(timer.current); const body = latest.current; void ctx.markSaving(() => api.agentHub.updateReviewSettings(body), 'review-settings') } }, []) // eslint-disable-line react-hooks/exhaustive-deps
   useGate(ctx, { ok: true, onContinue: async () => { window.clearTimeout(timer.current); await api.agentHub.updateReviewSettings({ google_review_url: google, zillow_review_url: zillow, show_on_hub: show }) } }, [google, zillow, show])
   // first visit: reviews on the hub default to on
   useEffect(() => { if (r.showOnHub === undefined) save({ show_on_hub: true }, true) }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -105,19 +105,25 @@ export function BrandStep({ ctx }: { ctx: StepCtx }) {
     if (!file) return
     setBusy(slot)
     const f = file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'image/svg+xml' || file.type === 'image/webp' ? file : await toJpeg(file)
-    const r = await api.studio.uploadBrandLogo(slot, f)
-    if (r.success && r.data) setLocal(r.data)
+    await ctx.markSaving(async () => {
+      const r = await api.studio.uploadBrandLogo(slot, f)
+      if (r.success && r.data) setLocal(r.data)
+      return r
+    }, `logo-${slot}`)
     setBusy(null)
   }
   const remove = async (slot: 'personal' | 'team' | 'brokerage') => {
     setBusy(slot)
-    const r = await api.studio.deleteBrandLogo(slot)
-    if (r.success && r.data) setLocal(r.data)
+    await ctx.markSaving(async () => {
+      const r = await api.studio.deleteBrandLogo(slot)
+      if (r.success && r.data) setLocal(r.data)
+      return r
+    }, `logo-${slot}`)
     setBusy(null)
   }
   const setMain = (c: string) => {
     setLocal({ ...kit, primary_color: c } as BrandKit)
-    ctx.markSaving(save({ primary_color: c }))
+    void ctx.markSaving(() => save({ primary_color: c }), 'brand-primary')
   }
   const slots: { slot: 'personal' | 'team' | 'brokerage'; label: string; url?: string | null }[] = [
     { slot: 'brokerage', label: 'Brokerage logo', url: kit.brokerage_logo_url },
@@ -426,16 +432,15 @@ export function FormsStep({ ctx }: { ctx: StepCtx }) {
     setValue(next)
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(() => {
-      ctx.markSaving(api.forms.updateAllLook({
+      void ctx.markSaving(() => api.forms.updateAllLook({
         look_mode: next.look_mode === 'custom' ? 'custom' : next.look_mode === 'brand' ? 'brand' : 'hub',
         look_theme: next.look_theme || 'classic', accent_color: next.accent_color || undefined, luxe_metal: next.luxe_metal || 'gold', dark_mode: !!next.dark_mode,
-      }))
+      }), 'forms-look')
     }, 350)
   }
   const setDefault = (key: 'animated' | 'show_branding' | 'redirect_to_agent_hub', v: boolean) => {
     setDefaults(d => (d ? { ...d, [key]: { ...d[key], value: v, mixed: false } } : d))
-    const p = api.setup.setFormDefaults({ [key]: v }).then(r => { if (r.success && r.data) setDefaults(r.data); setReload(n => n + 1); return r })
-    ctx.markSaving(p)
+    void ctx.markSaving(() => api.setup.setFormDefaults({ [key]: v }).then(r => { if (r.success && r.data) setDefaults(r.data); setReload(n => n + 1); return r }), `form-default-${key}`)
   }
   useGate(ctx, { ok: true, onContinue: async () => { await api.setup.setState({ confirm: 'forms' }) } }, [])
   const shown = resolveFormLook(value, hubLook, luxeAllowed, brandLook)
@@ -529,9 +534,7 @@ export function SignatureStep({ ctx }: { ctx: StepCtx }) {
   const pending = useRef<SignatureConfig | null>(null)
 
   const persist = (next: SignatureConfig) => {
-    const p = api.emailSignature.saveConfig(next).then(r => { if (r.success) setEmailVersion(v => v + 1) })
-    ctx.markSaving(p)
-    return p
+    return ctx.markSaving(() => api.emailSignature.saveConfig(next).then(r => { if (r.success) setEmailVersion(v => v + 1); return r }), 'signature')
   }
   useEffect(() => {
     Promise.all([api.emailSignature.getMine(), api.agentHub.getMine(), api.forms.getMine()]).then(([s, h, f]) => {

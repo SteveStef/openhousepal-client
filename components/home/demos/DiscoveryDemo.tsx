@@ -98,7 +98,7 @@ export default function DiscoveryDemo() {
       <div className={`relative flex h-[420px] items-center justify-center gap-5 overflow-hidden px-4 ${STAGE_BG}`}>
         <DemoNote id={stop.id} icon={stop.icon} title={stop.title} body={stop.body} index={n} count={STOPS.length} />
 
-        <div ref={stage} className="relative h-[380px] w-full max-w-[360px] flex-shrink-0 overflow-hidden rounded-2xl border border-black/5 bg-[#FAFAF7] p-3.5 shadow-[0_30px_60px_-30px_rgba(0,0,0,.55)] dark:border-white/10 dark:bg-[#0B0B0B]">
+        <div ref={stage} className="relative h-[380px] w-full max-w-[360px] flex-shrink-0 max-sm:mb-[56px] max-sm:h-[332px] overflow-hidden rounded-2xl border border-black/5 bg-[#FAFAF7] p-3.5 shadow-[0_30px_60px_-30px_rgba(0,0,0,.55)] dark:border-white/10 dark:bg-[#0B0B0B]">
           {leads ? (
             <div key="leads" className="animate-fadeIn">
               <p className="text-[9px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">Your Leads</p>
@@ -156,13 +156,13 @@ export default function DiscoveryDemo() {
           )}
 
           {stop.id === 'alert' && tick >= 3 && (
-            <div className="dn-toast absolute inset-x-3 bottom-3 z-20 flex items-center gap-2.5 rounded-xl bg-[#111827] p-2.5 shadow-xl">
+            <div className="dn-toast absolute inset-x-3 bottom-3 z-20 max-sm:bottom-auto max-sm:top-3 flex items-center gap-2.5 rounded-xl bg-[#111827] p-2.5 shadow-xl">
               <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[#C9A24D] text-[#111827]"><Bell className="h-4 w-4" /></span>
               <p className="text-[11px] font-black text-white">New listing near you<span className="block text-[9.5px] font-semibold text-gray-400">{NEW.address} needs a host</span></p>
             </div>
           )}
           {stop.id === 'approved' && tick >= 2 && (
-            <div className="dn-toast absolute inset-x-3 bottom-3 z-20 flex items-center gap-2.5 rounded-xl bg-[#111827] p-2.5 shadow-xl">
+            <div className="dn-toast absolute inset-x-3 bottom-3 z-20 max-sm:bottom-auto max-sm:top-3 flex items-center gap-2.5 rounded-xl bg-[#111827] p-2.5 shadow-xl">
               <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-500 text-white"><Check className="h-4 w-4" strokeWidth={3} /></span>
               <p className="text-[11px] font-black text-white">{NEW.agent} approved<span className="block text-[9.5px] font-semibold text-gray-400">You&apos;re hosting Sat, Oct 10 · 1-3 PM</span></p>
             </div>

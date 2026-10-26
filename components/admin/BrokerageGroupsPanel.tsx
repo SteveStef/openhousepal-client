@@ -118,7 +118,7 @@ export function Mini({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl bg-[#faf9f7] px-3 py-2 dark:bg-white/[0.04]">
       <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">{label}</p>
-      <p className="truncate text-sm font-black text-[#111827] dark:text-white">{value}</p>
+      <p className="truncate text-sm font-black text-[#111827] dark:text-white max-sm:whitespace-normal max-sm:text-[13px] max-sm:leading-tight">{value}</p>
     </div>
   )
 }
@@ -194,12 +194,12 @@ function GroupDrawer({ group, users, groups, onClose, onSaved, onToast }: {
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={onClose}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end bg-black/50 max-sm:!m-0" onClick={onClose}>
       <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 40, opacity: 0 }} transition={{ type: 'spring', stiffness: 380, damping: 36 }}
         onClick={e => e.stopPropagation()} className="flex h-full w-full max-w-2xl flex-col bg-[#faf9f7] shadow-2xl dark:bg-[#0B0B0B]">
         <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
-          <button onClick={onClose} className="inline-flex items-center gap-1.5 text-sm font-black text-gray-500 hover:text-[#111827] dark:hover:text-white"><ArrowLeft className="h-4 w-4" /> Groups</button>
-          <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10"><X className="h-4 w-4" /></button>
+          <button onClick={onClose} className="inline-flex items-center gap-1.5 text-sm font-black text-gray-500 hover:text-[#111827] dark:hover:text-white max-sm:min-h-[44px] max-sm:pr-3"><ArrowLeft className="h-4 w-4" /> Groups</button>
+          <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 max-sm:flex max-sm:h-11 max-sm:w-11 max-sm:items-center max-sm:justify-center max-sm:bg-gray-100 max-sm:text-gray-600 dark:max-sm:bg-white/10 dark:max-sm:text-gray-200"><X className="h-4 w-4 max-sm:h-5 max-sm:w-5" /></button>
         </div>
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
           <h3 className="text-2xl font-black text-[#111827] dark:text-white">{group ? group.name : 'New brokerage group'}</h3>
@@ -275,7 +275,7 @@ function GroupDrawer({ group, users, groups, onClose, onSaved, onToast }: {
                         {m.has_paypal_subscription && <p className="mt-0.5 flex items-center gap-1 text-[11px] font-bold text-red-600 dark:text-red-400"><AlertTriangle className="h-3 w-3" /> Still on their own PayPal subscription - cancel it in PayPal</p>}
                       </div>
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${PLAN_CHIP[m.plan_tier || 'FREE']}`}>{PLAN_LABEL[m.plan_tier || 'FREE']}</span>
-                      <button onClick={() => remove(m.id)} title="Take out of this group (plan unchanged)" className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"><UserMinus className="h-4 w-4" /></button>
+                      <button onClick={() => remove(m.id)} title="Take out of this group (plan unchanged)" aria-label="Take out of this group" className="rounded-lg p-1.5 max-sm:p-3 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"><UserMinus className="h-4 w-4" /></button>
                     </div>
                   ))}
                 </div>

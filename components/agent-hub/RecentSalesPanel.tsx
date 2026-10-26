@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertCircle, Check, ChevronDown, ChevronRight, DollarSign, Pencil, Trash2 } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
+import { useSaveTracker } from '@/components/ui/SaveStatus'
 import { useOptionalAuth } from '@/contexts/AuthContext'
 import { hasMlsAccess } from '@/lib/navAccess'
 import QuickAddHomeSheet, { quickHomeToEntry, type QuickHome } from './QuickAddHomeSheet'
@@ -224,12 +225,18 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
   useEffect(() => {
     api.agentHub.getMine().then(r => { const s = r.success ? r.data?.config?.salesSort : null; if (s === 'price-high' || s === 'price-low') { setSortMode(s); onSortChange?.(s) } })
   }, [])
+  // On Settings the page's save status shows this save too (components/ui/SaveStatus).
+  const tracker = useSaveTracker()
   const saveSortMode = async (next: 'recent' | 'price-high' | 'price-low') => {
     setSortMode(next)
     onSortChange?.(next === 'recent' ? 'newest' : next)
-    const latest = await api.agentHub.getMine()
-    const base = latest.success && latest.data?.config ? latest.data.config : null
-    if (base) api.agentHub.saveConfig({ ...base, salesSort: next === 'recent' ? 'newest' : next })
+    const job = async () => {
+      const latest = await api.agentHub.getMine()
+      const base = latest.success && latest.data?.config ? latest.data.config : null
+      if (!base) return { success: false }
+      return api.agentHub.saveConfig({ ...base, salesSort: next === 'recent' ? 'newest' : next })
+    }
+    await (tracker ? tracker.track(job, { key: 'sales-sort' }) : job())
   }
   const [page, setPage] = useState(1)
   const [manualAddOpen, setManualAddOpen] = useState(false)

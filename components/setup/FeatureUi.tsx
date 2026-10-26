@@ -23,7 +23,9 @@ export function useSerialSaves() {
 /** Read-modify-write of the Agent Hub config (PUT replaces the whole thing). */
 export async function patchHubConfig(patch: Record<string, unknown> | ((cfg: Record<string, any>) => Record<string, unknown>)) {
   const latest = await api.agentHub.getMine()
-  const base: Record<string, any> = latest.success && latest.data?.config ? latest.data.config : {}
+  // couldn't read it: don't write a config built from nothing (it would wipe the hub) - report it
+  if (!latest.success) return { success: false as const, error: latest.error, status: latest.status }
+  const base: Record<string, any> = latest.data?.config ? latest.data.config : {}
   const next = typeof patch === 'function' ? patch(base) : patch
   return api.agentHub.saveConfig({ ...base, ...next })
 }

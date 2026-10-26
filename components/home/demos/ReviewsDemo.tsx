@@ -7,6 +7,7 @@ import TypingAnimation from '@/components/TypingAnimation'
 import BrowserFrame from '@/components/home/BrowserFrame'
 import TitleSlide from './TitleSlide'
 import DemoPointer from './DemoPointer'
+import usePhoneLayout from './usePhoneLayout'
 import { DemoStep, DEMO_NOTE_CSS } from './DemoNote'
 import { AGENT } from './realData'
 
@@ -73,6 +74,8 @@ export default function ReviewsDemo() {
   const [i, setI] = useState(0)
   const [tick, setTick] = useState(0)
   const [typed, setTyped] = useState(false)
+  // Phones stack the side-by-side screens, so the pointer aims at the stacked spots there.
+  const phone = usePhoneLayout()
   const beat = BEATS[i]
   const advance = () => setI(n => (n + 1) % BEATS.length)
 
@@ -112,8 +115,8 @@ export default function ReviewsDemo() {
         {(() => { const c = captionFor(beat.k); return <DemoStep id={String(c)} step={c + 1} count={CAPTIONS.length} title={CAPTIONS[c].title} body={CAPTIONS[c].body} icon={CAPTIONS[c].icon} /> })()}
         {/* 1 · the agent sends their review link */}
         {beat.k === 'send' && (
-          <div className="flex h-full items-center justify-center gap-5 px-6 animate-fadeIn">
-            <div className="w-[300px] rounded-2xl border border-gray-200 bg-white p-4 shadow-xl dark:border-gray-800 dark:bg-[#151517]">
+          <div className="flex h-full items-center justify-center gap-5 px-6 animate-fadeIn max-sm:flex-col max-sm:gap-0 max-sm:px-3">
+            <div className="w-[300px] rounded-2xl border border-gray-200 bg-white p-4 shadow-xl dark:border-gray-800 dark:bg-[#151517] max-sm:w-full max-sm:p-3">
               <p className="text-[9px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">Reviews · Ask for a review</p>
               <p className="mt-1 font-serif text-[16px] font-black text-[#111827] dark:text-white">Send your review link</p>
               <div className="mt-3 flex items-center gap-2 rounded-xl border border-[#C9A24D]/50 bg-[#C9A24D]/10 p-2">
@@ -125,16 +128,16 @@ export default function ReviewsDemo() {
                   <span key={b.l} className={`flex flex-col items-center gap-1 rounded-xl border py-2 text-[9px] font-black transition-all duration-300 ${k === 0 && tick >= 7 ? 'border-[#C9A24D] bg-[#C9A24D] text-[#111827]' : 'border-gray-200 text-[#111827] dark:border-gray-700 dark:text-white'}`}><b.I className="h-4 w-4" />{b.l}</span>
                 ))}
               </div>
-              <p className="mt-2.5 flex items-center gap-1 truncate text-[9px] font-semibold text-gray-400"><Link2 className="h-3 w-3" /> openhousepal.com/peter-stefanatos/review</p>
+              <p className="mt-2.5 flex items-center gap-1 truncate text-[9px] font-semibold text-gray-400 max-sm:hidden"><Link2 className="h-3 w-3" /> openhousepal.com/peter-stefanatos/review</p>
             </div>
-            <div className={`w-[200px] transition-all duration-700 ${tick >= 9 ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
-              <div className="rounded-[26px] border-[6px] border-[#111827] bg-[#f2f2f7] p-2.5 shadow-2xl">
+            <div className={`w-[200px] transition-all duration-700 max-sm:relative max-sm:z-10 max-sm:-mt-2 max-sm:w-[260px] ${tick >= 9 ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
+              <div className="rounded-[26px] border-[6px] border-[#111827] bg-[#f2f2f7] p-2.5 shadow-2xl max-sm:rounded-[20px] max-sm:p-2">
                 <p className="text-center text-[8px] font-bold text-gray-500">Marcus R.</p>
-                <div className="ml-auto mt-2 max-w-[150px] rounded-2xl rounded-br-md bg-[#0a84ff] px-2.5 py-1.5 text-[9px] leading-snug text-white">Hi Marcus - congrats again! Would you mind leaving me a quick review? It really helps. 🙏<span className="mt-1 block underline">openhousepal.com/peter-stefanatos/review</span></div>
+                <div className="ml-auto mt-2 max-w-[150px] max-sm:mt-1 max-sm:max-w-none rounded-2xl rounded-br-md bg-[#0a84ff] px-2.5 py-1.5 text-[9px] leading-snug text-white">Hi Marcus - congrats again! Would you mind leaving me a quick review? It really helps. 🙏<span className="mt-1 block underline">openhousepal.com/peter-stefanatos/review</span></div>
                 <p className="mt-1 text-right text-[7px] font-semibold text-gray-400">Delivered</p>
               </div>
             </div>
-            <DemoPointer x={tick < 3 ? 70 : 15} y={tick < 3 ? 80 : 60} click={tick === 6 || tick === 7} />
+            <DemoPointer x={tick < 3 ? 70 : phone ? 17 : 15} y={tick < 3 ? 80 : phone ? 50 : 60} click={tick === 6 || tick === 7} />
           </div>
         )}
 
@@ -152,8 +155,8 @@ export default function ReviewsDemo() {
 
         {/* 3 · writes it once, then Post on Google copies it */}
         {beat.k === 'write' && (
-          <div className="flex h-full items-center justify-center animate-fadeIn">
-            <div className="w-[380px]">
+          <div className="flex h-full items-center justify-center animate-fadeIn max-sm:px-3">
+            <div className="w-[380px] max-sm:w-full">
               <div className="flex items-center gap-2.5 rounded-xl border border-[#C9A24D]/40 bg-[#C9A24D]/10 px-3 py-2.5">
                 <Avatar size={36} />
                 <div className="min-w-0"><Stars filled={5} size={13} /><p className="mt-0.5 truncate text-[11px] font-black text-[#0B0B0B] dark:text-white">A 5-star review for {AGENT.name}</p></div>
@@ -168,14 +171,14 @@ export default function ReviewsDemo() {
               </div>
               {typed && tick - typedAt >= 5 && <p className="mt-2 flex items-center justify-center gap-1 text-[10px] font-black text-emerald-600 animate-fadeIn"><Check className="h-3.5 w-3.5" /> Review copied · saved to {FIRST}&apos;s page</p>}
             </div>
-            <DemoPointer x={typed ? 31 : 75} y={typed ? 68 : 92} click={typed && tick - typedAt >= 4 && tick - typedAt <= 6} show={typed} />
+            <DemoPointer x={typed ? (phone ? 26 : 31) : 75} y={typed ? 68 : 92} click={typed && tick - typedAt >= 4 && tick - typedAt <= 6} show={typed} />
           </div>
         )}
 
         {/* 4 · Google opens in a new tab: paste, post */}
         {beat.k === 'google' && (
-          <div className="flex h-full items-center justify-center bg-white animate-fadeIn dark:bg-[#202124]">
-            <div className="w-[380px] rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl dark:border-gray-700 dark:bg-[#2d2e31]">
+          <div className="flex h-full items-center justify-center bg-white animate-fadeIn dark:bg-[#202124] max-sm:px-3">
+            <div className="w-[380px] max-sm:w-full rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl dark:border-gray-700 dark:bg-[#2d2e31]">
               <div className="flex items-center gap-2.5">
                 <Avatar size={34} />
                 <div><p className="text-[12px] font-bold text-[#202124] dark:text-white">{AGENT.name} - {AGENT.brokerage}</p><p className="text-[9px] text-gray-500">Real estate agent · Posting publicly</p></div>
@@ -213,8 +216,8 @@ export default function ReviewsDemo() {
 
         {/* 6 · 1-3 stars: private, never public */}
         {beat.k === 'private' && (
-          <div className="flex h-full items-center justify-center gap-5 px-6 animate-fadeIn">
-            <div className="w-[300px] text-center">
+          <div className="flex h-full items-center justify-center gap-5 px-6 animate-fadeIn max-sm:px-3">
+            <div className="w-[300px] text-center max-sm:w-full">
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">A different client</p>
               <p className="mt-1 font-serif text-[17px] font-black text-[#0B0B0B] dark:text-white">How was working with {FIRST}?</p>
               <div className="mt-2 flex justify-center"><Stars filled={tick >= 4 ? 2 : Math.min(2, Math.max(0, tick - 2))} size={28} gap={7} /></div>
@@ -227,7 +230,8 @@ export default function ReviewsDemo() {
                 </div>
               )}
             </div>
-            <div className={`w-[210px] transition-all duration-700 ${tick >= 19 ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0'}`}>
+            {/* Phones: no room beside the form, so the agent's heads-up slides in over its bottom. */}
+            <div className={`w-[210px] transition-all duration-700 max-sm:absolute max-sm:inset-x-3 max-sm:bottom-3 max-sm:z-30 max-sm:w-auto ${tick >= 19 ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0'}`}>
               <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-2xl dark:border-gray-700 dark:bg-[#151517]">
                 <p className="flex items-center gap-1.5 text-[11px] font-black text-[#111827] dark:text-white"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#C9A24D] text-[#111827]"><Bell className="h-3 w-3" /></span>Private feedback · 2★</p>
                 <p className="mt-1.5 text-[10px] italic leading-snug text-gray-600 dark:text-gray-300">&ldquo;{PRIVATE_TEXT}&rdquo;</p>
@@ -241,25 +245,25 @@ export default function ReviewsDemo() {
 
         {/* 7 · the reviews on the Agent Hub + IDX site */}
         {beat.k === 'live' && (
-          <div className="flex h-full items-center justify-center gap-4 px-6 animate-fadeIn">
-            <div className="w-[270px]">
+          <div className="flex h-full items-center justify-center gap-4 px-6 animate-fadeIn max-sm:flex-col max-sm:gap-2.5 max-sm:px-3">
+            <div className="w-[270px] max-sm:w-full">
               <p className="text-[9px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">On your Agent Hub</p>
-              <div className="mt-2 flex items-center gap-3 rounded-xl border border-[#C9A24D]/30 bg-white p-3 shadow-sm dark:bg-[#151517]">
+              <div className="mt-2 flex items-center gap-3 rounded-xl border border-[#C9A24D]/30 bg-white p-3 shadow-sm dark:bg-[#151517] max-sm:mt-1.5 max-sm:p-2">
                 <div className="text-center"><p className="font-serif text-[28px] font-black leading-none text-[#0B0B0B] dark:text-white">5.0</p><div className="mt-1"><Stars filled={5} size={11} gap={2} /></div></div>
                 <div className="h-10 w-px bg-gray-100 dark:bg-gray-800" />
                 <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">13 client reviews · incl. your Google reviews, imported</p>
               </div>
-              <div className="mt-2 rounded-xl border border-[#C9A24D]/30 bg-white p-3 shadow-sm dark:bg-[#151517]">
+              <div className="mt-2 rounded-xl border border-[#C9A24D]/30 bg-white p-3 shadow-sm dark:bg-[#151517] max-sm:mt-1.5 max-sm:p-2.5">
                 <div className="flex items-center justify-between"><p className="text-[11px] font-black text-[#0B0B0B] dark:text-white">{REVIEWER}</p><Stars filled={5} size={11} gap={2} /></div>
-                <p className="mt-1 text-[10px] leading-snug text-gray-600 dark:text-gray-300">{REVIEW_TEXT}</p>
+                <p className="mt-1 text-[10px] leading-snug text-gray-600 dark:text-gray-300 max-sm:line-clamp-2">{REVIEW_TEXT}</p>
                 <p className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-400"><Check className="h-2.5 w-2.5" /> Also on Google &amp; Zillow</p>
               </div>
             </div>
-            <div className={`w-[230px] transition-all duration-700 ${tick >= 6 ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
+            <div className={`w-[230px] transition-all duration-700 max-sm:w-full ${tick >= 6 ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
               <p className="text-[9px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">And your IDX website</p>
-              <div className="mt-2 overflow-hidden rounded-xl bg-gradient-to-br from-[#0b0f0e] via-[#111827] to-[#2a2218] p-4 text-white shadow-xl">
+              <div className="mt-2 overflow-hidden rounded-xl bg-gradient-to-br from-[#0b0f0e] via-[#111827] to-[#2a2218] p-4 text-white shadow-xl max-sm:mt-1.5 max-sm:p-3">
                 <p className="text-[8px] font-black uppercase tracking-[0.3em] text-[#e8c97a]">What clients say</p>
-                <p className="mt-2 font-serif text-[13px] italic leading-snug">&ldquo;Every step explained, every deadline met, and we closed over asking.&rdquo;</p>
+                <p className="mt-2 font-serif text-[13px] italic leading-snug max-sm:mt-1 max-sm:text-[12px]">&ldquo;Every step explained, every deadline met, and we closed over asking.&rdquo;</p>
                 <div className="mt-2 flex items-center justify-between"><p className="text-[10px] font-bold text-white/70">- {REVIEWER}</p><Stars filled={5} size={10} gap={2} /></div>
               </div>
             </div>

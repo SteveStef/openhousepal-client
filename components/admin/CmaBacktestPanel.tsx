@@ -17,7 +17,7 @@ type Stats = {
 const card = 'rounded-2xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-[#151517]'
 const label = 'text-[10px] font-black uppercase tracking-widest text-gray-400'
 const input = 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900 outline-none focus:border-[#C9A24D] dark:border-white/10 dark:bg-[#0B0B0B] dark:text-white'
-const btn = 'inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition disabled:opacity-40'
+const btn = 'inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition disabled:opacity-40 max-sm:min-h-[44px]'
 
 function pct(v?: number | null, signed = false) {
   if (v === null || v === undefined) return '-'
@@ -233,19 +233,19 @@ export default function CmaBacktestPanel() {
           <div>
             <p className={label}>Towns {towns.length > 0 && <span className="text-[#8b7355]">({towns.length} picked)</span>}</p>
             <input className={`${input} mt-1`} placeholder="Search towns..." value={townQuery} onChange={e => setTownQuery(e.target.value)} disabled={randomSpread} />
-            <div className="mt-2 flex max-h-32 flex-wrap gap-1 overflow-y-auto">
+            <div className="mt-2 flex max-h-32 flex-wrap gap-1 overflow-y-auto overscroll-contain max-sm:max-h-48 max-sm:gap-1.5">
               {townList.map((t: any) => {
                 const on = towns.includes(t.town)
                 return (
                   <button key={t.town} disabled={randomSpread} onClick={() => setTowns(v => on ? v.filter(x => x !== t.town) : [...v, t.town])}
-                    className={`rounded-lg px-2 py-1 text-[11px] font-bold ${on ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'bg-gray-100 text-gray-600 dark:bg-white/5 dark:text-gray-300'} disabled:opacity-40`}>
+                    className={`rounded-lg px-2 py-1 text-[11px] font-bold max-sm:px-3 max-sm:py-2 max-sm:text-xs ${on ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'bg-gray-100 text-gray-600 dark:bg-white/5 dark:text-gray-300'} disabled:opacity-40`}>
                     {t.town} <span className="opacity-60">{t.closed_sales}</span>
                   </button>
                 )
               })}
             </div>
-            <label className="mt-2 flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300">
-              <input type="checkbox" checked={randomSpread} onChange={e => setRandomSpread(e.target.checked)} /> Random spread across all towns
+            <label className="mt-2 flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300 max-sm:min-h-[44px]">
+              <input type="checkbox" className="max-sm:h-5 max-sm:w-5" checked={randomSpread} onChange={e => setRandomSpread(e.target.checked)} /> Random spread across all towns
             </label>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -256,7 +256,7 @@ export default function CmaBacktestPanel() {
                 {(opts?.property_types || []).map((p: any) => <option key={p.key} value={p.key}>{p.label}</option>)}
               </select></div>
             <div><p className={label}>How many homes</p><input className={input} type="number" min={1} max={opts?.max_homes || 50} value={count} onChange={e => setCount(Math.max(1, Math.min(opts?.max_homes || 50, Number(e.target.value) || 1)))} /></div>
-            <div><p className={label}>Report type</p>
+            <div className="max-sm:col-span-2"><p className={label}>Report type</p>
               <select className={input} value={mode} onChange={e => setMode(e.target.value)}>
                 <option value="buyer">Buyer (offer on the active listing)</option>
                 <option value="listing">Seller (pricing the active listing)</option>
@@ -267,8 +267,8 @@ export default function CmaBacktestPanel() {
                 <option value="api">Direct (same server code, no browser) - quick checks only</option>
               </select></div>
             <div><p className={label}>Cost cap ($)</p><input className={input} type="number" min={1} value={cap} onChange={e => setCap(Number(e.target.value) || 20)} /></div>
-            <label className="col-span-2 flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300">
-              <input type="checkbox" checked={dryRun} onChange={e => setDryRun(e.target.checked)} />
+            <label className="col-span-2 flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300 max-sm:py-1">
+              <input type="checkbox" className="shrink-0 max-sm:h-5 max-sm:w-5" checked={dryRun} onChange={e => setDryRun(e.target.checked)} />
               Dry run - no AI is called ($0). Proves the flow, comp picks and the no-leak checks; the values are placeholders, not a valuation.
             </label>
           </div>
@@ -310,7 +310,7 @@ export default function CmaBacktestPanel() {
       </div>
 
       <div className={card}>
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-1">
           <p className={label}>Tests</p>
           <button onClick={async () => { if (window.confirm('Delete every accuracy-test CMA report? The scoreboards stay.')) { const r = await api.admin.cmaBacktestDeleteAllReports(); if (r.success) window.alert(`Deleted ${r.data?.deleted} test reports.`) } }}
             className={`${btn} text-red-600`}><Trash2 className="h-3.5 w-3.5" /> Delete all test reports</button>
@@ -318,7 +318,7 @@ export default function CmaBacktestPanel() {
         {batches.length === 0 ? <p className="text-sm font-semibold text-gray-400">No tests yet.</p> : (
           <div className="space-y-1">
             {batches.map(b => (
-              <button key={b.id} onClick={() => open(b.id)} className={`flex w-full flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold ${active?.id === b.id ? 'bg-[#C9A24D]/10' : 'hover:bg-gray-50 dark:hover:bg-white/5'}`}>
+              <button key={b.id} onClick={() => open(b.id)} className={`flex w-full flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold max-sm:py-3 ${active?.id === b.id ? 'bg-[#C9A24D]/10' : 'hover:bg-gray-50 dark:hover:bg-white/5'}`}>
                 <span className="font-black text-gray-900 dark:text-white">{new Date(b.created_at).toLocaleString()} {b.settings?.dry_run ? <span className="ml-1 rounded bg-gray-100 px-1 text-[10px] text-gray-500 dark:bg-white/10">DRY RUN</span> : null}</span>
                 <span className="text-gray-500">{b.status} - {b.counts.done}/{Object.values(b.counts as Record<string, number>).reduce((a, c) => a + c, 0)} done
                   {b.summary?.overall?.n ? ` - median miss ${b.summary.overall.median_abs_error_pct}%` : ''} - ${Number(b.actual_cost_usd || 0).toFixed(2)} of ${Number(b.estimated_cost_usd || 0).toFixed(2)} est.</span>
@@ -349,7 +349,7 @@ export default function CmaBacktestPanel() {
             <SegmentTable title="By type" rows={active.summary?.by_segment?.type} />
           </div>
           <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="w-full text-left max-sm:min-w-[760px]">
               <thead><tr className={label}><th className="py-1 pr-2">Home</th><th className="pr-2">As of</th><th className="pr-2">Asking</th><th className="pr-2">Sold for</th><th className="pr-2">Our value</th><th className="pr-2">Miss</th><th className="pr-2">Range caught</th><th className="pr-2">Asking miss</th><th className="pr-2">Status</th><th>Report</th></tr></thead>
               <tbody>{(active.items || []).map((it: any) => <HomeRow key={it.listing_key} it={it} />)}</tbody>
             </table>

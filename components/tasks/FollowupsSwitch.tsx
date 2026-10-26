@@ -3,6 +3,7 @@
 import { ReactNode, useEffect, useState } from 'react'
 import { BellOff, BellRing, Loader2 } from 'lucide-react'
 import api from '@/lib/api-service'
+import { useSaveTracker } from '@/components/ui/SaveStatus'
 
 // Follow-ups master switch - the same idea as the IDX website switch: an agent who doesn't use
 // Follow-ups turns the whole feature off (no automatic follow-ups, hidden from the Dash, the Leads
@@ -28,6 +29,8 @@ function fetchEnabled(): Promise<boolean> {
 export function useFollowupsEnabled() {
   const [enabled, setEnabledState] = useState<boolean | null>(cache ? cache.value : null)
   const [saving, setSaving] = useState(false)
+  // On Settings / Setup the page's save status shows this save too (components/ui/SaveStatus).
+  const tracker = useSaveTracker()
   useEffect(() => {
     let alive = true
     fetchEnabled().then(v => { if (alive) setEnabledState(v) })
@@ -37,12 +40,16 @@ export function useFollowupsEnabled() {
   }, [])
   const setEnabled = async (value: boolean) => {
     setSaving(true)
-    const r = await api.tasks.setAutoRules({ enabled: value })
-    setSaving(false)
-    if (r.success) {
-      cache = { value, at: Date.now() }
-      window.dispatchEvent(new CustomEvent(EVENT, { detail: value }))
+    const job = async () => {
+      const res = await api.tasks.setAutoRules({ enabled: value })
+      if (res.success) {
+        cache = { value, at: Date.now() }
+        window.dispatchEvent(new CustomEvent(EVENT, { detail: value }))
+      }
+      return res
     }
+    const r = await (tracker ? tracker.track(job, { key: 'followups-enabled' }) : job())
+    setSaving(false)
     return r.success
   }
   return { enabled, saving, setEnabled }

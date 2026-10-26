@@ -4252,3 +4252,102 @@ export interface AdminFailuresResponse {
   by_feature: Record<string, number>;
   failures: AdminFailure[];
 }
+
+// ---- Admin "Neighborhoods" tab (backend app/api/admin_area_routes.py) - the shared town records.
+export interface AdminAreaListItem {
+  id: string
+  name: string
+  state: string
+  slug: string
+  county: string | null
+  area_type: 'city' | 'neighborhood' | string
+  parent_area_name: string | null
+  enrichment_status: string
+  last_enriched_at: string | null
+  agent_count: number
+  places_checked: boolean
+  places_checked_at: string | null
+  places_waiting: boolean
+  place_count: number
+  removed_count: number
+  has_summary: boolean
+  admin_edited_at: string | null
+}
+export interface AdminAreaList { items: AdminAreaListItem[]; total: number; page: number; page_size: number; states: string[] }
+export interface AdminAreaListQuery { q?: string; state?: string; area_type?: string; research?: string; used?: string; sort?: string; page?: number; page_size?: number }
+export interface AdminAreaPlace {
+  name: string
+  category?: string | null
+  city?: string | null
+  address?: string | null
+  description?: string | null
+  source_url?: string | null
+  distance_miles?: number | null
+  google_checked?: boolean | null
+  survey_matched?: boolean | null
+  admin_edited?: boolean | null
+  admin_edited_at?: string | null
+  source_type?: string | null
+  removed_reason?: string | null
+  removed_at?: string | null
+  admin_removed?: boolean | null
+  /** What the town page shows for this place (after the page's own wording/distance rules). */
+  page?: { description?: string | null; meta: string; distance_miles?: number | null }
+}
+export interface AdminAreaPlaceList {
+  key: string
+  label: string
+  section: string
+  notes: string
+  page_notes: string
+  checked_at: string | null
+  admin_order: boolean
+  /** The page shows only this many (Living here tabs: 9, the first big as "Local favorite"); null = all. */
+  page_limit: number | null
+  entities: AdminAreaPlace[]
+  removed: AdminAreaPlace[]
+}
+export interface AdminAreaSchool { name: string; district?: string | null; admin_edited?: boolean | null }
+export interface AdminAreaAgent { id: string; name: string; email: string; plan_tier: string | null; site_host: string | null; site_live: boolean; page_url: string | null }
+export interface AdminAreaDetail {
+  id: string
+  name: string
+  state: string
+  slug: string
+  county: string | null
+  area_type: string
+  parent_area_name: string | null
+  zip_codes: string[]
+  enrichment_status: string
+  last_enriched_at: string | null
+  created_at: string | null
+  updated_at: string | null
+  places_check: { version: number | null; checked_at: string | null; waiting: boolean; running: boolean; lookups_estimate: number }
+  admin_edited_at: string | null
+  summary: { text: string; page_text: string; generated_at: string | null; admin_edited: boolean }
+  lists: AdminAreaPlaceList[]
+  public_schools: {
+    districts: { name: string; share?: number | null; source_url?: string | null }[]
+    boundary_caveat?: string | null
+    levels: { key: string; label: string; schools: AdminAreaSchool[] }[]
+  }
+  other_facts: [string, string][]
+  agents: AdminAreaAgent[]
+  view_url: string | null
+  view_host: string | null
+  research_cost_usd: number
+  /** After a save: wording the Fair Housing rules changed. */
+  wording_changes?: { where: string; before: string; after: string }[]
+  /** After "Check places on Google". */
+  check_result?: { checked: number; removed: number; removed_names: Record<string, string[]>; waiting: boolean }
+}
+export interface AdminAreaPlaceInput {
+  ref?: number | null
+  removed_ref?: number | null
+  name: string
+  category?: string | null
+  city?: string | null
+  address?: string | null
+  description?: string | null
+  source_url?: string | null
+}

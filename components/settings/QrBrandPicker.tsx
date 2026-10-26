@@ -13,6 +13,8 @@ import api from '@/lib/api-service'
 import { styledQrSvg, type QrCenter } from '@/lib/qrStyle'
 import { setQrOwner } from '@/lib/qr'
 import { useAuth } from '@/contexts/AuthContext'
+import { useSaveTracker } from '@/components/ui/SaveStatus'
+import SelectedMark, { SELECTED_RING } from '@/components/ui/SelectedMark'
 
 type Choice = 'ohp' | 'logo' | 'initials'
 type Info = { kind: Choice; choice: Choice; allowed: boolean; initials?: string; logo?: string; has_logo: boolean }
@@ -30,17 +32,24 @@ export default function QrBrandPicker({ compact = false }: { compact?: boolean }
   const [info, setInfo] = useState<Info | null>(null)
   const [busy, setBusy] = useState<Choice | ''>('')
   const [err, setErr] = useState('')
+  // On Settings / Setup the page's save status shows this save too (components/ui/SaveStatus).
+  const tracker = useSaveTracker()
   useEffect(() => { api.qrBrand.get().then(r => { if (r.success && r.data) setInfo(r.data as Info) }) }, [])
 
   const pick = async (c: Choice) => {
     if (!info || busy || c === info.choice) return
     setBusy(c); setErr('')
-    const r = await api.qrBrand.set(c)
+    const job = async () => {
+      const r = await api.qrBrand.set(c)
+      if (r.success && r.data) {
+        setInfo(r.data as Info)
+        setErr('')
+        if (user?.id) setQrOwner(user.id, { refresh: true })   // every QR on screen redraws with it
+      } else setErr(r.error || "That didn't save - please try again.")
+      return r
+    }
+    await (tracker ? tracker.track(job, { key: 'qr-brand' }) : job())
     setBusy('')
-    if (r.success && r.data) {
-      setInfo(r.data as Info)
-      if (user?.id) setQrOwner(user.id, { refresh: true })   // every QR on screen redraws with it
-    } else setErr(r.error || "That didn't save - please try again.")
   }
 
   if (!info) return <div className="h-28 animate-pulse rounded-2xl bg-gray-100 dark:bg-white/[0.04]" />
@@ -67,10 +76,10 @@ export default function QrBrandPicker({ compact = false }: { compact?: boolean }
           const disabled = locked || (o.id === 'logo' && o.needsLogo)
           const active = (info.allowed ? info.choice : 'ohp') === o.id
           return (
-            <motion.button key={o.id} type="button" onClick={() => !disabled && pick(o.id)} disabled={!!busy}
+            <motion.button key={o.id} type="button" onClick={() => !disabled && pick(o.id)} disabled={!!busy} aria-pressed={active}
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-              className={`relative flex flex-col items-center gap-2 rounded-2xl border p-2.5 text-center transition ${active ? 'border-[#C9A24D] bg-[#fffaf0] shadow-[0_0_0_3px_rgba(201,162,77,.18)] dark:bg-[#C9A24D]/10' : 'border-gray-200 bg-white hover:border-[#C9A24D]/60 dark:border-white/10 dark:bg-white/[0.03]'} ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}>
-              {active && <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#C9A24D] text-[#111827]"><Check className="h-3 w-3" strokeWidth={3} /></span>}
+              className={`relative flex flex-col items-center gap-2 rounded-2xl border p-2.5 text-center transition ${active ? `border-2 ${SELECTED_RING} bg-[#fffaf0] dark:bg-[#C9A24D]/10` : 'border-gray-200 bg-white hover:border-[#C9A24D]/60 dark:border-white/10 dark:bg-white/[0.03]'} ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}>
+              {active && <SelectedMark key={`qr-${o.id}`} size="sm" />}
               {locked && <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 text-gray-500 dark:bg-white/10"><Lock className="h-3 w-3" /></span>}
               <div className="aspect-square w-full max-w-[96px] p-1"><Preview center={o.center} /></div>
               <div className="min-w-0">

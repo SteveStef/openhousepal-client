@@ -33,7 +33,7 @@ export default function ConfirmationModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 max-sm:!m-0">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-[#111827]/40 dark:bg-black/60"
@@ -41,18 +41,18 @@ export default function ConfirmationModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-[#FAFAF7] rounded-[2rem] shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-8 border border-white dark:bg-[#151517] dark:border-gray-800">
+      <div className="relative bg-[#FAFAF7] rounded-[2rem] shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-8 max-sm:p-6 border border-white dark:bg-[#151517] dark:border-gray-800">
         {/* Close button */}
         <button
           onClick={onClose}
           disabled={isLoading}
-          className="absolute top-6 right-6 text-gray-400 hover:text-[#111827] transition-colors disabled:opacity-50 p-2 hover:bg-white rounded-full shadow-sm dark:hover:bg-gray-800 dark:hover:text-white"
+          className="absolute top-6 right-6 max-sm:top-4 max-sm:right-4 text-gray-400 hover:text-[#111827] transition-colors disabled:opacity-50 p-2 hover:bg-white rounded-full shadow-sm dark:hover:bg-gray-800 dark:hover:text-white"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Title */}
-        <h3 className="text-2xl font-black text-[#111827] mb-4 pr-8 tracking-tight dark:text-white">
+        <h3 className="text-2xl max-sm:text-xl font-black text-[#111827] mb-4 pr-8 max-sm:pr-10 tracking-tight dark:text-white">
           {title}
         </h3>
 
@@ -63,8 +63,8 @@ export default function ConfirmationModal({
 
         {children && <div className="mb-8">{children}</div>}
 
-        {/* Actions */}
-        <div className="flex gap-4">
+        {/* Actions - phones: stacked full-width, the main button on top */}
+        <div className="flex gap-4 max-sm:flex-col-reverse max-sm:gap-3">
           <button
             onClick={onClose}
             disabled={isLoading}

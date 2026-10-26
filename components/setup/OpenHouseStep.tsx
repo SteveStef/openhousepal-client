@@ -40,7 +40,7 @@ export function OpenHouseStep({ ctx }: { ctx: StepCtx }) {
   const invite = es?.client.find(c => c.key === 'showcase_invite')
   const saveEs = (patch: Parameters<typeof api.emailSettings.update>[0], local: EmailSettings) => {
     setEs(local)
-    ctx.markSaving(api.emailSettings.update(patch).then(r => { if (r.success && r.data) setEs(r.data) }))
+    ctx.markSaving(() => api.emailSettings.update(patch).then(r => { if (r.success && r.data) setEs(r.data); return r }), `email-settings-${JSON.stringify(Object.keys(patch))}`)
   }
 
   const guestsPage = showcases && es && invite ? (

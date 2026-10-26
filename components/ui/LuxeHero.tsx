@@ -17,7 +17,7 @@ import type { LucideIcon } from 'lucide-react'
 // gold aurora, a faint architectural grid, a gold sweep along the top edge, a few twinkling
 // sparkles and a shimmer through the gold title words. All of it stops under reduced-motion.
 export default function LuxeHero({
-  kicker, icon: Icon, title, subtitle, badge, kickerNote, aside, actions, tabs, covers = [], compact = false, className = '', backHref, backLabel, asideClassName = 'lg:w-[400px]', actionsClassName = '', centered = false, titleClassName, subtitleClassName,
+  kicker, icon: Icon, title, subtitle, badge, kickerNote, aside, actions, tabs, covers = [], compact = false, className = '', backHref, backLabel, backPhoneOnly = false, asideClassName = 'lg:w-[400px]', actionsClassName = '', centered = false, titleClassName, subtitleClassName,
 }: {
   kicker: string
   icon?: LucideIcon
@@ -40,6 +40,8 @@ export default function LuxeHero({
   /** A small round back arrow before the kicker (e.g. Discovery -> Open Houses). */
   backHref?: string
   backLabel?: string
+  /** Show the back arrow on phones only (bigger there) - computers keep the header exactly as it was (Admin). */
+  backPhoneOnly?: boolean
   /** Width of the right-hand column on desktop (default 400px). */
   asideClassName?: string
   /** Extra classes on the actions row's wrapper (e.g. 'max-sm:hidden'). */
@@ -96,7 +98,7 @@ export default function LuxeHero({
         <div className={`flex items-center gap-2 ${badge ? 'flex-nowrap sm:flex-wrap' : 'flex-wrap'} ${centered ? 'justify-center' : 'justify-between'}`}>
           <p className={`flex items-center gap-x-2 gap-y-1 text-[10px] ${badge ? 'shrink-0 flex-nowrap sm:flex-wrap' : 'flex-wrap'} font-black uppercase tracking-[0.2em] sm:tracking-[0.32em] text-[#8b7355] dark:text-[#e8c97a]`}>
             {backHref && (
-              <BackArrow fallbackHref={backHref} label={backLabel} className="-my-1.5 mr-1 flex h-6 w-6 items-center justify-center rounded-full border border-[#C9A24D]/30 bg-white/80 text-[#8b7355] shadow-sm transition hover:-translate-x-0.5 hover:border-[#C9A24D] dark:border-white/15 dark:bg-white/[0.06] dark:text-[#e8c97a]" />
+              <BackArrow fallbackHref={backHref} label={backLabel} className={`-my-1.5 mr-1 flex h-6 w-6 items-center justify-center rounded-full border border-[#C9A24D]/30 bg-white/80 text-[#8b7355] shadow-sm transition hover:-translate-x-0.5 hover:border-[#C9A24D] dark:border-white/15 dark:bg-white/[0.06] dark:text-[#e8c97a] ${backPhoneOnly ? 'max-sm:-my-2.5 max-sm:h-10 max-sm:w-10 sm:hidden' : ''}`} />
             )}
             {Icon ? <Icon className="h-3.5 w-3.5" /> : <span className="h-px w-8 bg-[#8b7355] dark:bg-[#e8c97a]" />} <span className="whitespace-nowrap">{kicker}</span>
             {/* The dash travels with its note - never left dangling at the end of a line on phones. */}
@@ -143,7 +145,7 @@ const SPARKS: [string, string, number][] = [['12%', '22%', 0], ['38%', '12%', 1.
 
 // The page's sections as one pill bar built into the bottom of a LuxeHero - the active pill
 // glides between tabs. Scrolls sideways on phones.
-export function LuxeTabs<T extends string>({ items, active, onChange, label, end, pinEnd = false, dense = false }: {
+export function LuxeTabs<T extends string>({ items, active, onChange, label, end, pinEnd = false, dense = false, wrapOnPhone = false }: {
   items: { id: T; label: string; icon: React.ComponentType<{ className?: string }> }[]
   active: T
   onChange: (id: T) => void
@@ -154,6 +156,8 @@ export function LuxeTabs<T extends string>({ items, active, onChange, label, end
   pinEnd?: boolean
   /** Many tabs (Activity): tighter, labels only, so the whole row fits on a computer screen. */
   dense?: boolean
+  /** Phones: every tab shows at once, wrapping onto more rows, instead of a sideways-swiping bar (Admin). */
+  wrapOnPhone?: boolean
 }) {
   const id = useRef(`lxt-${Math.random().toString(36).slice(2, 8)}`).current
   // On phones the bar scrolls sideways - keep the open tab centred in it (sideways only, the
@@ -182,8 +186,8 @@ export function LuxeTabs<T extends string>({ items, active, onChange, label, end
     : undefined
   return (
     <div className="flex items-center gap-3">
-    <nav ref={nav} style={fade} className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]" aria-label={label}>
-      <div className={`flex min-w-max items-center ${dense ? 'gap-0.5' : 'gap-1'}`}>
+    <nav ref={nav} style={fade} className={`min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] ${wrapOnPhone ? 'max-sm:overflow-visible max-sm:![mask-image:none] max-sm:![-webkit-mask-image:none]' : ''}`} aria-label={label}>
+      <div className={`flex min-w-max items-center ${dense ? 'gap-0.5' : 'gap-1'} ${wrapOnPhone ? 'max-sm:grid max-sm:min-w-0 max-sm:grid-cols-2' : ''}`}>
         {items.map(t => {
           const on = t.id === active
           return (
@@ -191,7 +195,7 @@ export function LuxeTabs<T extends string>({ items, active, onChange, label, end
               key={t.id}
               onClick={() => onChange(t.id)}
               aria-current={on ? 'page' : undefined}
-              className={`relative flex items-center rounded-xl py-2 text-xs font-black transition-colors ${dense ? 'gap-1.5 px-2.5' : 'gap-2 px-3.5'} ${on ? 'text-white dark:text-[#111827]' : 'text-gray-500 hover:bg-[#C9A24D]/10 hover:text-[#111827] dark:text-white/55 dark:hover:bg-white/[0.06] dark:hover:text-white'}`}
+              className={`relative flex items-center rounded-xl py-2 text-xs font-black transition-colors ${wrapOnPhone ? 'max-sm:min-h-[44px] max-sm:min-w-0 max-sm:justify-center max-sm:px-2 max-sm:text-center' : ''} ${dense ? 'gap-1.5 px-2.5' : 'gap-2 px-3.5'} ${on ? 'text-white dark:text-[#111827]' : 'text-gray-500 hover:bg-[#C9A24D]/10 hover:text-[#111827] dark:text-white/55 dark:hover:bg-white/[0.06] dark:hover:text-white'}`}
             >
               {on && (
                 <motion.span

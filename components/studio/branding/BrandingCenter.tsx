@@ -336,15 +336,15 @@ export function BrandColorDock({ look, luxeAllowed, onChange, show }: { look: Br
                   const on = look.metal === f.id
                   return (
                     <button key={f.id} type="button" onClick={() => onChange({ look: { metal: f.id } })} aria-label={f.label}
-                      className={`h-9 shrink-0 rounded-full px-4 text-xs font-black text-[#111827] transition ${on ? 'ring-2 ring-[#111827] ring-offset-2 dark:ring-white dark:ring-offset-[#111113]' : ''}`}
-                      style={{ background: `linear-gradient(115deg, ${f.palette.deep}, ${f.palette.base} 35%, ${f.palette.pale} 52%, ${f.palette.light} 62%, ${f.palette.deep})` }}>{f.label}</button>
+                      className={`inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-4 text-xs font-black text-[#111827] transition ${on ? 'ring-[3px] ring-[#C9A24D] ring-offset-2 dark:ring-offset-[#111113]' : ''}`}
+                      style={{ background: `linear-gradient(115deg, ${f.palette.deep}, ${f.palette.base} 35%, ${f.palette.pale} 52%, ${f.palette.light} 62%, ${f.palette.deep})` }}>{on && <Check className="h-3.5 w-3.5" strokeWidth={3.5} />}{f.label}</button>
                   )
                 })
               : colors.map(c => {
                   const on = c.color.toUpperCase() === look.accent.toUpperCase()
                   return (
                     <motion.button key={c.color} type="button" whileTap={{ scale: 0.88 }} onClick={() => onChange({ secondary_color: c.color })} aria-label={c.label}
-                      className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${on ? 'ring-2 ring-[#111827] ring-offset-2 dark:ring-white dark:ring-offset-[#111113]' : 'ring-1 ring-black/10'}`} style={{ background: c.color }}>
+                      className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${on ? 'ring-[3px] ring-[#C9A24D] ring-offset-2 dark:ring-offset-[#111113]' : 'ring-1 ring-black/10'}`} style={{ background: c.color }}>
                       {on && <Check className="h-4 w-4 text-white mix-blend-difference" strokeWidth={3.5} />}
                     </motion.button>
                   )

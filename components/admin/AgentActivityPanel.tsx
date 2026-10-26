@@ -109,7 +109,7 @@ export default function AgentActivityPanel({ groups = [] }: { groups?: BillingGr
             What every agent is using, how often, and whether it&apos;s working for them. Counts only - their clients&apos; names and contact details are never shown here.
           </p>
         </div>
-        <button onClick={load} className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-600 hover:border-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-gray-300">
+        <button onClick={load} className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 max-sm:py-2.5 text-xs font-black text-gray-600 hover:border-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-gray-300">
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
         </button>
       </div>
@@ -124,10 +124,10 @@ export default function AgentActivityPanel({ groups = [] }: { groups?: BillingGr
         <Kpi label="Leads (30 days)" value={t.leads_30} />
       </div>
 
-      <div className="flex w-fit gap-1 rounded-2xl border border-gray-100 bg-white p-1 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
+      <div className="flex w-fit gap-1 rounded-2xl border border-gray-100 bg-white p-1 shadow-sm dark:border-gray-800 dark:bg-[#151517] max-sm:w-full">
         {(['agents', 'features'] as const).map(v => (
           <button key={v} onClick={() => setView(v)}
-            className={`rounded-xl px-4 py-2 text-[11px] font-black uppercase tracking-widest transition ${view === v ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'text-gray-500 hover:text-[#C9A24D]'}`}>
+            className={`rounded-xl px-4 py-2 text-[11px] font-black uppercase tracking-widest transition max-sm:flex-1 max-sm:py-2.5 ${view === v ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'text-gray-500 hover:text-[#C9A24D]'}`}>
             {v === 'agents' ? 'By agent' : 'By feature'}
           </button>
         ))}
@@ -200,9 +200,9 @@ export default function AgentActivityPanel({ groups = [] }: { groups?: BillingGr
 
 function Select({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: [string, string][] }) {
   return (
-    <label className="relative">
+    <label className="relative max-sm:min-w-[calc(50%-0.25rem)] max-sm:flex-1">
       <select value={value} onChange={e => onChange(e.target.value)}
-        className="appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-8 text-xs font-bold text-[#111827] outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
+        className="appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-8 text-xs font-bold max-sm:min-h-[44px] max-sm:w-full text-[#111827] outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
         {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
       <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
@@ -276,13 +276,13 @@ export function AgentDrawer({ id, onClose }: { id: string; onClose: () => void }
   let lastDay = ''
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={onClose}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end bg-black/50 max-sm:!m-0" onClick={onClose}>
       <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 40, opacity: 0 }} transition={{ type: 'spring', stiffness: 380, damping: 36 }}
         onClick={e => e.stopPropagation()}
         className="flex h-full w-full max-w-3xl flex-col bg-[#faf9f7] shadow-2xl dark:bg-[#0B0B0B]">
         <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
-          <button onClick={onClose} className="inline-flex items-center gap-1.5 text-sm font-black text-gray-500 hover:text-[#111827] dark:hover:text-white"><ArrowLeft className="h-4 w-4" /> All agents</button>
-          <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10"><X className="h-4 w-4" /></button>
+          <button onClick={onClose} className="inline-flex items-center gap-1.5 text-sm font-black text-gray-500 hover:text-[#111827] dark:hover:text-white max-sm:min-h-[44px] max-sm:pr-3"><ArrowLeft className="h-4 w-4" /> All agents</button>
+          <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 max-sm:flex max-sm:h-11 max-sm:w-11 max-sm:items-center max-sm:justify-center max-sm:bg-gray-100 max-sm:text-gray-600 dark:max-sm:bg-white/10 dark:max-sm:text-gray-200"><X className="h-4 w-4 max-sm:h-5 max-sm:w-5" /></button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
           {!d ? <div className="flex justify-center py-20 text-gray-400"><Loader2 className="h-6 w-6 animate-spin" /></div> : (
@@ -384,7 +384,7 @@ export function AgentDrawer({ id, onClose }: { id: string; onClose: () => void }
                 <div className="mb-3 flex flex-wrap gap-1">
                   {([['all', 'Everything'], ['action', 'What they did'], ['result', 'What came in']] as const).map(([k, l]) => (
                     <button key={k} onClick={() => { setTl(k); setTlPage(1) }}
-                      className={`rounded-full px-3 py-1.5 text-[11px] font-black ${tl === k ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-white/[0.06]'}`}>{l}</button>
+                      className={`rounded-full px-3 py-1.5 max-sm:py-2.5 text-[11px] font-black ${tl === k ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-white/[0.06]'}`}>{l}</button>
                   ))}
                 </div>
                 {timeline.length === 0 ? <p className="text-sm font-semibold text-gray-400">Nothing yet.</p> : (

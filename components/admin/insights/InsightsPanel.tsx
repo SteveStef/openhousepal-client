@@ -58,17 +58,17 @@ export default function InsightsPanel({ page, title, blurb, onGo }: { page: stri
           <h2 className="text-lg font-black leading-tight text-[#111827] dark:text-white">{title}</h2>
           <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">{blurb}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div role="radiogroup" aria-label="Time period" className="flex rounded-xl bg-white p-1 shadow-sm ring-1 ring-gray-200 dark:bg-[#151517] dark:ring-white/10">
+        <div className="flex items-center gap-2 max-sm:w-full">
+          <div role="radiogroup" aria-label="Time period" className="flex rounded-xl bg-white p-1 shadow-sm ring-1 ring-gray-200 dark:bg-[#151517] dark:ring-white/10 max-sm:min-w-0 max-sm:flex-1">
             {PERIODS.map(p => (
               <button key={p.days} role="radio" aria-checked={days === p.days} onClick={() => pick(p.days)}
-                className={`rounded-lg px-2.5 py-1.5 text-[11px] font-black transition sm:px-3 ${days === p.days ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
+                className={`rounded-lg px-2.5 py-1.5 text-[11px] font-black transition sm:px-3 max-sm:flex-1 max-sm:whitespace-nowrap max-sm:px-1 max-sm:py-2.5 ${days === p.days ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
                 {p.label}
               </button>
             ))}
           </div>
           <button onClick={load} aria-label="Refresh" title="Refresh"
-            className="rounded-xl bg-white p-2 text-gray-500 shadow-sm ring-1 ring-gray-200 hover:text-[#111827] dark:bg-[#151517] dark:text-gray-400 dark:ring-white/10 dark:hover:text-white">
+            className="rounded-xl bg-white p-2 max-sm:p-3 text-gray-500 shadow-sm ring-1 ring-gray-200 hover:text-[#111827] dark:bg-[#151517] dark:text-gray-400 dark:ring-white/10 dark:hover:text-white">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>

@@ -423,6 +423,8 @@ function HomePageContent() {
   // mobileOnly=false (Pricing's case): shown at every breakpoint - Pricing's cards run edge-to-
   // edge on desktop too, so the fixed cue overlapped there just like it did on mobile; this inline
   // version replaces it entirely for Pricing rather than only filling in below `sm`.
+  // Phones (below `md`) don't get the cue at all (owner ask 10/26) - mobileOnly=false shows it
+  // only from `md` up, and the wrappers around it use md:mt-* so no empty gap is left behind.
   const renderInlineCue = (fromSection: SectionId, mobileOnly = true) => {
     const index = SECTIONS.findIndex(s => s.id === fromSection)
     const nextSection = SECTIONS[index + 1]
@@ -435,7 +437,7 @@ function HomePageContent() {
           if (target) animateScrollTo(target)
         }}
         aria-label={`Scroll down to ${label.replace(/^See /i, '')}`}
-        className={`${mobileOnly ? 'sm:hidden' : ''} mx-auto mt-6 flex w-fit items-center gap-2 rounded-full border border-gray-200/70 dark:border-gray-800/70 bg-white/80 dark:bg-[#151517]/80 px-3.5 py-2 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.15)] text-[#6B7280] dark:text-gray-400 hover:text-[#C9A24D] dark:hover:text-[#C9A24D] transition-all duration-300`}
+        className={`${mobileOnly ? 'flex sm:hidden' : 'hidden md:flex'} mx-auto mt-6 w-fit items-center gap-2 rounded-full border border-gray-200/70 dark:border-gray-800/70 bg-white/80 dark:bg-[#151517]/80 px-3.5 py-2 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.15)] text-[#6B7280] dark:text-gray-400 hover:text-[#C9A24D] dark:hover:text-[#C9A24D] transition-all duration-300`}
       >
         <span className="text-[10px] font-bold uppercase tracking-widest">{label}</span>
         <span className="relative flex items-center justify-center w-5 h-5">
@@ -590,7 +592,7 @@ function HomePageContent() {
               <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-[#C9A24D]" strokeWidth={3} /> No commitment</span>
             </div>
 
-            <div className="mt-8">{renderInlineCue('hero', false)}</div>
+            <div className="md:mt-8">{renderInlineCue('hero', false)}</div>
           </div>
         </div>
       </section>
@@ -793,8 +795,10 @@ function HomePageContent() {
                   and the tabs' order-3) so a visitor sees a working example immediately, then
                   explores other tools via the tabs below; unchanged side-by-side placement on
                   desktop, sized purely by its own content. */}
-              <div className="relative order-2" ref={toolDemoRef}>
-                <div key={currentFeature.key} className="relative z-10 transition-all duration-700 animate-fadeIn transform scale-90 origin-top">
+              {/* Phones (below sm): the demo window uses a bit more of the side gutter and drops
+                  the 90% shrink, so the walkthroughs read at full size on a narrow screen. */}
+              <div className="relative order-2 max-sm:-mx-2" ref={toolDemoRef}>
+                <div key={currentFeature.key} className="relative z-10 transition-all duration-700 animate-fadeIn transform scale-90 origin-top max-sm:scale-100">
                   <ActiveDemo />
                 </div>
 
@@ -804,7 +808,7 @@ function HomePageContent() {
                 </div>
               </div>
             </div>
-            <div className="mt-8 lg:mt-10">{renderInlineCue('tools', false)}</div>
+            <div className="md:mt-8 lg:mt-10">{renderInlineCue('tools', false)}</div>
           </div>
         </div>
       </section>

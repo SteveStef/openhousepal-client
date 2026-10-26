@@ -18,8 +18,10 @@ export type StepCtx = {
   setData: (d: SetupData) => void
   /** debounced, merged save of the agent's info (hub config + account) */
   saveInfo: (patch: SetupInfoPatch) => void
-  /** report a save made through another endpoint, for the "Saved" pill */
-  markSaving: (p: Promise<unknown>) => void
+  /** run (and report) a save made through another endpoint, for the page's save status. The job
+   *  should return the API response - success: false shows "Couldn't save" and Try again re-runs
+   *  the job. Same `key` = the same setting (a newer save replaces an older failed one). */
+  markSaving: <T>(job: () => Promise<T>, key?: string) => Promise<T>
   setGate: (g: Gate) => void
   plan: string | null
   /** a step with pages tells the bottom bar where it is */
@@ -147,7 +149,7 @@ export function Field({ label, hint, required, value, onChange, placeholder, typ
     <label className="block">
       <span className="flex items-center gap-2 text-[15px] font-black text-[#111827] dark:text-white">
         {label}
-        {required ? <span className="rounded-full bg-[#C9A24D]/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-[#8b6a2b] dark:text-[#e8c97a]">Needed</span> : <span className="text-[12px] font-bold text-gray-400">Optional</span>}
+        {required ? <span className="rounded-full bg-[#C9A24D]/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-[#8b6a2b] dark:text-[#e8c97a]">Required</span> : <span className="text-[12px] font-bold text-gray-400">Optional</span>}
       </span>
       {hint && <span className="mt-1 block text-[13.5px] font-medium leading-snug text-gray-500 dark:text-gray-400">{hint}</span>}
       <input
@@ -216,12 +218,12 @@ export function Swatches({ colors, value, onChange, label }: { colors: { color: 
             aria-checked={on}
             title={c.label}
             onClick={() => onChange(c.color)}
-            className="group flex flex-col items-center gap-1.5"
+            className="group flex flex-col items-center gap-1.5 active:scale-95"
           >
-            <span className={`relative flex h-12 w-12 items-center justify-center rounded-full border-2 shadow-sm ring-1 ring-black/10 transition dark:ring-white/25 ${on ? 'scale-110 border-[#111827] dark:border-white' : 'border-white group-hover:scale-105 dark:border-[#141416]'}`} style={{ background: c.color, boxShadow: on ? '0 0 0 3px rgba(201,162,77,.35)' : undefined }}>
-              {on && <Check className={`h-5 w-5 ${isLight(c.color) ? 'text-[#111827]' : 'text-white'}`} strokeWidth={3} />}
+            <span className={`relative flex h-12 w-12 items-center justify-center rounded-full shadow-sm transition ${on ? 'scale-110 ring-[3px] ring-[#C9A24D] ring-offset-2 ring-offset-white shadow-[0_8px_18px_-6px_rgba(201,162,77,.9)] dark:ring-offset-[#121214]' : 'ring-1 ring-black/10 group-hover:scale-105 dark:ring-white/25'}`} style={{ background: c.color }}>
+              {on && <Check key={c.color} className={`h-5 w-5 animate-[successPop_.3s_ease-out] ${isLight(c.color) ? 'text-[#111827]' : 'text-white'}`} strokeWidth={3} />}
             </span>
-            <span className={`text-[11px] font-bold ${on ? 'text-[#111827] dark:text-white' : 'text-gray-500'}`}>{c.label}</span>
+            <span className={`text-[11px] font-bold ${on ? 'font-black text-[#8b6a2b] dark:text-[#e8c97a]' : 'text-gray-500'}`}>{c.label}</span>
           </button>
         )
       })}
@@ -259,7 +261,7 @@ export function BigToggle({ on, onChange, title, blurb, disabled }: { on: boolea
  *  screen size, or (`desktopOnly`) only where there's room for it to stay. */
 export function PinnedPreview({ children, desktopOnly = false }: { children: React.ReactNode; desktopOnly?: boolean }) {
   return (
-    <div className={`${desktopOnly ? 'lg:sticky' : 'sticky'} top-[67px] isolate z-20 -mx-6 -mt-8 border-b border-[#C9A24D]/15 bg-white/95 px-6 pb-5 pt-5 shadow-[0_18px_30px_-28px_rgba(17,24,39,.5)] dark:border-white/[0.06] dark:bg-[#121214]/95 sm:-mx-10 sm:-mt-10 sm:px-10`}>
+    <div className={`${desktopOnly ? 'lg:sticky' : 'sticky'} top-[103px] sm:top-[67px] isolate z-20 -mx-6 -mt-8 border-b border-[#C9A24D]/15 bg-white/95 px-6 pb-5 pt-5 shadow-[0_18px_30px_-28px_rgba(17,24,39,.5)] dark:border-white/[0.06] dark:bg-[#121214]/95 sm:-mx-10 sm:-mt-10 sm:px-10`}>
       {children}
     </div>
   )

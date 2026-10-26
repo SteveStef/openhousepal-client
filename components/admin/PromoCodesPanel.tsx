@@ -190,12 +190,12 @@ function CodeDrawer({ code, groups, onClose, onSaved, onToast }: {
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={onClose}>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end bg-black/50 max-sm:!m-0" onClick={onClose}>
       <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 40, opacity: 0 }} transition={{ type: 'spring', stiffness: 380, damping: 36 }}
         onClick={e => e.stopPropagation()} className="flex h-full w-full max-w-2xl flex-col bg-[#faf9f7] shadow-2xl dark:bg-[#0B0B0B]">
         <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
-          <button onClick={onClose} className="inline-flex items-center gap-1.5 text-sm font-black text-gray-500 hover:text-[#111827] dark:hover:text-white"><ArrowLeft className="h-4 w-4" /> Codes</button>
-          <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10"><X className="h-4 w-4" /></button>
+          <button onClick={onClose} className="inline-flex items-center gap-1.5 text-sm font-black text-gray-500 hover:text-[#111827] dark:hover:text-white max-sm:min-h-[44px] max-sm:pr-3"><ArrowLeft className="h-4 w-4" /> Codes</button>
+          <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 max-sm:flex max-sm:h-11 max-sm:w-11 max-sm:items-center max-sm:justify-center max-sm:bg-gray-100 max-sm:text-gray-600 dark:max-sm:bg-white/10 dark:max-sm:text-gray-200"><X className="h-4 w-4 max-sm:h-5 max-sm:w-5" /></button>
         </div>
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
           <div className="flex flex-wrap items-center gap-3">
@@ -231,7 +231,7 @@ function CodeDrawer({ code, groups, onClose, onSaved, onToast }: {
               {code && (
                 <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-violet-50 px-3 py-2.5 dark:bg-violet-500/10">
                   <span className="min-w-0 flex-1 break-all font-mono text-xs font-bold text-violet-800 dark:text-violet-200">{signupLink}</span>
-                  <button onClick={() => copyText(signupLink).then(() => onToast('Sign-up link copied', 'success'))} className="inline-flex items-center gap-1 text-xs font-black text-violet-700 hover:underline dark:text-violet-300"><Copy className="h-3.5 w-3.5" /> Copy link</button>
+                  <button onClick={() => copyText(signupLink).then(() => onToast('Sign-up link copied', 'success'))} className="inline-flex items-center gap-1 text-xs font-black text-violet-700 hover:underline dark:text-violet-300 max-sm:min-h-[40px] max-sm:w-full max-sm:justify-center max-sm:rounded-lg max-sm:bg-white/70 dark:max-sm:bg-black/20"><Copy className="h-3.5 w-3.5" /> Copy link</button>
                 </div>
               )}
             </Box>
@@ -251,7 +251,7 @@ function CodeDrawer({ code, groups, onClose, onSaved, onToast }: {
                 <div className="mb-3 flex flex-wrap gap-2">
                   {quickPicks.map(p => (
                     <button key={p.plan_id} type="button" onClick={() => set('paypal_plan_id', p.plan_id)}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${form.paypal_plan_id === p.plan_id ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#e8c97a]' : 'border-gray-200 text-gray-600 hover:border-[#C9A24D]/50 dark:border-gray-700 dark:text-gray-300'}`}>
+                      className={`rounded-full border px-3 py-1.5 text-xs font-black transition max-sm:py-2.5 ${form.paypal_plan_id === p.plan_id ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#e8c97a]' : 'border-gray-200 text-gray-600 hover:border-[#C9A24D]/50 dark:border-gray-700 dark:text-gray-300'}`}>
                       {p.label}
                     </button>
                   ))}

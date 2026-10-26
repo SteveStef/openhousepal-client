@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertOctagon, DollarSign, MessageSquare, Users, ShieldAlert, X, Bot, Loader2, Globe2, Radar } from 'lucide-react'
+import { AlertOctagon, ArrowLeft, DollarSign, MessageSquare, Users, ShieldAlert, X, Bot, Loader2, Globe2, Radar } from 'lucide-react'
 import api from '@/lib/api-service'
 import { AIAdminOverview, AIAdminAgentSummary, AIAdminAgentDetail, AIAdminBudgetStatus, AIAdminTopConsumer, AIAdminMonthlyPoint } from '@/types'
 
@@ -115,7 +115,7 @@ function MonthlyTrendBars({ points }: { points: AIAdminMonthlyPoint[] }) {
 
 function StatCard({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent?: boolean }) {
   return (
-    <div className={`bg-white dark:bg-[#151517] px-6 py-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col ${accent ? 'border-l-4 border-l-[#C9A24D]' : ''}`}>
+    <div className={`bg-white dark:bg-[#151517] px-6 py-4 max-sm:px-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col ${accent ? 'border-l-4 border-l-[#C9A24D]' : ''}`}>
       <div className="flex items-center gap-1.5 mb-1 text-[#6B7280] dark:text-gray-500">
         {icon}
         <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
@@ -139,7 +139,7 @@ function BudgetStatusRow({ status }: { status: AIAdminBudgetStatus }) {
   return (
     <div className="px-6 py-4 border-b border-gray-50 dark:border-gray-800/50 last:border-0">
       <p className="text-xs font-black text-[#111827] dark:text-white mb-2">{status.label}</p>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <div className="flex items-center justify-between text-[10px] font-bold text-gray-400 mb-1">
             <span>Day: {formatCost(status.day_spent_usd)}{status.day_limit_usd != null ? ` / ${formatCost(status.day_limit_usd)}` : ''}</span>
@@ -297,15 +297,15 @@ export default function AIUsagePanel() {
           { label: 'CMA this month', spent: cma?.month_spent_usd || 0, limit: cma?.month_limit_usd, sub: 'site-wide CMA cap' },
         ]
         return (
-          <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4 max-sm:gap-3">
             {tiles.map((t) => {
               const pct = t.limit ? Math.min(100, (t.spent / t.limit) * 100) : 0
               return (
-                <div key={t.label} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
+                <div key={t.label} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517] max-sm:p-4">
                   <p className="text-[10px] font-black uppercase tracking-widest text-[#6B7280] dark:text-gray-500">{t.label}</p>
-                  <p className="mt-2 text-2xl font-black text-[#111827] dark:text-white">
+                  <p className="mt-2 text-2xl font-black text-[#111827] dark:text-white max-sm:text-xl">
                     {formatCost(t.spent)}
-                    {t.limit != null && <span className="text-sm font-bold text-gray-400"> / {formatCost(t.limit)}</span>}
+                    {t.limit != null && <span className="text-sm font-bold text-gray-400 max-sm:block max-sm:text-xs"> / {formatCost(t.limit)}</span>}
                   </p>
                   {t.limit != null && (
                     <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
@@ -321,7 +321,7 @@ export default function AIUsagePanel() {
       })()}
 
       {/* Overview cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 max-sm:gap-3">
         <StatCard icon={<DollarSign className="w-3 h-3" />} label="Cost (Month)" value={formatCost(overview?.total_cost_month_usd || 0)} accent />
         <StatCard icon={<DollarSign className="w-3 h-3" />} label="Cost (All-Time)" value={formatCost(overview?.total_cost_all_time_usd || 0)} />
         <StatCard icon={<MessageSquare className="w-3 h-3" />} label="Messages (Month)" value={String(overview?.messages_month || 0)} />
@@ -401,12 +401,12 @@ export default function AIUsagePanel() {
           </div>
           <div className="space-y-2">
             {overview.top_google_places_consumers.map((c: AIAdminTopConsumer) => (
-              <div key={`${c.kind}:${c.identifier}`} className="flex items-center justify-between text-xs">
-                <span className="font-mono text-gray-500 dark:text-gray-400">
+              <div key={`${c.kind}:${c.identifier}`} className="flex items-center justify-between gap-3 text-xs">
+                <span className="min-w-0 break-all font-mono text-gray-500 dark:text-gray-400">
                   <span className="uppercase text-[9px] font-black text-gray-400 mr-2">{c.kind}</span>
                   {c.identifier}
                 </span>
-                <span className={`font-black ${c.spent_today_usd / c.limit_usd >= 0.9 ? 'text-red-500' : 'text-[#111827] dark:text-white'}`}>
+                <span className={`shrink-0 font-black ${c.spent_today_usd / c.limit_usd >= 0.9 ? 'text-red-500' : 'text-[#111827] dark:text-white'}`}>
                   {formatCost(c.spent_today_usd)} / {formatCost(c.limit_usd)}
                 </span>
               </div>
@@ -418,14 +418,14 @@ export default function AIUsagePanel() {
       {/* Leaderboard */}
       <div className="bg-white dark:bg-[#151517] rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#151517] via-[#C9A24D] to-[#151517]" />
-        <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 dark:border-gray-800">
+        <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 dark:border-gray-800 max-sm:flex-wrap max-sm:gap-3 max-sm:px-5">
           <p className="text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-[0.2em]">Cost Leaderboard — Who's Driving Spend</p>
           <div className="flex items-center gap-1 p-1 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
             {(['month', 'all'] as const).map((p) => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                className={`px-3 py-1.5 max-sm:py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
                   period === p ? 'bg-[#C9A24D] text-white shadow-lg shadow-[#C9A24D]/20' : 'text-gray-500 dark:text-gray-400'
                 }`}
               >
@@ -434,7 +434,32 @@ export default function AIUsagePanel() {
             ))}
           </div>
         </div>
-        <div className="overflow-x-auto">
+        {/* Phones: one card per agent instead of the 7-column table. */}
+        <ul className="divide-y divide-gray-100 dark:divide-gray-800 sm:hidden">
+          {agents.length === 0 && <li className="px-5 py-10 text-center text-sm text-gray-400 dark:text-zinc-500">No AI usage recorded for this period.</li>}
+          {agents.map((a) => (
+            <li key={a.owner_id}>
+              <button onClick={() => openDetail(a.owner_id)} className="w-full px-5 py-4 text-left active:bg-[#FAFAF7] dark:active:bg-gray-900/30">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-black leading-tight text-[#111827] dark:text-white">{a.name}</p>
+                    <p className="break-all text-xs font-medium text-[#6B7280] dark:text-gray-500">{a.email}</p>
+                  </div>
+                  <span className="shrink-0 font-black text-[#C9A24D]">{formatCost(a.cost_usd)}</span>
+                </div>
+                <p className="mt-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                  {a.messages} messages · {a.tool_calls} tool calls
+                  {a.blocked_count > 0 && <span className="text-red-500"> · {a.blocked_count} blocked</span>}
+                </p>
+                <p className="mt-0.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                  Site today: <span className={a.site_daily_limit_usd && a.site_spend_today_usd / a.site_daily_limit_usd >= 0.9 ? 'font-black text-red-500' : 'font-black text-gray-700 dark:text-gray-300'}>{formatCost(a.site_spend_today_usd)}{a.site_daily_limit_usd ? ` / ${formatCost(a.site_daily_limit_usd)}` : ''}</span>
+                  {' · '}last active {formatLastActive(a.last_active)}
+                </p>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="overflow-x-auto max-sm:hidden">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-800">
@@ -492,9 +517,9 @@ export default function AIUsagePanel() {
 
       {/* Drill-down modal */}
       {(detail || detailLoading) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setDetail(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 max-sm:!m-0 max-sm:p-0" onClick={() => setDetail(null)}>
           <div
-            className="bg-white dark:bg-[#151517] rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 max-w-lg w-full max-h-[85vh] overflow-y-auto"
+            className="bg-white dark:bg-[#151517] rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 max-w-lg w-full max-h-[85vh] overflow-y-auto overscroll-contain max-sm:h-full max-sm:max-h-none max-sm:rounded-none max-sm:border-0"
             onClick={(e) => e.stopPropagation()}
           >
             {detailLoading || !detail ? (
@@ -503,17 +528,21 @@ export default function AIUsagePanel() {
               </div>
             ) : (
               <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#C9A24D]/10 flex items-center justify-center text-[#C9A24D]">
+                <div className="flex items-start justify-between mb-4 max-sm:sticky max-sm:top-0 max-sm:z-10 max-sm:-mx-6 max-sm:-mt-6 max-sm:items-center max-sm:gap-3 max-sm:border-b max-sm:border-gray-100 max-sm:bg-white max-sm:px-6 max-sm:py-3 dark:max-sm:border-gray-800 dark:max-sm:bg-[#151517]">
+                  <div className="flex min-w-0 items-center gap-3">
+                    {/* Phones: a back arrow to the list in place of the round icon (the X is for computers). */}
+                    <button onClick={() => setDetail(null)} aria-label="Back to the list" className="-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 sm:hidden dark:bg-white/10 dark:text-gray-200">
+                      <ArrowLeft className="h-5 w-5" />
+                    </button>
+                    <div className="w-10 h-10 rounded-full bg-[#C9A24D]/10 flex items-center justify-center text-[#C9A24D] max-sm:hidden">
                       <Bot className="w-5 h-5" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-black text-[#111827] dark:text-white leading-tight">{detail.name}</p>
-                      <p className="text-xs text-[#6B7280] dark:text-gray-500">{detail.email}</p>
+                      <p className="break-all text-xs text-[#6B7280] dark:text-gray-500">{detail.email}</p>
                     </div>
                   </div>
-                  <button onClick={() => setDetail(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                  <button onClick={() => setDetail(null)} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 max-sm:hidden">
                     <X className="w-5 h-5" />
                   </button>
                 </div>

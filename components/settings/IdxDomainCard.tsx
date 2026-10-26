@@ -12,6 +12,7 @@ import { ReactNode, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowUpRight, CheckCircle2, Globe, Link2, Loader2, PowerOff, Star } from 'lucide-react'
 import api from '@/lib/api-service'
+import { useSaveTracker } from '@/components/ui/SaveStatus'
 import DomainHealthBanner from '@/components/DomainHealthBanner'
 import DomainWarningSheet from '@/components/domains/DomainWarningSheet'
 import type { LinkDomainState } from '@/types'
@@ -26,6 +27,9 @@ export function useLinkDomain() {
   const [state, setState] = useState<LinkDomainState | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // On Settings the page's save status shows these switches' saves too (components/ui/SaveStatus).
+  const tracker = useSaveTracker()
+  const tracked = <T,>(job: () => Promise<T>, key: string) => (tracker ? tracker.track(job, { key }) : job())
   useEffect(() => {
     api.sites.getLinkDomain().then(({ success, data }) => { if (success && data) setState(data) })
   }, [])
@@ -35,18 +39,25 @@ export function useLinkDomain() {
     setState({ ...state, use_own_domain: on, current_base_url: on && state.own_base_url ? state.own_base_url : state.platform_base_url })
     setSaving(true)
     setError(null)
-    const { success, data } = await api.sites.setLinkDomain(on)
+    const { success, data } = await tracked(async () => {
+      const r = await api.sites.setLinkDomain(on)
+      if (r.success && r.data) { setState(r.data); setError(null) }
+      return r
+    }, 'link-domain')
     setSaving(false)
-    if (success && data) setState(data)
-    else { setState(prev); setError("Couldn't save that - try again.") }
+    if (!(success && data)) { setState(prev); setError("Couldn't save that - try again.") }
   }
   const setSiteEnabled = async (on: boolean) => {
     if (!state || saving) return false
     setSaving(true)
     setError(null)
-    const { success, data } = await api.sites.setSiteEnabled(on)
+    const { success, data } = await tracked(async () => {
+      const r = await api.sites.setSiteEnabled(on)
+      if (r.success && r.data) { setState(r.data); setError(null) }
+      return r
+    }, 'site-enabled')
     setSaving(false)
-    if (success && data) { setState(data); return true }
+    if (success && data) return true
     setError("Couldn't save that - try again.")
     return false
   }

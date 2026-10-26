@@ -142,7 +142,7 @@ export default function IdxWebsiteDemo() {
   return (
     <BrowserFrame url={url} progress={{ pages: TOTAL_PAGES, current: 1 + beat.n, durationMs: stop.hold }}>
       <style>{DEMO_NOTE_CSS + CSS}</style>
-      <div className={`relative flex h-[420px] items-center justify-center gap-5 overflow-hidden px-4 ${STAGE_BG}`}>
+      <div className={`relative flex h-[420px] items-center justify-center gap-5 overflow-hidden px-4 max-sm:px-0 ${STAGE_BG}`}>
         <DemoNote id={stop.id} icon={stop.icon} title={stop.title} body={stop.body} index={beat.n} count={STOPS.length}>
           {scene === 'domain' && domainLive && <p className="dn-rise mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-1 text-[9.5px] font-black text-emerald-700 dark:text-emerald-300"><Lock className="h-3 w-3" /> Secure HTTPS, set up for you</p>}
         </DemoNote>

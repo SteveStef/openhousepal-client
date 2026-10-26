@@ -126,7 +126,7 @@ export function PhotoStep({ ctx }: { ctx: StepCtx }) {
     setErr(''); setBusy(true)
     try {
       const jpg = file.type === 'image/jpeg' && file.size < 4.5 * 1024 * 1024 ? file : await toJpeg(file)
-      const r = await api.setup.uploadPhoto(jpg)
+      const r = await ctx.markSaving(() => api.setup.uploadPhoto(jpg), 'photo')
       if (r.success && r.data) { ctx.setData(r.data); setPos({ x: 50, y: 50 }); ctx.saveInfo({ photoPosition: { x: 50, y: 50 } }) }
       else setErr(r.error || 'That photo didn’t upload - please try another one.')
     } catch {

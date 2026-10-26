@@ -402,7 +402,7 @@ export default function OpenHouseKitDemo() {
       progress={{ pages: KIT_TOTAL_PAGES, ...kitPage(beat) }}
     >
       <style>{DEMO_NOTE_CSS}</style>
-      <div className={`relative flex h-[420px] items-center justify-center gap-5 overflow-hidden px-4 ${STAGE_BG}`}>
+      <div className={`relative flex h-[420px] items-center justify-center gap-5 overflow-hidden px-4 max-sm:px-3 ${STAGE_BG}`}>
         {buildNote && buildKey && <DemoNote id={buildKey} icon={buildNote.icon} title={buildNote.title} body={buildNote.body} index={['address', 'generating', 'ready'].indexOf(buildKey)} count={3} />}
         {buildNote && <DemoCaption title={buildNote.title} body={buildNote.body} />}
         {(beat.k === 'address' || beat.k === 'photo' || beat.k === 'generate-click') && (
@@ -410,7 +410,7 @@ export default function OpenHouseKitDemo() {
           // - gradient headline, subtext, and a pill-shaped address bar with an inline "Generate Kit"
           // button. The property photo it auto-pulls once a listing is selected appears right in this
           // same screen, not as a separate slide.
-          <div key="address" className="relative w-[360px] flex-shrink-0 animate-fadeIn text-center overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_30px_60px_-30px_rgba(0,0,0,.45)] dark:border-gray-800 dark:bg-[#151517] p-6">
+          <div key="address" className="relative w-[360px] flex-shrink-0 max-sm:w-full animate-fadeIn text-center overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_30px_60px_-30px_rgba(0,0,0,.45)] dark:border-gray-800 dark:bg-[#151517] p-6">
             <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#C9A24D]/10 rounded-full blur-2xl pointer-events-none" />
             <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-[#111827]/5 dark:bg-white/5 rounded-full blur-2xl pointer-events-none" />
             <h3 className="relative text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-[#8b7355] to-gray-900 dark:from-white dark:via-[#C9A24D] dark:to-gray-200 mb-1.5">Create Your Open House Kit</h3>

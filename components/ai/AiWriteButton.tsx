@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Sparkles, Loader2, X, ShieldCheck, ShieldAlert, Check } from 'lucide-react'
 import api from '@/lib/api-service'
 import { startAiActivity, endAiActivity } from '@/lib/aiActivity'
@@ -40,6 +41,38 @@ export function AiWriteButton({
   const [instruction, setInstruction] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  // The box opens on top of the page (a portal), never inside the card it sits in - setup's cards
+  // clip anything that sticks out, which hid the Polish button on phones (owner, 10/26). Phones get
+  // a bottom sheet; wider screens a floating box beside the button, flipped above when there's no
+  // room below.
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const [phone, setPhone] = useState(false)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  useLayoutEffect(() => {
+    if (!open) return
+    const place = () => {
+      const isPhone = window.innerWidth < 640
+      setPhone(isPhone)
+      const r = btnRef.current?.getBoundingClientRect()
+      if (!r || isPhone) return
+      const width = 288, height = 250
+      const below = r.bottom + 8 + height <= window.innerHeight
+      setPos({
+        top: below ? r.bottom + 8 : Math.max(8, r.top - 8 - height),
+        left: Math.min(Math.max(8, r.right - width), window.innerWidth - width - 8),
+      })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
+  }, [open])
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
 
   const isPolish = purpose === 'bio_polish'
   const btnLabel = label ?? (isPolish ? 'Polish with AI' : 'Write with AI')
@@ -68,6 +101,7 @@ export function AiWriteButton({
   return (
     <div className={`relative inline-block ${className}`}>
       <button
+        ref={btnRef}
         type="button"
         onClick={() => setOpen(o => !o)}
         disabled={disabled}
@@ -76,11 +110,16 @@ export function AiWriteButton({
         <Sparkles className="ohp-icon-draw h-3.5 w-3.5" /> {btnLabel}
       </button>
 
-      {open && (
-        <div className="absolute right-0 z-30 mt-2 w-72 rounded-xl border border-gray-200 bg-white p-3 shadow-xl dark:border-gray-700 dark:bg-[#1A1A1C]">
+      {open && typeof document !== 'undefined' && createPortal(<>
+        {phone && <div className="fixed inset-0 z-[10001] bg-black/45" onClick={() => setOpen(false)} />}
+        <div
+          style={phone ? undefined : pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden' }}
+          className={phone
+            ? 'fixed inset-x-0 bottom-0 z-[10002] rounded-t-3xl border-t border-gray-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_-8px_rgba(0,0,0,0.35)] dark:border-gray-700 dark:bg-[#1A1A1C]'
+            : 'fixed z-[10002] w-72 rounded-xl border border-gray-200 bg-white p-3 shadow-xl dark:border-gray-700 dark:bg-[#1A1A1C]'}>
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-widest text-gray-400">{btnLabel}</span>
-            <button onClick={() => setOpen(false)} className="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10"><X className="h-3.5 w-3.5" /></button>
+            <button onClick={() => setOpen(false)} aria-label="Close" className="rounded p-1 text-gray-400 hover:bg-gray-100 max-sm:flex max-sm:h-10 max-sm:w-10 max-sm:items-center max-sm:justify-center max-sm:rounded-xl dark:hover:bg-white/10"><X className="h-3.5 w-3.5 max-sm:h-5 max-sm:w-5" /></button>
           </div>
 
           {tones && tones.length > 0 && (
@@ -101,7 +140,7 @@ export function AiWriteButton({
             onChange={e => setInstruction(e.target.value)}
             placeholder={isPolish ? 'Anything to keep or change? (optional)' : 'Add any extra instructions (optional)'}
             rows={2}
-            className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white"
+            className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs outline-none max-sm:text-base focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white"
           />
 
           {err && <p className="mt-1.5 text-[11px] font-bold text-red-600 dark:text-red-400">{err}</p>}
@@ -109,14 +148,14 @@ export function AiWriteButton({
           <button
             onClick={run}
             disabled={busy}
-            className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#C9A24D] px-3 py-2 text-[11px] font-black uppercase tracking-wide text-[#111827] transition hover:brightness-105 disabled:opacity-50"
+            className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#C9A24D] px-3 py-2 text-[11px] font-black uppercase tracking-wide text-[#111827] transition hover:brightness-105 disabled:opacity-50 max-sm:min-h-[48px] max-sm:rounded-xl max-sm:text-[13px]"
           >
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
             {busy ? 'Writing…' : isPolish ? 'Polish' : 'Write it'}
           </button>
           <p className="mt-1.5 text-[10px] font-semibold text-gray-400">Uses your monthly AI credits. Review before you publish.</p>
         </div>
-      )}
+      </>, document.body)}
     </div>
   )
 }

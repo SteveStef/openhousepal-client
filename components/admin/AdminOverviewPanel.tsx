@@ -78,7 +78,7 @@ Quick heads up - ${i.title}.
 ${i.fix}
 
 Happy to help if you get stuck.`)}`}
-                  className="inline-flex shrink-0 items-center gap-1 self-start rounded-lg bg-[#111827] px-2.5 py-1.5 text-[11px] font-black text-white hover:bg-[#C9A24D] dark:bg-white dark:text-[#111827] sm:self-center">
+                  className="inline-flex shrink-0 items-center gap-1 self-start rounded-lg bg-[#111827] px-2.5 py-1.5 max-sm:px-3.5 max-sm:py-2.5 text-[11px] font-black text-white hover:bg-[#C9A24D] dark:bg-white dark:text-[#111827] sm:self-center">
                   <Mail className="h-3 w-3" /> Email {i.agent_name.split(' ')[0]}
                 </a>
               </div>
@@ -93,7 +93,7 @@ Happy to help if you get stuck.`)}`}
           {pending.length === 0 ? <Empty icon={Check} text="Everyone's approved." /> : pending.slice(0, 5).map(u => (
             <Row key={u.id} title={`${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email} sub={`${u.brokerage || 'No brokerage'} · joined ${timeAgo(u.created_at).toLowerCase()}`}>
               <button disabled={approving === u.id} onClick={async () => { setApproving(u.id); await onApprove(u); setApproving(null) }}
-                className="inline-flex items-center gap-1 rounded-lg bg-[#111827] px-2.5 py-1.5 text-[11px] font-black text-white hover:bg-[#C9A24D] disabled:opacity-50 dark:bg-white dark:text-[#111827]">
+                className="inline-flex items-center gap-1 rounded-lg bg-[#111827] px-2.5 py-1.5 max-sm:px-3.5 max-sm:py-2.5 text-[11px] font-black text-white hover:bg-[#C9A24D] disabled:opacity-50 dark:bg-white dark:text-[#111827]">
                 {approving === u.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldCheck className="h-3 w-3" />} Approve
               </button>
             </Row>
@@ -182,7 +182,7 @@ function Card({ title, action, children }: { title: string; action?: { label: st
     <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-[11px] font-black uppercase tracking-widest text-gray-400">{title}</p>
-        {action && <button onClick={action.onClick} className="inline-flex items-center gap-0.5 text-[11px] font-black text-[#8b7355] hover:underline dark:text-[#d7b974]">{action.label} <ArrowRight className="h-3 w-3" /></button>}
+        {action && <button onClick={action.onClick} className="inline-flex items-center gap-0.5 max-sm:-my-2 max-sm:py-2 max-sm:pl-2 text-[11px] font-black text-[#8b7355] hover:underline dark:text-[#d7b974]">{action.label} <ArrowRight className="h-3 w-3" /></button>}
       </div>
       {children}
     </div>

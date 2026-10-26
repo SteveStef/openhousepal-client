@@ -36,6 +36,7 @@ import { useSettingsCompleteness } from '@/hooks/useSettingsCompleteness'
 import { toJpeg } from '@/components/setup/SetupUi'
 import { getBrokeragePhone, getOfficePhone, upgradeHubPhones } from '@/lib/hubPhones'
 import QrBrandPicker from '@/components/settings/QrBrandPicker'
+import { SaveStatusBar, SaveStatusContext, useSaveStatus, useSaveTracker } from '@/components/ui/SaveStatus'
 
 // The "IDX Website" settings tab (IDX plan only). Answers three real questions for an IDX agent
 // in one glance - is my site actually live, what's my address, and is my custom domain's DNS
@@ -163,42 +164,6 @@ function IdxTab() {
   )
 }
 
-// Autosave status pill - every field in Profile/Contact saves itself (debounced) as the agent
-// types, so there's no Save button to press or forget to press. This just quietly confirms it
-// happened: a spinner while the debounced save is in flight, then a checkmark for a couple
-// seconds, then it fades away rather than sitting there permanently saying "Saved".
-function AutosaveStatus({ saving, saved }: { saving: boolean; saved: boolean }) {
-  return (
-    <div className="mt-4 flex h-5 items-center">
-      <AnimatePresence mode="wait">
-        {saving ? (
-          <motion.span
-            key="saving"
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.18 }}
-            className="flex items-center gap-1.5 text-xs font-bold text-gray-400 dark:text-gray-500"
-          >
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving...
-          </motion.span>
-        ) : saved ? (
-          <motion.span
-            key="saved"
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.18 }}
-            className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400"
-          >
-            <Check className="h-3.5 w-3.5" /> Saved automatically
-          </motion.span>
-        ) : null}
-      </AnimatePresence>
-    </div>
-  )
-}
-
 function SettingsAccordion({ title, subtitle, incomplete = false, hideStatus = false, closeSignal, children }: { title: string; subtitle?: string; incomplete?: boolean; hideStatus?: boolean; closeSignal?: number; children: ReactNode }) {
   // Synced with the same Complete/Incomplete state Studio -> Site shows for this section: starts
   // open while incomplete (so the agent notices what's left to fill in) and auto-collapses the
@@ -292,14 +257,14 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
 
   const [profile, setProfile] = useState({ name: '', title: '', brokerage: '', team: '', market: '', licenseNumber: '', about: '' })
-  const [profileSaving, setProfileSaving] = useState(false)
-  const [profileSaved, setProfileSaved] = useState(false)
+  // The one save status for the page (components/ui/SaveStatus) - a sticky bar at the top:
+  // "Unsaved changes…" while typing, Saving…, then "All changes saved" (it stays), or a red
+  // "Couldn't save" + Try again. Every save on this page (and its panels, via context) reports here.
+  const save = useSaveStatus()
 
   // Contact - same Agent Hub config.contact ({call, text, email}) that Studio > Site's Contact
   // group reads/writes, so filling this in here or there shows up in both places.
   const [contact, setContact] = useState({ call: '', text: '', email: '', officePhone: '', brokeragePhone: '' })
-  const [contactSaving, setContactSaving] = useState(false)
-  const [contactSaved, setContactSaved] = useState(false)
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
   const [profilePhotoPosition, setProfilePhotoPosition] = useState({ x: 50, y: 50 })
   const [photoUploading, setPhotoUploading] = useState(false)
@@ -387,10 +352,12 @@ export default function SettingsPage() {
 
   // Fetches the current config fresh (so we never clobber sections this page doesn't manage,
   // like videos/tours/blogs from the full Agent Hub editor) and merges the given patch into it.
+  // A failed read never writes (a config built from nothing would wipe the hub) - it reports failure.
   const saveHubConfigPatch = (patch: Record<string, any>) => queueSave(async () => {
     const current = await api.agentHub.getMine()
-    const config = (current.success && current.data?.config ? current.data.config : {}) as any
-    await api.agentHub.saveConfig({ ...config, ...patch })
+    if (!current.success) return current
+    const config = (current.data?.config || {}) as any
+    return api.agentHub.saveConfig({ ...config, ...patch })
   })
 
   const handleSaveRecentSales = async (overrides?: { recentSales?: AgentSale[]; showSalesStats?: boolean; salesCarousel?: boolean; salesAutoScroll?: boolean; salesMinPrice?: number }) => {
@@ -404,13 +371,13 @@ export default function SettingsPage() {
     setSalesCarousel(nextSalesCarousel)
     setSalesAutoScroll(nextSalesAutoScroll)
     setSalesMinPrice(nextSalesMinPrice)
-    await saveHubConfigPatch({
+    await save.track(() => saveHubConfigPatch({
       recentSales: nextRecentSales,
       showSalesStats: nextShowSalesStats,
       salesCarousel: nextSalesCarousel,
       salesAutoScroll: nextSalesAutoScroll,
       salesMinPrice: nextSalesMinPrice,
-    })
+    }), { key: 'recent-sales' })
   }
 
   // Same shared Agent Hub config (config.myListings) as Studio > Site's Listings panel - an edit
@@ -422,11 +389,11 @@ export default function SettingsPage() {
     setMyListings(nextMyListings)
     setListingsCarousel(nextListingsCarousel)
     setListingsAutoScroll(nextListingsAutoScroll)
-    await saveHubConfigPatch({
+    await save.track(() => saveHubConfigPatch({
       myListings: nextMyListings,
       listingsCarousel: nextListingsCarousel,
       listingsAutoScroll: nextListingsAutoScroll,
-    })
+    }), { key: 'my-listings' })
   }
 
   // Saved by the debounced autosave below - one save after the agent stops typing a link, not
@@ -437,13 +404,46 @@ export default function SettingsPage() {
 
   const updateProfileField = (field: keyof typeof profile, value: string) => {
     setProfile(current => ({ ...current, [field]: value }))
-    setProfileSaved(false)
   }
 
   const updateContactField = (field: keyof typeof contact, value: string) => {
     setContact(current => ({ ...current, [field]: value }))
-    setContactSaved(false)
   }
+
+  // The autosaves read the newest values when they actually run (a save waiting 700ms - or sent
+  // early because the agent is leaving - always sends what's on screen).
+  const latest = useRef({ profile, contact, profilePhotoUrl, profilePhotoPosition, socialLinks })
+  latest.current = { profile, contact, profilePhotoUrl, profilePhotoPosition, socialLinks }
+  const saveProfileNow = () => queueSave(async () => {
+    const { profile, profilePhotoUrl, profilePhotoPosition } = latest.current
+    const current = await api.agentHub.getMine()
+    if (!current.success) return current
+    const config = (current.data?.config || {}) as any
+    const nextConfig = { ...config, profile: { ...config.profile, ...profile }, profilePhotoUrl, profilePhotoPosition }
+    const [a, b] = await Promise.all([
+      api.agentHub.saveConfig(nextConfig),
+      api.agentHub.updateProfile({ title: profile.title, market: profile.market, name: profile.name, brokerage: profile.brokerage }),
+    ])
+    return a.success ? b : a
+  })
+  // The office line lives on the Save Contact card (same place the setup flow saves it); Studio
+  // prints it on every mailer / flyer / door hanger.
+  const saveContactNow = () => queueSave(async () => {
+    const { contact } = latest.current
+    const current = await api.agentHub.getMine()
+    if (!current.success) return current
+    const config = upgradeHubPhones((current.data?.config || {}) as any)
+    const card = config.contactCard || {}
+    const fields = card.fields || {}
+    const office = contact.officePhone.trim()
+    return api.agentHub.saveConfig({
+      ...config,
+      profile: { ...(config.profile || {}), brokeragePhone: contact.brokeragePhone.trim() },
+      contact: { ...(config.contact || {}), call: contact.call, text: contact.text, email: contact.email },
+      contactCard: { ...card, fields: { ...fields, officePhone: { ...(fields.officePhone || {}), value: office, include: !!office } } },
+    })
+  })
+  const saveSocialNow = () => saveHubConfigPatch({ socialLinks: latest.current.socialLinks.map(({ id, label, url, enabled }) => ({ id, label, url, enabled })) })
 
   // Autosave - debounced 700ms after the last edit to Profile (fields, About, or the photo/its
   // position) so a burst of keystrokes or a photo drag sends one request, not one per change.
@@ -452,74 +452,26 @@ export default function SettingsPage() {
   useEffect(() => {
     if (loading) return
     if (!profileLoadedRef.current) { profileLoadedRef.current = true; return }
-    setProfileSaved(false)
-    const timer = setTimeout(async () => {
-      setProfileSaving(true)
-      await queueSave(async () => {
-        const current = await api.agentHub.getMine()
-        const config = (current.success && current.data?.config ? current.data.config : {}) as any
-        const nextConfig = { ...config, profile: { ...config.profile, ...profile }, profilePhotoUrl, profilePhotoPosition }
-        await Promise.all([
-          api.agentHub.saveConfig(nextConfig),
-          api.agentHub.updateProfile({ title: profile.title, market: profile.market, name: profile.name, brokerage: profile.brokerage }),
-        ])
-      })
-      setProfileSaving(false)
-      setProfileSaved(true)
-    }, 700)
-    return () => clearTimeout(timer)
+    // "Unsaved changes…" until typing pauses; leaving the page sends it straight away.
+    save.schedule('profile', saveProfileNow, 700)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, profilePhotoUrl, profilePhotoPosition, loading])
-  useEffect(() => {
-    if (!profileSaved) return
-    const timer = setTimeout(() => setProfileSaved(false), 2500)
-    return () => clearTimeout(timer)
-  }, [profileSaved])
 
   // Same debounced-autosave pattern for Contact, independent of Profile's timer/status.
   const contactLoadedRef = useRef(false)
   useEffect(() => {
     if (loading) return
     if (!contactLoadedRef.current) { contactLoadedRef.current = true; return }
-    setContactSaved(false)
-    const timer = setTimeout(async () => {
-      setContactSaving(true)
-      // The office line lives on the Save Contact card (same place the setup flow saves it); Studio
-      // prints it on every mailer / flyer / door hanger.
-      await queueSave(async () => {
-        const current = await api.agentHub.getMine()
-        const config = upgradeHubPhones((current.success && current.data?.config ? current.data.config : {}) as any)
-        const card = config.contactCard || {}
-        const fields = card.fields || {}
-        const office = contact.officePhone.trim()
-        await api.agentHub.saveConfig({
-          ...config,
-          profile: { ...(config.profile || {}), brokeragePhone: contact.brokeragePhone.trim() },
-          contact: { ...(config.contact || {}), call: contact.call, text: contact.text, email: contact.email },
-          contactCard: { ...card, fields: { ...fields, officePhone: { ...(fields.officePhone || {}), value: office, include: !!office } } },
-        })
-      })
-      setContactSaving(false)
-      setContactSaved(true)
-    }, 700)
-    return () => clearTimeout(timer)
+    save.schedule('contact', saveContactNow, 700)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contact, loading])
-  useEffect(() => {
-    if (!contactSaved) return
-    const timer = setTimeout(() => setContactSaved(false), 2500)
-    return () => clearTimeout(timer)
-  }, [contactSaved])
 
   // Social Links - same debounced autosave (a switch flip or a typed link saves once it settles).
   const socialLoadedRef = useRef(false)
   useEffect(() => {
     if (loading) return
     if (!socialLoadedRef.current) { socialLoadedRef.current = true; return }
-    const timer = setTimeout(() => {
-      saveHubConfigPatch({ socialLinks: socialLinks.map(({ id, label, url, enabled }) => ({ id, label, url, enabled })) })
-    }, 700)
-    return () => clearTimeout(timer)
+    save.schedule('social-links', saveSocialNow, 700)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socialLinks, loading])
 
@@ -537,13 +489,18 @@ export default function SettingsPage() {
       setPhotoUploading(false)
       return
     }
-    const response = await api.agentHub.uploadPhoto(jpg)
-    if (response.success && response.data) {
-      const url = response.data.photo_url.startsWith('http') ? response.data.photo_url : `${API_BASE_URL}${response.data.photo_url}`
-      setProfilePhotoUrl(url)
-      setProfilePhotoPosition({ x: 50, y: 50 })
-      setProfileSaved(false)
-    } else {
+    const response = await save.track(async () => {
+      const r = await api.agentHub.uploadPhoto(jpg)
+      if (r.success && r.data) {
+        const url = r.data.photo_url.startsWith('http') ? r.data.photo_url : `${API_BASE_URL}${r.data.photo_url}`
+        // the profile autosave then stores the new photo on the hub
+        setProfilePhotoUrl(url)
+        setProfilePhotoPosition({ x: 50, y: 50 })
+        setPhotoError('')
+      }
+      return r
+    }, { key: 'profile-photo' })
+    if (!(response.success && response.data)) {
       setPhotoError(response.error || 'Unable to upload photo. Please try a JPG under 5MB.')
     }
     setPhotoUploading(false)
@@ -613,8 +570,11 @@ export default function SettingsPage() {
   }
 
   return (
+    <SaveStatusContext.Provider value={save}>
     <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]">
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:py-8">
+      <div className="mx-auto max-w-5xl px-4 pb-6 sm:pb-8">
+        {/* Always in view (sticky) - whether what was just changed has saved (owner 10/26). */}
+        <SaveStatusBar store={save} shortLabel="Settings" label={`Settings · ${TABS.find(t => t.id === tab)?.label || 'Profile'}`} hint={tab === 'account' || tab === 'billing' ? 'Changes save on their own. A new password uses its own button.' : 'Your changes save on their own - no Save button needed.'} />
         {/* Header - the shared luxe header: plan chip top-right, AI usage + storage lined up with
             the title and the line under it. */}
         <LuxeHero
@@ -644,7 +604,7 @@ export default function SettingsPage() {
 
         <div className="mt-2 flex flex-col gap-6 md:flex-row md:items-start">
           {/* Left rail — vertical on desktop, a horizontal scroll strip on mobile */}
-          <nav className="md:sticky md:top-6 md:w-52 md:shrink-0">
+          <nav className="md:sticky md:top-16 md:w-52 md:shrink-0">
             <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 md:mx-0 md:flex-col md:overflow-visible md:px-0 md:pb-0">
               {TABS.filter(t => !t.idxOnly || user?.plan_tier === 'IDX').map(t => {
                 const Icon = t.icon
@@ -699,7 +659,7 @@ export default function SettingsPage() {
                       </div>
                     )}
                     <div className="mt-4 flex items-center gap-4 rounded-xl border border-gray-200 bg-[#fbfaf7] p-3 dark:border-gray-700 dark:bg-[#0B0B0B]">
-                      <DraggableAvatarPhoto url={profilePhotoUrl} position={profilePhotoPosition} onPositionChange={(pos) => { setProfilePhotoPosition(pos); setProfileSaved(false) }} size={64} uploading={photoUploading} />
+                      <DraggableAvatarPhoto url={profilePhotoUrl} position={profilePhotoPosition} onPositionChange={(pos) => { setProfilePhotoPosition(pos) }} size={64} uploading={photoUploading} />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-gray-700 dark:text-gray-300">Profile photo</p>
                         <p className="text-xs font-semibold text-gray-400">Drag the circle to reposition if it looks off-centered.</p>
@@ -749,9 +709,8 @@ export default function SettingsPage() {
                         <ComplianceChips text={profile.about} onApply={text => updateProfileField('about', text)} />
                       </div>
                     </div>
-                    <AutosaveStatus saving={profileSaving} saved={profileSaved} />
                     {profileMissing && (
-                      <p className="-mt-2 text-xs font-bold text-red-600 dark:text-red-400">Full Name, Title, and Brokerage are still needed - visitors won&apos;t see this section complete until they&apos;re filled in.</p>
+                      <p className="mt-4 text-xs font-bold text-red-600 dark:text-red-400">Full Name, Title, and Brokerage are required - visitors won&apos;t see this section complete until they&apos;re filled in.</p>
                     )}
                   </div>
 
@@ -773,9 +732,8 @@ export default function SettingsPage() {
                         <Field label="Market" value={profile.market} onChange={v => updateProfileField('market', v)} placeholder="e.g. Greater Philadelphia" />
                         <LockedField label="License Number" value={profile.licenseNumber} />
                       </div>
-                      <AutosaveStatus saving={contactSaving} saved={contactSaved} />
                       {contactMissing && (
-                        <p className="-mt-2 text-xs font-bold text-red-600 dark:text-red-400">Call, Text, Email, and your brokerage&apos;s phone are still needed - Studio can&apos;t make print designs without your brokerage&apos;s phone.</p>
+                        <p className="mt-4 text-xs font-bold text-red-600 dark:text-red-400">Call, Text, Email, and your brokerage&apos;s phone are required - Studio can&apos;t make print designs without your brokerage&apos;s phone.</p>
                       )}
                     </div>
                   </div>
@@ -869,6 +827,7 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
+    </SaveStatusContext.Provider>
   )
 }
 
@@ -1187,8 +1146,8 @@ function AccountSection({ onGoToBilling }: { onGoToBilling: () => void }) {
 function NotificationPrefsSection() {
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [savedTick, setSavedTick] = useState(0)
+  // the page's save status bar shows these saves (components/ui/SaveStatus)
+  const tracker = useSaveTracker()
 
   useEffect(() => {
     api.notifications.getPreferences().then(({ success, data }) => {
@@ -1207,17 +1166,14 @@ function NotificationPrefsSection() {
       },
     }
     setPrefs(nextPrefs)
-    setSaving(true)
-    const { success, data } = await api.notifications.updatePreferences(nextPrefs.preferences)
-    setSaving(false)
-    if (success && data) { setPrefs(data); setSavedTick(t => t + 1) }
+    // one key: every save sends the whole map, so the newest one carries every earlier switch too
+    const job = async () => {
+      const r = await api.notifications.updatePreferences(nextPrefs.preferences)
+      if (r.success && r.data) setPrefs(r.data)
+      return r
+    }
+    await (tracker ? tracker.track(job, { key: 'notification-prefs' }) : job())
   }
-
-  useEffect(() => {
-    if (!savedTick) return
-    const timer = setTimeout(() => setSavedTick(0), 2500)
-    return () => clearTimeout(timer)
-  }, [savedTick])
 
   return (
     <SettingsAccordion title="Notifications" subtitle="The in-app bell always shows everything. Choose what also emails you." hideStatus>
@@ -1228,13 +1184,7 @@ function NotificationPrefsSection() {
           {/* Column headers — same flex-1 spacer + two w-14 columns + gap-6 as every row below,
               so "Email" / "Push" sit directly over their switches. */}
           <div className="flex items-center gap-4 border-b border-gray-100 pb-2 dark:border-gray-800">
-            <div className="flex h-4 min-w-0 flex-1 items-center">
-              {saving ? (
-                <span className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400"><Loader2 className="h-3 w-3 animate-spin" /> Saving</span>
-              ) : savedTick ? (
-                <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400"><Check className="h-3 w-3" /> Saved</span>
-              ) : null}
-            </div>
+            <div className="flex h-4 min-w-0 flex-1 items-center" />
             <div className="flex shrink-0 items-center gap-6 text-[10px] font-black uppercase tracking-widest text-gray-400">
               <span className="w-11 text-center">Email</span>
               {prefs.push_available && <span className="w-11 text-center">Push</span>}

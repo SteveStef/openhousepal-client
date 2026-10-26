@@ -20,6 +20,7 @@ import { BrandStep, FormsStep, HubStep, ReviewsStep, SalesStep, SignatureStep } 
 import { AlertsStep, AreasStep, CalendarStep, CrmStep, HomesStep, MailboxStep, WebsiteStep } from '@/components/setup/ConnectSteps'
 import { DomainStep } from '@/components/setup/DomainStep'
 import { OpenHouseStep } from '@/components/setup/OpenHouseStep'
+import { SaveStatusContext, SaveStatusPill, useSaveStatus } from '@/components/ui/SaveStatus'
 
 const STEP_VIEWS: Record<SetupStepId, (p: { ctx: StepCtx }) => React.ReactElement> = {
   about: AboutStep, contact: ContactStep, license: LicenseStep, photo: PhotoStep, story: StoryStep, socials: SocialsStep,
@@ -57,7 +58,6 @@ function SetupFlow() {
   const [data, setData] = useState<SetupData | null>(null)
   const [loadError, setLoadError] = useState(false)
   const [current, setCurrent] = useState<SetupStepId | 'done' | null>(null)
-  const [saving, setSaving] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [gateMsg, setGateMsg] = useState('')
   const [shake, setShake] = useState(0)
   const [advancing, setAdvancing] = useState(false)
@@ -73,7 +73,10 @@ function SetupFlow() {
   const pending = useRef<SetupInfoPatch | null>(null)
   const timer = useRef<number | undefined>(undefined)
   const inflight = useRef<Promise<unknown> | null>(null)
-  const savedTimer = useRef<number | undefined>(undefined)
+  // The one save status (components/ui/SaveStatus) - in the sticky header, every save in the flow
+  // reports into it (typed info, markSaving, and components that save on their own via context).
+  const flushRef = useRef<() => Promise<void>>(async () => {})
+  const save = useSaveStatus({ flush: () => flushRef.current() })
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) router.replace('/login?redirect=/setup')
@@ -109,41 +112,32 @@ function SetupFlow() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated])
 
-  const flashSaved = () => {
-    setSaving('saved')
-    window.clearTimeout(savedTimer.current)
-    savedTimer.current = window.setTimeout(() => setSaving('idle'), 2200)
-  }
   const flush = useCallback(async () => {
     window.clearTimeout(timer.current)
     if (inflight.current) await inflight.current.catch(() => {})
     const patch = pending.current
-    if (!patch) return
+    if (!patch) { save.clearDirty('info'); return }
     pending.current = null
-    setSaving('saving')
-    const p = api.setup.patchInfo(patch).then(r => {
-      if (r.success && r.data) { setData(r.data); flashSaved() } else setSaving('error')
-    })
+    const p = save.track(async () => {
+      const r = await api.setup.patchInfo(patch)
+      if (r.success && r.data) setData(r.data)
+      // not saved: keep it waiting (newer typing wins) - Try again / the next change sends it
+      else pending.current = mergePatch(patch, pending.current || {})
+      return r
+    }, { key: 'info', retry: () => flushRef.current() })
     inflight.current = p
-    await p
+    await p.catch(() => {})
     inflight.current = null
-  }, [])
+  }, [save])
+  flushRef.current = flush
   const saveInfo = useCallback((patch: SetupInfoPatch) => {
     pending.current = mergePatch(pending.current || {}, patch)
-    setSaving('saving')
+    save.markDirty('info')   // "Unsaved changes…" until the pause in typing sends it
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(flush, 650)
-  }, [flush])
-  const markSaving = useCallback((p: Promise<unknown>) => {
-    setSaving('saving')
-    p.then(flashSaved, () => setSaving('error'))
-  }, [])
-  // never lose typing when they close the tab
-  useEffect(() => {
-    const h = (e: BeforeUnloadEvent) => { if (pending.current) { flush(); e.preventDefault() } }
-    window.addEventListener('beforeunload', h)
-    return () => window.removeEventListener('beforeunload', h)
-  }, [flush])
+  }, [flush, save])
+  const markSaving = useCallback(<T,>(job: () => Promise<T>, key?: string) => save.track(job, { key }), [save])
+  // Closing the tab mid-save: useSaveStatus sends what's waiting and asks first (beforeunload).
 
   const refresh = useCallback(async () => {
     const r = await api.setup.get()
@@ -176,6 +170,8 @@ function SetupFlow() {
     setAdvancing(true)
     try {
       await flush()
+      // a change that didn't save would be lost by moving on - say so (Try again is up top)
+      if (save.hasError()) { setGateMsg('A change didn’t save yet - tap Try again at the top, then continue.'); setShake(s => s + 1); return }
       const g = gate.current
       if (!g.ok) { setGateMsg(g.message || 'Please finish this step first.'); setShake(s => s + 1); return }
       if (g.onContinue) {
@@ -246,7 +242,7 @@ function SetupFlow() {
                       <span className="min-w-0 flex-1 truncate text-[14.5px] font-bold">{c.label}</span>
                       {newIds.includes(s.id) && <span className="rounded-full bg-[#C9A24D] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">New</span>}
                       {s.status === 'skipped' && !on && <span className="text-[11px] font-bold text-gray-400">Skipped</span>}
-                      {s.required && s.status !== 'done' && !on && <span className="text-[11px] font-black text-[#a8803a]">Needed</span>}
+                      {s.required && s.status !== 'done' && !on && <span className="text-[11px] font-black text-[#a8803a]">Required</span>}
                     </button>
                   </li>
                 )
@@ -259,6 +255,7 @@ function SetupFlow() {
   )
 
   return (
+    <SaveStatusContext.Provider value={save}>
     <div className="relative min-h-screen overflow-x-clip bg-[#f6f2ea] text-[#111827] dark:bg-[#09090a] dark:text-white">
       <SetupBackdrop />
       {/* top bar */}
@@ -268,11 +265,17 @@ function SetupFlow() {
           <span className="hidden h-6 w-px bg-[#C9A24D]/30 sm:block" />
           <span className="hidden text-[12px] font-black uppercase tracking-[0.24em] text-[#8b7355] dark:text-[#d7b974] sm:block">Account setup</span>
           <div className="ml-auto flex items-center gap-2">
-            <SavePill state={saving} />
+            <SaveStatusPill store={save} className="max-sm:hidden" />
             {data.approved && data.plan
               ? <Link href="/dash" onClick={() => flush()} className="rounded-full border border-[#C9A24D]/40 bg-white/80 px-4 py-2 text-[13px] font-black text-[#111827] transition hover:border-[#C9A24D] dark:border-white/15 dark:bg-white/5 dark:text-white">Finish later</Link>
               : <Link href={data.approved ? '/checkout' : '/broker-authorization'} onClick={() => flush()} className="rounded-full border border-[#C9A24D]/40 bg-white/80 px-4 py-2 text-[13px] font-black text-[#111827] dark:border-white/15 dark:bg-white/5 dark:text-white">Finish later</Link>}
           </div>
+        </div>
+        {/* Phones: the save status gets its own row of the sticky header, so it's always in view
+            and never squeezed (36px - PinnedPreview's top offset counts it). */}
+        <div className="flex h-9 items-center justify-between gap-2 border-t border-[#C9A24D]/10 px-4 sm:hidden dark:border-white/[0.05]">
+          <span className="truncate text-[10.5px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974]">Autosave</span>
+          <SaveStatusPill store={save} className="!h-7" />
         </div>
         <div className="h-[3px] bg-[#C9A24D]/12">
           <motion.div className="h-full bg-gradient-to-r from-[#a8803a] via-[#C9A24D] to-[#e8c97a]" initial={false} animate={{ width: `${pct}%` }} transition={{ type: 'spring', stiffness: 120, damping: 24 }} />
@@ -340,7 +343,7 @@ function SetupFlow() {
                       <p className="flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-[0.26em] text-[#8b7355] dark:text-[#d7b974]">
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] ring-1 ring-[#C9A24D]/40 sm:hidden"><copy.icon className="h-[18px] w-[18px]" /></span>
                         Step {stepIndex + 1} of {total}
-                        {step.required ? <span className="rounded-full bg-[#111827] px-2 py-0.5 text-[9px] tracking-wider text-[#e8c97a] dark:bg-[#C9A24D] dark:text-[#111827]">Needed</span> : <span className="rounded-full border border-[#C9A24D]/40 px-2 py-0.5 text-[9px] tracking-wider">Can skip</span>}
+                        {step.required ? <span className="rounded-full bg-[#111827] px-2 py-0.5 text-[9px] tracking-wider text-[#e8c97a] dark:bg-[#C9A24D] dark:text-[#111827]">Required</span> : <span className="rounded-full border border-[#C9A24D]/40 px-2 py-0.5 text-[9px] tracking-wider">Can skip</span>}
                         {newIds.includes(step.id) && <span className="rounded-full bg-[#C9A24D] px-2 py-0.5 text-[9px] tracking-wider text-white">New for your plan</span>}
                         {step.status === 'done' && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] tracking-wider text-white"><Check className="h-3 w-3" /> Done</span>}
                       </p>
@@ -434,6 +437,7 @@ function SetupFlow() {
         )}
       </AnimatePresence>
     </div>
+    </SaveStatusContext.Provider>
   )
 }
 
@@ -457,13 +461,6 @@ function ProgressRing({ pct, small = false }: { pct: number; small?: boolean }) 
       <span className={`absolute font-black ${small ? 'text-[10px]' : 'text-[13px]'}`}>{pct}%</span>
     </span>
   )
-}
-
-function SavePill({ state }: { state: 'idle' | 'saving' | 'saved' | 'error' }) {
-  if (state === 'idle') return <span className="hidden text-[12px] font-bold text-gray-400 sm:inline">Saves as you go</span>
-  if (state === 'saving') return <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-gray-500"><Loader2 className="h-3.5 w-3.5 animate-spin" /> <span className="max-sm:hidden">Saving</span></span>
-  if (state === 'error') return <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-rose-600"><CircleAlert className="h-3.5 w-3.5" /> Not saved - check your connection</span>
-  return <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-emerald-600 dark:text-emerald-400"><Check className="h-3.5 w-3.5" /> Saved</span>
 }
 
 function SetupBackdrop() {

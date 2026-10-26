@@ -2,7 +2,7 @@
 
 import OhpLoader from '@/components/brand/OhpLoader'
 
-import AuthLuxeStyle, { AuthKicker, GoldPal } from '@/components/auth/AuthLuxeStyle'
+import AuthLuxeStyle, { AuthKicker, AuthPhoneHeader, GoldPal } from '@/components/auth/AuthLuxeStyle'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -133,9 +133,11 @@ function LoginContent() {
   }
 
   return (
-    <div className="h-screen flex flex-col lg:flex-row overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B]">
+    <div className="max-md:min-h-screen max-md:supports-[min-height:100dvh]:min-h-[100dvh] md:h-screen flex flex-col lg:flex-row md:overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B]">
+      {/* Phones: the logo + Start free bar on top, and the page scrolls so nothing is cut off. */}
+      <AuthPhoneHeader linkHref="/register" linkLabel="Start free" />
       {/* Left Section - Login Form (55%) */}
-      <div className="w-full lg:w-[55%] h-full relative z-0 flex items-center justify-center px-6 py-4 overflow-hidden transition-colors duration-300">
+      <div className="w-full lg:w-[55%] max-md:flex-1 md:h-full relative z-0 flex items-center max-md:items-start justify-center px-6 max-md:px-4 py-4 max-md:pt-6 max-md:pb-[max(1.5rem,env(safe-area-inset-bottom))] overflow-hidden transition-colors duration-300">
         <PageBackgroundGrid />
         <AuthLuxeStyle />
         <ShieldBadge
@@ -145,7 +147,7 @@ function LoginContent() {
 
         <div className="max-w-[480px] w-full relative z-10 flex flex-col items-center">
           {/* Mobile Logo */}
-          <Link href="/" className="mb-4 lg:mb-12 flex flex-col items-center group">
+          <Link href="/" className="max-md:hidden mb-4 lg:mb-12 flex flex-col items-center group">
             <h1 className="text-[28px] sm:text-[32px] text-[#111827] dark:text-white"><GoldPal animate /></h1>
           </Link>
 
@@ -157,7 +159,7 @@ function LoginContent() {
           </div>
 
           {/* Login Card */}
-          <div className="ohp-auth-card bg-white dark:bg-[#151517] rounded-3xl p-8 md:p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 transition-colors duration-300">
+          <div className="ohp-auth-card bg-white dark:bg-[#151517] rounded-3xl p-8 max-sm:p-6 md:p-12 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 transition-colors duration-300">
             <form method="post" onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label htmlFor="email" className="block text-xs font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">

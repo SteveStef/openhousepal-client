@@ -12,7 +12,7 @@ import { ApiResponse, User, OpenHouse, OpenHouseFormRequest, SearchPreferences, 
   BuyerCashNeeded, BuyerCashNeededListItem, BcnProperty, BcnAmount, BcnDownPaymentScenario, BcnLoanType, BcnLineItem, BcnCredits, BcnMonthlyContext, BuyerCashNeededPublicResponse,
   AIConversationListItem, AIConversation, AISendMessageResponse, AIInsightsResponse, DailyDigest,
   AIAdminOverview, AIAdminAgentSummary, AIAdminAgentDetail,
-  AdminStorageAgentSummary, AdminActivityOverview, AdminActivityAgentDetail, BillingGroup, BillingGroupInput, PromoCode, PromoCodeInput, PayPalPlanTerms, CheckoutCode, AdminStorageAgentDetail,
+  AdminStorageAgentSummary, AdminActivityOverview, AdminActivityAgentDetail, BillingGroup, BillingGroupInput, PromoCode, PromoCodeInput, AdminAreaList, AdminAreaListQuery, AdminAreaDetail, AdminAreaPlaceInput, PayPalPlanTerms, CheckoutCode, AdminStorageAgentDetail,
   AIRealtimeSessionOut, AIRealtimeToolCallResult, AgentMarketArea, CollectionPreferences,
   SupportTicketDetail, SupportTicketListItem, AdminSupportTicketListItem, SupportTicketCategory, SupportTicketDetails, SavedManualProperty, PublicQuestion,
   StudioMediaAsset, StudioMediaGeneratePayload, StudioVideoTestGridPayload, StudioVideoTestGridResponse, MonthlyAiUsage,
@@ -778,6 +778,23 @@ class ApiService {
     createPromoCode: (data: PromoCodeInput) => this.request<PromoCode>('/admin/promo-codes', { method: 'POST', body: JSON.stringify(data) }),
     updatePromoCode: (id: string, data: PromoCodeInput) => this.request<PromoCode>(`/admin/promo-codes/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     deletePromoCode: (id: string) => this.request<{ success: boolean }>(`/admin/promo-codes/${id}`, { method: 'DELETE' }),
+
+    // Neighborhoods tab - every shared town record (backend app/api/admin_area_routes.py).
+    getAreas: (query: AdminAreaListQuery = {}) => {
+      const qs = new URLSearchParams(Object.entries(query).filter(([, v]) => v !== undefined && v !== null && v !== '').map(([k, v]) => [k, String(v)])).toString()
+      return this.request<AdminAreaList>(`/admin/areas${qs ? `?${qs}` : ''}`)
+    },
+    getArea: (id: string) => this.request<AdminAreaDetail>(`/admin/areas/${encodeURIComponent(id)}`),
+    saveAreaSummary: (id: string, text: string) =>
+      this.request<AdminAreaDetail>(`/admin/areas/${encodeURIComponent(id)}/summary`, { method: 'PUT', body: JSON.stringify({ text }) }),
+    saveAreaPlaces: (id: string, category: string, body: { entities: AdminAreaPlaceInput[]; notes?: string | null; base_names: string[]; base_removed_names: string[] }) =>
+      this.request<AdminAreaDetail>(`/admin/areas/${encodeURIComponent(id)}/places/${encodeURIComponent(category)}`, { method: 'PUT', body: JSON.stringify(body) }),
+    saveAreaPublicSchools: (id: string, body: { levels: Record<string, { ref?: number | null; name: string; district?: string | null }[]>; base: Record<string, string[]> }) =>
+      this.request<AdminAreaDetail>(`/admin/areas/${encodeURIComponent(id)}/public-schools`, { method: 'PUT', body: JSON.stringify(body) }),
+    checkAreaPlaces: (id: string) => this.request<AdminAreaDetail>(`/admin/areas/${encodeURIComponent(id)}/check-places`, { method: 'POST' }),
+    researchAreaAgain: (id: string) => this.request<AdminAreaDetail>(`/admin/areas/${encodeURIComponent(id)}/research?confirm_cost=true`, { method: 'POST' }),
+    /** Drops the IDX site's 30-second copy of town pages so an admin edit shows at once. */
+    refreshTownPages: async () => { try { await fetch('/api/website-areas/revalidate', { method: 'POST' }) } catch { /* the page catches up within 30 s anyway */ } },
 
     getStorageAgentDetail: (ownerId: string) => this.request<AdminStorageAgentDetail>(`/admin/storage/agents/${ownerId}`),
 

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { OhpWordmark } from '@/components/brand/OhpBrand'
 
 // The homepage's luxe touches for the sign-in pages (Login, Create Account, Forgot / Reset
@@ -24,6 +25,27 @@ export default function AuthLuxeStyle() {
 // The OpenHousePal logo - the same wordmark as the site header and footer.
 export function GoldPal({ animate = false }: { animate?: boolean }) {
   return <OhpWordmark animate={animate} />
+}
+
+// The top bar on phones (under md) for the sign-in pages: the logo (links home) plus one action
+// link (Sign in / Start free). Desktop keeps the split-screen layout with no bar. No backdrop blur
+// (big blur layers lag on phones).
+export function AuthPhoneHeader({ linkHref, linkLabel, prompt }: { linkHref: string; linkLabel: string; prompt?: string }) {
+  return (
+    <header className="md:hidden sticky top-0 z-40 shrink-0 border-b border-[#C9A24D]/15 dark:border-[#C9A24D]/10 bg-white dark:bg-[#0B0B0B] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.12)] dark:shadow-[0_4px_20px_-8px_rgba(0,0,0,0.5)] pt-[env(safe-area-inset-top)]">
+      <div className="flex h-14 items-center justify-between gap-3 px-4">
+        <Link href="/" aria-label="OpenHousePal home" className="flex min-w-0 items-center">
+          <OhpWordmark animate className="text-[21px] text-[#111827] dark:text-white" />
+        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          {prompt && <span className="hidden min-[400px]:inline text-[11px] font-semibold text-[#6B7280] dark:text-gray-400">{prompt}</span>}
+          <Link href={linkHref} className="rounded-full border border-[#111827]/15 dark:border-white/20 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-[#111827] dark:text-white transition-colors hover:border-[#C9A24D] hover:text-[#C9A24D] active:border-[#C9A24D]">
+            {linkLabel}
+          </Link>
+        </div>
+      </div>
+    </header>
+  )
 }
 
 // The small gold label with hairlines above a heading.

@@ -1,6 +1,6 @@
 import {
   Activity, AlertOctagon, BarChart3, Building2, ClipboardSignature, Cpu, FileSearch, FlaskConical, HardDrive, HelpCircle, Inbox,
-  LayoutDashboard, LifeBuoy, Mail, MailWarning, MousePointerClick, Layout, Receipt, Ticket, Users, Wallet, Workflow, Wrench, Gauge,
+  LayoutDashboard, LifeBuoy, Mail, MapPin, MailWarning, MousePointerClick, Layout, Receipt, Ticket, Users, Wallet, Workflow, Wrench, Gauge,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -55,10 +55,11 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     ],
   },
   {
-    key: 'tools', label: 'Tools', icon: Wrench, title: 'Admin tools.', subtitle: 'CMA lookup, the CMA accuracy test and how each feature works.',
+    key: 'tools', label: 'Tools', icon: Wrench, title: 'Admin tools.', subtitle: 'CMA lookup, the CMA accuracy test, town pages and how each feature works.',
     tabs: [
       { key: 'cma', label: 'CMA lookup', icon: FileSearch, blurb: 'Find any CMA by its code.' },
       { key: 'cmatest', label: 'CMA accuracy test', icon: FlaskConical, blurb: 'Re-run real past sales through the CMA and score it against what they sold for.' },
+      { key: 'neighborhoods', label: 'Neighborhoods', icon: MapPin, blurb: 'Every town page - see exactly what it says, then fix it or add to it.' },
       { key: 'flows', label: 'Feature flows', icon: Workflow, blurb: 'How each feature works, step by step.' },
     ],
   },

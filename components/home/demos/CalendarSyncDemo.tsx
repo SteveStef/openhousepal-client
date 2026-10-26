@@ -6,6 +6,7 @@ import BrowserFrame from '@/components/home/BrowserFrame'
 import { GoogleCalendarLogo } from '@/components/brand/ProviderLogos'
 import TitleSlide from './TitleSlide'
 import DemoPointer from './DemoPointer'
+import usePhoneLayout from './usePhoneLayout'
 import { REAL_OPEN_HOUSE as OH, REAL_SPOTLIGHT } from './realData'
 
 // The real Calendar & CRM tools (Tools -> Calendar, Tools -> Integrations), as an agent uses them:
@@ -49,7 +50,7 @@ function Week({ events, allDay, sidebar = true }: { events: Ev[]; allDay?: { day
   return (
     <div className="flex h-full gap-3">
       {sidebar && (
-        <div className="w-[118px] shrink-0 pt-1">
+        <div className="w-[118px] shrink-0 pt-1 max-sm:hidden">
           <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">My calendars</p>
           {[['Peter Stefanatos', '#4285F4', false], ['OpenHousePal', '#C9A24D', true]].map(([n, c, gold]) => (
             <p key={n as string} className={`mt-1.5 flex items-center gap-1.5 text-[10px] font-bold ${gold ? 'text-[#8b6a2b] dark:text-[#e8c97a]' : 'text-gray-600 dark:text-gray-300'}`}><span className="flex h-3 w-3 items-center justify-center rounded-[3px]" style={{ background: c as string }}><Check className="h-2 w-2 text-white" strokeWidth={4} /></span>{n}</p>
@@ -102,6 +103,8 @@ function Caption({ icon: Icon, title, body }: { icon: typeof Bell; title: string
 export default function CalendarSyncDemo() {
   const [i, setI] = useState(0)
   const [tick, setTick] = useState(0)
+  // Phones stack the CRM steps under the CRM list, so the pointer aims at the stacked spots there.
+  const phone = usePhoneLayout()
   const beat = BEATS[i]
 
   useEffect(() => {
@@ -127,7 +130,7 @@ export default function CalendarSyncDemo() {
 
   return (
     <BrowserFrame url={url} progress={progress}>
-      <div className="relative h-[420px] overflow-hidden bg-[radial-gradient(90%_80%_at_85%_0%,rgba(201,162,77,.12),transparent_60%),#faf8f3] p-5 dark:bg-[radial-gradient(90%_80%_at_85%_0%,rgba(201,162,77,.1),transparent_60%),#0B0B0B]">
+      <div className="relative h-[420px] overflow-hidden bg-[radial-gradient(90%_80%_at_85%_0%,rgba(201,162,77,.12),transparent_60%),#faf8f3] p-5 dark:bg-[radial-gradient(90%_80%_at_85%_0%,rgba(201,162,77,.1),transparent_60%),#0B0B0B] max-sm:p-3">
 
         {/* 1 · connect once */}
         {beat.k === 'connect' && (
@@ -200,17 +203,17 @@ export default function CalendarSyncDemo() {
           <div className="flex h-full flex-col animate-fadeIn">
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#8b7355] dark:text-[#d7b974]">Tools · Integrations · Leads out</p>
             <p className="mt-1 font-serif text-[22px] font-black leading-tight text-[#111827] dark:text-white">Send leads to <em className="font-light text-[#a8853d] dark:text-[#e8c97a]">your CRM.</em></p>
-            <div className="mt-3 grid flex-1 grid-cols-[1.25fr_1fr] gap-3">
+            <div className="mt-3 grid flex-1 grid-cols-[1.25fr_1fr] gap-3 max-sm:flex-none max-sm:grid-cols-1 max-sm:gap-2">
               <div className="rounded-2xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-[#151517]">
                 <p className="text-[11px] font-black text-[#111827] dark:text-white"><span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#C9A24D] text-[9px] text-[#111827]">1</span>Which CRM do you use?</p>
-                <div className="mt-2 grid grid-cols-2 gap-1.5">
+                <div className="mt-2 grid grid-cols-2 gap-1.5 max-sm:grid-cols-3 max-sm:gap-1">
                   {CRMS.map(n => {
                     const on = n === 'Follow Up Boss' && tick >= 6
-                    return <span key={n} className={`flex items-center gap-1 rounded-lg border px-2 py-1.5 text-[10px] font-black transition-all duration-300 ${on ? 'border-[#C9A24D] bg-[#C9A24D]/15 text-[#6b5530] dark:text-[#e8c97a]' : 'border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300'}`}>{on && <Check className="h-3 w-3" />}{n}</span>
+                    return <span key={n} className={`flex items-center gap-1 rounded-lg border px-2 py-1.5 text-[10px] font-black max-sm:px-1.5 max-sm:py-1 max-sm:text-[9px] max-sm:leading-tight transition-all duration-300 ${on ? 'border-[#C9A24D] bg-[#C9A24D]/15 text-[#6b5530] dark:text-[#e8c97a]' : 'border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300'}`}>{on && <Check className="h-3 w-3" />}{n}</span>
                   })}
                 </div>
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 max-sm:grid max-sm:grid-cols-2">
                 <div className={`rounded-2xl border bg-white p-3 transition-opacity duration-500 dark:bg-[#151517] ${tick >= 8 ? 'border-gray-200 opacity-100 dark:border-gray-800' : 'border-gray-100 opacity-40 dark:border-gray-900'}`}>
                   <p className="text-[11px] font-black text-[#111827] dark:text-white"><span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#C9A24D] text-[9px] text-[#111827]">2</span>Connect Follow Up Boss</p>
                   <p className="mt-1 flex items-center gap-1.5 rounded-lg border border-gray-200 px-2 py-1.5 font-mono text-[10px] text-[#111827] dark:border-gray-700 dark:text-white"><KeyRound className="h-3 w-3 text-[#C9A24D]" />{tick >= 9 ? 'fka_••••••••••'.slice(0, 4 + Math.min(10, tick - 9)) : <span className="font-sans text-gray-400">Paste your API key</span>}</p>
@@ -221,7 +224,7 @@ export default function CalendarSyncDemo() {
                 </div>
               </div>
             </div>
-            <DemoPointer x={tick < 3 ? 50 : tick < 7 ? 16 : tick < 15 ? 75 : 77} y={tick < 3 ? 95 : tick < 7 ? 30 : tick < 15 ? 29 : 50} click={(tick >= 5 && tick <= 6) || (tick >= 8 && tick <= 9) || (tick >= 19 && tick <= 20)} />
+            <DemoPointer x={tick < 3 ? 50 : tick < 7 ? 16 : tick < 15 ? (phone ? 30 : 75) : 77} y={tick < 3 ? 95 : tick < 7 ? 30 : tick < 15 ? (phone ? 64 : 29) : (phone ? 70 : 50)} click={(tick >= 5 && tick <= 6) || (tick >= 8 && tick <= 9) || (tick >= 19 && tick <= 20)} />
           </div>
         )}
 
@@ -229,18 +232,18 @@ export default function CalendarSyncDemo() {
         {beat.k === 'push' && (
           <div className="flex h-full flex-col">
             <Caption icon={Send} title="Leads go to your CRM" body="The moment they sign in." />
-            <div className="flex flex-1 items-center justify-center gap-4">
-              <div className="w-[190px] rounded-2xl border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-800 dark:bg-[#151517]">
+            <div className="flex flex-1 items-center justify-center gap-4 max-sm:flex-col max-sm:gap-1.5">
+              <div className="w-[190px] max-sm:w-full rounded-2xl border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-800 dark:bg-[#151517]">
                 <p className="text-[9px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">Open house sign-in</p>
                 <p className="mt-1 text-[12px] font-black text-[#111827] dark:text-white">Sarah M.</p>
                 <p className="text-[10px] font-semibold text-gray-500">{OH.address}, {OH.city}</p>
                 <p className="mt-1.5 text-[9.5px] font-semibold text-gray-500">Has an agent? <b className="text-[#111827] dark:text-white">No</b></p>
               </div>
               <div className="flex flex-col items-center gap-1">
-                <ArrowRight className={`h-6 w-6 text-[#C9A24D] transition-all duration-500 ${tick >= 3 ? 'translate-x-1 opacity-100' : 'opacity-30'}`} />
+                <ArrowRight className={`h-6 w-6 text-[#C9A24D] transition-all duration-500 max-sm:rotate-90 ${tick >= 3 ? 'translate-x-1 opacity-100' : 'opacity-30'}`} />
                 <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">{tick >= 3 ? 'Sent' : 'Sending'}</span>
               </div>
-              <div className={`w-[230px] rounded-2xl border-2 border-[#0a66c2]/40 bg-white p-3 shadow-xl transition-all duration-700 dark:bg-[#151517] ${tick >= 5 ? 'translate-x-0 opacity-100' : 'translate-x-3 opacity-0'}`}>
+              <div className={`w-[230px] max-sm:w-full rounded-2xl border-2 border-[#0a66c2]/40 bg-white p-3 shadow-xl transition-all duration-700 dark:bg-[#151517] ${tick >= 5 ? 'translate-x-0 opacity-100' : 'translate-x-3 opacity-0'}`}>
                 <p className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-[#0a66c2]"><UserRound className="h-3 w-3" /> Follow Up Boss · new contact</p>
                 <p className="mt-1 text-[13px] font-black text-[#111827] dark:text-white">Sarah M.</p>
                 <p className="text-[10px] font-semibold text-gray-500">sarah.m@email.com · (610) 555-0148</p>
@@ -258,15 +261,15 @@ export default function CalendarSyncDemo() {
         {beat.k === 'portal' && (
           <div className="flex h-full flex-col">
             <Caption icon={Inbox} title="Zillow leads, pulled in" body="Forward the email. It lands in Leads." />
-            <div className="flex flex-1 items-center justify-center gap-4">
-              <div className="w-[220px] rounded-2xl border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-800 dark:bg-[#151517]">
+            <div className="flex flex-1 items-center justify-center gap-4 max-sm:flex-col max-sm:gap-1.5">
+              <div className="w-[220px] max-sm:w-full rounded-2xl border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-800 dark:bg-[#151517]">
                 <p className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-gray-400"><Mail className="h-3 w-3" /> Forwarded email</p>
                 <p className="mt-1 text-[11px] font-black text-[#006AFF]">New Zillow lead</p>
                 <p className="text-[10px] font-semibold text-gray-600 dark:text-gray-300">Jordan K. is interested in {REAL_SPOTLIGHT.address}, Exton</p>
                 <p className="mt-1.5 truncate rounded-md bg-gray-100 px-1.5 py-1 font-mono text-[8.5px] text-gray-500 dark:bg-white/10">To: leads-7f3k@mg.openhousepal.com</p>
               </div>
-              <ArrowRight className={`h-6 w-6 shrink-0 text-[#C9A24D] transition-opacity duration-500 ${tick >= 4 ? 'opacity-100' : 'opacity-30'}`} />
-              <div className="w-[230px] rounded-2xl border border-gray-200 bg-white p-2 shadow-xl dark:border-gray-800 dark:bg-[#151517]">
+              <ArrowRight className={`h-6 w-6 shrink-0 text-[#C9A24D] transition-opacity duration-500 max-sm:rotate-90 ${tick >= 4 ? 'opacity-100' : 'opacity-30'}`} />
+              <div className="w-[230px] max-sm:w-full rounded-2xl border border-gray-200 bg-white p-2 shadow-xl dark:border-gray-800 dark:bg-[#151517]">
                 <p className="px-1 pb-1 text-[9px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">Your Leads</p>
                 {[{ n: 'Jordan K.', t: 'Portal Lead · Zillow', fresh: true }, { n: 'Sarah M.', t: `Open House · ${OH.address}` }, { n: 'Dana L.', t: 'Form · Home value' }].map((l, k) => (
                   (k > 0 || tick >= 6) && (

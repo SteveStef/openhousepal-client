@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { HardDrive, X, Loader2, Database } from 'lucide-react'
+import { ArrowLeft, HardDrive, X, Loader2, Database } from 'lucide-react'
 import api from '@/lib/api-service'
 import { AdminStorageAgentSummary, AdminStorageAgentDetail, AdminStorageMonthlyPoint } from '@/types'
 
@@ -146,10 +146,37 @@ export default function AgentStorageUsagePanel() {
 
       <div className="bg-white dark:bg-[#151517] rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#151517] via-[#C9A24D] to-[#151517]" />
-        <div className="px-8 py-5 border-b border-gray-100 dark:border-gray-800">
+        <div className="px-8 py-5 border-b border-gray-100 dark:border-gray-800 max-sm:px-5">
           <p className="text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-[0.2em]">Storage Leaderboard — Who's Using The Most</p>
         </div>
-        <div className="overflow-x-auto">
+        {/* Phones: one card per agent instead of the table. */}
+        <ul className="divide-y divide-gray-100 dark:divide-gray-800 sm:hidden">
+          {agents.length === 0 && <li className="px-5 py-10 text-center text-sm text-gray-400 dark:text-zinc-500">No stored media recorded yet.</li>}
+          {agents.map((a) => {
+            const pct = a.cap_bytes > 0 ? Math.min(100, (a.used_bytes / a.cap_bytes) * 100) : 0
+            return (
+              <li key={a.owner_id}>
+                <button onClick={() => openDetail(a.owner_id)} className="w-full px-5 py-4 text-left active:bg-[#FAFAF7] dark:active:bg-gray-900/30">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-black leading-tight text-[#111827] dark:text-white">{a.name}</p>
+                      <p className="break-all text-xs font-medium text-[#6B7280] dark:text-gray-500">{a.email}</p>
+                    </div>
+                    <span className="shrink-0 rounded bg-gray-100 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-gray-500 dark:bg-gray-800 dark:text-gray-400">{a.plan_tier || 'FREE'}</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-[10px] font-bold text-gray-500 dark:text-gray-400">
+                    <span>{formatBytes(a.used_bytes)} of {formatBytes(a.cap_bytes)}</span>
+                    <span>{a.item_count} files</span>
+                  </div>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                    <div className={`h-full rounded-full ${capBarColor(a.used_bytes, a.cap_bytes)}`} style={{ width: `${pct}%` }} />
+                  </div>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+        <div className="overflow-x-auto max-sm:hidden">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-800">
@@ -201,9 +228,9 @@ export default function AgentStorageUsagePanel() {
       </div>
 
       {(detail || detailLoading) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setDetail(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 max-sm:!m-0 max-sm:p-0" onClick={() => setDetail(null)}>
           <div
-            className="bg-white dark:bg-[#151517] rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 max-w-lg w-full max-h-[85vh] overflow-y-auto"
+            className="bg-white dark:bg-[#151517] rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 max-w-lg w-full max-h-[85vh] overflow-y-auto overscroll-contain max-sm:h-full max-sm:max-h-none max-sm:rounded-none max-sm:border-0"
             onClick={(e) => e.stopPropagation()}
           >
             {detailLoading || !detail ? (
@@ -212,17 +239,21 @@ export default function AgentStorageUsagePanel() {
               </div>
             ) : (
               <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#C9A24D]/10 flex items-center justify-center text-[#C9A24D]">
+                <div className="flex items-start justify-between mb-4 max-sm:sticky max-sm:top-0 max-sm:z-10 max-sm:-mx-6 max-sm:-mt-6 max-sm:items-center max-sm:gap-3 max-sm:border-b max-sm:border-gray-100 max-sm:bg-white max-sm:px-6 max-sm:py-3 dark:max-sm:border-gray-800 dark:max-sm:bg-[#151517]">
+                  <div className="flex min-w-0 items-center gap-3">
+                    {/* Phones: a back arrow to the list in place of the round icon (the X is for computers). */}
+                    <button onClick={() => setDetail(null)} aria-label="Back to the list" className="-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 sm:hidden dark:bg-white/10 dark:text-gray-200">
+                      <ArrowLeft className="h-5 w-5" />
+                    </button>
+                    <div className="w-10 h-10 rounded-full bg-[#C9A24D]/10 flex items-center justify-center text-[#C9A24D] max-sm:hidden">
                       <HardDrive className="w-5 h-5" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-black text-[#111827] dark:text-white leading-tight">{detail.name}</p>
-                      <p className="text-xs text-[#6B7280] dark:text-gray-500">{detail.email}</p>
+                      <p className="break-all text-xs text-[#6B7280] dark:text-gray-500">{detail.email}</p>
                     </div>
                   </div>
-                  <button onClick={() => setDetail(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                  <button onClick={() => setDetail(null)} aria-label="Close" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 max-sm:hidden">
                     <X className="w-5 h-5" />
                   </button>
                 </div>

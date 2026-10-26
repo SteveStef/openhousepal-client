@@ -4,7 +4,9 @@ import OhpLoader from '@/components/brand/OhpLoader'
 
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Building2, Check, Home, Loader2, Save, Trash2, Upload, User as UserIcon, Users, Wand2 } from 'lucide-react'
+import { Building2, Check, Home, Loader2, Trash2, Upload, User as UserIcon, Users, Wand2 } from 'lucide-react'
+import { SaveStatusBar, SaveStatusContext, useSaveState, useSaveStatus } from '@/components/ui/SaveStatus'
+import SelectedMark, { SELECTED_RING } from '@/components/ui/SelectedMark'
 import type { BrandUsage } from '@/types'
 import { BRANDING_CSS, BrandColorDock, BrandColorStage, FeatureShowcase } from '@/components/studio/branding/BrandingCenter'
 import { designAgentFrom, SAMPLE_DESIGN_AGENT } from '@/lib/studio/designAgent'
@@ -55,14 +57,16 @@ export default function BrandKitPage() {
 function BrandKitPageInner() {
   const [kit, setKit] = useState<BrandKit>(DEFAULT_KIT)
   const [loading, setLoading] = useState(true)
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null)
   const [logoError, setLogoError] = useState('')
-  const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { user } = useAuth()
   const luxeAllowed = luxeAllowedFor(user)
   // The shared copy (lib/brandKit) - a save here updates every open "My Brand Kit" preview too.
   const shared = useBrandKit()
+  // One save status for the page (components/ui/SaveStatus): Saving… -> All changes saved, or
+  // Couldn't save + Try again. Every save below goes through it.
+  const save = useSaveStatus()
+  const saveState = useSaveState(save)
 
   useEffect(() => {
     api.studio.getBrandKit().then(response => {
@@ -78,9 +82,13 @@ function BrandKitPageInner() {
   const [hub, setHub] = useState<{ slug?: string | null; config?: Record<string, any> | null } | null>(null)
   const loadUsage = () => api.studio.brandUsage().then(r => { if (r.success && r.data) setUsage(r.data) })
   useEffect(() => { void loadUsage() }, [])
-  useEffect(() => { if (saveStatus === 'saved') void loadUsage() }, [saveStatus])
+  useEffect(() => { if (saveState === 'saved') void loadUsage() }, [saveState])
   const applyAll = async () => {
-    const r = await api.studio.applyBrandEverywhere()
+    const r = await save.track(async () => {
+      const res = await api.studio.applyBrandEverywhere()
+      if (res.success && res.data) setUsage(res.data)
+      return res
+    }, { key: 'apply-everywhere' })
     return r.success && r.data ? r.data : null
   }
   const agent = designAgentFrom(user, hub)
@@ -110,53 +118,55 @@ function BrandKitPageInner() {
   }, [loading])
   const dockOn = !pickerVisible && showcaseVisible
 
-  // The look (Classic / Luxe, finish, Ivory / Midnight) saves at once - every feature on
-  // "My Brand Kit" changes with it. A color tap from the look picker goes through scheduleSave.
-  const changeLook = async (patch: BrandKitPatch) => {
-    if (patch.secondary_color) { scheduleSave({ ...kit, secondary_color: patch.secondary_color }); return }
-    if (!patch.look) return
-    const prev = kit
-    const cur = brandLookOf(kit)
-    setKit({ ...kit, look: { ...cur, ...(kit.look || {}), ...patch.look, saved: true } })
-    setSaveStatus('saving')
-    const response = await shared.save({ look: patch.look })
+  // Every Brand Kit change (look, color, fonts, disclaimer) is merged into one waiting patch and
+  // sent through one save, so quick taps never overwrite each other, and a failed save is kept and
+  // re-sent (Try again, or along with the next change). The screen changes at once; the status
+  // bar follows: Saving… -> All changes saved.
+  const waiting = useRef<BrandKitPatch>({})
+  const mergePatch = (a: BrandKitPatch, b: BrandKitPatch): BrandKitPatch => ({ ...a, ...b, ...(a.look || b.look ? { look: { ...a.look, ...b.look } } : {}) })
+  const sendKit = async () => {
+    const patch = waiting.current
+    if (!Object.keys(patch).length) return { success: true }
+    waiting.current = {}
+    const response = await shared.save(patch)
     if (response.success && response.data) {
-      setKit(k => ({ ...k, look: response.data!.look }))
-      setSaveStatus('saved')
-      setTimeout(() => setSaveStatus('idle'), 1500)
+      const savedLook = response.data.look
+      setKit(k => ({ ...k, look: savedLook }))
     } else {
-      setKit(prev)
-      setSaveStatus('error')
+      waiting.current = mergePatch(patch, waiting.current) // newer changes win
     }
+    return response
+  }
+  const queue = (patch: BrandKitPatch, delay: number) => {
+    waiting.current = mergePatch(waiting.current, patch)
+    if (delay <= 0) void save.track(sendKit, { key: 'kit', retry: sendKit })
+    else save.schedule('kit', sendKit, delay, { retry: sendKit })
   }
 
-  const scheduleSave = (next: BrandKit) => {
+  // The look (Classic / Luxe, finish, Ivory / Midnight) saves at once - every feature on
+  // "My Brand Kit" changes with it. A color tap from the look picker goes through scheduleSave.
+  const changeLook = (patch: BrandKitPatch) => {
+    if (patch.secondary_color) { scheduleSave({ ...kit, secondary_color: patch.secondary_color }, 250); return }
+    if (!patch.look) return
+    const cur = brandLookOf(kit)
+    setKit({ ...kit, look: { ...cur, ...(kit.look || {}), ...patch.look, saved: true } })
+    queue({ look: patch.look }, 0)
+  }
+
+  const hexOk = (c?: string | null) => /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(c || '')
+  const scheduleSave = (next: BrandKit, delay = 600) => {
     setKit(next)
-    // Half-typed colors ("#1F3") stay on screen but aren't saved until they're a real color.
-    const hex = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/
-    if (![next.primary_color, next.secondary_color, next.accent_color].every(c => hex.test(c || ''))) {
-      if (saveTimeout.current) clearTimeout(saveTimeout.current)
-      setSaveStatus('idle')
-      return
-    }
-    setSaveStatus('saving')
-    if (saveTimeout.current) clearTimeout(saveTimeout.current)
-    saveTimeout.current = setTimeout(async () => {
-      const response = await api.studio.updateBrandKit({
-        primary_color: next.primary_color,
-        secondary_color: next.secondary_color,
-        accent_color: next.accent_color,
-        heading_font: next.heading_font,
-        body_font: next.body_font,
-        disclaimer_text: next.disclaimer_text,
-      })
-      setSaveStatus(response.success ? 'saved' : 'error')
-      if (response.success && response.data) {
-        shared.setLocal(response.data)
-        setKit(k => ({ ...k, look: response.data!.look }))
-      }
-      if (response.success) setTimeout(() => setSaveStatus('idle'), 1500)
-    }, 500)
+    // Half-typed colors ("#1F3") stay on screen as "Unsaved changes…" until they're a real color.
+    if (![next.primary_color, next.secondary_color, next.accent_color].every(hexOk)) { save.markDirty('kit-color'); return }
+    save.clearDirty('kit-color')
+    queue({
+      primary_color: next.primary_color,
+      secondary_color: next.secondary_color,
+      accent_color: next.accent_color,
+      heading_font: next.heading_font,
+      body_font: next.body_font,
+      disclaimer_text: next.disclaimer_text,
+    }, delay)
   }
 
   const handleLogoUpload = async (slot: 'personal' | 'team' | 'brokerage', file: File) => {
@@ -166,16 +176,22 @@ function BrandKitPageInner() {
       return
     }
     setUploadingSlot(slot)
-    const response = await api.studio.uploadBrandLogo(slot, file)
-    if (response.success && response.data) setKit(response.data)
-    else setLogoError(response.error || "That logo couldn't be uploaded. Try a different JPG or PNG.")
+    await save.track(async () => {
+      const response = await api.studio.uploadBrandLogo(slot, file)
+      if (response.success && response.data) { setKit(response.data); shared.setLocal(response.data); setLogoError('') }
+      else setLogoError(response.error || "That logo couldn't be uploaded. Try a different JPG or PNG.")
+      return response
+    }, { key: `logo-${slot}` })
     setUploadingSlot(null)
   }
 
   const handleLogoDelete = async (slot: 'personal' | 'team' | 'brokerage') => {
     setUploadingSlot(slot)
-    const response = await api.studio.deleteBrandLogo(slot)
-    if (response.success && response.data) setKit(response.data)
+    await save.track(async () => {
+      const response = await api.studio.deleteBrandLogo(slot)
+      if (response.success && response.data) { setKit(response.data); shared.setLocal(response.data) }
+      return response
+    }, { key: `logo-${slot}` })
     setUploadingSlot(null)
   }
 
@@ -186,21 +202,12 @@ function BrandKitPageInner() {
   const look = brandLookOf(kit)
   const shownLook = { ...look, theme: look.theme === 'luxe' && luxeAllowed ? 'luxe' as const : 'classic' as const }
   const lookName = `${shownLook.theme === 'luxe' ? 'Luxe' : 'Classic'} · ${shownLook.theme === 'luxe' ? LUXE_METALS[look.metal].label : brandColorName(kit.secondary_color) || 'Custom color'} · ${modeLabel(look.dark)}`
-  const statusChip = (
-    <div className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black ${
-      saveStatus === 'saved' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300' :
-      saveStatus === 'saving' ? 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' :
-      saveStatus === 'error' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300' : 'opacity-0'
-    }`}>
-      {saveStatus === 'saving' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-      {saveStatus === 'saved' && <Check className="h-3.5 w-3.5" />}
-      {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : saveStatus === 'error' ? 'Try again' : <Save className="h-3.5 w-3.5" />}
-    </div>
-  )
-
   return (
+    <SaveStatusContext.Provider value={save}>
     <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]">
-      <div className="mx-auto max-w-6xl px-4 py-4 sm:py-6">
+      <div className="mx-auto max-w-6xl px-4 pb-4 sm:pb-6">
+        {/* Always in view (sticky): what's picked + whether it saved (owner 10/26). */}
+        <SaveStatusBar store={save} label={`Branding · ${lookName}`} shortLabel="Branding" hint="Tap to choose - everything saves on its own, no Save button needed." />
         <LuxeHero
           compact
           backHref="/studio"
@@ -209,8 +216,6 @@ function BrandKitPageInner() {
           icon={Wand2}
           title={<>Your brand, <em>everywhere.</em></>}
           subtitle={<>{brandWearers(user?.plan_tier)} <span className="sr-only">{lookName}</span></>}
-          asideClassName="lg:w-auto max-lg:absolute max-lg:right-4 max-lg:top-3"
-          aside={<div className="flex lg:justify-end">{statusChip}</div>}
         />
         <style>{BRANDING_CSS}</style>
 
@@ -266,34 +271,52 @@ function BrandKitPageInner() {
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
                   <p className="mb-2 text-xs font-black uppercase tracking-widest text-gray-400">Heading font</p>
-                  <div className="space-y-2">
-                    {FONT_OPTIONS.map(font => (
-                      <button
-                        key={font.value}
-                        onClick={() => scheduleSave({ ...kit, heading_font: font.value })}
-                        className={`w-full rounded-xl border-2 p-3 text-left transition ${font.className} ${
-                          kit.heading_font === font.value ? 'border-[#C9A24D] bg-[#C9A24D]/10' : 'border-gray-200 dark:border-gray-700'
-                        }`}
-                      >
-                        <span className="text-lg font-black text-[#111827] dark:text-white">{font.label}</span>
-                      </button>
-                    ))}
+                  <div role="radiogroup" aria-label="Heading font" className="space-y-2.5">
+                    {FONT_OPTIONS.map(font => {
+                      const on = kit.heading_font === font.value
+                      return (
+                        <button
+                          key={font.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={on}
+                          data-testid={`brand-heading-font-${font.value}`}
+                          onClick={() => scheduleSave({ ...kit, heading_font: font.value }, 0)}
+                          className={`relative flex w-full items-center gap-2 rounded-xl border-2 p-3 text-left transition active:scale-[0.98] ${font.className} ${
+                            on ? `${SELECTED_RING} bg-[#C9A24D]/10` : 'border-gray-200 hover:border-[#C9A24D]/50 dark:border-gray-700'
+                          }`}
+                        >
+                          {on && <SelectedMark key={`h-${font.value}`} />}
+                          <span className="min-w-0 flex-1 text-lg font-black text-[#111827] dark:text-white">{font.label}</span>
+                          {on && <span className="shrink-0 rounded-full bg-[#C9A24D] px-2 py-0.5 font-sans text-[9px] font-black uppercase tracking-wider text-white">Selected</span>}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
                 <div>
                   <p className="mb-2 text-xs font-black uppercase tracking-widest text-gray-400">Body font</p>
-                  <div className="space-y-2">
-                    {FONT_OPTIONS.map(font => (
-                      <button
-                        key={font.value}
-                        onClick={() => scheduleSave({ ...kit, body_font: font.value })}
-                        className={`w-full rounded-xl border-2 p-3 text-left transition ${font.className} ${
-                          kit.body_font === font.value ? 'border-[#C9A24D] bg-[#C9A24D]/10' : 'border-gray-200 dark:border-gray-700'
-                        }`}
-                      >
-                        <span className="text-sm font-semibold text-[#111827] dark:text-white">{font.label} — sample text</span>
-                      </button>
-                    ))}
+                  <div role="radiogroup" aria-label="Body font" className="space-y-2.5">
+                    {FONT_OPTIONS.map(font => {
+                      const on = kit.body_font === font.value
+                      return (
+                        <button
+                          key={font.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={on}
+                          data-testid={`brand-body-font-${font.value}`}
+                          onClick={() => scheduleSave({ ...kit, body_font: font.value }, 0)}
+                          className={`relative flex w-full items-center gap-2 rounded-xl border-2 p-3 text-left transition active:scale-[0.98] ${font.className} ${
+                            on ? `${SELECTED_RING} bg-[#C9A24D]/10` : 'border-gray-200 hover:border-[#C9A24D]/50 dark:border-gray-700'
+                          }`}
+                        >
+                          {on && <SelectedMark key={`b-${font.value}`} />}
+                          <span className="min-w-0 flex-1 text-sm font-semibold text-[#111827] dark:text-white">{font.label} — sample text</span>
+                          {on && <span className="shrink-0 rounded-full bg-[#C9A24D] px-2 py-0.5 font-sans text-[9px] font-black uppercase tracking-wider text-white">Selected</span>}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
@@ -318,6 +341,7 @@ function BrandKitPageInner() {
       <BrandColorDock look={shownLook} luxeAllowed={luxeAllowed} onChange={changeLook} show={dockOn} />
       {dockOn && <div aria-hidden className="h-20 lg:hidden" />}
     </div>
+    </SaveStatusContext.Provider>
   )
 }
 
@@ -385,9 +409,11 @@ function ColorField({ label, value, onChange, swatches }: { label: string; value
           {swatches.map(s => {
             const on = s.color.toLowerCase() === (value || '').toLowerCase()
             return (
-              <button key={s.color} type="button" role="radio" aria-checked={on} title={s.label} onClick={() => onChange(s.color)}
-                className={`h-6 w-6 rounded-full ring-1 ring-black/15 transition hover:scale-110 dark:ring-white/20 ${on ? 'scale-110 outline outline-2 outline-offset-2 outline-[#C9A24D]' : ''}`}
-                style={{ background: s.color }} />
+              <button key={s.color} type="button" role="radio" aria-checked={on} title={s.label} aria-label={s.label} onClick={() => onChange(s.color)}
+                className={`grid h-7 w-7 place-items-center rounded-full transition hover:scale-110 active:scale-95 ${on ? 'z-[1] scale-110 ring-[3px] ring-[#C9A24D] ring-offset-2 ring-offset-white shadow-[0_6px_14px_-4px_rgba(201,162,77,.9)] dark:ring-offset-[#151517]' : 'ring-1 ring-black/15 dark:ring-white/20'}`}
+                style={{ background: s.color }}>
+                {on && <Check key={s.color} className="h-3.5 w-3.5 animate-[successPop_.3s_ease-out]" strokeWidth={3.5} style={{ color: isLight(s.color) ? '#111827' : '#ffffff' }} />}
+              </button>
             )
           })}
         </div>
@@ -406,9 +432,11 @@ function LogoSlot({ label, icon: Icon, url, uploading, onUpload, onDelete }: {
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   return (
-    <div className="min-w-0 rounded-xl border border-gray-200 bg-[#fbfaf7] p-2.5 text-center dark:border-gray-700 dark:bg-[#1A1A1C] sm:p-4">
+    <div data-testid={`brand-logo-${label.toLowerCase()}`} data-has-logo={url ? '1' : '0'}
+      className={`relative min-w-0 rounded-xl border-2 bg-[#fbfaf7] p-2.5 text-center transition dark:bg-[#1A1A1C] sm:p-4 ${url ? `${SELECTED_RING}` : 'border-gray-200 dark:border-gray-700'}`}>
+      {url && !uploading && <SelectedMark key={url} size="sm" />}
       <button type="button" onClick={() => inputRef.current?.click()} aria-label={`${url ? 'Replace' : 'Upload'} ${label} logo`}
-        className="mx-auto flex aspect-square w-full max-w-[80px] items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white transition hover:border-[#C9A24D] dark:border-gray-700 dark:bg-[#111113]">
+        className={`mx-auto flex aspect-square w-full max-w-[80px] items-center justify-center overflow-hidden rounded-xl border bg-white transition hover:border-[#C9A24D] dark:bg-[#111113] ${url ? 'border-[#C9A24D]/40' : 'border-dashed border-gray-300 dark:border-gray-700'}`}>
         {uploading ? (
           <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
         ) : url ? (
@@ -418,6 +446,7 @@ function LogoSlot({ label, icon: Icon, url, uploading, onUpload, onDelete }: {
         )}
       </button>
       <p className="mt-2 truncate text-xs font-black text-[#111827] dark:text-white">{label}</p>
+      <p className={`truncate text-[10px] font-black uppercase tracking-wider ${uploading ? 'text-[#8b6a2b]' : url ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`}>{uploading ? 'Saving…' : url ? 'Added' : 'None yet'}</p>
       <div className="mt-1.5 flex items-center justify-center gap-1">
         <button onClick={() => inputRef.current?.click()} className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 px-2 text-[10px] font-black uppercase text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700">
           <Upload className="h-3 w-3" /> <span className="max-sm:sr-only">{url ? 'Replace' : 'Upload'}</span>

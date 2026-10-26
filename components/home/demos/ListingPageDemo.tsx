@@ -228,7 +228,7 @@ export default function ListingPageDemo() {
     return (
       <BrowserFrame url={url} progress={progress}>
         <style>{CSS}</style>
-        <div className="grid h-[420px] grid-cols-[0.9fr_1.2fr] gap-3 bg-[#f7f5f1] p-4 dark:bg-[#0B0B0B]">
+        <div className="grid h-[420px] grid-cols-[0.9fr_1.2fr] gap-3 bg-[#f7f5f1] p-4 dark:bg-[#0B0B0B] max-sm:grid-cols-1 max-sm:grid-rows-[auto_minmax(0,1fr)] max-sm:gap-2 max-sm:p-3">
           <div className="flex flex-col rounded-2xl bg-gradient-to-br from-[#0b0f0e] via-[#111827] to-[#2a2218] p-3.5 text-white">
             <div className="flex items-center gap-2">
               <div className="relative h-9 w-12 shrink-0 overflow-hidden rounded-md ring-1 ring-[#C9A24D]/60"><Image src={L.hero} alt="" fill className="object-cover" unoptimized /></div>
@@ -244,7 +244,7 @@ export default function ListingPageDemo() {
                 const done = k < s
                 const active = k === s
                 return (
-                  <div key={st.label} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-all duration-500 ${active ? 'bg-white/10 ring-1 ring-[#C9A24D]/50' : ''}`}>
+                  <div key={st.label} className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-all duration-500 ${active ? 'bg-white/10 ring-1 ring-[#C9A24D]/50' : 'max-sm:hidden'}`}>
                     <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full ${done ? 'bg-emerald-500' : active ? 'bg-[#C9A24D]' : 'border border-white/25'}`}>
                       {done ? <Check className="h-2 w-2 text-white" strokeWidth={4} /> : active ? <Loader2 className="h-2 w-2 animate-spin text-[#111827]" /> : null}
                     </span>
@@ -253,7 +253,7 @@ export default function ListingPageDemo() {
                 )
               })}
             </div>
-            <p className="mt-auto text-[6.5px] font-semibold leading-snug text-white/40">Done for you the first time you open it. Every word and photo stays yours to change.</p>
+            <p className="mt-auto text-[6.5px] font-semibold leading-snug text-white/40 max-sm:hidden">Done for you the first time you open it. Every word and photo stays yours to change.</p>
           </div>
 
           <div key={s} className="sp-rise relative flex flex-col overflow-hidden rounded-2xl border border-[#C9A24D]/40 bg-white p-3 pt-6 shadow-[0_16px_34px_-24px_rgba(201,162,77,.9)] dark:bg-[#151517]">
@@ -356,11 +356,11 @@ export default function ListingPageDemo() {
                       <>
                         <Image src={L.hero} alt="" fill className="object-cover" unoptimized />
                         <span className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/40" />
-                        <span className="absolute bottom-2 left-2.5"><span className="block text-[5.5px] font-black uppercase tracking-[0.3em] text-[#e8c97a]">Coming soon</span><span className="block font-serif text-[16px] font-light text-white">{L.address}</span><span className="block font-serif text-[9px] text-white/80">{money(L.price)}</span></span>
+                        <span className="absolute bottom-2 left-2.5"><span className="block text-[5.5px] font-black uppercase tracking-[0.3em] text-[#e8c97a]">Coming soon</span><span className="block font-serif text-[16px] font-light text-white max-sm:text-[13px] max-sm:leading-tight">{L.address}</span><span className="block font-serif text-[9px] text-white/80">{money(L.price)}</span></span>
                       </>
                     ) : (
                       <div className="flex h-full gap-1.5 p-2">
-                        <div className="flex w-[42%] flex-col justify-end"><span className="text-[5.5px] font-black uppercase tracking-[0.3em] text-[#8b7355]">{L.city}</span><span className="font-serif text-[14px] leading-none text-[#10201e]">{L.address}</span><span className="mt-1 h-px w-8 bg-[#10201e]" /><span className="mt-1 font-serif text-[8px] text-[#10201e]">{money(L.price)}</span></div>
+                        <div className="flex w-[42%] flex-col justify-end"><span className="text-[5.5px] font-black uppercase tracking-[0.3em] text-[#8b7355]">{L.city}</span><span className="font-serif text-[14px] leading-none text-[#10201e] max-sm:text-[11px]">{L.address}</span><span className="mt-1 h-px w-8 bg-[#10201e]" /><span className="mt-1 font-serif text-[8px] text-[#10201e]">{money(L.price)}</span></div>
                         <div className="relative flex-1 overflow-hidden rounded"><Image src={L.hero} alt="" fill className="object-cover" unoptimized /></div>
                       </div>
                     )}
@@ -460,16 +460,16 @@ export default function ListingPageDemo() {
             <div className="absolute inset-x-5 bottom-12">
               <span className="sp-rise inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/40 px-2 py-0.5 text-[6.5px] font-black uppercase tracking-[0.25em] text-white "><span className="h-1.5 w-1.5 rounded-full bg-amber-400" />{L.status}</span>
               <p className="sp-rise mt-1.5 text-[6.5px] font-black uppercase tracking-[0.35em] text-white/70" style={{ animationDelay: '120ms' }}>{L.city} · {L.state} · {L.zip}</p>
-              <h4 className="sp-rise font-serif text-[40px] font-light leading-[1] tracking-[-0.01em] text-white" style={{ animationDelay: '220ms' }}>{L.address}</h4>
+              <h4 className="sp-rise font-serif text-[40px] font-light leading-[1] tracking-[-0.01em] text-white max-sm:text-[32px]" style={{ animationDelay: '220ms' }}>{L.address}</h4>
               <span className="sp-rule mt-2 block h-px w-full bg-gradient-to-r from-[#C9A24D] via-[#e8c97a]/60 to-transparent" />
               <div className="sp-rise mt-2 flex items-end justify-between gap-3" style={{ animationDelay: '380ms' }}>
-                <div className="flex items-end gap-4">
+                <div className="flex items-end gap-4 max-sm:gap-3">
                   <div><p className="text-[5.5px] font-black uppercase tracking-[0.3em] text-white/50">Offered at</p><p className="font-serif text-[19px] text-white">{money(L.price)}</p></div>
                   {[[L.beds, 'Beds'], [L.baths, 'Baths'], [L.sqft.toLocaleString(), 'Sq ft'], [L.acres, 'Acres']].map(([v, l]) => (
                     <div key={l as string}><p className="font-serif text-[15px] text-white">{v}</p><p className="text-[5.5px] font-black uppercase tracking-[0.25em] text-white/50">{l}</p></div>
                   ))}
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 max-sm:hidden">
                   <span className="sp-shine inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#f3dfa8] via-[#C9A24D] to-[#a8853d] px-2.5 py-1 text-[7px] font-black text-[#111827]">Book a private tour <ArrowRight className="h-2 w-2" /></span>
                   <span className="inline-flex items-center gap-1 rounded-full border border-white/25 px-2 py-1 text-[6.5px] font-bold text-white"><Images className="h-2 w-2" />{L.photoCount} photos</span>
                 </div>
@@ -596,7 +596,7 @@ export default function ListingPageDemo() {
             </div>
             <p className="mt-2 text-center text-[5.5px] font-bold uppercase tracking-[0.3em] text-white/30">Presented by {AGENT.name} · {AGENT.brokerage} · Powered by OpenHousePal</p>
             {idx === 5 && tick >= 10 && (
-              <div className="sp-toast absolute right-4 top-12 z-30 flex w-[210px] items-start gap-2 rounded-xl border border-gray-200 bg-white p-2.5 shadow-[0_20px_40px_-12px_rgba(0,0,0,.6)] dark:border-gray-700 dark:bg-[#151517]">
+              <div className="sp-toast absolute right-4 top-12 z-30 max-sm:bottom-4 max-sm:top-auto flex w-[210px] items-start gap-2 rounded-xl border border-gray-200 bg-white p-2.5 shadow-[0_20px_40px_-12px_rgba(0,0,0,.6)] dark:border-gray-700 dark:bg-[#151517]">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#C9A24D] text-[#111827]"><Bell className="h-3 w-3" /></span>
                 <div className="min-w-0">
                   <p className="text-[8px] font-black text-[#111827] dark:text-white">New tour request</p>

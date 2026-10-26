@@ -351,8 +351,11 @@ export default function BlogsDemo() {
               <p className="flex items-center gap-1 text-[7px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]"><Sparkles className="h-2.5 w-2.5" /> Writing your article · keep working, we'll save it</p>
               <div className="mt-1 h-1 overflow-hidden rounded-full bg-[#C9A24D]/15"><div className="h-full rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] transition-all duration-700" style={{ width: `${8 + Math.min(tick, 9) * 3.4}%` }} /></div>
             </div>
-            <div className="grid flex-1 grid-cols-[1fr_1.1fr] gap-2">
-              <div className="rounded-xl border border-gray-200 bg-white p-2.5 dark:border-gray-800 dark:bg-[#151517]">
+            {/* Phones: two columns left each one a word per line, so the steps sit on top as the
+                same compact checklist the writing screen uses, with the sources full width below. */}
+            <div className="hidden max-sm:block"><StageList doneCount={tick >= 7 ? 2 : tick >= 3 ? 1 : 0} compact /></div>
+            <div className="grid flex-1 grid-cols-[1fr_1.1fr] gap-2 max-sm:grid-cols-1 max-sm:content-start">
+              <div className="rounded-xl border border-gray-200 bg-white p-2.5 dark:border-gray-800 dark:bg-[#151517] max-sm:hidden">
                 <StageList doneCount={tick >= 7 ? 2 : tick >= 3 ? 1 : 0} />
               </div>
               <div className="rounded-xl border border-gray-200 bg-white p-2.5 dark:border-gray-800 dark:bg-[#151517]">

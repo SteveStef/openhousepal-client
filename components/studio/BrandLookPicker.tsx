@@ -10,6 +10,7 @@ import type { BrandKit } from '@/types'
 import { BRAND_COLOR_GROUPS, BRAND_FINISHES, BRAND_MODES, brandColorName, brandLookOf, type BrandKitPatch, type BrandLook } from '@/lib/brandKit'
 import { LUXE_METALS } from '@/lib/luxeMetals'
 import { formPaint } from '@/lib/formLook'
+import SelectedMark, { SELECTED_RING } from '@/components/ui/SelectedMark'
 
 const inkOn = (hex: string) => {
   const n = parseInt(hex.replace('#', ''), 16)
@@ -48,13 +49,14 @@ export default function BrandLookPicker({ kit, luxeAllowed, onChange, showPrevie
             return (
               <button key={id} type="button" disabled={locked} aria-pressed={on} data-testid={`brand-look-${id}`}
                 onClick={() => onChange({ look: { theme: id } })}
-                className={`relative rounded-2xl border-2 p-2 text-left transition disabled:cursor-not-allowed ${on ? 'border-[#C9A24D] bg-[#C9A24D]/[0.06] shadow-[0_14px_30px_-22px_rgba(201,162,77,.9)]' : 'border-gray-200 hover:border-[#C9A24D]/50 dark:border-gray-800'} ${locked ? 'opacity-60' : ''}`}>
+                className={`relative rounded-2xl border-2 p-2 text-left transition active:scale-[0.98] disabled:cursor-not-allowed ${on ? `${SELECTED_RING} bg-[#C9A24D]/[0.08]` : 'border-gray-200 hover:border-[#C9A24D]/50 dark:border-gray-800'} ${locked ? 'opacity-60' : ''}`}>
+                {on && !locked && <SelectedMark key={`look-${id}`} />}
                 <BrandLookPreview look={{ ...look, theme: id }} compact />
                 <span className="mt-2 flex items-center gap-1.5 px-0.5">
                   <Icon className={`h-3.5 w-3.5 ${on ? 'text-[#C9A24D]' : 'text-gray-400'}`} />
                   <span className="text-sm font-black text-[#111827] dark:text-white">{name}</span>
                   {locked && <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-[#111827] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#e8c97a]"><Lock className="h-2.5 w-2.5" /> IDX</span>}
-                  {on && !locked && <span className="ml-auto grid h-5 w-5 place-items-center rounded-full bg-[#C9A24D] text-white"><Check className="h-3 w-3" strokeWidth={3.5} /></span>}
+                  {on && !locked && <span className="ml-auto rounded-full bg-[#C9A24D] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">Selected</span>}
                 </span>
                 <span className="mt-0.5 block px-0.5 text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400">{blurb}</span>
               </button>
@@ -73,9 +75,10 @@ export default function BrandLookPicker({ kit, luxeAllowed, onChange, showPrevie
               const p = f.palette
               return (
                 <button key={f.id} type="button" aria-pressed={on} data-testid={`brand-metal-${f.id}`} onClick={() => onChange({ look: { metal: f.id } })}
-                  className={`rounded-xl border-2 p-2 text-left transition ${on ? 'border-[#111827] dark:border-white' : 'border-gray-200 hover:border-gray-400 dark:border-gray-800'}`}>
+                  className={`relative rounded-xl border-2 p-2 text-left transition active:scale-[0.97] ${on ? `${SELECTED_RING} bg-[#C9A24D]/[0.08]` : 'border-gray-200 hover:border-gray-400 dark:border-gray-800'}`}>
+                  {on && <SelectedMark key={`metal-${f.id}`} size="sm" />}
                   <span className="block h-8 rounded-lg" style={{ background: `linear-gradient(115deg, ${p.deep}, ${p.base} 35%, ${p.pale} 52%, ${p.light} 62%, ${p.deep})` }} />
-                  <span className="mt-1.5 flex items-center gap-1 text-[12px] font-black text-[#111827] dark:text-white">{on && <Check className="h-3 w-3" strokeWidth={3} />}{f.label}</span>
+                  <span className="mt-1.5 flex items-center gap-1 text-[12px] font-black text-[#111827] dark:text-white">{f.label}</span>
                 </button>
               )
             })}
@@ -97,9 +100,9 @@ export default function BrandLookPicker({ kit, luxeAllowed, onChange, showPrevie
               return (
                 <button key={c.color} type="button" role="radio" aria-checked={on} title={c.label} aria-label={c.label} data-testid={`brand-color-${c.label.toLowerCase().replace(/\s+/g, '-')}`}
                   onClick={() => onChange({ secondary_color: c.color })}
-                  className={`relative grid aspect-square w-full max-w-9 place-items-center justify-self-center rounded-full transition hover:scale-110 active:scale-95 ${on ? 'ring-2 ring-[#111827] ring-offset-2 ring-offset-white dark:ring-white dark:ring-offset-[#151517]' : 'ring-1 ring-black/10 dark:ring-white/15'}`}
+                  className={`relative grid aspect-square w-full max-w-9 place-items-center justify-self-center rounded-full transition hover:scale-110 active:scale-95 ${on ? 'z-[1] scale-110 ring-[3px] ring-[#C9A24D] ring-offset-2 ring-offset-white shadow-[0_6px_14px_-4px_rgba(201,162,77,.9)] dark:ring-offset-[#151517]' : 'ring-1 ring-black/10 dark:ring-white/15'}`}
                   style={{ background: c.color }}>
-                  {on && <Check className="h-4 w-4" strokeWidth={3.5} style={{ color: inkOn(c.color) }} />}
+                  {on && <Check key={c.color} className="h-4 w-4 animate-[successPop_.3s_ease-out]" strokeWidth={3.5} style={{ color: inkOn(c.color) }} />}
                 </button>
               )
             })}
@@ -122,7 +125,8 @@ export default function BrandLookPicker({ kit, luxeAllowed, onChange, showPrevie
             const Icon = m.dark ? Moon : Sun
             return (
               <button key={m.id} type="button" aria-pressed={on} data-testid={`brand-mode-${m.id}`} onClick={() => onChange({ look: { dark: m.dark } })}
-                className={`flex items-center gap-2.5 rounded-xl border-2 px-3 py-2.5 text-left transition ${on ? 'border-[#C9A24D] bg-[#C9A24D]/5' : 'border-gray-200 hover:border-[#C9A24D]/50 dark:border-gray-800'}`}>
+                className={`relative flex items-center gap-2.5 rounded-xl border-2 px-3 py-2.5 text-left transition active:scale-[0.98] ${on ? `${SELECTED_RING} bg-[#C9A24D]/[0.08]` : 'border-gray-200 hover:border-[#C9A24D]/50 dark:border-gray-800'}`}>
+                {on && <SelectedMark key={`mode-${m.id}`} size="sm" />}
                 <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${m.dark ? 'bg-[#111827] text-[#e8c97a]' : 'bg-[#fff7df] text-[#b8860b]'}`}><Icon className="h-4 w-4" /></span>
                 <span className="min-w-0"><span className="block text-xs font-black text-[#111827] dark:text-white">{m.label}</span><span className="block text-[10px] font-semibold leading-snug text-gray-400">{m.blurb}</span></span>
               </button>

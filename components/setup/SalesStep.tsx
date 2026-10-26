@@ -74,7 +74,7 @@ export function SalesStep({ ctx }: { ctx: StepCtx }) {
   const hubPlan = hasAgentHubAccess(ctx.plan)
   const flow = useMiniFlow(ctx, hubPlan ? ['Sales', 'Stats', 'Where', 'Order'] : ['Sales', 'Stats'])
 
-  const run = (job: () => Promise<unknown>) => ctx.markSaving(serial(job))
+  const run = (job: () => Promise<unknown>) => ctx.markSaving(() => serial(job))
   const saveHub = (patch: Parameters<typeof patchHubConfig>[0]) => run(() => patchHubConfig(patch))
 
   const setStats = (v: boolean) => {

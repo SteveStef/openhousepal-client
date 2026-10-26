@@ -246,7 +246,25 @@ export function EmailsPage({ d, period }: { d: D; period: string }) {
         </Card>
       </div>
       <Card title="Every kind of email" sub="Opened and clicked only exist for tracked client emails">
-        <div className="overflow-x-auto rounded-2xl border border-gray-100 dark:border-gray-800">
+        {/* Phones: one line per email kind instead of the 7-column table. */}
+        <ul className="divide-y divide-gray-100 rounded-2xl border border-gray-100 dark:divide-gray-800 dark:border-gray-800 sm:hidden">
+          {d.templates.map((t: D) => (
+            <li key={t.template} className="px-3 py-2.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="min-w-0 text-[13px] font-black leading-snug text-[#111827] dark:text-white">{t.label}</p>
+                <p className="shrink-0 text-[13px] font-black tabular-nums text-[#111827] dark:text-white">{n0(t.sent)} <span className="text-[10px] font-semibold text-gray-400">sent</span></p>
+              </div>
+              <p className="mt-0.5 text-[11px] font-semibold capitalize text-gray-500 dark:text-gray-400">
+                {t.audience}
+                {t.failed ? ` · ${n0(t.failed)} didn't send` : ''}
+                {t.bounced + t.spam ? ` · ${n0(t.bounced + t.spam)} bounced` : ''}
+                {t.tracked ? ` · ${pctTxt(t.open_rate)} opened · ${pctTxt(t.click_rate)} clicked` : ''}
+              </p>
+            </li>
+          ))}
+          {!d.templates.length && <li className="px-3 py-8 text-center text-xs font-semibold text-gray-400">No emails in this period</li>}
+        </ul>
+        <div className="overflow-x-auto rounded-2xl border border-gray-100 dark:border-gray-800 max-sm:hidden">
           <table className="w-full min-w-[620px] text-left text-xs">
             <thead className="bg-gray-50/80 text-[10px] uppercase tracking-wider text-gray-500 dark:bg-white/[0.03] dark:text-gray-400">
               <tr>{['Email', 'To', 'Sent', "Didn't send", 'Bounced', 'Opened', 'Clicked'].map((h, i) => <th key={h} className={`px-3 py-2.5 font-black ${i > 1 ? 'text-right' : ''}`}>{h}</th>)}</tr>
