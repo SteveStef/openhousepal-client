@@ -4209,9 +4209,11 @@ export interface PromoCode {
   state: 'active' | 'off' | 'expired' | 'used_up'
   notes: string | null
   created_at: string
+  /** A test-account code: the Bright sign-up takes this agent's MLS ID and makes a test copy. Free. */
+  test_copy_of_user_id: string | null
   agents: { id: string; name: string; email: string; plan_tier: string | null; subscription_status: string | null; joined_at: string; has_paypal_subscription: boolean }[]
 }
-export type PromoCodeInput = Partial<Pick<PromoCode, 'code' | 'label' | 'kind' | 'plan_tier' | 'paypal_plan_id' | 'custom_price' | 'billing_cycle' | 'billing_group_id' | 'max_uses' | 'expires_at' | 'is_active' | 'notes'>>
+export type PromoCodeInput = Partial<Pick<PromoCode, 'code' | 'label' | 'kind' | 'plan_tier' | 'paypal_plan_id' | 'custom_price' | 'billing_cycle' | 'billing_group_id' | 'max_uses' | 'expires_at' | 'is_active' | 'notes' | 'test_copy_of_user_id'>>
 export interface PayPalPlanTerms { trial_days: number; price: number | null; interval: string | null; setup_fee: number; status: string | null; name: string | null }
 /** What checkout gets back for a valid code. */
 export interface CheckoutCode {
@@ -4224,6 +4226,8 @@ export interface CheckoutCode {
   plan_id: string | null
   custom_price?: number | null
   billing_cycle?: string | null
+  /** An admin test-account code - free, nothing is billed. */
+  test_account?: boolean
   message?: string
 }
 

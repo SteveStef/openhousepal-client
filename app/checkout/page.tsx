@@ -286,7 +286,7 @@ function CheckoutContent() {
                       <span className="text-[#111827] dark:text-white font-black text-xs uppercase tracking-widest">{billedByUs ? 'Your Price' : hasTrial ? 'Post-Trial Price' : 'Monthly Price'}</span>
                       <div className="text-right">
                         {billedByUs ? (
-                          <div className="text-2xl font-black text-[#C9A24D] tracking-tighter">{appliedCode?.custom_price != null ? `$${appliedCode.custom_price.toFixed(2)}` : 'As agreed'}{appliedCode?.custom_price != null && <span className="text-[10px] ml-1">/{cycleWord(appliedCode.billing_cycle)}</span>}</div>
+                          <div className="text-2xl font-black text-[#C9A24D] tracking-tighter">{appliedCode?.test_account ? 'Free' : appliedCode?.custom_price != null ? `$${appliedCode.custom_price.toFixed(2)}` : 'As agreed'}{appliedCode?.custom_price != null && <span className="text-[10px] ml-1">/{cycleWord(appliedCode.billing_cycle)}</span>}</div>
                         ) : (
                           <div className="text-2xl font-black text-[#C9A24D] tracking-tighter">{terms?.price ? `$${terms.price.toFixed(2)}` : appliedCode ? 'Special Rate' : selectedPlan?.price}<span className="text-[10px] ml-1">/mo</span></div>
                         )}
@@ -297,7 +297,7 @@ function CheckoutContent() {
                   <div className="p-4 bg-[#FAFAF7] dark:bg-[#0B0B0B] rounded-2xl border border-gray-100 dark:border-gray-800">
                     <div className="flex items-center gap-3 text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-widest leading-relaxed">
                       <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                      {billedByUs ? "We'll send your invoices directly - no PayPal needed." : hasTrial ? 'No commitment. Cancel anytime before trial ends.' : 'No commitment. Cancel anytime in Settings > Billing.'}
+                      {appliedCode?.test_account ? 'Test account - nothing to pay.' : billedByUs ? "We'll send your invoices directly - no PayPal needed." : hasTrial ? 'No commitment. Cancel anytime before trial ends.' : 'No commitment. Cancel anytime in Settings > Billing.'}
                     </div>
                   </div>
                 </div>

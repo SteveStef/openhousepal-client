@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, Check, Copy, CreditCard, Loader2, Plus, Receipt, Ticket, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Check, Copy, CreditCard, FlaskConical, Loader2, Plus, Receipt, Ticket, Trash2, X } from 'lucide-react'
 import api from '@/lib/api-service'
 import type { BillingGroup, PayPalPlanTerms, PromoCode, PromoCodeInput } from '@/types'
 import ConfirmationModal from '@/components/ConfirmationModal'
@@ -40,7 +40,7 @@ export default function PromoCodesPanel({ groups, onToast, onAgentsChanged }: {
   const list = codes || []
   const active = list.filter(c => c.state === 'active')
   const signups = list.reduce((n, c) => n + c.uses, 0)
-  const billedAgents = list.filter(c => c.kind === 'billed_by_us').flatMap(c => c.agents.map(a => ({ a, c })))
+  const billedAgents = list.filter(c => c.kind === 'billed_by_us' && !c.test_copy_of_user_id).flatMap(c => c.agents.map(a => ({ a, c })))
   const monthly = billedAgents.reduce((n, { c }) => n + (c.custom_price || 0) / (PER_MONTH[c.billing_cycle || 'monthly'] || 1), 0)
 
   return (
@@ -82,18 +82,20 @@ export default function PromoCodesPanel({ groups, onToast, onAgentsChanged }: {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate font-mono text-lg font-black tracking-wider text-[#111827] dark:text-white">{c.code}</p>
-                  <p className="truncate text-xs font-semibold text-gray-400">{c.label || (c.kind === 'billed_by_us' ? 'Billed by you' : 'Special PayPal plan')}</p>
+                  <p className="truncate text-xs font-semibold text-gray-400">{c.label || (c.test_copy_of_user_id ? 'Test account' : c.kind === 'billed_by_us' ? 'Billed by you' : 'Special PayPal plan')}</p>
                 </div>
                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${STATE[c.state][1]}`}>{STATE[c.state][0]}</span>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2">
                 <Mini label="Used" value={`${c.uses}${c.max_uses ? ` / ${c.max_uses}` : ''}`} />
-                <Mini label="They pay" value={c.kind === 'billed_by_us' ? (c.custom_price != null ? `${money(c.custom_price)}${CYCLE[c.billing_cycle || 'monthly']}` : 'Not set') : 'Via PayPal'} />
+                <Mini label="They pay" value={c.test_copy_of_user_id ? 'Free test' : c.kind === 'billed_by_us' ? (c.custom_price != null ? `${money(c.custom_price)}${CYCLE[c.billing_cycle || 'monthly']}` : 'Not set') : 'Via PayPal'} />
                 <Mini label="Ends" value={c.expires_at ? shortDate(c.expires_at) : 'Never'} />
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-bold text-gray-500 dark:text-gray-400">
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${PLAN_CHIP[c.plan_tier]}`}>{PLAN_LABEL[c.plan_tier]}</span>
-                <span className="inline-flex items-center gap-1">{c.kind === 'billed_by_us' ? <Receipt className="h-3 w-3" /> : <CreditCard className="h-3 w-3" />}{c.kind === 'billed_by_us' ? 'Billed by you' : 'PayPal plan'}</span>
+                {c.test_copy_of_user_id
+                  ? <span className="inline-flex items-center gap-1 text-violet-600 dark:text-violet-300"><FlaskConical className="h-3 w-3" />Test account</span>
+                  : <span className="inline-flex items-center gap-1">{c.kind === 'billed_by_us' ? <Receipt className="h-3 w-3" /> : <CreditCard className="h-3 w-3" />}{c.kind === 'billed_by_us' ? 'Billed by you' : 'PayPal plan'}</span>}
                 {c.billing_group_name && <span>· {c.billing_group_name}</span>}
               </div>
             </button>
@@ -121,7 +123,11 @@ function CodeDrawer({ code, groups, onClose, onSaved, onToast }: {
     code: code.code, label: code.label, kind: code.kind, plan_tier: code.plan_tier, paypal_plan_id: code.paypal_plan_id,
     custom_price: code.custom_price, billing_cycle: code.billing_cycle, billing_group_id: code.billing_group_id,
     max_uses: code.max_uses, expires_at: code.expires_at, is_active: code.is_active, notes: code.notes,
+    test_copy_of_user_id: code.test_copy_of_user_id,
   } : { code: '', kind: 'paypal_plan', plan_tier: 'IDX', billing_cycle: 'monthly', is_active: true })
+  // A test-account code: free, and the Bright sign-up takes the copied agent's MLS ID with it.
+  const [isTest, setIsTest] = useState(!!code?.test_copy_of_user_id)
+  const [sources, setSources] = useState<{ id: string; name: string; mls_id: string }[]>([])
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [plans, setPlans] = useState<{ plan_tier: string; plan_id: string; label: string }[]>([])
@@ -130,8 +136,14 @@ function CodeDrawer({ code, groups, onClose, onSaved, onToast }: {
   const [checking, setChecking] = useState(false)
   const set = (k: keyof PromoCodeInput, v: unknown) => setForm(f => ({ ...f, [k]: v === '' ? null : v }))
   const billedByUs = form.kind === 'billed_by_us'
+  const signupLink = code && typeof window !== 'undefined' ? `${window.location.origin}/register?code=${code.code}` : ''
 
   useEffect(() => { api.admin.getPromoPlans().then(r => { if (r.success && r.data) setPlans(r.data) }) }, [])
+  useEffect(() => { if (isTest) api.admin.getTestCopySources().then(r => { if (r.success && r.data) setSources(r.data) }) }, [isTest])
+  const pickPay = (v: string) => {
+    if (v === 'test') { setIsTest(true); setForm(f => ({ ...f, kind: 'billed_by_us', custom_price: null, max_uses: f.max_uses ?? 1 })) }
+    else { setIsTest(false); setForm(f => ({ ...f, kind: v as PromoCode['kind'], test_copy_of_user_id: null })) }
+  }
   // What PayPal will actually charge on the chosen plan - shown before the code is saved.
   useEffect(() => {
     setTerms(null); setTermsError('')
@@ -155,6 +167,7 @@ function CodeDrawer({ code, groups, onClose, onSaved, onToast }: {
 
   const save = async () => {
     if (!(form.code || '').trim()) { onToast('Give the code a name, like SMITHTEAM', 'error'); return }
+    if (isTest && !form.test_copy_of_user_id) { onToast('Pick the agent the test account copies', 'error'); return }
     setSaving(true)
     const body: PromoCodeInput = { ...form }
     const r = code ? await api.admin.updatePromoCode(code.id, body) : await api.admin.createPromoCode(body)
@@ -201,12 +214,28 @@ function CodeDrawer({ code, groups, onClose, onSaved, onToast }: {
                 <Sel value={form.plan_tier || 'IDX'} onChange={v => setForm(f => ({ ...f, plan_tier: v, paypal_plan_id: null }))} options={TIERS.map(t => [t, PLAN_LABEL[t]])} />
               </L>
               <L label="How they pay">
-                <Sel value={form.kind || 'paypal_plan'} onChange={v => set('kind', v)} options={[['paypal_plan', 'PayPal - a special plan'], ['billed_by_us', 'We bill them ourselves']]} />
+                <Sel value={isTest ? 'test' : form.kind || 'paypal_plan'} onChange={pickPay} options={[['paypal_plan', 'PayPal - a special plan'], ['billed_by_us', 'We bill them ourselves'], ['test', 'Free - test account']]} />
               </L>
             </div>
           </Box>
 
-          {billedByUs ? (
+          {isTest ? (
+            <Box title="Test account">
+              <L label="Copies this agent (their MLS ID, listings, sales and open houses)">
+                <Sel value={form.test_copy_of_user_id || ''} onChange={v => set('test_copy_of_user_id', v)}
+                  options={[['', 'Pick an agent'], ...sources.map(s => [s.id, `${s.name} - MLS ID ${s.mls_id}`])]} />
+              </L>
+              <p className="mt-3 text-xs font-semibold leading-relaxed text-gray-500 dark:text-gray-400">
+                Send the tester the sign-up link below. On the Bright MLS sign-up they enter that agent&apos;s MLS ID and it&apos;s accepted with this code; the account becomes a test copy. Approve them in Agents like any Bright agent, then they type this code at checkout to switch the plan on - nobody pays, and it only works for that test account.
+              </p>
+              {code && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-violet-50 px-3 py-2.5 dark:bg-violet-500/10">
+                  <span className="min-w-0 flex-1 break-all font-mono text-xs font-bold text-violet-800 dark:text-violet-200">{signupLink}</span>
+                  <button onClick={() => copyText(signupLink).then(() => onToast('Sign-up link copied', 'success'))} className="inline-flex items-center gap-1 text-xs font-black text-violet-700 hover:underline dark:text-violet-300"><Copy className="h-3.5 w-3.5" /> Copy link</button>
+                </div>
+              )}
+            </Box>
+          ) : billedByUs ? (
             <Box title="What you'll bill them">
               <div className="grid gap-3 sm:grid-cols-2">
                 <L label="Price"><input className={FIELD} type="number" min={0} step="0.01" value={form.custom_price ?? ''} onChange={e => set('custom_price', e.target.value === '' ? null : Number(e.target.value))} placeholder="79.00" /></L>
@@ -287,7 +316,7 @@ function CodeDrawer({ code, groups, onClose, onSaved, onToast }: {
                       <div className="flex items-center gap-2">
                         {a.plan_tier && <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${PLAN_CHIP[a.plan_tier]}`}>{PLAN_LABEL[a.plan_tier]}</span>}
                         <span className="text-[11px] font-bold capitalize text-gray-500">{(a.subscription_status || '').toLowerCase().replace('_', ' ')}</span>
-                        {code.kind === 'billed_by_us' && code.custom_price != null && <span className="text-[11px] font-black text-[#8b7355] dark:text-[#e8c97a]">bill {money(code.custom_price)}{CYCLE[code.billing_cycle || 'monthly']}</span>}
+                        {code.kind === 'billed_by_us' && !code.test_copy_of_user_id && code.custom_price != null && <span className="text-[11px] font-black text-[#8b7355] dark:text-[#e8c97a]">bill {money(code.custom_price)}{CYCLE[code.billing_cycle || 'monthly']}</span>}
                       </div>
                     </li>
                   ))}

@@ -773,6 +773,7 @@ class ApiService {
 
     getPromoCodes: () => this.request<PromoCode[]>('/admin/promo-codes'),
     getPromoPlans: () => this.request<{ plan_tier: string; plan_id: string; label: string }[]>('/admin/promo-codes/plans'),
+    getTestCopySources: () => this.request<{ id: string; name: string; mls_id: string }[]>('/admin/promo-codes/test-sources'),
     checkPromoPlan: (planId: string) => this.request<PayPalPlanTerms>(`/admin/promo-codes/plan-check?plan_id=${encodeURIComponent(planId)}`),
     createPromoCode: (data: PromoCodeInput) => this.request<PromoCode>('/admin/promo-codes', { method: 'POST', body: JSON.stringify(data) }),
     updatePromoCode: (id: string, data: PromoCodeInput) => this.request<PromoCode>(`/admin/promo-codes/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),

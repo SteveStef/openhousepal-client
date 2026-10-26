@@ -85,6 +85,13 @@ export default function RegisterPage() {
   // Arriving from a No-MLS plan card (?plan=no_mls / pro_no_mls) starts on that side.
   const [audience, setAudience] = useState<'bright' | 'other'>('bright')
   const isBright = audience === 'bright'
+  // An admin test-account link (/register?code=...): lets the Bright sign-up take the MLS ID of the
+  // agent the code copies. Only sent with a Bright sign-up.
+  const [signupCode, setSignupCode] = useState('')
+  useEffect(() => {
+    const code = (new URLSearchParams(window.location.search).get('code') || '').trim().toUpperCase()
+    if (code) setSignupCode(code)
+  }, [])
   useEffect(() => {
     const plan = new URLSearchParams(window.location.search).get('plan') || ''
     if (plan) { try { localStorage.setItem('ohp_signup_plan', plan) } catch {} }
@@ -165,7 +172,7 @@ export default function RegisterPage() {
       brokerage: formData.brokerage,
       password: formData.password,
       is_bright: isBright,
-      ...(isBright ? { mls_id: formData.mlsId } : { license_number: formData.licenseNumber.trim() }),
+      ...(isBright ? { mls_id: formData.mlsId, ...(signupCode ? { signup_code: signupCode } : {}) } : { license_number: formData.licenseNumber.trim() }),
     })
 
     if (success) {
@@ -424,6 +431,7 @@ export default function RegisterPage() {
                     placeholder="1234567"
                   />
                   {fieldErrors.mlsId && <p className="mt-1 text-xs text-red-500 font-medium pl-1">{fieldErrors.mlsId}</p>}
+                  {signupCode && <p className="mt-1 text-xs font-semibold text-[#8b7355] dark:text-[#d7b974] pl-1">Test account code {signupCode} applied</p>}
                 </div>
                 ) : (
                 <div>
