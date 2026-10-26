@@ -873,6 +873,7 @@ export interface User {
   last_billing_date?: string;
   idx_domain_migration_agreed_at?: string;  // null = IDX agent hasn't seen/agreed to the domain-migration prompt yet
   billing_group_id?: string | null;  // paid for by a brokerage group (admin)
+  test_copy_of_user_id?: string | null;  // an admin-made test copy of this agent (shares their MLS ID)
   last_seen_at?: string | null;
 }
 

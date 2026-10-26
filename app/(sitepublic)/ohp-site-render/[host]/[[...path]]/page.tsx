@@ -2115,7 +2115,8 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
     inventoryTotal > 0 ? ['Homes for sale now', String(inventoryTotal)] : null,
     trends.median_sold_price ? ['Median sold (12 mo)', `$${Math.round(trends.median_sold_price).toLocaleString()}`] : null,
     (marketStats?.median_dom ?? trends.median_sold_dom) != null ? ['Median days on market', String(marketStats?.median_dom ?? trends.median_sold_dom)] : null,
-    d.population?.value ? ['Population', Math.round(d.population.value).toLocaleString()] : null,
+    // Says which area the count is for - "Malvern borough" is far smaller than the Malvern mailing area this page covers.
+    d.population?.value ? [d.population.label ? `Population (${d.population.label})` : 'Population', Math.round(d.population.value).toLocaleString()] : null,
     // No age / income / who-owns rows - describing residents is off-limits under Fair Housing.
     area.county ? ['County', String(area.county)] : null,
   ].filter(Boolean) as [string, string][])
@@ -2197,7 +2198,6 @@ async function CommunityPage({ siteId, slug, theme, basePrefix, homesParams }: {
                 inventoryTotal > 0 ? ['Homes for sale', String(inventoryTotal)] : null,
                 marketStats?.median_dom != null ? ['Median days on market', String(marketStats.median_dom)] : null,
                 schoolCount > 0 ? ['Schools', String(schoolCount)] : null,
-                demographics?.population?.value ? ['Residents', Math.round(Number(demographics.population.value)).toLocaleString()] : null,
               ].filter(Boolean) as [string, string][]).map(([label, value]) => (
                 <div key={label} className="flex-1 px-5 py-4">
                   <dd className={`text-2xl font-black leading-none sm:text-[1.7rem] ${fontClass(theme.heading_font, 'font-serif')}`}>{value}</dd>

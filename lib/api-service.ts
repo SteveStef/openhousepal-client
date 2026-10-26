@@ -735,6 +735,11 @@ class ApiService {
         method: 'PATCH',
       }),
 
+    // Make an account a test copy of a real agent (shares their MLS ID and data); '' stops it.
+    setTestCopy: (userId: string, sourceUserId: string) =>
+      this.request<{ success: boolean; test_copy_of_user_id: string | null; mls_id: string | null }>(
+        `/admin/users/${userId}/test-copy?source_user_id=${encodeURIComponent(sourceUserId)}`, { method: 'PATCH' }),
+
     getAIOverview: () => this.request<AIAdminOverview>('/admin/ai/overview'),
 
     getAIAgents: (period: 'month' | 'all' = 'month') =>

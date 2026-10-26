@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import {
-  Activity, Building2, Calendar, ChevronDown, Hash, Mail, MapPin, RefreshCw, Search, ShieldAlert, ShieldCheck, Users,
+  Activity, Building2, Calendar, ChevronDown, FlaskConical, Hash, Mail, MapPin, RefreshCw, Search, ShieldAlert, ShieldCheck, Users,
 } from 'lucide-react'
 import api from '@/lib/api-service'
 import type { BillingGroup, User } from '@/types'
@@ -51,10 +51,15 @@ export default function AgentControlPanel({ users, setUsers, groups, onToast, on
   const [activityFor, setActivityFor] = useState<string | null>(null)
   const [planChange, setPlanChange] = useState<{ u: User; tier: string } | null>(null)
   const [groupChange, setGroupChange] = useState<{ u: User; groupId: string } | null>(null)
+  const [testCopy, setTestCopy] = useState<{ u: User; sourceId: string } | null>(null)
   const [busy, setBusy] = useState(false)
 
   const groupsById = useMemo(() => Object.fromEntries(groups.map(g => [g.id, g])), [groups])
+  const usersById = useMemo(() => Object.fromEntries(users.map(u => [u.id, u])), [users])
   const name = (u: User) => `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email
+  // Agents a test account can copy: real agents with an MLS ID.
+  const copyable = useMemo(() => users.filter(u => !u.is_admin && u.mls_id && !u.test_copy_of_user_id)
+    .sort((a, b) => name(a).localeCompare(name(b))), [users])
 
   const list = useMemo(() => {
     const s = q.trim().toLowerCase()
@@ -115,6 +120,22 @@ export default function AgentControlPanel({ users, setUsers, groups, onToast, on
     setBusy(false); setGroupChange(null)
   }
 
+  const confirmTestCopy = async () => {
+    if (!testCopy) return
+    setBusy(true)
+    const { u, sourceId } = testCopy
+    const r = await api.admin.setTestCopy(u.id, sourceId)
+    if (r.success) {
+      setUsers(users.map(x => x.id === u.id ? {
+        ...x, test_copy_of_user_id: r.data?.test_copy_of_user_id ?? null, mls_id: r.data?.mls_id ?? undefined,
+        ...(sourceId ? { broker_authorized: true } : {}),
+      } : x))
+      onToast(sourceId ? `${name(u)} is now a test copy of ${name(usersById[sourceId])}` : `${name(u)} is no longer a test copy`, 'success')
+      setTestCopy(null)
+    } else onToast(r.error || "Couldn't change the test copy", 'error')
+    setBusy(false)
+  }
+
   const selectCls = 'appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-3 pr-8 text-xs font-bold text-[#111827] outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white'
 
   return (
@@ -166,6 +187,11 @@ export default function AgentControlPanel({ users, setUsers, groups, onToast, on
                   <div className="flex flex-wrap items-center gap-1.5">
                     <p className="truncate font-black text-[#111827] dark:text-white">{name(u)}</p>
                     {!u.broker_authorized && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-black text-red-600 dark:bg-red-500/10 dark:text-red-300">Waiting for approval</span>}
+                    {u.test_copy_of_user_id && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-black text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+                        <FlaskConical className="h-3 w-3" /> Test copy of {usersById[u.test_copy_of_user_id] ? name(usersById[u.test_copy_of_user_id]) : 'an agent'}
+                      </span>
+                    )}
                   </div>
                   <p className="flex min-w-0 items-center gap-1 truncate text-xs font-semibold text-gray-400"><Mail className="h-3 w-3 shrink-0" /> <span className="truncate">{u.email}</span></p>
                 </div>
@@ -196,6 +222,12 @@ export default function AgentControlPanel({ users, setUsers, groups, onToast, on
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
                 </label>
+                {(u.test_copy_of_user_id || !u.mls_id) && (
+                  <button onClick={() => setTestCopy({ u, sourceId: u.test_copy_of_user_id || '' })} title="Make this a test account that shares a real agent's MLS ID and data"
+                    className="inline-flex items-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-black text-gray-600 hover:border-violet-300 hover:text-violet-700 dark:border-gray-700 dark:text-gray-300">
+                    <FlaskConical className="h-3.5 w-3.5" /> Test copy
+                  </button>
+                )}
                 <button onClick={() => setActivityFor(u.id)} title="What they've been doing"
                   className="inline-flex items-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-black text-gray-600 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-300">
                   <Activity className="h-3.5 w-3.5" /> Activity
@@ -236,6 +268,26 @@ export default function AgentControlPanel({ users, setUsers, groups, onToast, on
         confirmText={groupChange?.groupId ? 'Add to group' : 'Take out'}
         isLoading={busy}
       />
+      <ConfirmationModal
+        isOpen={!!testCopy}
+        onClose={() => setTestCopy(null)}
+        onConfirm={confirmTestCopy}
+        title={testCopy ? `Test copy: ${name(testCopy.u)}` : ''}
+        message="A test copy gets the chosen agent's MLS ID, so it shows their listings, sales and open houses - for trying OpenHousePal with real data. Notices about those listings still go to the real agent. Choose no one to stop it (the MLS ID comes off this account)."
+        confirmText={testCopy?.sourceId ? 'Make test copy' : 'Stop test copy'}
+        isLoading={busy}
+      >
+        {testCopy && (
+          <label className="relative block">
+            <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-gray-400">Copy this agent</span>
+            <select id="test-copy-source" value={testCopy.sourceId} onChange={e => setTestCopy({ ...testCopy, sourceId: e.target.value })} className={`w-full ${selectCls}`}>
+              <option value="">No one (not a test copy)</option>
+              {copyable.filter(s => s.id !== testCopy.u.id).map(s => <option key={s.id} value={s.id}>{name(s)} · MLS {s.mls_id}</option>)}
+            </select>
+            <ChevronDown className="pointer-events-none absolute bottom-3 right-2.5 h-3.5 w-3.5 text-gray-400" />
+          </label>
+        )}
+      </ConfirmationModal>
       <AnimatePresence>{activityFor && <AgentDrawer id={activityFor} onClose={() => setActivityFor(null)} />}</AnimatePresence>
     </div>
   )
