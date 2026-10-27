@@ -74,10 +74,15 @@ const asList = (v: any): string => (Array.isArray(v) ? v.filter(Boolean).join(',
 const yesNo = (v: any) => (v === true ? 'Yes' : v === false ? 'No' : '')
 const num = (v: any) => (typeof v === 'number' ? (Number.isInteger(v) ? v.toLocaleString() : v.toLocaleString(undefined, { maximumFractionDigits: 2 })) : v ? String(v) : '')
 const sqftText = (v: any) => (typeof v === 'number' && v > 0 ? `${Math.round(v).toLocaleString()} sq ft` : '')
+// Every date on a home's page is written in Eastern time (Bright is an Eastern MLS), never the
+// viewer's own zone - the server (UTC) and the browser used to write different dates/times, a
+// hydration mismatch (React #418) for every visitor outside UTC. A plain "2026-10-01" is a calendar
+// day, read as UTC so it never slips to the day before.
+export const ET = 'America/New_York'
 export const shortDate = (v?: string | null) => {
   if (!v) return ''
   const d = new Date(v)
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: /^\d{4}-\d{2}-\d{2}$/.test(String(v).trim()) ? 'UTC' : ET })
 }
 const typeLabel = (v?: string | null) => (v ? titleCase(String(v).replace(/_/g, ' ')) : '')
 const cleanName = (v?: string | null) => (v && !/none available|^n\/?a$/i.test(v) ? titleCase(v) : '')
@@ -1143,7 +1148,7 @@ export function ShowingPicker({ onOpen, label = 'Schedule a showing', status, on
   }, [opens])
   if (comingSoon && opens) {
     // Requests for a day once it's on the market are fine - the agent books it when showings open.
-    const when = opens.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    const when = opens.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: ET })
     return (
       <div className="mt-5" data-pp-showing>
         <PanelHead icon={<CalendarDays className="h-5 w-5" />} title={`Showings start ${when}`} sub="Coming soon - pick a day on or after it, then the time." />
@@ -1153,8 +1158,8 @@ export function ShowingPicker({ onOpen, label = 'Schedule a showing', status, on
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.06 }}
               whileHover={{ y: -2 }} whileTap={{ scale: 0.94 }}
               className="flex flex-col items-center rounded-2xl border border-white/[0.12] bg-white/[0.06] py-2 transition-colors hover:border-[color:var(--pp-gold)] hover:bg-white/[0.1]">
-              <span className="text-[9px] font-black uppercase tracking-widest text-white/55">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
-              <span className="text-lg font-black leading-tight">{d.getDate()}</span>
+              <span className="text-[9px] font-black uppercase tracking-widest text-white/55">{d.toLocaleDateString('en-US', { weekday: 'short', timeZone: ET })}</span>
+              <span className="text-lg font-black leading-tight">{d.toLocaleDateString('en-US', { day: 'numeric', timeZone: ET })}</span>
             </motion.button>
           ))}
         </div>
@@ -1183,8 +1188,8 @@ export function ShowingPicker({ onOpen, label = 'Schedule a showing', status, on
             initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.06 }}
             whileHover={{ y: -2 }} whileTap={{ scale: 0.94 }}
             className="flex flex-col items-center rounded-2xl border border-white/[0.12] bg-white/[0.06] py-2 transition-colors hover:border-[color:var(--pp-gold)] hover:bg-white/[0.1]">
-            <span className="text-[9px] font-black uppercase tracking-widest text-white/55">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
-            <span className="text-lg font-black leading-tight">{d.getDate()}</span>
+            <span className="text-[9px] font-black uppercase tracking-widest text-white/55">{d.toLocaleDateString('en-US', { weekday: 'short', timeZone: ET })}</span>
+            <span className="text-lg font-black leading-tight">{d.toLocaleDateString('en-US', { day: 'numeric', timeZone: ET })}</span>
           </motion.button>
         ))}
       </div>
@@ -1219,7 +1224,7 @@ export function Courtesy({ home, className = 'mt-12' }: { home: HomeView; classN
  *  long notice to a full MLSComplianceFooter the page already renders under itself. */
 export function BrightNotice({ home, updatedAt, short = false, className = 'mt-12' }: { home: HomeView; updatedAt?: string | null; short?: boolean; className?: string }) {
   const stamp = updatedAt || home.record.ModificationTimestamp || home.record.updated_at || null
-  const when = stamp && !Number.isNaN(new Date(stamp).getTime()) ? new Date(stamp).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : null
+  const when = stamp && !Number.isNaN(new Date(stamp).getTime()) ? new Date(stamp).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: ET, timeZoneName: 'short' }) : null
   return (
     <div className={`border-t border-[color:var(--pp-gold-line)] pt-6 ${className}`}>
       <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold ${pp.faint}`}>
