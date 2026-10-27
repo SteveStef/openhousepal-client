@@ -802,9 +802,15 @@ export function suggestFollowups(events: LeadEvent[], name: string | null | unde
         consumed.add(x)
         at = t
       }
-      const s = browseSuggestion(sitting, first, passedOn, named)
+      let s = browseSuggestion(sitting, first, passedOn, named)
       const lastLike = Math.max(0, ...sitting.filter(x => x.source_type === 'showcase_like').map(x => Date.parse(x.occurred_at)))
-      if (s?.key === 'likes' && lastLike <= likesCovered) continue
+      if (s?.key === 'likes' && lastLike <= likesCovered) {
+        // Their liked homes are on the automatic card already - what's left to suggest is any home
+        // they only clicked through to / looked at in the same sitting.
+        sitting.forEach(x => { if (x.source_type === 'showcase_like' && x.property_address) named.add(homeKey(tidyAddress(x.property_address.trim()))) })
+        s = browseSuggestion(sitting.filter(x => x.source_type !== 'showcase_like'), first, passedOn, named)
+        if (s && !s.homes.length) s = null   // a bare "they clicked your email" adds nothing next to the card
+      }
       if (!s || used.has(s.key)) continue
       used.add(s.key)
       s.homes.forEach(h => named.add(homeKey(h)))
