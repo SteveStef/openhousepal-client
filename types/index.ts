@@ -4308,7 +4308,7 @@ export interface AdminAreaPlaceList {
   removed: AdminAreaPlace[]
 }
 export interface AdminAreaSchool { name: string; district?: string | null; admin_edited?: boolean | null }
-export interface AdminAreaAgent { id: string; name: string; email: string; plan_tier: string | null; site_host: string | null; site_live: boolean; page_url: string | null }
+export interface AdminAreaAgent { id: string; name: string; email: string; plan_tier: string | null; site_id: string | null; site_host: string | null; site_live: boolean; page_url: string | null }
 export interface AdminAreaDetail {
   id: string
   name: string

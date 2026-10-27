@@ -183,7 +183,7 @@ function LoginContent() {
                         ? 'border-red-300 focus:ring-red-200 focus:border-red-400 bg-red-50/30' 
                         : 'border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-[#111827] hover:border-[#C9A24D]/30 dark:hover:border-[#C9A24D]/30'
                     }`}
-                    placeholder="name@company.com"
+                    placeholder="Enter your email"
                   />
                 </div>
                 {fieldErrors.email && (

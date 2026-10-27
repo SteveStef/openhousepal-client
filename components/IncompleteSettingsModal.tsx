@@ -31,7 +31,8 @@ export default function IncompleteSettingsModal() {
   if (user.plan_tier === 'IDX' && !user.idx_domain_migration_agreed_at) return null
   // Never over the flow itself or a working surface.
   // ...nor over a page that IS one of the setup steps (they're already doing it there).
-  const STEP_PAGES = ['/setup', '/settings', '/studio/brand-kit', '/studio/website', '/studio/integrations', '/studio/calendar', '/studio/reviews', '/studio/email-signature', '/studio/site']
+  // ...nor over the "waiting for Bright MLS" or plan pages - they have their own one next step (owner, 10/26).
+  const STEP_PAGES = ['/setup', '/broker-authorization', '/checkout', '/settings', '/studio/brand-kit', '/studio/website', '/studio/integrations', '/studio/calendar', '/studio/reviews', '/studio/email-signature', '/studio/site']
   if (STEP_PAGES.some(x => pathname?.startsWith(x)) || /^\/studio\/design\/[^/]+/.test(pathname || '')) return null
   // Not over a deep link (an alert/email that opened something specific).
   if (typeof window !== 'undefined' && window.location.search.length > 1) return null

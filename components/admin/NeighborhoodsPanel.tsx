@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle, ArrowDown, ArrowLeft, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, Globe, Loader2,
-  MapPin, Pencil, Plus, RotateCcw, Search, ShieldCheck, Sparkles, Trash2, Undo2, X,
+  MapPin, Maximize2, Monitor, Pencil, Plus, RotateCcw, Search, ShieldCheck, Smartphone, Sparkles, Trash2, Undo2, X,
 } from 'lucide-react'
 import api from '@/lib/api-service'
 import type { AdminAreaDetail, AdminAreaListItem, AdminAreaList, AdminAreaPlace, AdminAreaPlaceList, AdminAreaPlaceInput, AdminAreaSchool } from '@/types'
@@ -197,6 +197,8 @@ function TownEditor({ id, onBack, onToast }: { id: string; onBack: () => void; o
   const [confirm, setConfirm] = useState<'check' | 'research' | null>(null)
   const [busy, setBusy] = useState<'check' | 'research' | null>(null)
   const [notice, setNotice] = useState<{ title: string; lines: string[] } | null>(null)
+  // Goes up after every save or check, so the page preview loads again with the change.
+  const [previewVersion, setPreviewVersion] = useState(0)
 
   const load = useCallback(async () => {
     const r = await api.admin.getArea(id)
@@ -214,6 +216,7 @@ function TownEditor({ id, onBack, onToast }: { id: string; onBack: () => void; o
   /** After any save: show the new record, say what the wording rules changed, refresh the live pages. */
   const saved = useCallback((next: AdminAreaDetail, what: string) => {
     setD(next)
+    setPreviewVersion(v => v + 1)
     api.admin.refreshTownPages()
     const changes = next.wording_changes || []
     if (changes.length) {
@@ -229,6 +232,7 @@ function TownEditor({ id, onBack, onToast }: { id: string; onBack: () => void; o
     setBusy(null)
     if (r.success && r.data) {
       setD(r.data)
+      setPreviewVersion(v => v + 1)
       api.admin.refreshTownPages()
       const res = r.data.check_result
       const names = Object.entries(res?.removed_names || {}).flatMap(([, n]) => n)
@@ -312,7 +316,7 @@ function TownEditor({ id, onBack, onToast }: { id: string; onBack: () => void; o
           </button>
         </div>
         <nav className="mt-4 flex flex-wrap gap-1.5 border-t border-gray-100 pt-4 dark:border-gray-800" aria-label="Jump to">
-          {[['writeup', 'Write-up'], ['schools', 'Schools'], ['living', 'Living here'], ['around', 'Getting around'], ['agents', 'Agents'], ['facts', 'Other facts']].map(([k, l]) => (
+          {[['preview', 'Preview page'], ['writeup', 'Write-up'], ['schools', 'Schools'], ['living', 'Living here'], ['around', 'Getting around'], ['agents', 'Agents'], ['facts', 'Other facts']].map(([k, l]) => (
             <a key={k} href={`#town-${k}`} className="inline-flex min-h-[36px] items-center rounded-full bg-[#faf9f7] px-3 text-[11px] font-black text-gray-600 hover:bg-[#C9A24D]/15 hover:text-[#111827] dark:bg-white/[0.05] dark:text-gray-300 dark:hover:text-white">{l}</a>
           ))}
         </nav>
@@ -329,6 +333,10 @@ function TownEditor({ id, onBack, onToast }: { id: string; onBack: () => void; o
           </ul>
         </div>
       )}
+
+      <Section id="preview" title="Preview page" sub="The town page as visitors see it. It loads again after every change you save.">
+        <PagePreview d={d} version={`${previewVersion}-${d.last_enriched_at || ''}`} />
+      </Section>
 
       <Section id="writeup" title="Write-up" sub="The paragraphs at the top of the town page.">
         <SummaryEditor d={d} onSaved={saved} onToast={onToast} />
@@ -407,6 +415,124 @@ function Section({ id, title, sub, children }: { id: string; title: string; sub:
       </div>
       <div className="space-y-3">{children}</div>
     </section>
+  )
+}
+
+// ------------------------------------------------------------------ page preview
+
+const DESKTOP_W = 1440
+const PHONE_W = 390
+const FRAME_H = 640
+
+/** The real town page (app/admin/town-preview), as one agent's site shows it or with a stand-in
+ * agent - in a phone- or computer-sized window. On a phone it opens full screen instead. */
+function PagePreview({ d, version }: { d: AdminAreaDetail; version: string }) {
+  // Live sites only; real agents before test accounts (@example.com) - same order as the backend's default.
+  const live = useMemo(() => d.agents.filter(a => a.site_live && a.site_id)
+    .sort((a, b) => Number(a.email.toLowerCase().endsWith('@example.com')) - Number(b.email.toLowerCase().endsWith('@example.com'))), [d.agents])
+  const [site, setSite] = useState<string>(live[0]?.site_id || 'none')
+  const [look, setLook] = useState<'classic' | 'luxe'>('classic')
+  const [size, setSize] = useState<'phone' | 'desktop'>('desktop')
+  const [wide, setWide] = useState<boolean | null>(null)
+  const [width, setWidth] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const box = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 640px)')
+    const on = () => setWide(mq.matches)
+    on()
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  useEffect(() => {
+    if (!box.current) return
+    const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width))
+    ro.observe(box.current)
+    return () => ro.disconnect()
+  }, [wide])
+
+  const query = `site=${encodeURIComponent(site)}${site === 'none' && look === 'luxe' ? '&look=luxe' : ''}`
+  const fullHref = `/admin/town-preview/${encodeURIComponent(d.id)}?${query}`
+  const src = `${fullHref}&v=${encodeURIComponent(version)}`
+  useEffect(() => { setLoading(true) }, [src, size])
+
+  const pageW = size === 'desktop' ? DESKTOP_W : PHONE_W
+  const room = Math.max(0, width - (size === 'phone' ? 24 : 0))
+  const scale = room ? Math.min(1, room / pageW) : 1
+  const frameH = size === 'phone' ? 760 : FRAME_H
+
+  return (
+    <div className={CARD}>
+      <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-end">
+        <label className="block sm:min-w-[240px] sm:flex-1">
+          <span className="mb-1 block text-[11px] font-black text-gray-500 dark:text-gray-400">Preview as</span>
+          <select value={site} onChange={e => setSite(e.target.value)} className={FIELD} aria-label="Preview as">
+            {live.map(a => <option key={a.site_id!} value={a.site_id!}>{a.name}&apos;s website</option>)}
+            <option value="none">No agent (sample)</option>
+          </select>
+        </label>
+        {site === 'none' && (
+          <label className="block sm:w-[160px]">
+            <span className="mb-1 block text-[11px] font-black text-gray-500 dark:text-gray-400">Look</span>
+            <select value={look} onChange={e => setLook(e.target.value as 'classic' | 'luxe')} className={FIELD} aria-label="Look">
+              <option value="classic">Classic</option>
+              <option value="luxe">Luxe</option>
+            </select>
+          </label>
+        )}
+        {wide && (
+          <div className="inline-flex rounded-xl border border-gray-200 bg-[#faf9f7] p-1 dark:border-gray-700 dark:bg-white/[0.04]" role="group" aria-label="Screen size">
+            {([['phone', 'Phone', Smartphone], ['desktop', 'Computer', Monitor]] as const).map(([k, l, Icon]) => (
+              <button key={k} onClick={() => setSize(k)} aria-pressed={size === k}
+                className={`inline-flex min-h-[38px] items-center gap-1.5 rounded-lg px-3 text-xs font-black transition ${size === k ? 'bg-white text-[#111827] shadow-sm dark:bg-[#151517] dark:text-white' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
+                <Icon className="h-4 w-4" /> {l}
+              </button>
+            ))}
+          </div>
+        )}
+        <a href={fullHref} target="_blank" rel="noreferrer" className={wide ? BTN_SOFT : BTN_GOLD}>
+          <Maximize2 className="h-4 w-4" /> {wide ? 'Open full screen' : 'Open the preview'}
+        </a>
+      </div>
+      <p className="mt-2 text-[11px] font-semibold text-gray-400">
+        {site === 'none'
+          ? (live.length ? 'With a stand-in agent ("Your name here") - the town facts, homes and numbers are the real ones.' : 'No agent shows this town yet, so a stand-in agent ("Your name here") fills their spots. The town facts, homes and numbers are the real ones.')
+          : 'Exactly as it looks on this agent\'s website. Links open their real site in a new tab; forms are off.'}
+      </p>
+
+      {wide === false && (
+        <p className="mt-3 rounded-2xl bg-[#faf9f7] p-3 text-xs font-semibold text-gray-600 dark:bg-white/[0.04] dark:text-gray-300">
+          On a phone the preview opens full screen, just like a visitor sees it. Close that tab to come back here.
+        </p>
+      )}
+
+      {wide && (
+        <div ref={box} className="mt-4">
+          <div className={`relative mx-auto overflow-hidden ${size === 'phone' ? 'rounded-[2.2rem] border-[10px] border-[#111827] shadow-xl' : 'rounded-2xl border border-gray-200 dark:border-gray-700'}`}
+            style={{ width: size === 'phone' ? PHONE_W * scale + 20 : '100%', height: frameH * (size === 'phone' ? scale : 1) + (size === 'phone' ? 20 : 0) }}>
+            <iframe
+              key={`${src}|${size}`}
+              src={src}
+              title={`${d.name} town page preview`}
+              onLoad={() => setLoading(false)}
+              className="block border-0 bg-white"
+              style={{
+                width: pageW,
+                height: size === 'phone' ? frameH : FRAME_H / scale,
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+              }}
+            />
+            {loading && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/85 text-xs font-black text-gray-500 dark:bg-[#151517]/85 dark:text-gray-300">
+                <Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /> Loading the page…
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

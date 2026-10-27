@@ -792,7 +792,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-3">
               {!user?.is_admin && !user?.broker_authorized && (
-                <Link href="/broker-authorization"
+                <Link href="/broker-authorization" onClick={() => setIsMobileMenuOpen(false)}
                   className={`flex items-center gap-3 rounded-3xl border bg-white p-3 shadow-[0_8px_24px_-14px_rgba(17,24,39,0.25)] dark:bg-[#151517] ${isActive('/broker-authorization') ? 'border-[#C9A24D]' : 'border-gray-200/80 dark:border-gray-800'}`}>
                   <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#C9A24D]/15 text-[#8b6a2b] dark:text-[#e8c97a]"><ShieldCheck className="h-5 w-5" /></span>
                   <span className="flex-1 text-[17px] font-black text-[#111827] dark:text-white">Broker Authorization</span>
@@ -809,18 +809,18 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                     <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${sec.on ? 'bg-[#111827] text-[#e8c97a] dark:bg-[#C9A24D] dark:text-[#111827]' : 'bg-[#C9A24D]/15 text-[#8b6a2b] dark:text-[#e8c97a]'}`}>
                       <sec.icon className="h-5 w-5" />
                     </span>
-                    <span className="flex-1 text-left text-[17px] font-black tracking-tight text-[#111827] dark:text-white">{sec.label}</span>
+                    <span className={`flex-1 text-left text-[17px] font-black tracking-tight ${sec.on ? 'text-[#a8803a] dark:text-[#e8c97a]' : 'text-[#111827] dark:text-white'}`}>{sec.label}</span>
                     {!!sec.badge && sec.badge > 0 && (
                       <span className="flex h-6 min-w-[24px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-black text-white">{sec.badge > 9 ? '9+' : sec.badge}</span>
                     )}
                       <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${openSection === sec.key ? 'rotate-180' : ''}`} />
                     </button>
                   ) : (
-                    <Link href={sec.href} className="flex min-h-[48px] items-center gap-3 rounded-2xl px-1.5 py-1">
+                    <Link href={sec.href} onClick={() => setIsMobileMenuOpen(false)} className="flex min-h-[48px] items-center gap-3 rounded-2xl px-1.5 py-1">
                     <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${sec.on ? 'bg-[#111827] text-[#e8c97a] dark:bg-[#C9A24D] dark:text-[#111827]' : 'bg-[#C9A24D]/15 text-[#8b6a2b] dark:text-[#e8c97a]'}`}>
                       <sec.icon className="h-5 w-5" />
                     </span>
-                    <span className="flex-1 text-left text-[17px] font-black tracking-tight text-[#111827] dark:text-white">{sec.label}</span>
+                    <span className={`flex-1 text-left text-[17px] font-black tracking-tight ${sec.on ? 'text-[#a8803a] dark:text-[#e8c97a]' : 'text-[#111827] dark:text-white'}`}>{sec.label}</span>
                     {!!sec.badge && sec.badge > 0 && (
                       <span className="flex h-6 min-w-[24px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-black text-white">{sec.badge > 9 ? '9+' : sec.badge}</span>
                     )}
@@ -832,7 +832,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                       {sec.tiles.map(t => {
                         const inner = (
                           <>
-                            <t.icon className={`h-[18px] w-[18px] shrink-0 ${t.on ? 'text-[#e8c97a] dark:text-[#111827]' : t.locked || t.soon ? 'text-gray-300 dark:text-gray-600' : 'text-[#C9A24D]'}`} />
+                            <t.icon className={`h-[18px] w-[18px] shrink-0 ${t.locked || t.soon ? 'text-gray-300 dark:text-gray-600' : 'text-[#C9A24D]'}`} />
                             <span className="min-w-0 flex-1 leading-tight">
                               {t.label}
                               {t.soon && <span className="mt-0.5 block text-[10px] font-black uppercase tracking-wider text-[#C9A24D]">Coming soon</span>}
@@ -845,13 +845,13 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                           </>
                         )
                         const cls = `${t.wide ? 'col-span-2 ' : ''}flex min-h-[52px] items-center gap-2.5 rounded-2xl border px-3 py-2 text-[14px] font-bold transition-colors ${
-                          t.on ? 'border-[#111827] bg-[#111827] text-white shadow-md dark:border-[#C9A24D] dark:bg-[#C9A24D] dark:text-[#111827]'
+                          t.on ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#a8803a] shadow-sm dark:bg-[#C9A24D]/15 dark:text-[#e8c97a]'
                             : t.locked || t.soon ? 'border-gray-100 bg-gray-50 text-gray-400 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-500'
                               : 'border-gray-200 bg-[#faf9f7] text-[#111827] active:bg-[#C9A24D]/10 dark:border-gray-800 dark:bg-white/[0.04] dark:text-gray-100'
                         }`
                         return t.soon
                           ? <div key={t.label} aria-disabled className={`${cls} cursor-default`}>{inner}</div>
-                          : <Link key={t.href + t.label} href={t.href} className={cls}>{inner}</Link>
+                          : <Link key={t.href + t.label} href={t.href} onClick={() => setIsMobileMenuOpen(false)} className={cls}>{inner}</Link>
                       })}
                     </div>
                   )}

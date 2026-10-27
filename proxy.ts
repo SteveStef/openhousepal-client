@@ -44,6 +44,13 @@ export async function proxy(request: NextRequest) {
   const hostWithoutPort = rawHost.split(':')[0]
 
   if (!rawHost || APP_HOSTNAMES.has(rawHost) || APP_HOSTNAMES.has(hostWithoutPort)) {
+    // The admin's town page preview (app/admin/town-preview) draws an IDX page, so it gets the same
+    // "no dashboard chrome" signal as a public site page. Only the look - the data is admin-only.
+    if (request.nextUrl.pathname.startsWith('/admin/town-preview/')) {
+      const previewHeaders = new Headers(request.headers)
+      previewHeaders.set('x-ohp-public-site', '1')
+      return NextResponse.next({ request: { headers: previewHeaders } })
+    }
     const firstSegment = request.nextUrl.pathname.split('/').filter(Boolean)[0]?.toLowerCase()
     if (firstSegment && !RESERVED_APP_SEGMENTS.has(firstSegment)) {
       // openhousepal.com/<slug>/... -> the agent's own connected domain, only while it fully works

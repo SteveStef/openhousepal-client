@@ -1,11 +1,15 @@
-import { OhpWordmark } from './OhpBrand'
 
 // The agent-side page loader: our house draws itself in the middle of the screen, the window
 // glints, the gold door swings open and light spills out, gold ripples breathe behind it - then it
 // fades and plays again. Pure CSS so it works in loading.tsx (server) and client guards alike.
 
-const CSS = `
+export const LOADER_CSS = `
 .ohp-ld{--g:#C9A24D}
+.ohp-ld-bg{background:radial-gradient(60% 45% at 50% 38%,rgba(232,201,122,.22),transparent 70%),#faf9f7}
+:is(.dark) .ohp-ld-bg{background:radial-gradient(60% 45% at 50% 38%,rgba(201,162,77,.14),transparent 70%),#0B0B0B}
+.ohp-ld-title{font-family:ui-serif,Georgia,Cambria,"Times New Roman",Times,serif;font-weight:900;letter-spacing:-.02em;line-height:1.15;text-align:center;font-size:26px;color:#111827;margin:0;padding:0 24px}
+:is(.dark) .ohp-ld-title{color:#fff}
+.ohp-ld-title em{font-style:italic;background:linear-gradient(90deg,#a8803a,#C9A24D,#d9b867);-webkit-background-clip:text;background-clip:text;color:transparent;padding-right:.12em}
 :is(.dark) .ohp-ld{--g:#D9B460}
 .ohp-ld-stage{position:relative;width:132px;height:132px;display:grid;place-items:center}
 .ohp-ld-ring{position:absolute;inset:0;border-radius:9999px;border:1.5px solid var(--g);opacity:0;animation:ohpLdRing 3.2s cubic-bezier(.2,.6,.3,1) infinite}
@@ -34,9 +38,17 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){.ohp-ld *,.ohp-ld *::after{animation-duration:0s!important;animation-iteration-count:1!important}.ohp-ld-house .r,.ohp-ld-house .w{stroke-dashoffset:0}.ohp-ld-house .door,.ohp-ld-house .win{transform:none}}
 `
 
-/** Full-screen centered loader. Agent pages: the house + the OpenHousePal wordmark under it.
- * Guest-facing pages pass `guest` - just the house (their agent's brand is the star there).
- * `label` = optional line under it. */
+/** "Loading your activity" -> ["Loading your", "activity"]: the last word is set in gold italic, like
+ * the page titles ("One step *left*"). */
+export function splitLabel(label?: string): [string, string] {
+  const words = (label || 'Getting things ready').trim().split(/\s+/)
+  const last = words.pop() || ''
+  return [words.join(' '), last]
+}
+
+/** Full-screen centered loader: the house draws itself, then a line in the page-title style says
+ * what's loading (owner, 10/26 - no small spaced-out letters). Guest-facing pages pass `guest`:
+ * just the house, no words (their agent's brand is the star there). */
 export default function OhpLoader({ label, fullScreen = true, className = '', guest = false }: {
   label?: string
   fullScreen?: boolean
@@ -45,8 +57,8 @@ export default function OhpLoader({ label, fullScreen = true, className = '', gu
 }) {
   return (
     <div role="status" aria-live="polite" aria-label={label || 'Loading'}
-      className={`ohp-ld flex flex-col items-center justify-center ${fullScreen ? 'min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]' : 'py-20'} ${className}`}>
-      <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      className={`ohp-ld flex flex-col items-center justify-center ${fullScreen ? 'ohp-ld-bg min-h-screen' : 'py-20'} ${className}`}>
+      <style dangerouslySetInnerHTML={{ __html: LOADER_CSS }} />
       <div className="ohp-ld-in flex flex-col items-center gap-6">
         <div className="ohp-ld-stage">
           <span className="ohp-ld-ring" /><span className="ohp-ld-ring" /><span className="ohp-ld-ring" />
@@ -65,10 +77,9 @@ export default function OhpLoader({ label, fullScreen = true, className = '', gu
             <path className="door" d="M25.5 46 V29.5 L19.5 31.8 V46 Z" fill="var(--g)" />
           </svg>
         </div>
-        <div className="flex flex-col items-center gap-3">
-          {!guest && <OhpWordmark className="text-xl text-[#111827] dark:text-white" />}
+        <div className="flex flex-col items-center gap-4">
+          {!guest && <LoaderTitle label={label} />}
           <span className="ohp-ld-bar" />
-          {label && <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#8b7355] dark:text-[#d7b974]">{label}</p>}
         </div>
       </div>
     </div>
@@ -80,7 +91,7 @@ export default function OhpLoader({ label, fullScreen = true, className = '', gu
 export function OhpSpinner({ size = 20, className = '', label }: { size?: number; className?: string; label?: string }) {
   return (
     <span role="status" aria-label={label || 'Loading'} className="ohp-ld inline-flex items-center gap-2">
-      <style dangerouslySetInnerHTML={{ __html: CSS }} />
+      <style dangerouslySetInnerHTML={{ __html: LOADER_CSS }} />
       <svg viewBox="0 3 40 44" className={`ohp-ld-house shrink-0 text-[#111827] dark:text-white ${className}`} style={{ animation: 'none', height: size, width: 'auto' }} aria-hidden="true">
         <path className="r" pathLength={1} d="M3.5 22.5 L20 8 L36.5 22.5" fill="none" stroke="currentColor" strokeWidth={5.5} strokeLinecap="round" strokeLinejoin="round" />
         <path className="w" pathLength={1} d="M7 20 V43 H14.5 M25.5 43 H33 V20" fill="none" stroke="currentColor" strokeWidth={5.5} strokeLinecap="round" strokeLinejoin="round" />
@@ -90,4 +101,29 @@ export function OhpSpinner({ size = 20, className = '', label }: { size?: number
       {label && <span className="text-sm font-bold text-gray-400">{label}</span>}
     </span>
   )
+}
+
+function LoaderTitle({ label }: { label?: string }) {
+  const [lead, last] = splitLabel(label)
+  return <p className="ohp-ld-title">{lead} <em>{last}</em></p>
+}
+
+/** The same loader as a stand-alone HTML page - for a tab we open ourselves before it goes somewhere
+ * else (lib/providers.ts: Google sign-in), so it looks exactly like every other loading screen. */
+export function loaderPageHtml(label: string, title = 'Loading | OpenHousePal'): string {
+  const esc = (t: string) => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string))
+  const [lead, last] = splitLabel(label)
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
+<style>html,body{height:100%;margin:0}body{display:flex;align-items:center;justify-content:center;color:#111827}.dark body{color:#fff}
+@media (prefers-color-scheme:dark){html{color-scheme:dark}}${LOADER_CSS}</style>
+<script>if(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.classList.add('dark')</script></head>
+<body class="ohp-ld ohp-ld-bg"><div class="ohp-ld-in" style="display:flex;flex-direction:column;align-items:center;gap:24px">
+<div class="ohp-ld-stage"><span class="ohp-ld-ring"></span><span class="ohp-ld-ring"></span><span class="ohp-ld-ring"></span><span class="ohp-ld-halo"></span>
+<svg viewBox="0 3 40 44" class="ohp-ld-house" style="color:currentColor" aria-hidden="true"><defs><radialGradient id="ohpLdLight" cx="50%" cy="100%" r="80%"><stop offset="0%" stop-color="var(--g)" stop-opacity=".75"/><stop offset="100%" stop-color="var(--g)" stop-opacity="0"/></radialGradient></defs>
+<path class="glow" d="M14 46 L19.5 31.8 L25.5 29.5 L31 46 Z" fill="url(#ohpLdLight)"/>
+<path class="r" pathLength="1" d="M3.5 22.5 L20 8 L36.5 22.5" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path class="w" pathLength="1" d="M7 20 V43 H14.5 M25.5 43 H33 V20" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<circle class="win" cx="20" cy="18.6" r="2.4" fill="var(--g)"/><path class="door" d="M25.5 46 V29.5 L19.5 31.8 V46 Z" fill="var(--g)"/></svg></div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:16px"><p class="ohp-ld-title">${esc(lead)} <em>${esc(last)}</em></p><span class="ohp-ld-bar"></span></div>
+</div></body></html>`
 }
