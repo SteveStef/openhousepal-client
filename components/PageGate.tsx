@@ -56,11 +56,17 @@ function countApiCalls() {
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)) }
 
-async function untilQuiet(alive: () => boolean, started: number) {
+// The page itself hasn't arrived yet: Next is still fetching it, or its stand-in (a route's
+// loading.tsx - a full-screen house loader) is what's showing. A link that wasn't preloaded (the
+// bell's "View All Activity" - it only exists while the menu is open) used to count as ready on
+// the stand-in, so the real page then popped in with no animation (owner, 10/27).
+const pageNotHereYet = (root: HTMLElement | null) => pageFetches > 0 || !!root?.querySelector('.ohp-ld.min-h-screen')
+
+async function untilQuiet(alive: () => boolean, started: number, root: HTMLElement | null) {
   let quietSince = 0
   while (alive()) {
     const now = Date.now()
-    if (pending === 0) { if (!quietSince) quietSince = now } else quietSince = 0
+    if (pending === 0 && !pageNotHereYet(root)) { if (!quietSince) quietSince = now } else quietSince = 0
     if ((quietSince && now - quietSince >= QUIET_MS) || now - started > MAX_MS) return
     await sleep(50)
   }
@@ -119,7 +125,12 @@ const LABELS: [string, string][] = [
   ['/settings', 'Loading your settings'],
   ['/admin', 'Loading admin'],
 ]
-const labelFor = (p: string) => LABELS.find(([prefix]) => p === prefix || p.startsWith(prefix + '/'))?.[1]
+const labelFor = (p: string) => p === '/' ? 'Loading OpenHousePal' : LABELS.find(([prefix]) => p === prefix || p.startsWith(prefix + '/'))?.[1]
+
+// The homepage, when reached from inside the app (the logo, top left), opens like every app page:
+// the loader if it takes a moment, then it rises in - it used to just pop in with no animation
+// (owner, 10/27). Opened fresh (a search result, a typed address) it shows at once, as before.
+const gatesInApp = (path: string) => isGatedAppPage(path) || path === '/'
 
 // pending = page held back but no loader yet (the first GRACE_MS); loading = the loader is up.
 // waiting = a link was clicked: the old page stays as it is until the new one arrives.
@@ -135,11 +146,15 @@ export default function PageGate({ children }: { children: React.ReactNode }) {
   const root = useRef<HTMLDivElement>(null)
   const run = useRef(0)
   const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // The page this tab opened on; once we've moved away from it, every page is an in-app trip.
+  const startPath = useRef(pathname)
+  const moved = useRef(false)
 
   const open = useCallback(async (path: string) => {
     const id = ++run.current
     if (navTimer.current) { clearTimeout(navTimer.current); navTimer.current = null }
-    if (!isGatedAppPage(path)) { setPhase('done'); return }
+    if (path !== startPath.current) moved.current = true
+    if (!(moved.current ? gatesInApp(path) : isGatedAppPage(path))) { setPhase('done'); return }
     setLabel(labelFor(path))
     const alive = () => run.current === id
     const started = Date.now()
@@ -148,7 +163,7 @@ export default function PageGate({ children }: { children: React.ReactNode }) {
     setPhase(p => (p === 'loading' ? p : 'pending'))
     const grace = setTimeout(() => { if (alive()) { shownAt = Date.now(); setPhase('loading') } }, GRACE_MS)
     await sleep(0)
-    await untilQuiet(alive, started)
+    await untilQuiet(alive, started, root.current)
     if (!alive()) { clearTimeout(grace); return }
     await untilImagesIn(root.current)
     clearTimeout(grace)
@@ -184,7 +199,7 @@ export default function PageGate({ children }: { children: React.ReactNode }) {
       let url: URL
       try { url = new URL(a.href, window.location.href) } catch { return }
       if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return
-      if (!isGatedAppPage(url.pathname)) return
+      if (!gatesInApp(url.pathname)) return
       run.current++
       setLabel(labelFor(url.pathname))
       // Hold the old page still; the loader only appears if the new one takes a moment.
