@@ -66,7 +66,8 @@ export function useSettingsCompleteness(): SettingsCompleteness {
       const c = stepCopy(s.id, d.plan, d.has_mls)
       return {
         key: s.id, label: c.label, why: c.skip || c.intro, href: `/setup?step=${s.id}`,
-        missing: s.status !== 'done', skipped: s.status === 'skipped', required: s.required, optional: !s.required,
+        // "I don't use this" (not_using) counts as finished - it never nags on the dashboard
+        missing: s.status !== 'done' && s.status !== 'not_using', skipped: s.status === 'skipped', required: s.required, optional: !s.required,
       }
     })
     setState({

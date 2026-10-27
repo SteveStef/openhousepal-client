@@ -27,7 +27,7 @@ export default function SetupChecklistCard({ className = '' }: { className?: str
   const sub = onlySkipped
     ? 'You skipped these - tap one whenever you’re ready.'
     : required.length
-      ? `${required.length === 1 ? 'One thing is' : `${required.length} things are`} needed before your pages can go out.`
+      ? `${required.length === 1 ? 'One thing is' : `${required.length} things are`} required before your pages can go out.`
       : `${done} of ${total} done - only ${total - done} to go.`
 
   const r = 22
@@ -66,7 +66,7 @@ export default function SetupChecklistCard({ className = '' }: { className?: str
                 ? 'border-dashed border-gray-300 bg-white/70 text-gray-600 hover:border-[#C9A24D] dark:border-white/20 dark:bg-white/[0.03] dark:text-gray-300'
                 : 'border-[#C9A24D]/30 bg-white text-[#111827] hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.05] dark:text-white'}`}>
             {i.label}
-            {i.required && <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">Needed</span>}
+            {i.required && <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">Required</span>}
             {i.skipped && <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Skipped</span>}
             {fresh.includes(i.key) && <span className="rounded-full bg-[#C9A24D] px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">New</span>}
           </Link>

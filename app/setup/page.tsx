@@ -8,9 +8,10 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, Check, ChevronDown, CircleAlert, Clock3, ExternalLink, Info, Loader2, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Ban, Check, ChevronDown, CircleAlert, Clock3, ExternalLink, Info, Loader2, Minus, Sparkles, Undo2, X } from 'lucide-react'
 import api, { type SetupData, type SetupInfoPatch, type SetupStepId } from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
+import { notifySetupChanged } from '@/hooks/useSettingsCompleteness'
 import { stepCopy } from '@/lib/setupFlow'
 import { OhpWordmark } from '@/components/brand/OhpBrand'
 import OhpLoader from '@/components/brand/OhpLoader'
@@ -195,6 +196,15 @@ function SetupFlow() {
     if (r.success && r.data) setData(r.data)
     goTo(nextOf(current, r.data))
   }
+  // "I don't use a CRM" (owner, 10/26): a connect step they'll never do counts as finished, so it
+  // leaves the dashboard for good - and they can still connect it later.
+  const onNotUsing = async (id: SetupStepId, notUsing: boolean) => {
+    await flush()
+    const r = await api.setup.setState(notUsing ? { not_using: id } : { use_again: id })
+    if (r.success && r.data) setData(r.data)
+    notifySetupChanged()
+    if (notUsing) goTo(nextOf(id, r.data))
+  }
   const onBack = () => {
     if (!current) return
     if (mini && mini.part > 0) { setGateMsg(''); mini.go(mini.part - 1); return }
@@ -214,7 +224,7 @@ function SetupFlow() {
     return <div className="flex min-h-screen items-center justify-center p-6 text-center"><div><p className="text-lg font-black">We couldn&apos;t load your setup.</p><button onClick={() => window.location.reload()} className="mt-4 rounded-2xl bg-[#111827] px-6 py-3 font-black text-white">Try again</button></div></div>
   }
 
-  const doneCount = data.steps.filter(s => s.status === 'done').length
+  const doneCount = data.steps.filter(s => s.status === 'done' || s.status === 'not_using').length
   const total = data.steps.length
   const pct = Math.round((doneCount / Math.max(1, total)) * 100)
   const stepIndex = current === 'done' ? total : ids.indexOf(current)
@@ -245,6 +255,7 @@ function SetupFlow() {
                       <span className="min-w-0 flex-1 truncate text-[14.5px] font-bold">{c.label}</span>
                       {newIds.includes(s.id) && <span className="rounded-full bg-[#C9A24D] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">New</span>}
                       {s.status === 'skipped' && !on && <span className="text-[11px] font-bold text-gray-400">Skipped</span>}
+                      {s.status === 'not_using' && !on && <span className="text-[11px] font-bold text-gray-400">Not using</span>}
                       {s.required && s.status !== 'done' && !on && <span className="text-[11px] font-black text-[#a8803a]">Required</span>}
                     </button>
                   </li>
@@ -349,6 +360,7 @@ function SetupFlow() {
                         {step.required ? <span className="rounded-full bg-[#111827] px-2 py-0.5 text-[9px] tracking-wider text-[#e8c97a] dark:bg-[#C9A24D] dark:text-[#111827]">Required</span> : <span className="rounded-full border border-[#C9A24D]/40 px-2 py-0.5 text-[9px] tracking-wider">Can skip</span>}
                         {newIds.includes(step.id) && <span className="rounded-full bg-[#C9A24D] px-2 py-0.5 text-[9px] tracking-wider text-white">New for your plan</span>}
                         {step.status === 'done' && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] tracking-wider text-white"><Check className="h-3 w-3" /> Done</span>}
+                        {step.status === 'not_using' && <span className="inline-flex items-center gap-1 rounded-full bg-gray-500 px-2 py-0.5 text-[9px] tracking-wider text-white"><Minus className="h-3 w-3" /> Not using</span>}
                       </p>
                       {/* The gold italic word is painted through its own box (bg-clip-text), so a slanted
                           last letter (the "s" of "sales") was cut off - the box gets a little room on
@@ -381,7 +393,10 @@ function SetupFlow() {
                 {/* step body */}
                 <div className={wide ? 'px-5 py-7 sm:px-8 sm:py-8' : 'px-6 py-8 sm:px-10 sm:py-10'}>
                   <View ctx={ctx} />
-                  {copy.skip && !step.required && (
+                  {NOT_USING[step.id] && step.status !== 'done' && (
+                    <NotUsingRow copy={NOT_USING[step.id]!} on={step.status === 'not_using'} onChange={v => onNotUsing(step.id, v)} />
+                  )}
+                  {copy.skip && !step.required && step.status !== 'not_using' && (
                     <p className="mt-8 flex items-start gap-2.5 rounded-2xl bg-[#f7f3ea] px-4 py-3 text-[14px] font-semibold text-gray-600 dark:bg-white/[0.04] dark:text-gray-300">
                       <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#a8803a]" /><span><b className="text-[#111827] dark:text-white">If you skip this:</b> {copy.skip}</span>
                     </p>
@@ -409,7 +424,7 @@ function SetupFlow() {
               <ArrowLeft className="h-5 w-5" /> <span className="max-sm:sr-only">Back</span>
             </button>
             <div className="flex-1" />
-            {!step.required && step.status !== 'done' && (
+            {!step.required && step.status !== 'done' && step.status !== 'not_using' && (
               <button type="button" onClick={onSkip} className="h-11 rounded-xl px-3 text-[14px] font-black text-gray-500 underline-offset-4 transition hover:text-[#111827] hover:underline dark:text-gray-400 dark:hover:text-white sm:h-12 sm:rounded-2xl sm:px-5 sm:text-[15px]">Skip for now</button>
             )}
             <button type="button" onClick={onContinue} disabled={advancing} className="group inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-[#111827] to-[#2a2218] px-5 text-[15px] font-black text-white shadow-[0_14px_28px_-16px_rgba(17,24,39,.9)] ring-1 ring-[#C9A24D]/40 transition hover:-translate-y-0.5 disabled:opacity-70 dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827] sm:h-12 sm:rounded-2xl sm:px-8 sm:text-[16px]">
@@ -444,7 +459,36 @@ function SetupFlow() {
   )
 }
 
+// Connect steps an agent can answer "I don't use this" (backend NOT_USING_STEPS).
+const NOT_USING: Partial<Record<SetupStepId, { ask: string; button: string; done: string; undo: string }>> = {
+  crm: { ask: 'Don’t have a CRM?', button: 'I don’t use a CRM', done: 'Got it - you don’t use a CRM. It’s off your to-do list.', undo: 'I want to connect one' },
+  calendar: { ask: 'Don’t want your follow-ups on a calendar?', button: 'I don’t need a calendar', done: 'Got it - no calendar. It’s off your to-do list.', undo: 'Connect one after all' },
+  mailbox: { ask: 'Rather not connect your email?', button: 'Keep sending from OpenHousePal', done: 'Got it - emails go out from OpenHousePal. It’s off your to-do list.', undo: 'Connect my email after all' },
+}
+
+function NotUsingRow({ copy, on, onChange }: { copy: NonNullable<(typeof NOT_USING)[SetupStepId]>; on: boolean; onChange: (notUsing: boolean) => void }) {
+  const [busy, setBusy] = useState(false)
+  const click = async (v: boolean) => { setBusy(true); try { await onChange(v) } finally { setBusy(false) } }
+  return on ? (
+    <div className="mt-8 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 py-3.5 dark:border-white/10 dark:bg-white/[0.04]" data-testid="not-using-row">
+      <Ban className="h-5 w-5 shrink-0 text-gray-400" />
+      <p className="min-w-[12rem] flex-1 text-[14.5px] font-bold text-gray-700 dark:text-gray-200">{copy.done}</p>
+      <button type="button" disabled={busy} onClick={() => click(false)} className="inline-flex h-10 items-center gap-1.5 rounded-xl px-3 text-[13.5px] font-black text-[#8b7355] underline-offset-4 hover:underline disabled:opacity-50 dark:text-[#e8c97a]">
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />} {copy.undo}
+      </button>
+    </div>
+  ) : (
+    <div className="mt-8 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-dashed border-[#d9cdb3] px-4 py-3.5 dark:border-white/15" data-testid="not-using-row">
+      <p className="min-w-[10rem] flex-1 text-[14.5px] font-bold text-gray-600 dark:text-gray-300">{copy.ask}</p>
+      <button type="button" disabled={busy} onClick={() => click(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-[#111827] bg-white px-4 text-[14px] font-black text-[#111827] transition hover:-translate-y-0.5 disabled:opacity-50 max-sm:w-full dark:border-white/80 dark:bg-transparent dark:text-white">
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />} {copy.button}
+      </button>
+    </div>
+  )
+}
+
 function StatusDot({ status, on }: { status: string; on: boolean }) {
+  if (status === 'not_using') return <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${on ? 'bg-white/25 text-white dark:bg-[#111827]/15 dark:text-[#111827]' : 'bg-gray-200 text-gray-500 dark:bg-white/10 dark:text-gray-400'}`}><Minus className="h-3.5 w-3.5" strokeWidth={3} /></span>
   if (status === 'done') return <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#a8803a] to-[#e8c97a] text-white shadow-sm"><Check className="h-3.5 w-3.5" strokeWidth={3} /></span>
   if (status === 'skipped') return <span className={`h-6 w-6 shrink-0 rounded-full border-2 border-dashed ${on ? 'border-white/60 dark:border-[#111827]/50' : 'border-gray-300 dark:border-white/25'}`} />
   return <span className={`h-6 w-6 shrink-0 rounded-full border-2 ${on ? 'border-[#e8c97a] dark:border-[#a8803a]' : 'border-[#d9cdb3] dark:border-white/25'}`} />

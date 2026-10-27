@@ -25,6 +25,7 @@ export const RUNDOWN_NOTIFICATION_TYPE = 'SHOWCASE_DIGEST'   // older ones are t
 const OPEN_EVENT = 'ohp:rundown-open'
 const REFRESH_EVENT = 'leads-notification-count:refresh'
 const READ_EVENT = 'ohp:rundown-read'
+export const SEEN_EVENT = 'ohp:rundown-seen'
 
 /** Opens the Rundown window wherever you are (TodaysRundownHost listens). */
 export function openTodaysRundown() {
@@ -48,6 +49,9 @@ export type Rundown = {
   actions: Action[]; client_activity: Action[]
   showcase: { new: number; drops: number; clients: number; homes: Home[] } | null
   happened: { key: string; label: string; items: Happening[] }[]; happened_count: number; unread_today: number
+  // Looked at today (opened here, or the briefing email opened / clicked) - the Dash card steps aside
+  // for the header's "Briefing" button, which lights up with anything new since.
+  seen?: { seen: boolean; seen_at: string | null; via: 'app' | 'email' | null; new_since: number }
 }
 
 // The last Rundown fetched - a reopen shows it instantly while the fresh one loads.
@@ -81,9 +85,14 @@ export function useRundown(enabled: boolean, pollMs = 60000) {
     const t = window.setInterval(() => { if (!document.hidden) load(true) }, pollMs)
     // Marked read in the window -> the Dash card shows it at once (and the other way round).
     const onRead = () => setData(d => d && markedRead(d))
+    const onSeen = () => setData(d => d && markedSeen(d))
     window.addEventListener(REFRESH_EVENT, refresh)
     window.addEventListener(READ_EVENT, onRead)
-    return () => { window.clearInterval(t); window.removeEventListener(REFRESH_EVENT, refresh); window.removeEventListener(READ_EVENT, onRead) }
+    window.addEventListener(SEEN_EVENT, onSeen)
+    return () => {
+      window.clearInterval(t); window.removeEventListener(REFRESH_EVENT, refresh)
+      window.removeEventListener(READ_EVENT, onRead); window.removeEventListener(SEEN_EVENT, onSeen)
+    }
   }, [enabled, load, refresh, pollMs])
   return { data, setData, failed, reload: refresh }
 }
@@ -99,8 +108,18 @@ export async function markRundownRead(): Promise<boolean> {
   return r.success
 }
 
+/** Opened today's Rundown - the Dash card leaves and the header button calms down. */
+export async function markRundownSeen(): Promise<void> {
+  if (cached) cached = markedSeen(cached)
+  window.dispatchEvent(new Event(SEEN_EVENT))
+  await api.notifications.markRundownSeen()
+  window.dispatchEvent(new Event(SEEN_EVENT))
+}
+
+const markedSeen = (d: Rundown): Rundown => ({ ...d, seen: { seen: true, seen_at: new Date().toISOString(), via: 'app', new_since: 0 } })
+
 const markedRead = (d: Rundown): Rundown => ({
-  ...d, unread_today: 0,
+  ...markedSeen(d), unread_today: 0,
   happened: d.happened.map(g => ({ ...g, items: g.items.map(i => ({ ...i, is_read: true })) })),
 })
 
@@ -175,6 +194,7 @@ function RundownWindow({ onClose }: { onClose: () => void }) {
   // A phone turned sideways (844x390) is wider than a phone but very short: the window fills the
   // screen and the header / footer slim down so the content still has room.
   const [short, setShort] = useState(false)
+  useEffect(() => { markRundownSeen() }, [])
   useEffect(() => {
     const mq = window.matchMedia('(max-height: 519px)')
     const on = () => setShort(mq.matches)
@@ -557,6 +577,8 @@ export function RundownDashCard({ className = '' }: { className?: string }) {
       </div>
     )
   }
+  // Looked at already today - it lives in the header now ("Oct 26 Briefing", BriefingButton).
+  if (data.seen?.seen) return null
   const status = briefingStatus(data)
   const top = data.stats.filter(s => s.value > 0).slice(0, 3)
   const fresh = data.briefing.sent && data.unread_today > 0

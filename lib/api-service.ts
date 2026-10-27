@@ -1131,6 +1131,9 @@ class ApiService {
     // Today's Rundown - the daily briefing in the app (components/rundown/TodaysRundown.tsx).
     rundown: () => this.request<unknown>('/api/v1/rundown/today'),
     markRundownRead: () => this.request<{ success: boolean; marked: number }>('/api/v1/rundown/today/read', { method: 'POST' }),
+    // Opened in the app -> the Dash card becomes the header's "Briefing" button (components/rundown/BriefingButton.tsx).
+    markRundownSeen: () => this.request<{ success: boolean }>('/api/v1/rundown/today/seen', { method: 'POST' }),
+    rundownStatus: () => this.request<{ date: string; seen: boolean; seen_at: string | null; via: 'app' | 'email' | null; new_since: number }>('/api/v1/rundown/today/status'),
 
     getPreferences: () => this.request<NotificationPreferences>('/api/v1/notifications/preferences'),
 
@@ -2571,7 +2574,7 @@ class ApiService {
   public setup = {
     get: () => this.request<SetupData>('/setup', { cache: 'no-store' }),
     patchInfo: (patch: SetupInfoPatch) => this.request<SetupData>('/setup/info', { method: 'PATCH', body: JSON.stringify(patch) }),
-    setState: (body: { last_step?: string; skip?: string; unskip?: string; confirm?: string; seen?: string[] }) =>
+    setState: (body: { last_step?: string; skip?: string; unskip?: string; confirm?: string; seen?: string[]; not_using?: string; use_again?: string }) =>
       this.request<SetupData>('/setup/state', { method: 'PUT', body: JSON.stringify(body) }),
     uploadPhoto: (file: File) => {
       const formData = new FormData()
@@ -2641,7 +2644,8 @@ export interface SetupData {
   plan: string | null
   approved: boolean
   has_mls: boolean
-  steps: { id: SetupStepId; status: 'done' | 'skipped' | 'todo'; required: boolean }[]
+  // not_using = "I don't use this" on a connect step (CRM, calendar, email) - counts as finished
+  steps: { id: SetupStepId; status: 'done' | 'skipped' | 'todo' | 'not_using'; required: boolean }[]
   last_step: SetupStepId | null
   seen: string[]
   finished: boolean
