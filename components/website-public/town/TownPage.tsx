@@ -5,7 +5,7 @@ import {
   AlertTriangle, ArrowRight, Bell, Building2, ChevronDown, Coffee, ExternalLink, GraduationCap, HeartPulse,
   Home, MapPin, MessageCircle, Plus, School, ShoppingBag, ShoppingBasket, Sparkles, Train, Trees, Users, Utensils,
 } from 'lucide-react'
-import { buildTownFaq, firstSentences } from '@/components/website-public/townGuide'
+import { buildTownFaq, daysOnMarketStat, firstSentences } from '@/components/website-public/townGuide'
 import MarketTrendsSection from '@/components/website-public/MarketTrendsSection'
 import CinematicHeroBackground from '@/components/website-public/CinematicHeroBackground'
 import ClassicPageHero from '@/components/website-public/ClassicPageHero'
@@ -399,9 +399,13 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
   // uses first, then current listings) - the researched place photo only when there are none.
   const listPhoto = ((areaList || []) as any[]).find(a => a.slug === slug)?.photo as string | undefined
   const heroPhotos = Array.from(new Set([listPhoto, ...inventory.map((i: any) => i.photo), photo?.url ? resolveMediaUrl(photo.url) : null].filter(Boolean))).slice(0, 6) as string[]
+  // Every county the town's homes sit in ("Montgomery and Delaware counties"), or an independent
+  // city (Charlottesville, VA is in no county) - backend town_map_service.county_label.
+  const countyLabel: string | null = (typeof facts.county_label === 'string' && facts.county_label) || area.county || null
+  const countyIsCity = !!countyLabel && /independent city/i.test(countyLabel)
   const areaDescriptor = [
     area.parent_area_name,
-    area.county,
+    countyLabel === 'Independent city' ? null : countyLabel,
     area.state,
   ].filter(Boolean).join(', ')
   const guideLabel = 'Neighborhood Guide'
@@ -454,17 +458,17 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
   // A mailing-address town can span townships (Haverford: Lower Merion + Haverford) - say so plainly.
   const townships = ((area.municipalities || []) as { name: string; share: number }[]).map(m => `${m.name} ${m.share}%`).join(' · ')
   const glance = ([
-    townships ? ['Townships', townships] : null,
+    townships ? [((area.municipalities || []) as { name: string }[]).every(m => /township$/i.test(m.name)) ? 'Townships' : 'Local government', townships] : null,
     facts.flood?.homes_checked ? ['Homes in FEMA high-risk flood zones', `${facts.flood.high_risk_pct}%`] : null,
     facts.walk?.level ? ['Getting around on foot', String(facts.walk.level)] : null,
     marketStats?.median_price != null ? ['Median list price', `$${Math.round(marketStats.median_price).toLocaleString()}`] : null,
     inventoryTotal > 0 ? ['Homes for sale now', String(inventoryTotal)] : null,
     trends.median_sold_price ? ['Median sold (12 mo)', `$${Math.round(trends.median_sold_price).toLocaleString()}`] : null,
-    (marketStats?.median_dom ?? trends.median_sold_dom) != null ? ['Median days on market', String(marketStats?.median_dom ?? trends.median_sold_dom)] : null,
+    daysOnMarketStat(marketStats, trends),
     // Says which area the count is for - "Malvern borough" is far smaller than the Malvern mailing area this page covers.
     d.population?.value ? [d.population.label ? `Population (${d.population.label})` : 'Population', Math.round(d.population.value).toLocaleString()] : null,
     // No age / income / who-owns rows - describing residents is off-limits under Fair Housing.
-    area.county ? ['County', String(area.county)] : null,
+    countyLabel ? [countyIsCity ? (countyLabel === 'Independent city' ? 'Local government' : 'County / city') : / and |counties$/i.test(countyLabel) ? 'Counties' : 'County', countyLabel] : null,
   ].filter(Boolean) as [string, string][])
 
   const faqJsonLd = faq.length ? {
@@ -495,7 +499,7 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
           stats={([
             marketStats?.median_price != null ? ['Median list price', `$${Math.round(marketStats.median_price).toLocaleString()}`] : null,
             inventoryTotal > 0 ? ['Homes for sale', String(inventoryTotal)] : null,
-            marketStats?.median_dom != null ? ['Median days on market', String(marketStats.median_dom)] : null,
+            daysOnMarketStat(marketStats, trends),
             schoolCount > 0 ? ['Schools', String(schoolCount)] : null,
           ].filter(Boolean) as [string, string][]).map(([label, value]) => ({ label, value }))}
         >
@@ -542,7 +546,7 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
               {([
                 marketStats?.median_price != null ? ['Median list price', `$${Math.round(marketStats.median_price).toLocaleString()}`] : null,
                 inventoryTotal > 0 ? ['Homes for sale', String(inventoryTotal)] : null,
-                marketStats?.median_dom != null ? ['Median days on market', String(marketStats.median_dom)] : null,
+                daysOnMarketStat(marketStats, trends),
                 schoolCount > 0 ? ['Schools', String(schoolCount)] : null,
               ].filter(Boolean) as [string, string][]).map(([label, value]) => (
                 <div key={label} className="flex-1 px-5 py-4">

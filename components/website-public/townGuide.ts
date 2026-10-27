@@ -33,6 +33,16 @@ function list(names: string[]): string {
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 }
 
+/** The town's days-on-market box: how long homes that sold in the last 12 months took (trends,
+ *  else the stats' own count). Without sales it says what the other number really is - how long
+ *  today's listings have sat so far (Malvern: 63 listed vs 12 to sell). */
+export function daysOnMarketStat(ms: any, tr?: any): [string, string] | null {
+  const sold = tr?.median_sold_dom ?? ms?.median_sold_dom
+  if (sold != null) return ['Median days on market', String(sold)]
+  if (ms?.median_dom != null) return ['Median days listed (for sale now)', String(ms.median_dom)]
+  return null
+}
+
 export function buildTownFaq(area: any, inventoryTotal: number): TownFaq[] {
   const name: string = area.name
   const facts = area.facts || {}
@@ -43,22 +53,26 @@ export function buildTownFaq(area: any, inventoryTotal: number): TownFaq[] {
   // Prices
   const priceBits: string[] = []
   if (ms.median_price != null && inventoryTotal > 0) {
-    priceBits.push(`Right now the median list price in ${name} is ${money(ms.median_price)}, across ${inventoryTotal} ${inventoryTotal === 1 ? 'home' : 'homes'} for sale`)
-    if (ms.min_price != null && ms.max_price != null && ms.max_price > ms.min_price) priceBits[0] += `, from ${compact(ms.min_price)} to ${compact(ms.max_price)}`
-    priceBits[0] += '.'
+    priceBits.push(`Right now the median list price in ${name} is ${money(ms.median_price)}, across ${inventoryTotal} ${inventoryTotal === 1 ? 'home' : 'homes'} for sale.`)
   }
   if (tr.median_sold_price) {
     let s = `Over the last 12 months, homes sold for a median of ${money(tr.median_sold_price)}`
     if (typeof tr.yoy_median_change_pct === 'number' && Math.abs(tr.yoy_median_change_pct) >= 0.5) s += ` - ${tr.yoy_median_change_pct > 0 ? 'up' : 'down'} ${Math.abs(tr.yoy_median_change_pct).toFixed(1)}% from the year before`
     priceBits.push(`${s}.`)
   }
+  // The stored range is what most homes SOLD for over two years (the middle 90%), not what's listed
+  // today - Malvern's answer put it on the homes for sale.
+  if (ms.price_range_basis === 'sold_2y' && ms.min_price != null && ms.max_price != null && ms.max_price > ms.min_price) {
+    priceBits.push(`Over the last two years, most homes sold for between ${compact(ms.min_price)} and ${compact(ms.max_price)}.`)
+  }
   if (ms.avg_price_per_sqft) priceBits.push(`The average asking price works out to about ${money(ms.avg_price_per_sqft)} per square foot.`)
   if (priceBits.length) out.push({ q: `How much do homes cost in ${name}?`, a: priceBits.join(' ') })
 
   // Pace
   const pace: string[] = []
-  const dom = ms.median_dom ?? tr.median_sold_dom
-  if (dom != null) pace.push(`Homes in ${name} spend a median of ${dom} ${dom === 1 ? 'day' : 'days'} on the market.`)
+  const soldDom = tr.median_sold_dom ?? ms.median_sold_dom
+  if (soldDom != null) pace.push(`Homes that sold in ${name} over the last 12 months spent a median of ${soldDom} ${soldDom === 1 ? 'day' : 'days'} on the market.`)
+  else if (ms.median_dom != null) pace.push(`Homes for sale in ${name} right now have been listed for a median of ${ms.median_dom} ${ms.median_dom === 1 ? 'day' : 'days'}.`)
   if (typeof tr.median_sale_to_list_pct === 'number') {
     const p = tr.median_sale_to_list_pct
     pace.push(`The typical home sells for ${p.toFixed(1)}% of its asking price${p >= 100 ? ' - so well-priced homes often draw more than one offer' : ''}.`)
@@ -93,14 +107,17 @@ export function buildTownFaq(area: any, inventoryTotal: number): TownFaq[] {
   const walk = facts.walk
   if (walk?.rows?.length) {
     const pct = (k: string) => walk.rows.find((r: any) => r.key === k)?.pct
+    // 95%+ reads "nearly all" - a 0.6-mile straight line is an estimate, not a promise for every home.
+    const share = (p: number, first: boolean) => (p >= 95 ? (first ? 'Nearly all homes' : 'nearly all') : first ? `${p}% of homes` : `${p}%`)
+    const trolley = !!walk.has_trolley || /trolley/i.test(walk.rows.find((r: any) => r.key === 'transit')?.label || '')
     const bits = [
-      pct('grocery') != null ? `${pct('grocery')}% of homes are within about a 15-minute walk of a grocery store` : '',
-      pct('food') != null ? `${pct('food')}% have three or more restaurants or cafes that close` : '',
-      pct('transit') ? `${pct('transit')}% can walk to a train station` : '',
+      pct('grocery') != null ? `${share(pct('grocery'), true)} are within about a 15-minute walk of a grocery store` : '',
+      pct('food') != null ? `${share(pct('food'), pct('grocery') == null)} ${pct('grocery') == null ? 'are within about a 15-minute walk' : 'are within that walk'} of three or more restaurants or cafes` : '',
+      pct('transit') ? `${share(pct('transit'), false)} can walk to ${trolley ? 'a train or trolley stop' : 'a train station'}` : '',
     ].filter(Boolean)
     out.push({
       q: `Is ${name} walkable?`,
-      a: `${walk.level}. ${bits.length ? `${bits.join(', ')}.` : ''}${walk.stations?.length ? ` Stations within walking distance include ${list(walk.stations.slice(0, 3))}.` : ''}`,
+      a: `${walk.level}. ${bits.length ? `${bits.join(', ')}.` : ''}${walk.stations?.length ? ` ${trolley ? 'Stops' : 'Stations'} within walking distance include ${list(walk.stations.slice(0, 3))}.` : ''}`,
       source: { name: 'OpenStreetMap' },
     })
   }
@@ -108,9 +125,14 @@ export function buildTownFaq(area: any, inventoryTotal: number): TownFaq[] {
   // Which township - a mailing-address town often spans more than one (real Census borders)
   const munis: { name: string; share: number }[] = area.municipalities || facts.boundaries?.municipalities || []
   if (munis.length > 1) {
+    // "Township" only where every piece is one - Delaware has none, and "Unincorporated Sussex
+    // County" isn't a municipality (same rule as the page's Townships / Local government switch).
+    const townships = munis.every(m => /township$/i.test(m.name))
     out.push({
-      q: `What township is ${name} in?`,
-      a: `${name} is a mailing address that spans ${munis.length} municipalities: ${list(munis.map(m => `${m.name} (about ${m.share}% of homes)`))}. The township sets a home's property tax rate, services and zoning, so check which one a specific home is in.`,
+      q: townships ? `What township is ${name} in?` : `Which local government covers ${name}?`,
+      a: townships
+        ? `${name} is a mailing address that spans ${munis.length} townships: ${list(munis.map(m => `${m.name} (about ${m.share}% of homes)`))}. The township sets a home's property tax rate, services and zoning, so check which one a specific home is in.`
+        : `${name} is a mailing address that spans ${munis.length} local jurisdictions: ${list(munis.map(m => `${m.name} (about ${m.share}% of homes)`))}. The jurisdiction sets a home's local tax rate, services and zoning, so check which one a specific home is in.`,
       source: { name: 'U.S. Census Bureau boundaries' },
     })
   }

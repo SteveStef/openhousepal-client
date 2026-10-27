@@ -20,6 +20,7 @@ export interface ExplorerArea {
   active_count?: number | null
   min_price?: number | null
   max_price?: number | null
+  price_range_basis?: string | null
   school_districts?: string[] | null
   hover_facts?: Record<string, string[]> | null
 }
@@ -135,7 +136,7 @@ export default function NeighborhoodsExplorer({ areas, theme, basePrefix = '', c
                     <p className={`mt-1 leading-none ${big ? 'text-5xl sm:text-6xl' : 'text-3xl'} ${luxe ? `font-black ${serif}` : 'font-extrabold tracking-tight'}`}>{a.name}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-bold text-white/85">
                       {a.median_price ? <span><span className="text-white/55">Median</span> {formatCompactPrice(a.median_price)}</span> : null}
-                      {a.min_price && a.max_price ? <span><span className="text-white/55">Range</span> {formatCompactPrice(a.min_price)}–{formatCompactPrice(a.max_price)}</span> : null}
+                      {a.min_price && a.max_price ? <span><span className="text-white/55">{a.price_range_basis === 'sold_2y' ? 'Most sold' : 'Range'}</span> {formatCompactPrice(a.min_price)}–{formatCompactPrice(a.max_price)}</span> : null}
                     </div>
                     {big && a.summary && <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/75">{firstSentence(a.summary)}</p>}
                     {/* Highlights rise in on hover (always shown on the big card and on phones) */}

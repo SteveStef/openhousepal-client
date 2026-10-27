@@ -11,7 +11,7 @@ import { Bath, BedDouble, CalendarClock, Gauge, Landmark, LandPlot, Ruler } from
 export interface TownInsightsData {
   homes_counted?: number
   money_buys?: { label: string; homes: number; beds?: number | null; baths?: number | null; sqft?: number | null; acres?: number | null; year_built?: number | null }[]
-  gauge?: { label?: string | null; months_of_supply?: number | null; active_count?: number; sales_per_month?: number | null; over_asking_pct?: number | null; median_sale_to_list_pct?: number | null; median_days_on_market?: number | null; sales_counted?: number }
+  gauge?: { label?: string | null; months_of_supply?: number | null; active_count?: number; sales_per_month?: number | null; over_asking_pct?: number | null; median_sale_to_list_pct?: number | null; median_days_on_market?: number | null; sales_counted?: number; pace_months?: number }
   taxes?: { per_sqft: number; typical_sqft?: number | null; typical_annual?: number | null; homes: number; districts?: { name: string; per_sqft: number; homes: number }[] }
 }
 
@@ -65,7 +65,7 @@ export default function TownInsights({ data, town, luxe }: { data?: TownInsights
               </div>
             ))}
           </dl>
-          <p className="mt-3 text-[11px]" style={{ color: 'var(--site-muted)' }}>{g.active_count} homes for sale vs about {g.sales_per_month} sales a month · based on {g.sales_counted} sales in the last 12 months.</p>
+          <p className="mt-3 text-[11px]" style={{ color: 'var(--site-muted)' }}>{g.active_count} homes for sale vs about {g.sales_per_month} sales a month (the pace of the last {g.pace_months ?? 6} months) · based on {g.sales_counted} sales in the last 12 months.</p>
         </motion.div>
       )}
 

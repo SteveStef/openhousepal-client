@@ -9,7 +9,7 @@ import { Footprints, ShoppingBasket, TrainFront, Trees, UtensilsCrossed } from '
 // Our own measure - deliberately not called "Walk Score" (a licensed product).
 export interface WalkData {
   level?: string
-  rows: { key: string; label: string; pct: number }[]
+  rows: { key: string; label: string; pct: number; pct_words?: string }[]
   stations?: string[]
   walk_minutes?: number
 }
@@ -37,7 +37,7 @@ export default function TownWalk({ data, town, luxe }: { data?: WalkData | null;
               <div className="flex items-center gap-2.5">
                 <span className={`flex h-8 w-8 shrink-0 items-center justify-center ${luxe ? 'rounded-full' : 'rounded-lg'}`} style={{ backgroundColor: 'rgba(var(--site-accent-rgb),.12)', color: 'var(--site-accent)' }}><Icon className="h-4 w-4" /></span>
                 <p className="min-w-0 flex-1 text-[14px] font-bold" style={{ color: 'var(--site-heading)' }}>{r.label}</p>
-                <span className="shrink-0 text-lg font-black tabular-nums" style={{ color: 'var(--site-heading)' }}>{r.pct}%</span>
+                <span className="shrink-0 text-lg font-black tabular-nums" style={{ color: 'var(--site-heading)' }}>{r.pct_words || `${r.pct}%`}</span>
               </div>
               <div className="ml-[42px] mt-2 h-2 overflow-hidden rounded-full" style={{ backgroundColor: 'var(--site-line)' }}>
                 <motion.div className="h-full origin-left rounded-full" style={{ backgroundColor: 'var(--site-accent)', width: `${r.pct}%` }}

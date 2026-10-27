@@ -37,6 +37,7 @@ import { tidyAllCaps } from '@/lib/cheatSheetContent'
 import SitePhoto from '@/components/website-public/SitePhoto'
 import { IMG, sizedBg, sizedImage } from '@/lib/siteImage'
 import { type CommunityHomesParams, ListingCard, TownPageView, categoryEntities, townHomesQuery } from '@/components/website-public/town/TownPage'
+import { daysOnMarketStat } from '@/components/website-public/townGuide'
 
 // Route-specific client pieces (Spotlight templates, map search, Showcase builder, town widgets...)
 // come from LazySiteParts (next/dynamic inside a client module) so each page only ships its own JS -
@@ -1437,7 +1438,7 @@ function CompareHeroCard({ area, theme, basePrefix }: { area: any; theme: any; b
         <div className="mt-5 grid grid-cols-2 gap-3">
           <CompareMiniStat label="Homes for sale" value={String(area.inventory?.total || 0)} theme={theme} />
           <CompareMiniStat label="Median list price" value={market.median_price != null ? formatCompactPrice(market.median_price) : 'Not shown'} theme={theme} />
-          <CompareMiniStat label="Days on market" value={market.median_dom != null ? String(market.median_dom) : 'Not shown'} theme={theme} />
+          <CompareMiniStat label={daysOnMarketStat(market)?.[0] || 'Median days on market'} value={daysOnMarketStat(market)?.[1] || 'Not shown'} theme={theme} />
           <CompareMiniStat label="School district" value={schoolDistrictNames(area)[0] || 'See schools below'} theme={theme} />
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
@@ -1629,7 +1630,7 @@ async function NeighborhoodComparePage({ siteId, theme, basePrefix, compareParam
           <div className="grid gap-3 sm:grid-cols-2">
             <CompareMiniStat label="Homes for sale" value={String(area.inventory?.total || 0)} theme={theme} />
             <CompareMiniStat label="Median list price" value={area.market_stats?.median_price != null ? `$${area.market_stats.median_price.toLocaleString()}` : 'Not shown'} theme={theme} />
-            <CompareMiniStat label="Median DOM" value={area.market_stats?.median_dom != null ? String(area.market_stats.median_dom) : 'Not shown'} theme={theme} />
+            <CompareMiniStat label={daysOnMarketStat(area.market_stats)?.[0] || 'Median days on market'} value={daysOnMarketStat(area.market_stats)?.[1] || 'Not shown'} theme={theme} />
             <CompareMiniStat label="Avg $ / sqft" value={area.market_stats?.avg_price_per_sqft != null ? `$${area.market_stats.avg_price_per_sqft.toLocaleString()}` : 'Not shown'} theme={theme} />
             <div className="sm:col-span-2">
               <CompareList title="Market context" icon={TrendingUp} values={(area.facts?.market_context?.stats || []).slice(0, 4).map((s: any) => `${s.label}: ${s.value}`)} note={compareCategoryNote(area, 'market_context')} theme={theme} />

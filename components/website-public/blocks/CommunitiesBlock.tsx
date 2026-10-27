@@ -22,6 +22,7 @@ interface AreaCard {
   active_count?: number | null
   min_price?: number | null
   max_price?: number | null
+  price_range_basis?: string | null
   school_districts?: string[]
 }
 
@@ -119,11 +120,11 @@ export default function CommunitiesBlock({ data, theme, basePrefix = '' }: { dat
                 <a href={`${basePrefix}/${area.slug}`} className="ohp-card group flex h-full flex-col overflow-hidden rounded-2xl border" style={{ borderColor: 'var(--site-line)', backgroundColor: 'var(--site-surface)' }}>
                   <div className="relative aspect-[4/3] overflow-hidden" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
                     <SitePhoto src={resolveMediaUrl(area.photo)} widths={IMG.card} className="absolute inset-0 transition-transform duration-700 group-hover:scale-[1.04] object-cover h-full w-full" />
-                    {(area.county || area.state) && <span className="absolute left-3 top-3 rounded-md bg-white/95 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#111827] shadow-sm">{area.county ? `${area.county} County` : area.state}</span>}
+                    {(area.county || area.state) && <span className="absolute left-3 top-3 rounded-md bg-white/95 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#111827] shadow-sm">{area.county ? (/\b(county|city)$/i.test(area.county) ? area.county : `${area.county} County`) : area.state}</span>}
                   </div>
                   <div className="flex flex-1 flex-col p-5">
                     <p className="text-xl font-extrabold tracking-tight" style={{ color: 'var(--site-heading)' }}>{area.name}</p>
-                    {range && <p className="mt-1 text-sm" style={{ color: 'var(--site-muted)' }}>Homes from {range}</p>}
+                    {range && <p className="mt-1 text-sm" style={{ color: 'var(--site-muted)' }}>{area.price_range_basis === 'sold_2y' ? 'Most homes sold for' : 'Homes from'} {range}</p>}
                     {area.school_districts?.length ? <p className="mt-2 flex items-center gap-1.5 text-[13px] font-medium" style={{ color: 'var(--site-ink-soft)' }}><GraduationCap className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--site-accent)' }} /><span className="truncate">{area.school_districts.slice(0, 2).join(' / ')}</span></p> : null}
                     {cells.length > 0 && (
                       <div className="mt-auto grid grid-cols-2 gap-px overflow-hidden rounded-xl border pt-0" style={{ borderColor: 'var(--site-line)', backgroundColor: 'var(--site-line)', marginTop: '1rem' }}>
@@ -194,11 +195,11 @@ export default function CommunitiesBlock({ data, theme, basePrefix = '' }: { dat
                 <SitePhoto src={resolveMediaUrl(area.photo)} widths={IMG.half} className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-110 object-cover h-full w-full" />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-black/5" />
                 <span className="absolute left-2.5 top-2.5 max-w-[calc(100%-1.25rem)] truncate rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide shadow-sm " style={{ backgroundColor: 'rgba(var(--site-accent-rgb),0.85)', color: 'var(--site-on-accent)' }}>
-                  {area.county ? `${area.county} County` : area.state}
+                  {area.county ? (/\b(county|city)$/i.test(area.county) ? area.county : `${area.county} County`) : area.state}
                 </span>
                 <div className="absolute inset-x-0 bottom-0 p-3">
                   <p className={`text-lg font-black leading-tight text-white ${fontClass(theme.heading_font, 'font-serif')}`}>{area.name}</p>
-                  {range && <p className="mt-1 text-[11px] font-bold text-white/70">{range}</p>}
+                  {range && <p className="mt-1 text-[11px] font-bold text-white/70">{area.price_range_basis === 'sold_2y' ? `Most sold ${range}` : range}</p>}
                   <div className="mt-3 space-y-1.5">
                     {stats.map(stat => {
                       const Icon = stat.icon
