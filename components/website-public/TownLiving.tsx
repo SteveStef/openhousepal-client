@@ -2,21 +2,29 @@
 
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowUpRight, Building2, MapPin, ShoppingBag, ShoppingBasket, Sparkles, Trees, Utensils } from 'lucide-react'
+import { Building2, Coffee, MapPin, Navigation, ShoppingBag, ShoppingBasket, Sparkles, Trees, Utensils } from 'lucide-react'
+import NearbyMap from '@/components/maps/NearbyMap'
+import { mapsSearchHref, openInAppleMaps } from '@/lib/mapsLink'
 
 // A town page's "Living here" section: one panel instead of a stack of text cards. The categories
 // (Town center · Restaurants · Shopping · Grocery · Parks) sit down the side as buttons with a
 // highlight that glides between them; the chosen one shows its one-line take and its places as
 // tiles - the top pick large - that settle in one after another. Each place says whether it's in
-// town or how far, and links to where it was researched.
+// town or how far, and opens in Google / Apple Maps (not the website it was researched on - often
+// wrong). With `map`, the amenity map sits in the panel too (it used to be a separate Explore Nearby
+// box): the chosen tab's places from Google Maps drop onto it, plus a map-only Coffee tab (user, 10/27).
 export interface LivingPlace { name: string; category?: string; city?: string; distance_miles?: number; description?: string; source_url?: string }
 export interface LivingCategory { key: string; label: string; notes?: string | null; items: LivingPlace[] }
 
 const ICONS: Record<string, typeof Trees> = {
-  downtown_centers: Building2, restaurants: Utensils, shopping: ShoppingBag, grocery: ShoppingBasket, parks: Trees,
+  downtown_centers: Building2, restaurants: Utensils, shopping: ShoppingBag, grocery: ShoppingBasket, parks: Trees, coffee: Coffee,
+}
+// Which Explore Nearby (Google Places) category each tab shows on the map - none for the town center.
+const MAP_CATEGORY: Record<string, string | null> = {
+  downtown_centers: null, restaurants: 'restaurants', shopping: 'shopping', grocery: 'grocery', parks: 'parks', coffee: 'coffee',
 }
 const SHORT: Record<string, string> = {
-  downtown_centers: 'Town center', restaurants: 'Restaurants', shopping: 'Shopping', grocery: 'Groceries', parks: 'Parks & outdoors',
+  downtown_centers: 'Town center', restaurants: 'Restaurants', shopping: 'Shopping', grocery: 'Groceries', parks: 'Parks & outdoors', coffee: 'Coffee',
 }
 
 function firstSentence(text?: string | null) {
@@ -32,10 +40,17 @@ function whereLabel(p: LivingPlace, town: string) {
   return p.city || ''
 }
 
-export default function TownLiving({ categories, town, luxe }: { categories: LivingCategory[]; town: string; luxe: boolean }) {
+export default function TownLiving({ categories: researched, town, state, luxe, map }: {
+  categories: LivingCategory[]; town: string; state?: string | null; luxe: boolean
+  /** The town's amenity map (Google Places through our budget-gated proxy) - see MAP_CATEGORY. */
+  map?: { siteId: string; slug: string; origin: { lat: number; lng: number }; accent: string } | null
+}) {
+  // Coffee has no researched list - it's a map-only tab.
+  const categories = map ? [...researched, { key: 'coffee', label: 'Coffee', notes: null, items: [] }] : researched
   const [active, setActive] = useState(categories[0]?.key)
   const cat = categories.find(c => c.key === active) || categories[0]
   if (!cat) return null
+  const mapCategory = MAP_CATEGORY[cat.key] ?? null
   const round = luxe ? 'rounded-[24px]' : 'rounded-2xl'
   const ease = [0.16, 1, 0.3, 1] as const
 
@@ -54,7 +69,7 @@ export default function TownLiving({ categories, town, luxe }: { categories: Liv
               <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors duration-300" style={{ backgroundColor: on ? 'rgba(0,0,0,.12)' : 'rgba(var(--site-accent-rgb),.12)', color: on ? 'inherit' : 'var(--site-accent)' }}><Icon className="h-4 w-4" /></span>
               <span className="relative min-w-0">
                 <span className="block whitespace-nowrap text-sm font-black">{SHORT[c.key] || c.label}</span>
-                <span className="block text-[11px] font-bold opacity-70">{c.items.length} {c.items.length === 1 ? 'place' : 'places'}</span>
+                <span className="block text-[11px] font-bold opacity-70">{c.items.length ? `${c.items.length} ${c.items.length === 1 ? 'place' : 'places'}` : 'On the map'}</span>
               </span>
             </button>
           )
@@ -63,10 +78,20 @@ export default function TownLiving({ categories, town, luxe }: { categories: Liv
 
       {/* The chosen category */}
       <div className="min-w-0 p-5 sm:p-7">
+        {/* One map for every tab (outside the per-tab fade so it never reloads) */}
+        {map && (
+          <div className="mb-6">
+            <NearbyMap latitude={map.origin.lat} longitude={map.origin.lng} accent={map.accent} tone="auto"
+              siteId={map.siteId} kind="area" slug={map.slug} originLabel={town} showHome={false} category={mapCategory}
+              boxClassName={`relative h-[240px] w-full overflow-hidden border sm:h-[340px] ${luxe ? 'rounded-[20px]' : 'rounded-xl'}`} />
+            {!mapCategory && <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--site-faint)' }}>Pick Restaurants, Shopping, Groceries, Parks or Coffee to see those places on the map.</p>}
+          </div>
+        )}
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={cat.key} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.4, ease }}>
             {cat.notes && <p className="max-w-3xl text-[15px] leading-relaxed" style={{ color: 'var(--site-ink-soft)' }}>{firstSentence(cat.notes)}</p>}
-            <div className="mt-5 grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
+            {map && cat.items.length > 0 && <p className="mt-5 text-[11px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--site-accent-text)' }}>Local favorites</p>}
+            <div className={`${map && cat.items.length > 0 ? 'mt-3' : 'mt-5'} grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-3`}>
               {cat.items.slice(0, 9).map((p, i) => {
                 const top = i === 0 && cat.items.length > 2
                 const where = whereLabel(p, town)
@@ -93,11 +118,11 @@ export default function TownLiving({ categories, town, luxe }: { categories: Liv
                           <MapPin className="h-3 w-3" />{where}
                         </span>
                       ) : <span />}
-                      {p.source_url && (
-                        <a href={p.source_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-[11px] font-bold opacity-0 transition group-hover:opacity-100" style={{ color: 'var(--site-accent)' }}>
-                          More <ArrowUpRight className="h-3 w-3" />
-                        </a>
-                      )}
+                      {/* Always shown (phones have no hover) - the place on Google / Apple Maps */}
+                      <a href={mapsSearchHref(p.name, p.city || town, state)} onClick={e => openInAppleMaps(e, p.name, p.city || town, state)} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-black transition hover:opacity-80" style={{ color: 'var(--site-accent-text)' }}>
+                        <Navigation className="h-3 w-3" /> Directions
+                      </a>
                     </div>
                   </motion.div>
                 )

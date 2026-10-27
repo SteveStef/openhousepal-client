@@ -318,6 +318,9 @@ async function baseMetadata({
   if (path?.[0] === 'testimonials' && !path[1]) {
     return ownPageMetadata('Client Reviews', canonical || undefined, { description: 'What clients say - real reviews from buyers and sellers.' })
   }
+  if (path?.[0] === 'sales' && !path[1]) {
+    return publicAliasMetadata('Sales', canonical || undefined)  // a filtered copy of the hub page - not for Google
+  }
   if (path?.[0] === 'about' && !path[1]) {
     const hubSlug = await resolveAgentHubSlug(resolved.site_id)
     return ownPageMetadata('About', canonical || undefined, { ogImage: hubSlug ? ogCard('hub', { agent: hubSlug }) : undefined })
@@ -431,7 +434,9 @@ function applySiteSeo(meta: Metadata, resolved: ResolveResponse, path: string[] 
     title,
     description,
     applicationName: siteName || undefined,
-    ...(icon ? { icons: { icon: [{ url: icon }], apple: [{ url: icon }] } } : {}),
+    // Phones' home-screen icon: our default is see-through, which iPhones fill with black (a black
+    // house on black) - so the white-backed apple-touch-icon unless the agent uploaded their own.
+    ...(icon ? { icons: { icon: [{ url: icon }], apple: [{ url: seo.favicon_url || '/apple-touch-icon.png' }] } } : {}),
     ...(seo.allow_indexing === false ? { robots: { index: false, follow: false } } : {}),
     // Search Console ownership proof (google_search_service - automatic, plus any code the agent
     // pasted). Google only looks on the home page.
@@ -1098,21 +1103,28 @@ async function PropertyDetailView({ p, theme, basePrefix, siteId }: { p: any; th
 // The About page - a live mirror of this agent's real Agent Hub (see
 // content_adapters.get_agent_hub_snapshot) rather than a separately hand-written bio block, so
 // the agent's own site can work as their link-tree too, not just openhousepal.com/{slug}.
-async function AboutPage({ siteId, basePrefix, host, framed = false, query = '' }: { siteId: string; basePrefix: string; host: string; framed?: boolean; query?: string }) {
+async function AboutPage({ siteId, basePrefix, host, framed = false, query = '', hubPage = '' }: { siteId: string; basePrefix: string; host: string; framed?: boolean; query?: string; hubPage?: '' | 'sales' }) {
   const slug = await resolveAgentHubSlug(siteId)
   if (!slug) notFound()
+  const visitorQs = new URLSearchParams(query)
+  // /sales?town=X&from=/x-pa (a town page's "View all"): the hub's Sales page filtered to that
+  // town, its Back returning to the page the visitor came from. Only a path on this site.
+  const from = visitorQs.get('from') || ''
+  const fromPath = /^\/(?!\/)/.test(from) ? from : ''
   // Where the framed hub sends a visitor "home" (form submitted, Back with no history). Absolute on
   // the agent's own address: the hub runs on openhousepal.com, where a bare "/" would land on
   // OpenHousePal's own homepage instead of this site's.
-  const idxReturn = encodeURIComponent(basePrefix ? `${basePrefix}/` : `https://${host}/`)
+  const idxReturn = encodeURIComponent(fromPath
+    ? (basePrefix ? fromPath : `https://${host}${fromPath}`)
+    : (basePrefix ? `${basePrefix}/` : `https://${host}/`))
   // The visit's own params reach the hub inside (?src=qr counts a QR scan, ?intro=0 from setup,
   // campaign tags) - incl. old openhousepal.com/<slug> links forwarded here (proxy.ts).
-  const visitorQs = new URLSearchParams(query)
-  for (const k of ['idx_light', 'idx_return', 'preview']) visitorQs.delete(k)
+  for (const k of ['idx_light', 'idx_return', 'preview', 'from']) visitorQs.delete(k)
   const extra = visitorQs.toString() ? `&${visitorQs.toString()}` : ''
+  const hubPath = `/${encodeURIComponent(slug)}${hubPage ? `/${hubPage}` : ''}`
   const src = basePrefix.startsWith('/ohp-site-render/')
-    ? `/${encodeURIComponent(slug)}?idx_light=1&idx_return=${idxReturn}${extra}`
-    : `https://${OHP_BASE_DOMAIN}/${encodeURIComponent(slug)}?idx_light=1&idx_return=${idxReturn}${extra}`
+    ? `${hubPath}?idx_light=1&idx_return=${idxReturn}${extra}`
+    : `https://${OHP_BASE_DOMAIN}${hubPath}?idx_light=1&idx_return=${idxReturn}${extra}`
   return (
     // dvh, not vh: on phones 100vh runs under the browser bar and cut off the hub's bottom. The
     // 18px overhang (hides the frame's scrollbar) only on desktop - phones have no scrollbar, so it
@@ -1888,6 +1900,10 @@ export default async function PublicSitePage({
   } else if (path?.[0] === 'about' && !path[1]) {
     content = <AboutPage siteId={resolved.site_id} basePrefix={basePrefix} host={host} framed />
     hideFooter = true
+  } else if (path?.[0] === 'sales' && !path[1]) {
+    // The Agent Hub's Sales page inside the site - a town page's "View all" (?town=&from=).
+    content = <AboutPage siteId={resolved.site_id} basePrefix={basePrefix} host={host} framed query={queryString(currentSearchParams)} hubPage="sales" />
+    hideFooter = true
   } else if (path?.[0] === 'home-value' && !path[1]) {
     // "What's my home worth?" landing page - for ads, mailers and the agent's email signature.
     const [hvProfile, hvAreas, hvReviews] = await Promise.all([
@@ -1969,7 +1985,7 @@ export default async function PublicSitePage({
     : []
 
   return (
-    <SiteShell theme={theme} siteKey={resolved.subdomain_slug} agentName={footerProfile?.name || siteName}>
+    <SiteShell theme={theme} siteKey={resolved.subdomain_slug} agentName={footerProfile?.name || siteName} brandLogo={footerProfile?.brand_logo_url}>
       {!path?.length && <JsonLd data={siteJsonLd(resolved, host, footerProfile)} />}
       {pageLd.map((d, i) => <JsonLd key={i} data={d} />)}
       <SiteHeader theme={theme} pages={pages} siteName={siteName} basePrefix={basePrefix} hasCommunities={(footerAreas || []).length > 0} agentProfile={footerProfile || undefined} hasDarkHero={hasDarkHero && luxeLook} siteKey={resolved.subdomain_slug} hasReviews={hasReviews} />

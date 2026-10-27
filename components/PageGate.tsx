@@ -23,6 +23,8 @@ const MAX_MS = 9000       // a slow / stuck request never holds the page hostage
 const IMAGES_MAX_MS = 2500
 const NAV_WAIT_MS = 5000  // a clicked link that never navigates lets go after this...
 const NAV_SLOW_MS = 45000 // ...unless the new page is still on its way (slow network / a rebuilding dev server)
+const COVER_OUT_MS = 200  // the loader fades away quickly...
+const REVEAL_LEAD_MS = 100 // ...and the page starts rising as it goes, so the loader never hides the rise
 
 // ---- in-flight API calls -------------------------------------------------------------------
 // Calls that aren't the page itself - the header's badge counts and Today's Rundown (it has its own
@@ -87,30 +89,49 @@ async function untilImagesIn(root: HTMLElement | null) {
 
 // The page's main sections: walk down past single wrappers (min-h-screen > mx-auto...) to the
 // level where the page actually splits into header / toolbar / list, then the ones in view.
+// Measured by the part ON SCREEN: a long list (Leads, Showcases) is most of the page's full height,
+// so the walk used to step into the list and the header above it just appeared (owner, 10/27).
 function sectionsOf(root: HTMLElement): HTMLElement[] {
   const kids = (el: Element) => Array.from(el.children).filter((c): c is HTMLElement =>
     c instanceof HTMLElement && c.tagName !== 'STYLE' && c.tagName !== 'SCRIPT' && c.offsetHeight > 0)
+  const onScreen = (el: Element) => { const r = el.getBoundingClientRect(); return Math.max(0, Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0)) }
   let node: HTMLElement = root
   for (let depth = 0; depth < 6; depth++) {
     const list = kids(node)
     if (list.length === 0) break
-    const biggest = list.reduce((a, b) => (b.offsetHeight > a.offsetHeight ? b : a))
-    if (list.length === 1 || biggest.offsetHeight >= node.offsetHeight * 0.8) { node = biggest; continue }
+    const biggest = list.reduce((a, b) => (onScreen(b) > onScreen(a) ? b : a))
+    if (list.length === 1 || onScreen(biggest) >= onScreen(node) * 0.8) { node = biggest; continue }
     break
   }
   return kids(node).filter(el => el.getBoundingClientRect().top < window.innerHeight).slice(0, 8)
 }
 
-function reveal(root: HTMLElement | null) {
+// The page's own CSS entrances (the header title's rise, cards rising one by one...) start the
+// moment it renders - behind the loader, so they were over before anyone saw them. Replay the short
+// one-time ones now that it's on screen; never the looping ones (shimmers, glints).
+function replayCssEntrances(root: HTMLElement) {
+  root.getAnimations?.({ subtree: true }).forEach(a => {
+    // (Paused on purpose - e.g. Leads pauses everything behind an open lead - stays paused.)
+    if (!(a instanceof CSSAnimation) || a.playState === 'paused') return
+    const end = Number(a.effect?.getComputedTiming().endTime)
+    if (!Number.isFinite(end) || end > 2500) return
+    a.currentTime = 0
+    a.play()
+  })
+}
+
+function reveal(root: HTMLElement | null, lead = 0) {
   if (!root || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
   // Web Animations, not CSS classes - they stack on top of a section's own CSS animations instead
-  // of replacing (and later replaying) them.
+  // of replacing (and later replaying) them. fill: 'backwards' keeps each section hidden through
+  // its delay, so `lead` can wait out the loader's fade without the page showing first.
   sectionsOf(root).forEach((el, i) => {
     el.animate(
       [{ opacity: 0, transform: 'translateY(22px) scale(.985)' }, { opacity: 1, transform: 'none' }],
-      { duration: 720, delay: 60 + i * 75, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'backwards' },
+      { duration: 680, delay: lead + 60 + i * 70, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'backwards' },
     )
   })
+  setTimeout(() => replayCssEntrances(root), lead)
 }
 
 const LABELS: [string, string][] = [
@@ -172,9 +193,10 @@ export default function PageGate({ children }: { children: React.ReactNode }) {
       const left = MIN_SHOWN_MS - (Date.now() - shownAt)
       if (left > 0) await sleep(left)
       if (!alive()) return
+      // The loader fades out fast and the page rises as it goes - the rise is never under it.
       setPhase('leaving')
-      requestAnimationFrame(() => reveal(root.current))
-      await sleep(420)
+      requestAnimationFrame(() => reveal(root.current, REVEAL_LEAD_MS))
+      await sleep(COVER_OUT_MS + 40)
       if (alive()) setPhase('done')
     } else {
       // Ready before the loader was needed: the page just appears (a quick rise, no logo).
@@ -236,7 +258,7 @@ export default function PageGate({ children }: { children: React.ReactNode }) {
           still just appears and a slow one shows the house loader from the first second. */}
       {(phase === 'pending' || phase === 'loading' || phase === 'leaving') && (
         <div aria-hidden={phase === 'leaving'}
-          className={`fixed inset-0 z-40 transition-all duration-[400ms] ease-out ${phase === 'leaving' ? 'pointer-events-none scale-[1.03] opacity-0' : phase === 'pending' ? 'ohp-gate-cover ohp-gate-pending' : 'ohp-gate-cover opacity-100'}`}>
+          className={`fixed inset-0 z-40 transition-opacity duration-200 ease-out motion-reduce:transition-none ${phase === 'leaving' ? 'pointer-events-none opacity-0' :phase === 'pending' ? 'ohp-gate-cover ohp-gate-pending' : 'ohp-gate-cover opacity-100'}`}>
           <OhpLoader label={label} />
         </div>
       )}

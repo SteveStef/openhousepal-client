@@ -53,6 +53,22 @@ const glyphOf = (s: SchoolPt) => {
   return (s.grades || '').includes('12') ? 'H' : 'S'
 }
 const LEVEL = { E: 'Elementary', M: 'Middle school', H: 'High school', S: 'School', P: 'Private' } as Record<string, string>
+// Even-odd point-in-polygon over Census [lng, lat] rings (holes cancel out).
+const inRings = (rings: number[][][], lng: number, lat: number) => {
+  let inside = false
+  for (const r of rings) {
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+      const [ax, ay] = r[i], [bx, by] = r[j]
+      if ((ay > lat) !== (by > lat) && lng < ((bx - ax) * (lat - ay)) / ((by - ay) || 1e-9) + ax) inside = !inside
+    }
+  }
+  return inside
+}
+// Schools by district (owner, 10/27: no town-wide "all schools" switch - each district gets its own
+// Public / Private switch). Public schools by their NCES district (leaid); private schools have no
+// district, so each goes under the district whose real lines it sits inside. Anything past every
+// line is "just outside".
+type SchoolGroup = { key: string; district: Shape | null; color: string; pub: SchoolPt[]; pri: SchoolPt[] }
 
 export default function TownMap({ data, town, luxe }: { data?: TownBoundaries | null; town: string; luxe: boolean }) {
   const munis = useMemo(() => data?.municipalities || [], [data])
@@ -68,8 +84,8 @@ export default function TownMap({ data, town, luxe }: { data?: TownBoundaries | 
   ].filter(Boolean)) as { id: Layer; label: string; icon: any }[]
   // A town split across school districts or townships opens on that split - it's the thing people don't know.
   const [layer, setLayer] = useState<Layer>(districts.length > 1 ? 'schools' : munis.length > 1 ? 'munis' : layers[0]?.id || 'area')
-  const [showPublic, setShowPublic] = useState(true)
-  const [showPrivate, setShowPrivate] = useState(true)
+  // Which district's Public / Private switch is on ("<group key>|pub"). Nothing until the visitor picks.
+  const [shown, setShown] = useState<Record<string, boolean>>({})
   const [hover, setHover] = useState<string | null>(null)
   const [activeSchool, setActiveSchool] = useState<string | null>(null)
   const [map, setMap] = useState<google.maps.Map | null>(null)
@@ -108,27 +124,37 @@ export default function TownMap({ data, town, luxe }: { data?: TownBoundaries | 
 
   const listShapes: Shape[] = layer === 'munis' ? munis : layer === 'schools' ? districts : []
 
+  const groups: SchoolGroup[] = useMemo(() => {
+    const placed = new Set<string>()
+    const out: SchoolGroup[] = districts.map((d, i) => {
+      // An elementary + a high school district can overlap - a private school goes under the first.
+      const pri = d.rings?.length ? privateSchools.filter(s => !placed.has(s.id) && inRings(d.rings, s.lng, s.lat)) : []
+      pri.forEach(s => placed.add(s.id))
+      return { key: d.geoid || d.name, district: d, color: colorOf(d, i), pub: publicSchools.filter(s => !!d.geoid && s.leaid === d.geoid), pri }
+    })
+    const pubLeft = publicSchools.filter(s => !districts.some(d => d.geoid && d.geoid === s.leaid))
+    const priLeft = privateSchools.filter(s => !placed.has(s.id))
+    if (pubLeft.length || priLeft.length) out.push({ key: 'outside', district: null, color: '#475569', pub: pubLeft, pri: priLeft })
+    return out
+  }, [districts, publicSchools, privateSchools])
+
   const markers: CanvasMarker[] = useMemo(() => {
     if (layer !== 'schools') return []
-    const colorFor = (leaid?: string) => {
-      const i = districts.findIndex(d => d.geoid && d.geoid === leaid)
-      return i >= 0 ? colorOf(districts[i], i) : '#475569'
-    }
-    return [
-      ...(showPublic ? publicSchools.map(s => {
+    return groups.flatMap(gr => [
+      ...(shown[`${gr.key}|pub`] ? gr.pub.map(s => {
         const g = glyphOf(s)
-        const d = districts.find(x => x.geoid === s.leaid)
         return {
-          id: `pub:${s.id}`, lat: s.lat, lng: s.lng, kind: 'public' as const, color: colorFor(s.leaid), glyph: g, title: s.name,
-          lines: [[LEVEL[g], s.grades ? `Grades ${s.grades}` : ''].filter(Boolean).join(' · '), d ? `${shortDistrict(d.name)} district${s.charter ? ' · Charter' : ''}` : (s.charter ? 'Charter' : '')],
+          id: `pub:${s.id}`, lat: s.lat, lng: s.lng, kind: 'public' as const, color: gr.color, glyph: g, title: s.name,
+          lines: [[LEVEL[g], s.grades ? `Grades ${s.grades}` : ''].filter(Boolean).join(' · '), gr.district ? `${shortDistrict(gr.district.name)} district${s.charter ? ' · Charter' : ''}` : (s.charter ? 'Charter' : '')],
         }
       }) : []),
-      ...(showPrivate ? privateSchools.map(s => ({
+      ...(shown[`${gr.key}|pri`] ? gr.pri.map(s => ({
         id: `pri:${s.id}`, lat: s.lat, lng: s.lng, kind: 'private' as const, color: PRIVATE, glyph: 'P', title: s.name,
-        lines: [s.grades ? `Grades ${s.grades}` : 'Private / independent'],
+        lines: [s.grades ? `Grades ${s.grades}` : 'Private / independent', gr.district ? `Inside the ${shortDistrict(gr.district.name)} district lines` : ''].filter(Boolean),
       })) : []),
-    ]
-  }, [layer, showPublic, showPrivate, publicSchools, privateSchools, districts])
+    ])
+  }, [layer, shown, groups])
+  const shownKey = markers.map(m => m.id).join(',')
 
   const shapes: CanvasShape[] = useMemo(() => {
     const out: CanvasShape[] = listShapes.filter(s => s.rings?.length).map((s, i) => ({ id: `${layer}:${s.name}`, rings: s.rings, color: colorOf(s, i), fill: 0.12 }))
@@ -154,19 +180,47 @@ export default function TownMap({ data, town, luxe }: { data?: TownBoundaries | 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layer, outline, munis, districts, town, accent])
 
-  // Camera: glide to what the layer is about - the town, plus its schools on the Schools layer.
+  // Camera: glide to what the layer is about - the town, plus the schools switched on (so turning on
+  // a district's schools brings them into view).
   useEffect(() => {
     if (!map) return
     const b = new google.maps.LatLngBounds()
     const add = (rings: number[][][]) => rings.forEach(r => r.forEach(([lng, lat]) => b.extend({ lat, lng })))
     if (outline) add(outline.rings)
     else munis.forEach(m => add(m.rings))
-    if (layer === 'schools') [...publicSchools, ...privateSchools].forEach(s => b.extend({ lat: s.lat, lng: s.lng }))
+    markers.forEach(s => b.extend({ lat: s.lat, lng: s.lng }))
     if (!b.isEmpty()) map.fitBounds(b, { top: 76, bottom: 36, left: 36, right: 72 })
     setActiveSchool(null)
-    setHover(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, layer])
+  }, [map, layer, shownKey])
+  useEffect(() => setHover(null), [layer])
+  const flip = (k: string) => setShown(s => ({ ...s, [k]: !s[k] }))
+  // One district's Public or Private switch - the same pill switch the panel always had, sized to sit
+  // two-up under the district's name.
+  const schoolSwitch = (gr: SchoolGroup, type: 'pub' | 'pri') => {
+    const k = `${gr.key}|${type}`
+    const n = (type === 'pub' ? gr.pub : gr.pri).length
+    const c = type === 'pub' ? gr.color : PRIVATE
+    const on = !!shown[k] && n > 0
+    const label = type === 'pub' ? 'Public' : 'Private'
+    return (
+      <motion.button key={k} type="button" disabled={!n} onClick={() => flip(k)} whileTap={{ scale: 0.96 }} aria-pressed={on}
+        aria-label={`${on ? 'Hide' : 'Show'} ${gr.district ? shortDistrict(gr.district.name) + ' ' : ''}${label.toLowerCase()} schools on the map`}
+        className={`flex min-h-[42px] min-w-0 items-center gap-2 border px-2.5 py-1.5 text-left transition-colors disabled:opacity-40 ${luxe ? 'rounded-xl' : 'rounded-lg'}`}
+        style={{ borderColor: on ? c : 'var(--site-line)', backgroundColor: on ? `${c}12` : 'var(--site-surface)' }}>
+        <span className="relative flex h-4 w-7 shrink-0 items-center rounded-full p-0.5 transition-colors duration-300" style={{ backgroundColor: on ? c : 'var(--site-line-strong)' }}>
+          <motion.span className="h-3 w-3 rounded-full bg-white shadow" animate={{ x: on ? 12 : 0 }} transition={{ type: 'spring', stiffness: 600, damping: 32 }} />
+        </span>
+        <span className="min-w-0 leading-tight">
+          <span className="flex items-center gap-1.5 text-[12px] font-black" style={{ color: 'var(--site-heading)' }}>
+            <span className={`inline-block h-2 w-2 shrink-0 ${type === 'pri' ? 'rounded-[2px]' : 'rounded-full border-2 bg-white'}`} style={type === 'pri' ? { backgroundColor: c } : { borderColor: c }} />{label}
+          </span>
+          <span className="block text-[10.5px] font-semibold" style={{ color: 'var(--site-muted)' }}>{n} {n === 1 ? 'school' : 'schools'}</span>
+        </span>
+      </motion.button>
+    )
+  }
+  const outside = groups.find(g => !g.district)
 
   if (!layers.length || failed) return null
   const round = luxe ? 'rounded-[24px]' : 'rounded-2xl'
@@ -176,7 +230,7 @@ export default function TownMap({ data, town, luxe }: { data?: TownBoundaries | 
       : `The outline of ${town}.`
     : layer === 'munis'
       ? 'Which local government each home falls under - it sets the property tax rate, trash pickup, zoning and permits.'
-      : 'Public school assignment follows district lines (and, inside a district, the street) - not the mailing address. Always confirm the schools for a specific home with the district.'
+      : 'Public school assignment follows district lines (and, inside a district, the street) - not the mailing address. Private schools are listed under the district they sit in, but take students from anywhere. Always confirm the schools for a specific home with the district.'
   const sortedMarkers = [...markers].sort((a, b) => (a.kind === b.kind ? 'EMHSP'.indexOf(a.glyph) - 'EMHSP'.indexOf(b.glyph) || a.title.localeCompare(b.title) : a.kind === 'public' ? -1 : 1))
 
   return (
@@ -218,26 +272,9 @@ export default function TownMap({ data, town, luxe }: { data?: TownBoundaries | 
               </h3>
 
               {layer === 'schools' && (
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  {[
-                    { on: showPublic, set: setShowPublic, label: 'Public', n: publicSchools.length, color: districts[0] ? colorOf(districts[0], 0) : COLORS[0], diamond: false },
-                    { on: showPrivate, set: setShowPrivate, label: 'Private', n: privateSchools.length, color: PRIVATE, diamond: true },
-                  ].map(t => (
-                    <motion.button key={t.label} type="button" disabled={!t.n} onClick={() => t.set(!t.on)} whileTap={{ scale: 0.96 }} aria-pressed={t.on}
-                      className={`flex items-center gap-2.5 border px-3 py-2.5 text-left transition-colors disabled:opacity-40 ${luxe ? 'rounded-2xl' : 'rounded-xl'}`}
-                      style={{ borderColor: t.on && t.n ? t.color : 'var(--site-line)', backgroundColor: t.on && t.n ? `${t.color}12` : 'transparent' }}>
-                      <span className="relative flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors duration-300" style={{ backgroundColor: t.on && t.n ? t.color : 'var(--site-line-strong)' }}>
-                        <motion.span className="h-4 w-4 rounded-full bg-white shadow" animate={{ x: t.on && t.n ? 16 : 0 }} transition={{ type: 'spring', stiffness: 600, damping: 32 }} />
-                      </span>
-                      <span className="min-w-0 leading-tight">
-                        <span className="flex items-center gap-1.5 text-[12.5px] font-black" style={{ color: 'var(--site-heading)' }}>
-                          <span className={`inline-block h-2.5 w-2.5 ${t.diamond ? 'rounded-[3px]' : 'rounded-full border-2 bg-white'}`} style={t.diamond ? { backgroundColor: t.color } : { borderColor: t.color }} />{t.label}
-                        </span>
-                        <span className="block text-[11px] font-semibold" style={{ color: 'var(--site-muted)' }}>{t.n} {t.n === 1 ? 'school' : 'schools'}</span>
-                      </span>
-                    </motion.button>
-                  ))}
-                </div>
+                <p className="mt-1.5 text-[12px] font-semibold leading-snug" style={{ color: 'var(--site-muted)' }}>
+                  Pick a district&apos;s Public or Private schools to put them on the map.
+                </p>
               )}
 
               {listShapes.length > 0 ? (
@@ -262,9 +299,28 @@ export default function TownMap({ data, town, luxe }: { data?: TownBoundaries | 
                         <p className="mt-1 text-[11px] font-semibold" style={{ color: 'var(--site-muted)' }}>
                           {s.kind === 'elementary' ? 'Elementary district · ' : s.kind === 'secondary' ? 'High school district · ' : ''}of {town} homes
                         </p>
+                        {layer === 'schools' && groups[i] && (
+                          <div className="mt-2.5 grid grid-cols-2 gap-2">
+                            {schoolSwitch(groups[i], 'pub')}
+                            {schoolSwitch(groups[i], 'pri')}
+                          </div>
+                        )}
                       </motion.li>
                     )
                   })}
+                  {layer === 'schools' && outside && (
+                    <motion.li initial={{ opacity: 0, x: 14 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.06 * listShapes.length, duration: 0.35 }}
+                      className={`border border-dashed px-3.5 py-3 ${luxe ? 'rounded-2xl' : 'rounded-xl'}`} style={{ borderColor: 'var(--site-line-strong)' }}>
+                      <p className="text-[13px] font-black leading-snug" style={{ color: 'var(--site-heading)' }}>
+                        Just outside {listShapes.length === 1 ? 'the district' : 'these districts'}
+                      </p>
+                      <p className="mt-1 text-[11px] font-semibold" style={{ color: 'var(--site-muted)' }}>Near {town}, past the district lines above</p>
+                      <div className="mt-2.5 grid grid-cols-2 gap-2">
+                        {outside.pub.length > 0 && schoolSwitch(outside, 'pub')}
+                        {schoolSwitch(outside, 'pri')}
+                      </div>
+                    </motion.li>
+                  )}
                 </ul>
               ) : outline ? (
                 <div className="mt-4 flex items-center gap-2.5">

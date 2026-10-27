@@ -310,7 +310,7 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
             {theme.loader_logo_url ? <img src={resolveMediaUrl(theme.loader_logo_url)} alt="Loading logo" className="max-h-full max-w-full object-contain" /> : <span className="font-serif text-sm font-black text-[#111827]">AB</span>}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold leading-snug text-gray-400">{theme.loader_logo_url ? 'Your logo spins in the loading animation across your site.' : 'While a home or search loads, visitors see your initials in an animated ring. Upload a logo to use it instead.'}</p>
+            <p className="text-[10px] font-semibold leading-snug text-gray-400">{theme.loader_logo_url ? 'Your logo spins in the loading animation across your site.' : 'While a page, home or search loads, visitors see your Brand Kit logo (or your initials) in an animated ring. Upload a logo here to use a different one.'}</p>
             <div className="mt-1.5 flex gap-1.5">
               <button type="button" onClick={() => loaderRef.current?.click()} disabled={loaderUploading} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-[#111827] transition hover:border-[#C9A24D] disabled:opacity-50 dark:border-gray-700 dark:text-white">
                 {loaderUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />} {theme.loader_logo_url ? 'Replace' : 'Upload logo'}

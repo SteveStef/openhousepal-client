@@ -746,7 +746,7 @@ export function CreateOpenHouseWizard({
           kicker="Open Houses"
           icon={DoorOpen}
           titleClassName="text-[2.1rem] sm:text-5xl"
-          title={<>Create your <em>Open House Kit.</em></>}
+          title={<>Create your <br className="sm:hidden" /><em className="whitespace-nowrap">Open House Kit.</em></>}
           subtitle="Type the home's address, add its details and photos, and get a QR sign-in sheet and flyer in a minute."
           actions={
             <form onSubmit={openManualDetails} className="relative z-20 mx-auto w-full max-w-2xl">
@@ -781,7 +781,7 @@ export function CreateOpenHouseWizard({
             kicker="Open Houses"
             icon={DoorOpen}
             titleClassName="text-[2.1rem] sm:text-5xl"
-            title={<>Create your <em>Open House Kit.</em></>}
+            title={<>Create your <br className="sm:hidden" /><em className="whitespace-nowrap">Open House Kit.</em></>}
             subtitle="Enter a property address to instantly generate a QR code, professional PDF flyer, and sign-in form."
             actions={
               // Find Open Houses | address search | Manager - one row, so the header stays short.

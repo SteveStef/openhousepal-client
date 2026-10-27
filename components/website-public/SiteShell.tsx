@@ -8,14 +8,14 @@ import { initialsOf } from './siteMark'
 // sun/moon button, kept in localStorage per site) is applied by the tiny inline script BEFORE
 // the page paints, so a returning visitor never sees a flash of the other mode. Rendering here
 // (not the route-group layout) because the theme only becomes known once the host resolves.
-// agentName: its first + last initial become the site's loading mark (SiteLoader) unless the agent
-// uploaded a loading logo (theme.loader_logo_url).
-export default function SiteShell({ theme, siteKey, agentName, children }: { theme: SiteTheme; siteKey: string; agentName?: string | null; children: React.ReactNode }) {
+// The site's loading mark (SiteLoader) is the loading logo the agent uploaded (theme.loader_logo_url),
+// else their Brand Kit logo (brandLogo), else agentName's first + last initial.
+export default function SiteShell({ theme, siteKey, agentName, brandLogo, children }: { theme: SiteTheme; siteKey: string; agentName?: string | null; brandLogo?: string | null; children: React.ReactNode }) {
   const vars = siteThemeVars(theme)
   const allowToggle = theme.allow_mode_toggle !== false
   const key = siteModeStorageKey(siteKey)
   return (
-    <div id="ohp-site-shell" className="ohp-site min-h-screen" data-template={vars.template} data-mode={vars.mode} data-ohp-initials={initialsOf(agentName) || undefined} data-ohp-loader-logo={theme.loader_logo_url || undefined} style={vars.style} suppressHydrationWarning>
+    <div id="ohp-site-shell" className="ohp-site min-h-screen" data-template={vars.template} data-mode={vars.mode} data-ohp-initials={initialsOf(agentName) || undefined} data-ohp-loader-logo={theme.loader_logo_url || brandLogo || undefined} style={vars.style} suppressHydrationWarning>
       {allowToggle && (
         <script
           dangerouslySetInnerHTML={{

@@ -9,10 +9,11 @@ import { buildTownFaq, daysOnMarketStat, firstSentences } from '@/components/web
 import MarketTrendsSection from '@/components/website-public/MarketTrendsSection'
 import CinematicHeroBackground from '@/components/website-public/CinematicHeroBackground'
 import ClassicPageHero from '@/components/website-public/ClassicPageHero'
-import { formatStatus, statusBadgeColor } from '@/components/website-public/listingFormat'
+import { formatCompactPrice, formatStatus, statusBadgeColor } from '@/components/website-public/listingFormat'
 import HomeCard from '@/components/website-public/HomeCard'
 import SpotlightChip from '@/components/website-public/SpotlightChip'
 import SitePhoto from '@/components/website-public/SitePhoto'
+import MapsLink from '@/components/website-public/MapsLink'
 import { fontClass } from '@/components/website-public/blocks/fontClass'
 import { resolveMediaUrl } from '@/lib/api-service'
 import { tidyAllCaps } from '@/lib/cheatSheetContent'
@@ -234,13 +235,12 @@ function TownMore({ label, children }: { label: string; children: React.ReactNod
   )
 }
 
-function TownPlaceRow({ e }: { e: CuratedEntity }) {
+function TownPlaceRow({ e, state }: { e: CuratedEntity; state?: string | null }) {
   const meta = entityMeta(e)
   return (
     <li className="py-3 first:pt-0 last:pb-0">
-      {e.source_url
-        ? <a href={e.source_url} target="_blank" rel="noreferrer" className="text-[15px] font-bold hover:underline" style={{ color: 'var(--site-heading)' }}>{e.name}</a>
-        : <span className="text-[15px] font-bold" style={{ color: 'var(--site-heading)' }}>{e.name}</span>}
+      {/* The place itself on the map - not the website it was researched on (often wrong, user 10/27) */}
+      <MapsLink place={e.name} near={[e.city, state]} className="text-[15px] font-bold hover:underline" style={{ color: 'var(--site-heading)' }}>{e.name}</MapsLink>
       {meta && <p className="mt-0.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--site-muted)' }}>{meta}</p>}
       {e.description && <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed" style={{ color: 'var(--site-ink-soft)' }}>{e.description}</p>}
     </li>
@@ -249,7 +249,7 @@ function TownPlaceRow({ e }: { e: CuratedEntity }) {
 
 // One "Living here" / "Getting around" card - the researched summary in a sentence or two, the
 // top three places, and the rest folded away.
-function TownPlaceCard({ categoryKey, data, luxe, label }: { categoryKey: string; data: any; luxe: boolean; label?: string }) {
+function TownPlaceCard({ categoryKey, data, luxe, label, state }: { categoryKey: string; data: any; luxe: boolean; label?: string; state?: string | null }) {
   const meta = CURATED_CATEGORY_META[categoryKey]
   const items = categoryEntities(data)
   if (!meta || !items.length) return null
@@ -267,12 +267,12 @@ function TownPlaceCard({ categoryKey, data, luxe, label }: { categoryKey: string
       </div>
       {data?.notes && <p className="mt-4 text-sm leading-relaxed" style={{ color: 'var(--site-ink-soft)' }}>{firstSentences(data.notes, 2)}</p>}
       <ul className="mt-4 divide-y border-t pt-4" style={{ borderColor: 'var(--site-line)' }}>
-        {items.slice(0, 3).map((e, i) => <TownPlaceRow key={i} e={e} />)}
+        {items.slice(0, 3).map((e, i) => <TownPlaceRow key={i} e={e} state={state} />)}
       </ul>
       {items.length > 3 && (
         <TownMore label={`See all ${items.length}`}>
           <ul className="divide-y" style={{ borderColor: 'var(--site-line)' }}>
-            {items.slice(3).map((e, i) => <TownPlaceRow key={i} e={e} />)}
+            {items.slice(3).map((e, i) => <TownPlaceRow key={i} e={e} state={state} />)}
           </ul>
         </TownMore>
       )}
@@ -299,7 +299,7 @@ function TownSchoolColumn({ label, schools }: { label: string; schools: { name: 
 
 // Schools - the researched districts and schools by level (or the raw NCES list for a town not
 // researched yet), private schools, and the always-on "confirm with the district" note.
-function TownSchools({ facts, name, luxe }: { facts: Record<string, any>; name: string; luxe: boolean }) {
+function TownSchools({ facts, name, luxe, state }: { facts: Record<string, any>; name: string; luxe: boolean; state?: string | null }) {
   const ps = facts.public_schools || {}
   const districts: { name: string; source_url?: string; share?: number }[] = ps.districts || []
   const raw: any[] = Array.isArray(facts.schools) ? facts.schools : (facts.schools?.items || [])
@@ -341,8 +341,37 @@ function TownSchools({ facts, name, luxe }: { facts: Record<string, any>; name: 
         </p>
       </div>
       {privateSchools.length > 0 ? (
-        <TownPlaceCard categoryKey="private_schools" data={facts.private_schools} luxe={luxe} label="Private & independent schools" />
+        <TownPlaceCard categoryKey="private_schools" data={facts.private_schools} luxe={luxe} label="Private & independent schools" state={state} />
       ) : <div className="hidden lg:block" />}
+    </div>
+  )
+}
+
+/** Which local governments the town's homes sit in - one row and share bar each (biggest four,
+ * the rest as "Other"), instead of one run-on "A 40% · B 22% · ..." line. */
+function TownGovShares({ label, items }: { label: string; items: { name: string; share: number }[] }) {
+  const sorted = [...items].sort((a, b) => (b.share || 0) - (a.share || 0))
+  const top = sorted.slice(0, 4)
+  const other = sorted.slice(4).reduce((n, m) => n + (m.share || 0), 0)
+  const rows = other > 0 ? [...top, { name: `Other (${sorted.length - 4})`, share: other }] : top
+  return (
+    <div className="mt-5">
+      <p className="text-[13px] font-semibold" style={{ color: 'var(--site-muted)' }}>{label}</p>
+      <ul className="mt-2.5 space-y-2.5">
+        {rows.map(m => (
+          <li key={m.name}>
+            <div className="flex items-baseline justify-between gap-3 text-[13px]">
+              <span className="min-w-0 truncate font-bold" style={{ color: 'var(--site-heading)' }}>{m.name}</span>
+              {rows.length > 1 && <span className="shrink-0 font-black tabular-nums" style={{ color: 'var(--site-heading)' }}>{Math.round(m.share)}%</span>}
+            </div>
+            {rows.length > 1 && (
+              <span className="mt-1 block h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: 'var(--site-line)' }}>
+                <span className="block h-full rounded-full" style={{ width: `${Math.max(2, Math.min(100, m.share))}%`, background: 'linear-gradient(90deg, var(--site-accent-deep), var(--site-accent))' }} />
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -436,7 +465,7 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
   const aroundKeys = ['transportation', 'medical'].filter(k => categoryHasContent(facts, k))
   const hasMarket = !!(trends.series?.length && (trends.closed_count || trends.active_count)) || (facts.market_context?.stats?.length || 0) > 0 || !!(area.insights?.gauge || area.insights?.taxes || area.insights?.money_buys)
   const hasSchools = !!facts.public_schools?.districts?.length || schoolCount > 0
-  const hasAround = aroundKeys.length > 0 || !!area.explore_origin || !!facts.commute?.destinations?.length || !!facts.walk?.rows?.length
+  const hasAround = aroundKeys.length > 0 || (livingKeys.length === 0 && !!area.explore_origin) || !!facts.commute?.destinations?.length || !!facts.walk?.rows?.length
   const sections = [
     { id: 'overview', label: 'Overview' },
     { id: 'homes', label: 'Homes' },
@@ -456,20 +485,26 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
 
   const d = demographics || {}
   // A mailing-address town can span townships (Haverford: Lower Merion + Haverford) - say so plainly.
-  const townships = ((area.municipalities || []) as { name: string; share: number }[]).map(m => `${m.name} ${m.share}%`).join(' · ')
+  // At a glance = three tidy parts (user, 10/27 - it was one long list with a run-on townships line):
+  // the home numbers as a 2x2 grid, the local governments as share bars, then the place facts.
+  const municipalities = ((area.municipalities || []) as { name: string; share: number }[]).filter(m => m?.name)
+  const glanceGovLabel = municipalities.length && municipalities.every(m => /township$/i.test(m.name)) ? (municipalities.length > 1 ? 'Townships' : 'Township') : 'Local government'
+  const glanceStats = ([
+    marketStats?.median_price != null ? ['Median list price', formatCompactPrice(marketStats.median_price)] : null,
+    inventoryTotal > 0 ? ['For sale now', String(inventoryTotal)] : null,
+    trends.median_sold_price ? ['Median sold · 1 yr', formatCompactPrice(trends.median_sold_price)] : null,
+    // Shorter label for the small grid tile
+    ((dom) => dom && [/listed/i.test(dom[0]) ? 'Days listed (now)' : 'Days on market', dom[1]])(daysOnMarketStat(marketStats, trends)),
+  ].filter(Boolean) as [string, string][])
   const glance = ([
-    townships ? [((area.municipalities || []) as { name: string }[]).every(m => /township$/i.test(m.name)) ? 'Townships' : 'Local government', townships] : null,
-    facts.flood?.homes_checked ? ['Homes in FEMA high-risk flood zones', `${facts.flood.high_risk_pct}%`] : null,
-    facts.walk?.level ? ['Getting around on foot', String(facts.walk.level)] : null,
-    marketStats?.median_price != null ? ['Median list price', `$${Math.round(marketStats.median_price).toLocaleString()}`] : null,
-    inventoryTotal > 0 ? ['Homes for sale now', String(inventoryTotal)] : null,
-    trends.median_sold_price ? ['Median sold (12 mo)', `$${Math.round(trends.median_sold_price).toLocaleString()}`] : null,
-    daysOnMarketStat(marketStats, trends),
     // Says which area the count is for - "Malvern borough" is far smaller than the Malvern mailing area this page covers.
     d.population?.value ? [d.population.label ? `Population (${d.population.label})` : 'Population', Math.round(d.population.value).toLocaleString()] : null,
     // No age / income / who-owns rows - describing residents is off-limits under Fair Housing.
     countyLabel ? [countyIsCity ? (countyLabel === 'Independent city' ? 'Local government' : 'County / city') : / and |counties$/i.test(countyLabel) ? 'Counties' : 'County', countyLabel] : null,
+    facts.walk?.level ? ['Walkability', String(facts.walk.level)] : null,
+    facts.flood?.homes_checked ? ['High flood-risk homes', `${facts.flood.high_risk_pct}%`] : null,
   ].filter(Boolean) as [string, string][])
+  const hasGlance = glanceStats.length > 0 || glance.length > 0 || municipalities.length > 0
 
   const faqJsonLd = faq.length ? {
     '@context': 'https://schema.org',
@@ -600,12 +635,25 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
             )}
           </div>
           <aside className="min-w-0 space-y-5">
-            {glance.length > 0 && (
+            {hasGlance && (
               <div className={`border p-6 ${luxe ? 'rounded-[24px]' : 'rounded-2xl'}`} style={TOWN_CARD_STYLE}>
                 <p className="text-[11px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent-text)' }}>{area.name} at a glance</p>
-                <dl className="mt-4 divide-y" style={{ borderColor: 'var(--site-line)' }}>
-                  {glance.map(([label, value]) => <TownGlanceRow key={label} label={label} value={value} />)}
-                </dl>
+                {glanceStats.length > 0 && (
+                  <div className={`mt-4 grid grid-cols-2 gap-px overflow-hidden ${luxe ? 'rounded-2xl' : 'rounded-xl'}`} style={{ backgroundColor: 'var(--site-line)' }}>
+                    {glanceStats.map(([label, value]) => (
+                      <div key={label} className="px-3 py-3" style={{ backgroundColor: 'var(--site-surface)' }}>
+                        <p className={`text-xl font-black leading-none ${fontClass(theme.heading_font, 'font-serif')}`} style={{ color: 'var(--site-heading)' }}>{value}</p>
+                        <p className="mt-1.5 text-[10px] font-black uppercase tracking-[0.08em]" style={{ color: 'var(--site-faint)' }}>{label}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {municipalities.length > 0 && <TownGovShares label={glanceGovLabel} items={municipalities} />}
+                {glance.length > 0 && (
+                  <dl className="mt-4 divide-y" style={{ borderColor: 'var(--site-line)' }}>
+                    {glance.map(([label, value]) => <TownGlanceRow key={label} label={label} value={value} />)}
+                  </dl>
+                )}
                 <p className="mt-4 text-[10px] font-semibold leading-relaxed" style={{ color: 'var(--site-muted)' }}>Home numbers update live from the MLS. People numbers: U.S. Census (ACS).</p>
               </div>
             )}
@@ -724,11 +772,21 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
 
         {area.sales?.length > 0 && (
           <div className="mt-12">
-            <TownSubheading count={area.sales.length}>{profile?.name ? `Sold by ${profile.name}` : 'My recent sales'}</TownSubheading>
+            {/* "Recent" only under $50M in sales (sales_wording) - same rule as the Agent Hub. */}
+            <TownSubheading count={area.sales.length}>{profile?.sales_recent === false ? `My sales in ${area.name}` : `My recent sales in ${area.name}`}</TownSubheading>
+            {profile?.name && <p className="mt-1 text-sm" style={{ color: 'var(--site-muted)' }}>Homes {profile.name.split(' ')[0]} sold right here.</p>}
             <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {area.sales.slice(0, 3).map((item: any) => <ListingCard key={item.id} item={item} theme={theme} basePrefix={basePrefix} />)}
             </div>
-            {area.sales.length > 3 && (
+            {/* More than 3: "View all" opens the Agent Hub's sales page inside the site (/sales),
+                filtered to this town, with a Back that returns here (user, 10/27). */}
+            {area.sales.length > 3 && profile?.agent_hub_slug ? (
+              <a href={`${basePrefix}/sales?town=${encodeURIComponent(area.name)}&from=${encodeURIComponent(selfPath)}`}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-black transition hover:-translate-y-0.5"
+                style={{ borderColor: 'var(--site-line-strong)', color: 'var(--site-heading)' }}>
+                View all my sales in {area.name} <ArrowRight className="h-3.5 w-3.5" />
+              </a>
+            ) : area.sales.length > 3 && (
               <TownMore label={`See ${area.sales.length - 3} more`}>
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   {area.sales.slice(3).map((item: any) => <ListingCard key={item.id} item={item} theme={theme} basePrefix={basePrefix} />)}
@@ -772,7 +830,7 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
       {hasSchools && (
         <TownSection id="schools" alt>
           <TownHeading luxe={luxe} eyebrow="Schools" title={`Schools in ${area.name}`} sub="Public districts and schools by level, plus private options nearby." />
-          <TownSchools facts={facts} name={area.name} luxe={luxe} />
+          <TownSchools facts={facts} name={area.name} luxe={luxe} state={area.state} />
         </TownSection>
       )}
 
@@ -780,7 +838,9 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
         <TownSection id="living">
           <TownHeading luxe={luxe} eyebrow="Living here" title={`Day-to-day life in ${area.name}`} sub="Where people eat, shop, get groceries and get outside." />
           {livingKeys.length > 0 && (
-            <TownLiving town={area.name} luxe={luxe} categories={livingKeys.map(k => ({
+            <TownLiving town={area.name} state={area.state} luxe={luxe}
+              map={area.explore_origin ? { siteId, slug, origin: area.explore_origin, accent: theme.secondary_color || '#C9A24D' } : null}
+              categories={livingKeys.map(k => ({
               key: k, label: CURATED_CATEGORY_META[k]?.label || k, notes: facts[k]?.notes || null,
               items: categoryEntities(facts[k]).map(e => ({ name: e.name, category: e.category, city: e.city, distance_miles: e.distance_miles, description: e.description, source_url: e.source_url })),
             }))} />
@@ -806,11 +866,13 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
               <TownCommute data={facts.commute} town={area.name} luxe={luxe} />
               <TownWalk data={facts.walk} town={area.name} luxe={luxe} />
               <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
-                {aroundKeys.map(k => <TownPlaceCard key={k} categoryKey={k} data={facts[k]} luxe={luxe} />)}
+                {aroundKeys.map(k => <TownPlaceCard key={k} categoryKey={k} data={facts[k]} luxe={luxe} state={area.state} />)}
               </div>
             </div>
           )}
-          <div className={`mx-auto max-w-6xl ${aroundKeys.length ? 'mt-6' : ''}`}>
+          {/* The amenity map lives in Day-to-day life now (TownLiving's map) - this box only for a
+              town with no day-to-day research to hang it on. */}
+          {livingKeys.length === 0 && <div className={`mx-auto max-w-6xl ${aroundKeys.length ? 'mt-6' : ''}`}>
             <ExploreNearby
               siteId={siteId}
               kind="area"
@@ -821,7 +883,7 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
               theme={theme}
               embedded
             />
-          </div>
+          </div>}
         </section>
       )}
 

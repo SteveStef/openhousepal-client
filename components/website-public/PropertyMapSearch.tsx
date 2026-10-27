@@ -602,7 +602,7 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
       {/* results bar */}
       <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6" style={{ backgroundColor: 'var(--site-bg)' }}>
         <p className="text-sm font-bold" style={{ color: 'var(--site-heading)' }}>
-          {listings.length >= 120 ? '120+' : listings.length.toLocaleString()} {listings.length === 1 ? 'home' : 'homes'} <span className="font-semibold" style={{ color: 'var(--site-muted)' }}>{filters.include_rentals === 'true' ? 'for sale & rent' : 'for sale'}{area ? ' in your drawn area' : ''}</span>
+          {pending ? <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" style={{ color: 'var(--site-accent)' }} />Finding homes…</span> : <>{listings.length >= 120 ? '120+' : listings.length.toLocaleString()} {listings.length === 1 ? 'home' : 'homes'} <span className="font-semibold" style={{ color: 'var(--site-muted)' }}>{filters.include_rentals === 'true' ? 'for sale & rent' : 'for sale'}{area ? ' in your drawn area' : ''}</span></>}
         </p>
         <div className="flex items-center gap-2">
           <label className="relative inline-flex items-center">
@@ -628,8 +628,19 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
         </div>
       ) : (
         <div className="relative lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-          <div className={`px-4 pb-24 transition-opacity duration-300 sm:px-6 lg:block lg:max-h-[calc(100vh-180px)] lg:overflow-y-auto lg:pb-8 ${phoneMap ? 'hidden' : ''} ${pending ? 'pointer-events-none opacity-50' : ''}`}>
-            {listings.length === 0 ? empty : <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{listings.map(l => card(l, true))}</div>}
+          <div className={`relative px-4 pb-24 sm:px-6 lg:block lg:max-h-[calc(100vh-180px)] lg:overflow-y-auto lg:pb-8 ${phoneMap ? 'hidden' : ''} ${pending ? 'pointer-events-none' : ''}`}>
+            {/* A filter change used to just grey the list out (phones never see the map's veil) -
+                now the site's loading mark rides over the list until the new homes arrive. */}
+            <AnimatePresence>
+              {pending && (
+                <motion.div key="list-veil" className="sticky top-24 z-20 -mb-28 flex h-28 justify-center pt-4" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                  <div className="ohp-map-veil-card"><SiteLoader size="sm" label="Updating homes" /></div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <div className={`transition-opacity duration-300 ${pending ? 'opacity-40' : ''}`}>
+              {listings.length === 0 ? empty : <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{listings.map(l => card(l, true))}</div>}
+            </div>
           </div>
           <div className={`lg:sticky lg:top-20 lg:block lg:h-[calc(100vh-180px)] ${phoneMap ? 'fixed inset-x-0 bottom-0 top-[64px] z-30 block' : 'hidden'}`}>
             <div className="relative h-full w-full overflow-hidden lg:rounded-l-[28px]" style={pinColors}>

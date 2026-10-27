@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
+import SiteLoader from './SiteLoader'
 
 // Every click to another page on the IDX site gets instant feedback: a thin accent line glides
 // across the top of the screen until the next page arrives (and the new page's content fades up -
@@ -42,10 +43,27 @@ export default function SiteNavProgress() {
     return () => clearTimeout(t)
   }, [state])
 
+  // A page that isn't there in a blink gets the site's own loading screen - the agent's logo or
+  // initials (SiteLoader) on the site's background - like the OpenHousePal app's loading pages.
+  // Waits a moment first so quick pages never flash it.
+  const [screen, setScreen] = useState(false)
+  useEffect(() => {
+    if (state !== 'loading') { setScreen(false); return }
+    const t = setTimeout(() => setScreen(true), 350)
+    return () => clearTimeout(t)
+  }, [state])
+
   if (state === 'idle') return null
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[200] h-[3px]">
-      <div className={`ohp-nav-progress h-full ${state === 'done' ? 'is-done' : ''}`} />
-    </div>
+    <>
+      <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[200] h-[3px]">
+        <div className={`ohp-nav-progress h-full ${state === 'done' ? 'is-done' : ''}`} />
+      </div>
+      {screen && (
+        <div className="ohp-nav-screen fixed inset-0 z-[190] grid place-items-center">
+          <SiteLoader size="lg" label={null} />
+        </div>
+      )}
+    </>
   )
 }

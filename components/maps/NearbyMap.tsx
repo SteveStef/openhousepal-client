@@ -42,12 +42,14 @@ export function placeMarkers(nb: Nearby, color: string): CanvasMarker[] {
 }
 
 /** Category chips + the cards for the picked one. */
-export function NearbyPicker({ nb, accent, tone = 'auto', originLabel, categories, variant = 'row' }: {
+export function NearbyPicker({ nb, accent, tone = 'auto', originLabel, categories, variant = 'row', chips = true }: {
   nb: Nearby; accent: string; tone?: Tone; originLabel: string
   /** Only these category keys, in this order (the Guest Pass keeps it to the six people ask about). */
   categories?: string[]
   /** 'grid' = big easy buttons, two rows of three (phone-first pages like the Guest Pass). */
   variant?: 'row' | 'grid'
+  /** false = the page picks the category itself (the town page's day-to-day tabs) - cards only. */
+  chips?: boolean
 }) {
   const t = T[tone]
   const cats = categories ? categories.map(k => nearbyCategory(k)).filter(Boolean) as typeof NEARBY_CATEGORIES : NEARBY_CATEGORIES
@@ -65,8 +67,10 @@ export function NearbyPicker({ nb, accent, tone = 'auto', originLabel, categorie
   }, [nb.selected])
 
   if (nb.available === false) return null
+  if (!chips && !nb.active) return null
   return (
     <div className="mt-4">
+      {chips && <>
       <div className="flex items-center justify-between gap-3">
         <p className={`text-[11px] font-black uppercase tracking-[0.2em] ${t.muted}`}>Explore nearby</p>
         {nb.active && (
@@ -95,6 +99,7 @@ export function NearbyPicker({ nb, accent, tone = 'auto', originLabel, categorie
           )
         })}
       </div>
+      </>}
 
       <AnimatePresence mode="wait" initial={false}>
         {!nb.active ? (
@@ -152,7 +157,7 @@ export function NearbyPicker({ nb, accent, tone = 'auto', originLabel, categorie
 }
 
 /** The map box + the picker under it. `boxClassName` sizes / frames the map box. */
-export default function NearbyMap({ latitude, longitude, address, accent, dark, tone = 'auto', siteId, kind, listingKey, slug, nearbyOn = true, originLabel, boxClassName, showHome = true, homeLabel, categories, variant, gestures }: {
+export default function NearbyMap({ latitude, longitude, address, accent, dark, tone = 'auto', siteId, kind, listingKey, slug, nearbyOn = true, originLabel, boxClassName, showHome = true, homeLabel, categories, variant, gestures, category }: {
   latitude: number
   longitude: number
   address?: string | null
@@ -173,9 +178,18 @@ export default function NearbyMap({ latitude, longitude, address, accent, dark, 
   categories?: string[]
   variant?: 'row' | 'grid'
   gestures?: 'cooperative' | 'greedy'
+  /** Set = the page picks the category (null = no pins) and the map's own chips hide. */
+  category?: string | null
 }) {
   const enabled = nearbyOn && !!siteId
   const nb = useNearby({ siteId: siteId || '', kind, listingKey, slug, enabled })
+  const controlled = category !== undefined
+  const select = nb.select
+  // Only once availability is known (a spent Places budget = no lookups, no pins).
+  useEffect(() => {
+    if (controlled && nb.available) select(category ?? null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controlled, category, nb.available])
   const boxRef = useRef<HTMLDivElement>(null)
   // The pins' colour: the page accent, read once the box exists (var(--sp-accent) on Spotlight).
   const pinColor = useMemo(() => {
@@ -195,7 +209,7 @@ export default function NearbyMap({ latitude, longitude, address, accent, dark, 
           places={markers} activePlace={nb.selected} onActivePlace={id => nb.selectPlace(id)} showHome={showHome} homeLabel={homeLabel}
           holdCamera={!!nb.active && (nb.loading === nb.active || !nb.places)} gestures={gestures} />
       </div>
-      {enabled && <NearbyPicker nb={nb} accent={pinColor} tone={tone} originLabel={originLabel} categories={categories} variant={variant} />}
+      {enabled && <NearbyPicker nb={nb} accent={pinColor} tone={tone} originLabel={originLabel} categories={categories} variant={variant} chips={!controlled} />}
     </div>
   )
 }

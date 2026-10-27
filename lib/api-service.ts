@@ -1654,6 +1654,10 @@ class ApiService {
     removeArea: (linkId: string) =>
       this.request<null>(`/studio/sites/me/areas/${linkId}`, { method: 'DELETE' }),
 
+    // The Areas list's up/down arrows - the website's town lists follow this order.
+    reorderAreas: (linkIds: string[]) =>
+      this.request<null>('/studio/sites/me/areas/order', { method: 'PUT', body: JSON.stringify({ link_ids: linkIds }) }),
+
     applyTemplate: () => this.request<Site>('/studio/sites/me/apply-template', { method: 'POST' }),
 
     // Hydrates unsaved editor blocks the same way the public renderer hydrates a published page

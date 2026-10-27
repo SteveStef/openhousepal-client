@@ -21,7 +21,7 @@ export default function TownInsights({ data, town, luxe }: { data?: TownInsights
   const bands = data?.money_buys || []
   const [band, setBand] = useState(Math.min(2, Math.max(0, bands.length - 1)))
   if (!data || (!bands.length && !data.gauge && !data.taxes)) return null
-  const card = `border p-5 sm:p-6 ${luxe ? 'rounded-[24px]' : 'rounded-2xl'}`
+  const card = `min-w-0 border p-5 sm:p-6 ${luxe ? 'rounded-[24px]' : 'rounded-2xl'}`
   const cardStyle = { borderColor: 'var(--site-line)', backgroundColor: 'var(--site-surface)', boxShadow: 'var(--site-shadow)' }
   const eyebrow = (icon: React.ReactNode, text: string) => (
     <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent-text)' }}>{icon}{text}</p>
@@ -31,8 +31,10 @@ export default function TownInsights({ data, town, luxe }: { data?: TownInsights
   const pos = g?.months_of_supply != null ? Math.min(100, (g.months_of_supply / 9) * 100) : null
   const b = bands[band]
 
+  // grid-cols-1 = minmax(0,1fr): without it the budget tabs (one long scroll row) widened the
+  // column past a phone screen and every card ran off the right edge (user, 10/27).
   return (
-    <div className="mt-8 grid gap-5 lg:grid-cols-2">
+    <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
       {g && (
         <motion.div className={card} style={cardStyle} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, ease }}>
           {eyebrow(<Gauge className="h-3.5 w-3.5" />, 'Market pace')}

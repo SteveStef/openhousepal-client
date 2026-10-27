@@ -1,6 +1,7 @@
 import { SiteTheme } from '../types'
 import { fontClass } from './fontClass'
 import { sizedBg } from '@/lib/siteImage'
+import { statusBadgeColor } from '../listingFormat'
 
 interface SaleCard {
   id: string
@@ -27,9 +28,10 @@ export default function RecentSalesBlock({ data, theme, siteId, basePrefix = '' 
   // listings matched to this agent) - hide the section rather than show an empty grid.
   if (!sales.length) return null
 
-  // Derived directly from the same real rows being rendered below - never a separately fetched
-  // or fabricated summary figure.
-  const totalVolume = sales.reduce((sum, s) => sum + (s.price || 0), 0)
+  // All the agent's sales (their Agent Hub list - the same numbers as the About strip and the
+  // hub), sent with the block; the shown cards' own sum only for an older payload without them.
+  const soldCount: number = data.sold_count || sales.length
+  const totalVolume: number = data.sold_volume || sales.reduce((sum, s) => sum + (s.price || 0), 0)
 
   return (
     <section className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
@@ -40,7 +42,7 @@ export default function RecentSalesBlock({ data, theme, siteId, basePrefix = '' 
         {/* Hidden when the agent turned off "Show my sold stats" (setup Sales step). */}
         {data.show_stats !== false && (
           <div className="mt-4 flex flex-wrap items-center justify-center gap-6 text-sm">
-            <span className="font-bold text-gray-500">{sales.length} {sales.length === 1 ? 'Home' : 'Homes'} Sold</span>
+            <span className="font-bold text-gray-500">{soldCount} {soldCount === 1 ? 'Home' : 'Homes'} Sold</span>
             {totalVolume > 0 && <span className="font-bold text-gray-500">{formatVolume(totalVolume)} in Volume</span>}
           </div>
         )}
@@ -55,7 +57,8 @@ export default function RecentSalesBlock({ data, theme, siteId, basePrefix = '' 
           const card = (
             <div className="ohp-card group overflow-hidden rounded-3xl bg-white shadow-[0_2px_24px_rgba(17,24,39,0.08)] ring-1 ring-black/[0.04] transition hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(17,24,39,0.16)]">
               <div className="relative aspect-[4/3] w-full bg-gray-100 bg-cover bg-center" style={{ backgroundImage: sizedBg((sale as any).photo, 640) }}>
-                <span className="absolute left-3 top-3 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-sm" style={{ backgroundColor: theme.primary_color }}>Sold</span>
+                {/* Sold is red everywhere (listingFormat.statusBadgeColor) - it was the theme's dark color */}
+                <span className="absolute left-3 top-3 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide shadow-sm" style={{ backgroundColor: statusBadgeColor('CLOSED').bg, color: statusBadgeColor('CLOSED').fg }}>Sold</span>
               </div>
               <div className="p-5">
                 {sale.price != null && <p className={`text-xl font-black ${fontClass(theme.heading_font, 'font-serif')}`} style={{ color: 'var(--site-heading)' }}>${sale.price.toLocaleString()}</p>}

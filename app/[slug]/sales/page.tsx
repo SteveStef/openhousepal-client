@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Home, Mail, MapPin, TrendingUp } from 'lucide-react'
+import { ArrowLeft, Home, Mail, MapPin, TrendingUp, X } from 'lucide-react'
+import { samePlace } from '@/lib/matchScore'
 import api from '@/lib/api-service'
 import { HubAgentPhoto, HubLuxeDecor, HubLuxeStyles, hubLuxeMetalClass, isHubPhotoSet } from '@/components/agent-hub/HubLuxeTheme'
 import { HUB_CLASSIC_DEFAULT_ACCENT, HubClassicStyles, hubAccentOf, hubAccentStyle, hubClassicClass } from '@/components/agent-hub/HubClassicTheme'
@@ -58,7 +59,13 @@ export default function AgentHubSalesPage() {
   const params = useParams<{ slug: string }>()
   const agentSlug = params.slug
   // An IDX site opens the hub with ?idx_light=1 - always light there, like the hub page itself.
-  const forceLightMode = useSearchParams().get('idx_light') === '1'
+  const searchParams = useSearchParams()
+  const forceLightMode = searchParams.get('idx_light') === '1'
+  // From an IDX town page's "View all" (?town=Malvern): only that town's sales, with Back going
+  // to the page they came from (idx_return - the IDX site frames this page, so Back leaves the frame).
+  const [town, setTown] = useState(() => (searchParams.get('town') || '').trim())
+  const idxReturn = forceLightMode ? searchParams.get('idx_return') || '' : ''
+  const backHref = /^(https?:\/\/|\/(?!\/))/.test(idxReturn) ? idxReturn : ''
   const agentHubBasePath = `/${agentSlug}`
   const [profile, setProfile] = useState(defaultProfile)
   const [contact, setContact] = useState(defaultContact)
@@ -108,8 +115,8 @@ export default function AgentHubSalesPage() {
 
   const visibleListings = useMemo(() => listings.filter(listing => listing.visible !== false && isEligibleListing(listing)), [listings])
   const visibleSales = useMemo(
-    () => applySalesDisplay(sales.filter(sale => sale.visible !== false && isEligibleSale(sale)), salesRules.minPrice, salesRules.sort),
-    [sales, salesRules],
+    () => applySalesDisplay(sales.filter(sale => sale.visible !== false && isEligibleSale(sale) && (!town || samePlace(sale.city, town))), salesRules.minPrice, salesRules.sort),
+    [sales, salesRules, town],
   )
   const eligibleSales = useMemo(() => sales.filter(sale => isEligibleSale(sale)), [sales])
   const totalVolume = eligibleSales.reduce((sum, sale) => sum + (sale.price || 0), 0)
@@ -174,9 +181,15 @@ export default function AgentHubSalesPage() {
         </div>
       )}
       <section className="relative mx-auto max-w-5xl px-5 pb-12 pt-6">
-        <Link href={agentHubBasePath} className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-black text-[#111827] shadow-sm dark:border-gray-700 dark:bg-[#151517] dark:text-white">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Link>
+        {backHref ? (
+          <a href={backHref} target="_top" className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-black text-[#111827] shadow-sm dark:border-gray-700 dark:bg-[#151517] dark:text-white">
+            <ArrowLeft className="h-4 w-4" /> {town ? `Back to ${town}` : 'Back'}
+          </a>
+        ) : (
+          <Link href={agentHubBasePath} className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-black text-[#111827] shadow-sm dark:border-gray-700 dark:bg-[#151517] dark:text-white">
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Link>
+        )}
 
         <header className="hub-lx-panel mt-6 overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-[#151517] dark:shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
           <div className="flex flex-col items-center gap-5 p-6 text-center lg:grid lg:grid-cols-[auto_1fr_auto] lg:items-center lg:text-left">
@@ -228,8 +241,14 @@ export default function AgentHubSalesPage() {
             <div className="flex flex-wrap items-center gap-3">
               <h2 className={headingCls}>Past Sales</h2>
               {visibleSales.length > 0 && countPill(visibleSales.length === 1 ? '1 sold' : `${visibleSales.length} sold`)}
+              {town && (
+                <button type="button" onClick={() => { setTown(''); setPage(1) }} aria-label={`Show sales in every town, not just ${town}`}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#111827] px-3 py-1 text-[11px] font-black text-white shadow-sm dark:bg-white dark:text-[#111827]">
+                  <MapPin className="h-3 w-3" /> {town} <X className="h-3 w-3 opacity-70" />
+                </button>
+              )}
             </div>
-            <p className="mt-2 text-sm font-semibold text-gray-600 dark:text-gray-300">A closer look at homes this agent has represented.</p>
+            <p className="mt-2 text-sm font-semibold text-gray-600 dark:text-gray-300">{town ? `Homes this agent has sold in ${town}.` : 'A closer look at homes this agent has represented.'}</p>
           </div>
           {totalPages > 1 && <p className="text-[11px] font-black uppercase tracking-wide text-gray-400 dark:text-gray-500">Page {page} of {totalPages}</p>}
         </div>
