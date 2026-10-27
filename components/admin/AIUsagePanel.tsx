@@ -22,8 +22,16 @@ const PROVIDER_FAILURE_LABELS: Record<string, string> = {
 const EVENT_TYPE_LABELS: Record<string, string> = {
   chat: 'Chat', tts: 'Read Aloud', realtime: 'Talk to OHP', cma_ai: 'CMA - comp analysis',
   cma_reasoning: 'CMA - final reasoning', area_narrative: 'Area narrative', area_research: 'Area research',
-  copywrite: 'AI Copywriter', blog_writer: 'AI Blog Writer', external_api: 'External API',
+  copywrite: 'AI Copywriter', blog_writer: 'AI Blog Writer', external_api: 'Google look-ups (agents)',
   studio_media_image: 'Studio Media - image', studio_media_video: 'Studio Media - video',
+  cma_ai_recompute: 'CMA - recompute', area_fair_housing: 'Town pages - fair housing check',
+  school_lookup: 'Cheat sheet - schools', cheat_sheet_downtown: 'Cheat sheet - nearby places',
+  cheat_sheet_proofread: 'Cheat sheet - proofread', explore_nearby: 'Explore Nearby (Google, visitors)',
+}
+
+const PROVIDER_LABELS: Record<string, string> = {
+  anthropic: 'Anthropic (Claude)', openai: 'OpenAI', fal: 'fal (AI video)', google: 'Google (agent look-ups)',
+  google_places: 'Google Places (visitors)', other: 'Other',
 }
 
 function eventTypeLabel(key: string): string {
@@ -293,8 +301,8 @@ export default function AIUsagePanel() {
         const tiles: { label: string; spent: number; limit?: number | null; sub: string }[] = [
           { label: 'Site spend today', spent: overview?.total_cost_today_usd || 0, limit: brake?.day_limit_usd, sub: 'every AI + Google feature combined' },
           { label: 'Site spend this month', spent: overview?.total_cost_month_usd || 0, limit: brake?.month_limit_usd, sub: 'every AI + Google feature combined' },
-          { label: 'CMA today', spent: cma?.day_spent_usd || 0, limit: cma?.day_limit_usd, sub: 'site-wide CMA cap' },
-          { label: 'CMA this month', spent: cma?.month_spent_usd || 0, limit: cma?.month_limit_usd, sub: 'site-wide CMA cap' },
+          { label: 'CMA today', spent: overview?.cma_cost_today_usd ?? cma?.day_spent_usd ?? 0, limit: cma?.day_limit_usd, sub: 'every CMA AI step, vs the site-wide CMA cap' },
+          { label: 'CMA this month', spent: overview?.cma_cost_month_usd ?? cma?.month_spent_usd ?? 0, limit: cma?.month_limit_usd, sub: 'every CMA AI step, vs the site-wide CMA cap' },
         ]
         return (
           <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4 max-sm:gap-3">
@@ -324,7 +332,7 @@ export default function AIUsagePanel() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 max-sm:gap-3">
         <StatCard icon={<DollarSign className="w-3 h-3" />} label="Cost (Month)" value={formatCost(overview?.total_cost_month_usd || 0)} accent />
         <StatCard icon={<DollarSign className="w-3 h-3" />} label="Cost (All-Time)" value={formatCost(overview?.total_cost_all_time_usd || 0)} />
-        <StatCard icon={<MessageSquare className="w-3 h-3" />} label="Messages (Month)" value={String(overview?.messages_month || 0)} />
+        <StatCard icon={<MessageSquare className="w-3 h-3" />} label="AI calls (Month)" value={String(overview?.messages_month || 0)} />
         <StatCard icon={<Users className="w-3 h-3" />} label="Active Agents (30d)" value={String(overview?.active_agents_30d || 0)} />
         <StatCard icon={<ShieldAlert className="w-3 h-3" />} label="Blocked (Month)" value={String(overview?.blocked_count_month || 0)} />
       </div>
@@ -374,7 +382,7 @@ export default function AIUsagePanel() {
       {overview?.cost_by_provider_month && Object.keys(overview.cost_by_provider_month).length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
           {Object.entries(overview.cost_by_provider_month).map(([provider, cost]) => (
-            <StatCard key={provider} icon={<Globe2 className="w-3 h-3" />} label={`${provider} (Month)`} value={formatCost(cost)} />
+            <StatCard key={provider} icon={<Globe2 className="w-3 h-3" />} label={`${PROVIDER_LABELS[provider] || provider} (Month)`} value={formatCost(cost)} />
           ))}
         </div>
       )}

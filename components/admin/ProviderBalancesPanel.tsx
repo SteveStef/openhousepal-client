@@ -49,12 +49,13 @@ const PROVIDERS: ProviderInfo[] = [
   },
   {
     key: 'runway',
-    name: 'Runway ML',
+    name: 'AI video (fal / Runway / MiniMax)',
     powers: 'Studio Media video generation and AI photo/video upscaling',
     billingUrl: 'https://app.runwayml.com/',
     billingLabel: 'app.runwayml.com',
+    costProviderKeys: ['fal'],
     failureEventTypes: ['studio_media_video'],
-    tracked: false,
+    tracked: true,
   },
   {
     key: 'google_places',
@@ -62,7 +63,7 @@ const PROVIDERS: ProviderInfo[] = [
     powers: 'Explore Nearby amenities, area geocoding and enrichment',
     billingUrl: 'https://console.cloud.google.com/billing',
     billingLabel: 'console.cloud.google.com',
-    costProviderKeys: ['google_places'],
+    costProviderKeys: ['google_places', 'google'],
     tracked: true,
   },
   {

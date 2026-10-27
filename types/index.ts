@@ -3926,6 +3926,8 @@ export interface AIAdminOverview {
   total_cost_month_usd: number;
   total_cost_today_usd?: number;
   total_cost_all_time_usd: number;
+  cma_cost_today_usd?: number;
+  cma_cost_month_usd?: number;
   messages_month: number;
   active_agents_30d: number;
   blocked_count_month: number;

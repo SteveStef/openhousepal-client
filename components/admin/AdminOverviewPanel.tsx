@@ -29,12 +29,20 @@ export default function AdminOverviewPanel({ users, groups, supportUnread, quest
   const [domainIssues, setDomainIssues] = useState<AdminDomainIssue[]>([])
   useEffect(() => { api.admin.getDomainIssues().then(r => { if (r.success && r.data) setDomainIssues(r.data.issues || []) }) }, [])
 
-  const agents = useMemo(() => users.filter(u => !u.is_admin), [users])
+  // Real agents: not the admin, not an admin-made test copy of an agent.
+  const agents = useMemo(() => users.filter(u => !u.is_admin && !u.test_copy_of_user_id), [users])
   const groupsById = useMemo(() => Object.fromEntries(groups.map(g => [g.id, g])), [groups])
   const pending = agents.filter(u => !u.broker_authorized)
   const pays = useMemo(() => {
-    const c: Record<string, number> = { paypal: 0, group: 0, managed: 0, trial: 0, unpaid: 0 }
-    for (const u of agents) c[billingOf(u, groupsById).kind]++
+    const c: Record<string, number> = { paypal: 0, group: 0, managed: 0, trial: 0, unpaid: 0, paying: 0, onTrial: 0 }
+    for (const u of agents) {
+      const kind = billingOf(u, groupsById).kind
+      const status = (u.subscription_status || '').toUpperCase()
+      c[kind]++
+      // A PayPal sign-up in its free trial (or cancelled) isn't paying yet.
+      if (kind === 'group' || kind === 'managed' || (kind === 'paypal' && status === 'ACTIVE')) c.paying++
+      else if (status === 'TRIAL') c.onTrial++
+    }
     return c
   }, [agents, groupsById])
   const newest = [...agents].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5)
@@ -48,11 +56,11 @@ export default function AdminOverviewPanel({ users, groups, supportUnread, quest
     <div className="space-y-5">
       {/* the numbers that matter */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Big icon={Users} label="Agents" value={agents.length} sub={`${pays.paypal + pays.group + pays.managed} paying · ${pays.trial} on trial`} onClick={() => onGo('agents')} />
+        <Big icon={Users} label="Agents" value={agents.length} sub={`${pays.paying} paying · ${pays.onTrial} on trial`} onClick={() => onGo('agents')} />
         <Big icon={ShieldCheck} label="Waiting for approval" value={pending.length} warn={pending.length > 0} onClick={() => onGo('agents')} />
         <Big icon={Activity} label="In the app this week" value={t ? t.active_7 : '…'} sub={t ? `${pct(t.active_7, t.agents)}% of agents` : undefined} onClick={() => onGo('activity')} />
         <Big icon={Home} label="Open houses with sign-ins" value={t ? `${pct(t.open_houses_with_signins, t.open_houses_held)}%` : '…'} sub={t ? `${t.signins} sign-ins` : undefined} onClick={() => onGo('activity')} />
-        <Big icon={Sparkles} label="Leads this month" value={t ? t.leads_30 : '…'} onClick={() => onGo('activity')} />
+        <Big icon={Sparkles} label="Leads, last 30 days" value={t ? t.leads_30 : '…'} onClick={() => onGo('activity')} />
         <Big icon={Inbox} label="Unread messages" value={supportUnread + questionsUnread} sub={`${supportUnread} support · ${questionsUnread} questions`} warn={supportUnread + questionsUnread > 0} onClick={() => onGo(supportUnread ? 'support' : 'questions')} />
       </div>
 
@@ -129,7 +137,7 @@ Happy to help if you get stuck.`)}`}
         </Card>
 
         {/* most used / dropped */}
-        <Card title="Most used this month" action={{ label: 'All features', onClick: () => onGo('activity') }}>
+        <Card title="Most used, last 30 days" action={{ label: 'All features', onClick: () => onGo('activity') }}>
           {!act ? <Empty icon={Loader2} text="Loading..." spin /> : topUsed.map(a => (
             <div key={a.key} className="flex items-center justify-between gap-2 py-1.5 text-xs font-bold">
               <span className="truncate text-gray-600 dark:text-gray-300">{a.label}</span>

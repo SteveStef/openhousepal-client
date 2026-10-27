@@ -118,7 +118,7 @@ export default function AgentActivityPanel({ groups = [] }: { groups?: BillingGr
         <Kpi label="Agents" value={t.agents} sub={`${t.paying} paying`} />
         <Kpi label="In today" value={t.active_today} />
         <Kpi label="This week" value={t.active_7} sub={`${pct(t.active_7, t.agents)}% of agents`} />
-        <Kpi label="This month" value={t.active_30} sub={`${pct(t.active_30, t.agents)}% of agents`} />
+        <Kpi label="Last 30 days" value={t.active_30} sub={`${pct(t.active_30, t.agents)}% of agents`} />
         <Kpi label="Slipping / gone" value={attention} sub="No use in 7+ days" warn={attention > 0} />
         <Kpi label="Open houses w/ sign-ins" value={`${pct(t.open_houses_with_signins, t.open_houses_held)}%`} sub={`${t.open_houses_with_signins} of ${t.open_houses_held} held · ${t.signins} sign-ins`} warn={t.open_houses_held > 0 && pct(t.open_houses_with_signins, t.open_houses_held) < 50} />
         <Kpi label="Leads (30 days)" value={t.leads_30} />
@@ -181,7 +181,7 @@ export default function AgentActivityPanel({ groups = [] }: { groups?: BillingGr
                     <p className="flex items-center gap-1"><Home className="h-3.5 w-3.5" />
                       {oh.held ? <><span className={`font-black ${pct(oh.held_with_signins, oh.held) < 50 ? 'text-red-600 dark:text-red-400' : 'text-[#111827] dark:text-white'}`}>{oh.held_with_signins} of {oh.held}</span>&nbsp;open houses got sign-ins</> : 'No open houses yet'}
                     </p>
-                    <p>{oh.signins} sign-ins · {a.leads_30} leads this month</p>
+                    <p>{oh.signins} sign-ins · {a.leads_30} leads in 30 days</p>
                   </div>
                 </button>
               )
@@ -234,7 +234,7 @@ function FeaturesView({ data }: { data: AdminActivityOverview }) {
                     <div className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-white/[0.06]">
                       <div className="h-full rounded-full bg-[#C9A24D]" style={{ width: `${pct(a.agents_30, n)}%` }} />
                     </div>
-                    <p className="mt-1 text-[11px] font-bold text-gray-500 dark:text-gray-400">{a.agents_30} of {n} agents this month · {a.agents_ever} ever</p>
+                    <p className="mt-1 text-[11px] font-bold text-gray-500 dark:text-gray-400">{a.agents_30} of {n} agents in the last 30 days · {a.agents_ever} ever</p>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     <Chip cls={STATUS.regular.cls}>{a.regular} keep using</Chip>
@@ -339,11 +339,11 @@ export function AgentDrawer({ id, onClose }: { id: string; onClose: () => void }
                             <div key={f.key} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 sm:grid-cols-[minmax(0,1.3fr)_auto_minmax(0,1fr)]">
                               <div className="min-w-0">
                                 <p className="truncate text-[13px] font-bold text-[#111827] dark:text-white">{f.label}</p>
-                                <p className="text-[11px] font-semibold text-gray-400 sm:hidden">{f.total} total · {f.last_30} this month{f.last_at ? ` · last ${timeAgo(f.last_at).toLowerCase()}` : ''}</p>
+                                <p className="text-[11px] font-semibold text-gray-400 sm:hidden">{f.total} total · {f.last_30} in 30 days{f.last_at ? ` · last ${timeAgo(f.last_at).toLowerCase()}` : ''}</p>
                               </div>
                               <Chip cls={STATUS[f.status].cls}>{STATUS[f.status].label}</Chip>
                               <p className="hidden text-right text-[11px] font-semibold text-gray-500 dark:text-gray-400 sm:block">
-                                <span className="font-black text-[#111827] dark:text-white">{f.total}</span> total · {f.last_30} this month
+                                <span className="font-black text-[#111827] dark:text-white">{f.total}</span> total · {f.last_30} in 30 days
                                 {f.last_at && <><br />last {timeAgo(f.last_at).toLowerCase()} · first {shortDate(f.first_at)}</>}
                               </p>
                             </div>
