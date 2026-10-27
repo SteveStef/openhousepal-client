@@ -2,10 +2,11 @@
 
 import { OhpSpinner } from '@/components/brand/OhpLoader'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import Link from 'next/link'
+import { pageRiseFrom, pageRiseTo, pageRiseTransition } from '@/components/ui/PageReveal'
 import {
-  ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Building2, Check, Compass, Copy, Eye, EyeOff, Heart, Home, Loader2, Mail,
+  ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Bell, BellOff, Building2, Check, Compass, Copy, Eye, EyeOff, Heart, Home, Loader2, Mail,
   MailX, MessageCircle, Pencil, Phone, Plus, Send, Sparkles, Tag, ThumbsDown, Trash2, X,
 } from 'lucide-react'
 import OhSheet from '@/components/open-house-manager/OhSheet'
@@ -16,6 +17,7 @@ import { LeadDetail, LeadEvent, LeadNote, LeadRepresented, LeadShowcase, LeadSta
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import TasksPanel from '@/components/tasks/TasksPanel'
+import LeadAlertSwitches from '@/components/leads/LeadAlertSwitches'
 import { LeadEmailCard } from '@/components/emails/EmailEngagement'
 import { useFollowupsEnabled } from '@/components/tasks/FollowupsSwitch'
 import Pager from '@/components/ui/Pager'
@@ -23,6 +25,9 @@ import NotesThread from './NotesThread'
 import { copyText } from '@/lib/copyText'
 import LuxeSelect from '@/components/ui/LuxeSelect'
 import MotionModal from '@/components/ui/MotionModal'
+
+// Something in this person's alert settings is switched off (the Alert settings button says so).
+const alertsOff = (a?: { calendar: boolean; in_app: boolean; emails: boolean }) => !!a && (!a.calendar || !a.in_app || !a.emails)
 
 // The pipeline, in order. (Older rows may still say qualified/converted/archived - shown as these.)
 const STATUSES: { id: LeadStatus; label: string; dot: string; hex: string; hint: string }[] = [
@@ -128,6 +133,9 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
   const { user } = useAuth()
   const { showToast } = useToast()
   const followupsOn = useFollowupsEnabled().enabled !== false
+  // This person's alert switches (owner, 10/27) - a sheet from the Follow-ups section.
+  const [alertsOpen, setAlertsOpen] = useState(false)
+  const reduceMotion = useReducedMotion()
   const [lead, setLead] = useState<LeadDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [notesList, setNotesList] = useState<LeadNote[]>([])
@@ -278,13 +286,18 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
   let lastDay = ''
 
   return (
-    <div>
+    // The page opening (owner, 10/27): the whole lead rises into place the moment it has loaded -
+    // the same rise as the other pages' PageReveal. This panel is both the /leads/<id> page and the
+    // lead window (Leads list, Dash, Follow-ups), and it mounts fresh after every load, so it plays
+    // however the lead is opened. Transform + opacity only (no blur) - smooth on phones; afterwards
+    // the transform is cleared, so menus and sheets inside position normally.
+    <motion.div initial={pageRiseFrom(reduceMotion)} animate={pageRiseTo} transition={pageRiseTransition}>
       <button onClick={onBack} className="hidden items-center gap-1.5 text-sm font-black text-gray-400 transition hover:text-[#111827] dark:hover:text-white sm:inline-flex">
         <ArrowLeft className="h-4 w-4" /> {backLabel}
       </button>
 
       {/* ── who they are, how to reach them, where they stand */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="sm:mt-4">
+      <div className="sm:mt-4">
         <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap sm:gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#111827] text-lg font-black text-[#C9A24D] dark:bg-white dark:text-[#8b7355] sm:h-14 sm:w-14 sm:text-xl">
             {(lead.name || lead.email || '?').charAt(0).toUpperCase()}
@@ -405,7 +418,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
             )}
           </div>
         )}
-      </motion.div>
+      </div>
 
       {/* ── how they found you: a summary the timeline can't give at a glance - where they came
           from, their first and latest touch, and what they told you when they came in. (The
@@ -451,7 +464,14 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
 
           {followupsOn && (
             <Card>
-              <SectionTitle aside={<Link href="/leads/tasks" className="inline-flex items-center gap-1 text-[11px] font-black text-[#8b7355] hover:underline dark:text-[#d7b974]">All follow-ups <ArrowRight className="h-3 w-3" /></Link>}>
+              <SectionTitle aside={<span className="flex shrink-0 items-center gap-2.5 whitespace-nowrap">
+                <button type="button" onClick={() => setAlertsOpen(true)} data-testid="lead-alert-settings"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#C9A24D]/35 bg-white px-2.5 py-1 text-[11px] font-black text-[#8b7355] shadow-sm transition hover:border-[#C9A24D] active:scale-95 dark:bg-white/5 dark:text-[#d7b974]">
+                  {alertsOff(lead.alerts) ? <BellOff className="h-3 w-3" /> : <Bell className="h-3 w-3" />} <span className="sm:hidden">Alerts</span><span className="hidden sm:inline">Alert settings</span>
+                  {alertsOff(lead.alerts) && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-label="Some alerts are off" />}
+                </button>
+                <Link href="/leads/tasks" className="inline-flex items-center gap-1 text-[11px] font-black text-[#8b7355] hover:underline dark:text-[#d7b974]"><span className="sm:hidden">All</span><span className="hidden sm:inline">All follow-ups</span> <ArrowRight className="h-3 w-3" /></Link>
+              </span>}>
                 Follow-ups
               </SectionTitle>
               <TasksPanel leadId={lead.id} leadName={lead.name} events={events} singleColumn onChanged={() => { reload(); onChanged?.() }} />
@@ -602,6 +622,22 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
         </div>
       </div>
 
+      <OhSheet open={alertsOpen} onClose={() => setAlertsOpen(false)} width="max-w-md"
+        icon={<span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#111827] text-[#e8c97a] dark:bg-white/10"><Bell className="h-5 w-5" /></span>}
+        title="Alert settings"
+        subtitle={`Just for ${lead.name || lead.email || 'this lead'}`}>
+        <div className="px-3 pb-6 pt-1 sm:px-4">
+          <LeadAlertSwitches firstName={(lead.name || '').trim().split(/\s+/)[0]}
+            alerts={lead.alerts || { calendar: true, in_app: true, emails: true }}
+            onSave={async patch => {
+              const r = await api.leads.setAlerts(lead.id, patch)
+              if (!r.success || !r.data) return null
+              setLead(l => (l ? { ...l, alerts: r.data! } : l))
+              return r.data
+            }} />
+        </div>
+      </OhSheet>
+
       <OhSheet open={!!invite} onClose={() => setInvite(null)} width="max-w-md"
         icon={<span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8c97a]"><Send className="h-5 w-5" /></span>}
         title="Send a new invite?"
@@ -659,7 +695,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
           </div>
         </div>
       </MotionModal>
-    </div>
+    </motion.div>
   )
 
 }

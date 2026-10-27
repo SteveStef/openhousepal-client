@@ -12,6 +12,7 @@ import { MAIL_CHOICE_LABEL, composeHref, mailChoices, openWithFallback, phoneApp
 import { copyText } from '@/lib/copyText'
 import { isIosDevice, smsHref } from '@/lib/smsLink'
 import type { PublicFollowupText } from '@/types'
+import DoneLeadAlerts from '@/components/tasks/DoneLeadAlerts'
 
 type Extras = {
   home?: { address?: string | null; short?: string | null; photo?: string | null; url?: string | null } | null
@@ -163,7 +164,8 @@ export function EmailChooser({ data, onSent }: { data: TextPageData; onSent: () 
 }
 
 // ------------------------------------------------------------------ computer layout
-export function DesktopTextLayout({ data, qr, sentNow, busy, onDone, onSent, onUndo }: {
+export function DesktopTextLayout({ code, data, qr, sentNow, busy, onDone, onSent, onUndo }: {
+  code: string
   data: TextPageData
   qr: string | null
   sentNow: boolean
@@ -184,12 +186,14 @@ export function DesktopTextLayout({ data, qr, sentNow, busy, onDone, onSent, onU
   const card = 'rounded-3xl border border-gray-200/80 bg-white p-6 shadow-[0_20px_50px_-40px_rgba(17,24,39,.6)] dark:border-white/[0.08] dark:bg-[#151517]'
   const label = 'text-[10px] font-black uppercase tracking-[0.2em] text-gray-400'
   const copy = () => { copyText(data.message).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 1800) }
+  // The page rises in: header, then the left column, then the right (owner, 10/27).
+  const rise = (delay: number) => ({ initial: { opacity: 0, y: 18 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const, delay } })
 
   return (
     <div className="min-h-[calc(100vh-56px)] bg-[#faf9f7] dark:bg-[#0B0B0B]">
       <div className="mx-auto max-w-6xl px-6 py-8 lg:px-8">
         {/* Header, like the app's Luxe pages: kicker, serif title, the why underneath */}
-        <div className="mb-6 flex items-end justify-between gap-6">
+        <motion.div {...rise(0)} className="mb-6 flex items-end justify-between gap-6">
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#8b7355] dark:text-[#e8c97a]">Follow-up</p>
             <h1 className="mt-1 font-serif text-4xl font-black tracking-tight text-[#111827] dark:text-white">
@@ -202,11 +206,11 @@ export function DesktopTextLayout({ data, qr, sentNow, busy, onDone, onSent, onU
           ) : dueLabel ? (
             <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#111827] px-3 py-1.5 text-xs font-black text-[#e8c97a] dark:bg-white/10"><Calendar className="h-4 w-4" /> Due {dueLabel}</span>
           ) : null}
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           {/* LEFT: who, what happened, the message, and the ways to send it */}
-          <div className="space-y-6">
+          <motion.div {...rise(0.08)} className="space-y-6">
             <div className={card}>
               <div className="flex items-center gap-4">
                 <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#111827] to-[#2a2218] font-serif text-lg font-black text-[#e8c97a]">{initials}</span>
@@ -284,10 +288,10 @@ export function DesktopTextLayout({ data, qr, sentNow, busy, onDone, onSent, onU
                 {data.phone ? 'Text uses Messages on this computer - or scan the code on the right to text from your phone.' : 'No phone number on file - email them instead.'}
               </p>
             </div>
-          </div>
+          </motion.div>
 
           {/* RIGHT: text from the phone, done / undo, the follow-up itself */}
-          <div className="space-y-6">
+          <motion.div {...rise(0.16)} className="space-y-6">
             {data.phone && (
               <div className={`${card} text-center`}>
                 <p className="flex items-center justify-center gap-1.5 text-sm font-black text-[#111827] dark:text-white"><Smartphone className="h-4 w-4 text-[#C9A24D]" /> Scan with your phone</p>
@@ -309,6 +313,9 @@ export function DesktopTextLayout({ data, qr, sentNow, busy, onDone, onSent, onU
                     className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-gray-200 text-sm font-black text-gray-600 transition hover:border-[#C9A24D] disabled:opacity-60 dark:border-white/10 dark:text-gray-300">
                     {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />} Undo - not done yet
                   </button>
+                  {data.contact && data.alerts && (
+                    <div className="-mx-3 mt-4 -mb-2"><DoneLeadAlerts code={code} alerts={data.alerts} firstName={data.first_name || ''} delay={0.05} /></div>
+                  )}
                 </>
               ) : (
                 <>
@@ -328,7 +335,7 @@ export function DesktopTextLayout({ data, qr, sentNow, busy, onDone, onSent, onU
               {dueLabel && <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400"><Calendar className="h-3.5 w-3.5" /> {data.all_day ? 'Due' : 'Due'} {dueLabel}</p>}
               <a href="/leads/tasks" className="mt-4 inline-flex items-center gap-1 text-xs font-black text-[#8b7355] hover:underline dark:text-[#e8c97a]">All follow-ups →</a>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>

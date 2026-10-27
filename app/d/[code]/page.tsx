@@ -13,15 +13,18 @@
 // of the app's API module, CSS animations instead of a motion library, and the OpenHousePal loader
 // in the page's first HTML so something good shows the moment it opens.
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { useParams } from 'next/navigation'
 // Plain <a> links into the app on purpose: this page is served as a visitor page (no sign-in
 // wrapper), and a client-side <Link> would carry that layout into /leads/tasks and crash it.
 import { AlertTriangle, CalendarDays, Check, CheckCircle2, ChevronRight, Clock, Copy, Mail, MessageSquare, Phone, RotateCcw, UserPlus, X, XCircle } from 'lucide-react'
 import type { PublicFollowup, PublicFollowupOther } from '@/types'
-import { OhpWordmark } from '@/components/brand/OhpBrand'
 import OhpLoader from '@/components/brand/OhpLoader'
 import { copyText } from '@/lib/copyText'
 import { isIosDevice, mailHref, smsHref } from '@/lib/smsLink'
+
+// This person's alert switches - loaded on their own so the check-off itself stays instant.
+const DoneLeadAlerts = dynamic(() => import('@/components/tasks/DoneLeadAlerts'), { ssr: false })
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 type Res<T> = { ok: true; data: T } | { ok: false; error: string }
@@ -307,8 +310,7 @@ export default function MarkDonePage() {
                     : <CheckCircle2 className="h-9 w-9 text-gray-400" strokeWidth={2.5} />}
                 </div>
               </div>
-              <OhpWordmark className="dn-up mt-3 text-lg text-[#111827] dark:text-white" />
-              <p className="dn-up mt-0.5 text-2xl font-black text-[#111827] dark:text-white" style={{ animationDelay: '.08s' }}>{task.done ? 'Done - nice work!' : 'Marked not done'}</p>
+              <p className="dn-up mt-3 text-2xl font-black text-[#111827] dark:text-white" style={{ animationDelay: '.08s' }}>{task.done ? 'Done - nice work!' : 'Marked not done'}</p>
               <p className="dn-up mt-2 text-base font-black text-[#111827] dark:text-white" style={{ animationDelay: '.14s' }}>{task.title}</p>
               {task.context && <p className="dn-up mt-0.5 text-sm font-medium text-gray-500 dark:text-gray-400" style={{ animationDelay: '.18s' }}>{task.context}</p>}
               <p className="mt-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
@@ -329,7 +331,10 @@ export default function MarkDonePage() {
               {failed && <p className="mt-2 text-xs font-bold text-red-600">{failed}</p>}
             </div>
 
-            {task.contact && <ContactCard code={code} contact={task.contact} />}
+            {task.contact && <div className="dn-up" style={{ animationDelay: '.22s' }}><ContactCard code={code} contact={task.contact} /></div>}
+            {task.contact && task.alerts && (
+              <DoneLeadAlerts code={code} alerts={task.alerts} firstName={(task.contact.name || '').trim().split(/\s+/)[0]} delay={0.3} />
+            )}
 
             {others.length > 0 ? (
               <div className="border-t border-gray-100 px-4 py-4 text-left dark:border-gray-800">

@@ -308,7 +308,7 @@ export default function TasksPanel({
     <div className={className}>
       {!compact && leadId && events && !loading && (
         <SuggestedFollowups leadId={leadId} onAdded={() => { load(); changedRef.current?.() }}
-          items={suggestFollowups(events, leadName, tasks.filter(t => !t.completed_at).map(t => t.title))} />
+          items={suggestFollowups(events, leadName, tasks.filter(t => !t.completed_at).map(t => t.title), likesCoveredUntil(tasks))} />
       )}
       {!compact && (composerOpen === undefined
         ? <QuickAdd leadId={leadId} leadName={leadName} onAdded={() => { load(); changedRef.current?.() }} />
@@ -681,11 +681,75 @@ const SUGGEST: Partial<Record<LeadEvent['source_type'], { key: string; kind: Tas
   blog_inquiry: { key: 'reply', kind: 'call', title: f => `Answer ${f}'s question` },
   portal_lead: { key: 'reply', kind: 'call', title: f => `Call ${f} - new lead` },
   property_comment: { key: 'comment', kind: 'text', title: (f, s) => `Answer ${f}'s comment${s ? ` on ${s}` : ''}` },
-  showcase_like: { key: 'likes', kind: 'text', title: f => `Text ${f} about the homes they liked` },
   showcase_refine: { key: 'search', kind: 'text', title: f => `Check in with ${f} about their search` },
   showcase_search_changed: { key: 'search', kind: 'text', title: f => `Check in with ${f} about their new search` },
-  email_clicked: { key: 'email', kind: 'text', title: f => `Check in with ${f} - they clicked your email` },
+  // email_clicked, showcase_view, showcase_like (+ showcase_dislike): see browseSuggestion below.
   invite_rsvp: { key: 'rsvp', kind: 'text', title: f => `Thank ${f} for the RSVP` },
+}
+
+// "239 WINDHAM DR, WAYNE" (some listings come in all caps) -> "239 Windham Dr, Wayne"
+const tidyAddress = (raw: string) => raw === raw.toUpperCase() ? raw.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase()) : raw
+const streetOf = (address: string) => address.split(',')[0].trim()
+
+// A sitting in their Showcase (owner, 10/27): email clicks, homes looked at, homes liked. The click
+// row never says which link it was, but the Showcase logs the home they opened seconds later
+// ("Looked at 795 Mancill Rd"), so clicks, views and likes each within BROWSE_GAP of the next are
+// one sitting, and ONE follow-up names the home(s) from it:
+//  - liked homes first ("Text Lori about 795 Mancill Rd - they liked it" / name 2-3 / "the 5 homes
+//    they liked"), counting each home once and never one they've since passed on;
+//  - else the homes they looked at ("... - they clicked through to look at it" when an email click
+//    led there);
+//  - else a click with no home seen keeps the generic "they clicked your email".
+// A home already named by a newer sitting's suggestion isn't named again by an older one.
+const BROWSE_TYPES = new Set<LeadEvent['source_type']>(['email_clicked', 'showcase_view', 'showcase_like', 'showcase_dislike'])
+const BROWSE_GAP = 2 * 3600e3
+const homeKey = (address: string) => streetOf(address).toLowerCase()
+const joinList = (items: string[]) => items.length <= 1 ? (items[0] || '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
+const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1)
+
+type BrowsePick = { key: string; kind: TaskKind; title: string; did: string; homes: string[] }
+
+function browseSuggestion(sitting: LeadEvent[], first: string, passedOn: Set<string>, named: Set<string>): BrowsePick | null {
+  // Newest first; each home once.
+  const liked: string[] = [], viewed: string[] = []
+  let lastHomeAt = 0, hadHomes = false
+  for (const x of sitting) {
+    if ((x.source_type !== 'showcase_view' && x.source_type !== 'showcase_like') || !x.property_address) continue
+    const home = tidyAddress(x.property_address.trim())
+    const k = homeKey(home)
+    hadHomes = true
+    if (passedOn.has(k) || named.has(k)) continue
+    lastHomeAt = Math.max(lastHomeAt, Date.parse(x.occurred_at))
+    const into = x.source_type === 'showcase_like' ? liked : viewed
+    if (!into.some(h => homeKey(h) === k)) into.push(home)
+  }
+  const lookedOnly = viewed.filter(h => !liked.some(l => homeKey(l) === homeKey(h)))
+  const click = sitting.find(x => x.source_type === 'email_clicked')
+  if (!liked.length && !lookedOnly.length) {
+    // Every home in it was passed on or already suggested - nothing new to text about.
+    if (!click || hadHomes) return null
+    return { key: 'email', kind: 'text', title: `Check in with ${first} - they clicked your email`, did: click.summary, homes: [] }
+  }
+  // "Clicked through" only when the click came first and a home was opened after it.
+  const through = !!click && Date.parse(click.occurred_at) <= lastHomeAt
+  const lead = through ? `${click!.summary}, then ` : ''
+  const tail = click && !through ? `; also ${lowerFirst(click.summary)}` : ''
+  // One home: street + town; several: every street.
+  const list = (homes: string[]) => homes.length === 1 ? homes[0] : joinList(homes.map(streetOf))
+  if (liked.length) {
+    const streets = liked.map(streetOf)
+    const title = liked.length === 1 ? `Text ${first} about ${streets[0]} - they liked it`
+      : liked.length <= 3 ? `Text ${first} about ${joinList(streets)} - they liked ${liked.length === 2 ? 'both' : 'them'}`
+        : `Text ${first} about the ${liked.length} homes they liked`
+    const also = lookedOnly.length ? `; also looked at ${list(lookedOnly)}` : ''
+    const did = `${lead}${lead ? 'liked' : 'Liked'} ${list(liked)}${lead ? '' : ' in their Showcase'}${also}${tail}`
+    return { key: 'likes', kind: 'text', title, did, homes: [...liked, ...lookedOnly] }
+  }
+  const title = lookedOnly.length === 1
+    ? `Text ${first} about ${streetOf(lookedOnly[0])} - ${through ? 'they clicked through to look at it' : 'they looked at it in their Showcase'}`
+    : `Text ${first} about the ${lookedOnly.length} homes they looked at`
+  const did = `${lead}${lead ? 'looked at' : 'Looked at'} ${list(lookedOnly)}${lead ? '' : ' in their Showcase'}${tail}`
+  return { key: 'email', kind: 'text', title, did, homes: lookedOnly }
 }
 
 function happenedWhen(iso: string): string {
@@ -696,19 +760,64 @@ function happenedWhen(iso: string): string {
   return days <= 0 ? `today ${time}` : days === 1 ? `yesterday ${time}` : d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
-export function suggestFollowups(events: LeadEvent[], name: string | null | undefined, openTitles: string[]): Suggestion[] {
+// The automatic "homes they liked" follow-up (tasks_service showcase_likes) already covers likes up to
+// here: all of them while one is open, else those before the last one was checked off. Its own
+// card says it all - no second, on-screen suggestion for the same likes.
+function likesCoveredUntil(tasks: AgentTask[]): number {
+  const cards = tasks.filter(t => t.auto_source === 'showcase_likes')
+  if (cards.some(t => !t.completed_at)) return Infinity
+  return Math.max(0, ...cards.map(t => Date.parse(t.completed_at || '') || 0))
+}
+
+export function suggestFollowups(events: LeadEvent[], name: string | null | undefined, openTitles: string[], likesCovered = 0): Suggestion[] {
   const first = (name || '').trim().split(/\s+/)[0] || 'them'
-  const recent = [...events].filter(e => Date.now() - Date.parse(e.occurred_at) < 7 * 864e5)
-    .sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))
+  const byNewest = [...events].sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))
+  const recent = byNewest.filter(e => Date.now() - Date.parse(e.occurred_at) < 7 * 864e5)
+  // Homes whose latest like / pass is a pass - never suggested as "liked" (or looked at).
+  const passedOn = new Set<string>()
+  const reacted = new Set<string>()
+  for (const e of byNewest) {
+    if ((e.source_type !== 'showcase_like' && e.source_type !== 'showcase_dislike') || !e.property_address) continue
+    const k = homeKey(tidyAddress(e.property_address.trim()))
+    if (reacted.has(k)) continue
+    reacted.add(k)
+    if (e.source_type === 'showcase_dislike') passedOn.add(k)
+  }
   const out: Suggestion[] = []
   const used = new Set<string>()
-  for (const e of recent) {
+  const named = new Set<string>()
+  const consumed = new Set<LeadEvent>()
+  for (let i = 0; i < recent.length; i++) {
+    const e = recent[i]
+    if (BROWSE_TYPES.has(e.source_type)) {
+      if (consumed.has(e)) continue
+      // This click / view / like and the ones before it in the same sitting.
+      const sitting: LeadEvent[] = []
+      let at = Date.parse(e.occurred_at)
+      for (const x of recent.slice(i)) {
+        if (!BROWSE_TYPES.has(x.source_type)) continue
+        const t = Date.parse(x.occurred_at)
+        if (at - t > BROWSE_GAP) break
+        sitting.push(x)
+        consumed.add(x)
+        at = t
+      }
+      const s = browseSuggestion(sitting, first, passedOn, named)
+      const lastLike = Math.max(0, ...sitting.filter(x => x.source_type === 'showcase_like').map(x => Date.parse(x.occurred_at)))
+      if (s?.key === 'likes' && lastLike <= likesCovered) continue
+      if (!s || used.has(s.key)) continue
+      used.add(s.key)
+      s.homes.forEach(h => named.add(homeKey(h)))
+      if (openTitles.includes(s.title)) continue
+      const why = `${s.did} · ${happenedWhen(e.occurred_at)}`
+      out.push({ key: s.key, kind: s.kind, title: s.title, why, note: `What happened: ${why}` })
+      if (out.length === 2) break
+      continue
+    }
     const rule = SUGGEST[e.source_type]
     if (!rule || used.has(rule.key)) continue
     used.add(rule.key)
-    // "239 WINDHAM DR" (some listings come in all caps) -> "239 Windham Dr"
-    const raw = (e.property_address || '').split(',')[0].trim()
-    const street = raw === raw.toUpperCase() ? raw.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase()) : raw
+    const street = streetOf(tidyAddress((e.property_address || '').trim()))
     const title = rule.title(first, street)
     if (openTitles.includes(title)) continue
     const why = `${e.summary} · ${happenedWhen(e.occurred_at)}`

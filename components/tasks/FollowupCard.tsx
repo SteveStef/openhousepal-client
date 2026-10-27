@@ -46,6 +46,7 @@ const SITUATION: Record<string, { label: string; tone: Tone }> = {
   showcase_setup: { label: 'Showcase', tone: 'violet' },
   showcase_comment: { label: 'Showcase comment', tone: 'violet' },
   showcase_search_request: { label: 'Search change', tone: 'violet' },
+  showcase_likes: { label: 'Liked homes', tone: 'rose' },
   buyer_form: { label: "I'm Buying", tone: 'sky' },
   how_can_we_help: { label: 'How Can We Help', tone: 'sky' },
   how_can_we_help_seller: { label: 'Seller lead', tone: 'emerald' },

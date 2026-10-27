@@ -2425,9 +2425,13 @@ export interface ClientEmailRow {
   click_count: number;
 }
 
+/** The agent's alert switches for one person (calendar / in OpenHousePal / activity emails). */
+export interface LeadAlerts { calendar: boolean; in_app: boolean; emails: boolean }
+
 export interface LeadDetail extends Lead {
   events: LeadEvent[];
   showcases?: LeadShowcase[];
+  alerts?: LeadAlerts;
 }
 
 export type TaskKind = 'call' | 'text' | 'email' | 'showing' | 'general';
@@ -2551,6 +2555,8 @@ export interface PublicFollowup {
   contact?: { name?: string | null; phone?: string | null; email?: string | null } | null;
   done: boolean;
   completed_at?: string | null;
+  /** This person's alert switches (null when the follow-up isn't about a person). */
+  alerts?: LeadAlerts | null;
   /** The agent's other follow-ups due today / overdue - "Did you also do these?" */
   others?: PublicFollowupOther[];
 }

@@ -7,7 +7,7 @@ export type PublicHomeSuggestion = {
   price?: number | null; status?: string | null; photo?: string | null; mine?: boolean; listing_key?: string
   beds?: number | null; baths?: number | null; sqft?: number | null
 }
-import { ApiResponse, User, OpenHouse, OpenHouseFormRequest, SearchPreferences, Notification, NotificationResponse, NotificationPreferences, AgentFormConfig, FormCampaign, CampaignLookup, PublicFormConfig, PublicFormSummary, FormSubmissionListItem, MyListingsResponse, MyListingItem, ManualListingPayload, HostRequest, CreateHostRequestPayload, CreateHostRequestResult, ListingDetail, ListingHostNote, CounterHostRequestPayload, AgentSearchResult, TeamMember, TeamMembership, Broadcast, IncomingBroadcast, CreateBroadcastPayload, IncomingTeamInvite, TrustedHost, HostRequestEvent, CounterBackPayload, RespondToBroadcastPayload, NearbyAmenitiesResponse, BrandKit, DesignProject, DesignProjectCreatePayload, DesignBlock, Site, SiteDomain, SiteBlock, SitePage, SiteTheme, FeaturedSettings, MediaSettings, PropertyWebsite, PropertyWebsiteDraft, PropertyWebsiteAnalytics, Blog, BlogListItem, BlogBlock, BlogAnalytics, PublicBlogSummary, PublicBlogDetail, LinkedProperty, Lead, LeadDetail, LeadOpenHouse, LeadStatus, LeadRepresented, LeadSourceFilter, LeadSort, LeadNote, StatSummary, StatHistory, StatMetric, FormStats, UnfinishedFormResponse, CmaReport, CmaReportListItem, CmaMode, CmaStatus, CmaSubjectProperty, CmaComparable, CmaPricing, CmaMarketContext, CmaImprovement, CmaPresentationSettings, CmaCompSearchParams, CmaCompAutoSearch, CmaCompCandidate, CmaShareResponse, CmaPublicResponse, CmaSubjectArea, CmaLocatedAddress, FinancialToolStatus,
+import { ApiResponse, User, OpenHouse, OpenHouseFormRequest, SearchPreferences, Notification, NotificationResponse, NotificationPreferences, AgentFormConfig, FormCampaign, CampaignLookup, PublicFormConfig, PublicFormSummary, FormSubmissionListItem, MyListingsResponse, MyListingItem, ManualListingPayload, HostRequest, CreateHostRequestPayload, CreateHostRequestResult, ListingDetail, ListingHostNote, CounterHostRequestPayload, AgentSearchResult, TeamMember, TeamMembership, Broadcast, IncomingBroadcast, CreateBroadcastPayload, IncomingTeamInvite, TrustedHost, HostRequestEvent, CounterBackPayload, RespondToBroadcastPayload, NearbyAmenitiesResponse, BrandKit, DesignProject, DesignProjectCreatePayload, DesignBlock, Site, SiteDomain, SiteBlock, SitePage, SiteTheme, FeaturedSettings, MediaSettings, PropertyWebsite, PropertyWebsiteDraft, PropertyWebsiteAnalytics, Blog, BlogListItem, BlogBlock, BlogAnalytics, PublicBlogSummary, PublicBlogDetail, LinkedProperty, Lead, LeadAlerts, LeadDetail, LeadOpenHouse, LeadStatus, LeadRepresented, LeadSourceFilter, LeadSort, LeadNote, StatSummary, StatHistory, StatMetric, FormStats, UnfinishedFormResponse, CmaReport, CmaReportListItem, CmaMode, CmaStatus, CmaSubjectProperty, CmaComparable, CmaPricing, CmaMarketContext, CmaImprovement, CmaPresentationSettings, CmaCompSearchParams, CmaCompAutoSearch, CmaCompCandidate, CmaShareResponse, CmaPublicResponse, CmaSubjectArea, CmaLocatedAddress, FinancialToolStatus,
   SellerNetSheet, SellerNetSheetListItem, SnsProperty, SnsScenario, SnsLineItem, SnsCompensation, SnsTaxProration, SellerNetSheetPublicResponse,
   BuyerCashNeeded, BuyerCashNeededListItem, BcnProperty, BcnAmount, BcnDownPaymentScenario, BcnLoanType, BcnLineItem, BcnCredits, BcnMonthlyContext, BuyerCashNeededPublicResponse,
   AIConversationListItem, AIConversation, AISendMessageResponse, AIInsightsResponse, DailyDigest,
@@ -1882,6 +1882,9 @@ class ApiService {
     get: (leadId: string) => this.request<LeadDetail>(`/leads/${leadId}`),
 
     /** Clear one kind of waiting request from the lead's to-dos (booked it, replied, looked...). */
+    setAlerts: (leadId: string, data: Partial<LeadAlerts>) =>
+      this.request<LeadAlerts>(`/leads/${leadId}/alerts`, { method: 'PUT', body: JSON.stringify(data) }),
+
     markHandled: (leadId: string, kind: string) =>
       this.request<LeadDetail>(`/leads/${leadId}/handled`, { method: 'POST', body: JSON.stringify({ kind }) }),
 
@@ -2565,6 +2568,8 @@ class ApiService {
     publicDone: (code: string) => this.request<PublicFollowup>(`/public/followups/${encodeURIComponent(code)}/done`, { method: 'POST' }),
     publicUndo: (code: string) => this.request<PublicFollowup>(`/public/followups/${encodeURIComponent(code)}/undo`, { method: 'POST' }),
     publicView: (code: string) => this.request<PublicFollowup>(`/public/followups/${encodeURIComponent(code)}`),
+    publicAlerts: (code: string, data: Partial<LeadAlerts>) =>
+      this.request<{ alerts: LeadAlerts }>(`/public/followups/${encodeURIComponent(code)}/alerts`, { method: 'POST', body: JSON.stringify(data) }),
   };
 
   /**

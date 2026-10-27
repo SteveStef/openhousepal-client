@@ -78,15 +78,17 @@ export default function BriefingButton({ word = 'inline', compact = false }: { w
       <motion.button type="button" onClick={openTodaysRundown} title={title} aria-label={`${month} ${day.getDate()} Briefing. ${title}`}
         data-testid="briefing-button" data-lit={lit ? 'true' : 'false'}
         initial={reduce ? false : { opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} whileTap={{ scale: 0.94 }}
-        className={`ohp-brief relative isolate inline-flex h-[26px] shrink-0 items-center gap-1 rounded-full py-[3px] pl-[3px] pr-2.5 text-[11px] font-black leading-none text-[#1a1408] shadow-[0_4px_12px_-6px_rgba(168,128,58,.9)] ring-1 ring-[#a8803a]/40 ${lit && !reduce ? 'ohp-brief-lit' : ''}`}
+        className={`ohp-brief relative isolate inline-flex h-5 shrink-0 items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2 text-[10.5px] font-black leading-none text-[#1a1408] shadow-[0_3px_8px_-5px_rgba(168,128,58,.9)] ring-1 ring-[#a8803a]/40 ${lit && !reduce ? 'ohp-brief-lit' : ''}`}
         style={{ background: 'linear-gradient(115deg,#b8902f 0%,#e8c97a 48%,#C9A24D 100%)' }}>
         <style>{BRIEF_CSS}</style>
         <span className="ohp-brief-shine" aria-hidden />
-        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#111827] text-[#e8c97a]"><CalendarDays className="h-3 w-3" /></span>
+        <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-[#111827] text-[#e8c97a]"><CalendarDays className="h-2.5 w-2.5" /></span>
         <span className="whitespace-nowrap">{month} {day.getDate()} Briefing</span>
+        {/* The count sits inside the pill (not hanging off its corner) so the pill fits the
+            "Dashboard - Updated" line exactly - same height, centred, no extra room (owner, 10/28). */}
         {st.new_since > 0 && (
           <motion.span key={count} initial={reduce ? false : { scale: 0.4 }} animate={{ scale: 1 }}
-            className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[9.5px] font-black tabular-nums text-white ring-2 ring-white dark:ring-[#0B0B0B]">{count}</motion.span>
+            className="-mr-1 inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-rose-600 px-1 text-[9px] font-black tabular-nums text-white">{count}</motion.span>
         )}
       </motion.button>
     )

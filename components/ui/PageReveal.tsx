@@ -3,6 +3,12 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import OhpLoader from '@/components/brand/OhpLoader'
 
+/** The rise itself - shared with pages that keep their own loader but open the same way (a lead's
+ *  page / window, LeadDetailPanel). Transform + opacity only, no blur, so it stays smooth on phones. */
+export const pageRiseFrom = (reduce: boolean | null) => ({ opacity: 0, y: reduce ? 0 : 22, scale: reduce ? 1 : 0.985 })
+export const pageRiseTo = { opacity: 1, y: 0, scale: 1 }
+export const pageRiseTransition = { duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.08 } as const
+
 /**
  * The page opening (user, 10/24 - Manager / Discovery): the OpenHousePal house loader covers the
  * page (under the site header) until `ready` - data AND first photos in, see useImagesReady - then
@@ -29,8 +35,8 @@ export default function PageReveal({ ready, label, guest = false, className = ''
       </AnimatePresence>
       <motion.div
         initial={false}
-        animate={ready ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: reduce ? 0 : 22, scale: reduce ? 1 : 0.985 }}
-        transition={ready ? { duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.08 } : { duration: 0 }}
+        animate={ready ? pageRiseTo : pageRiseFrom(reduce)}
+        transition={ready ? pageRiseTransition : { duration: 0 }}
         aria-busy={!ready}
         className={`${ready ? '' : 'pointer-events-none'} ${className}`}
       >

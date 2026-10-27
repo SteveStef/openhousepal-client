@@ -454,10 +454,8 @@ export default function DashPage() {
             // to what needs attention; the same links live in the menu.
             // Today's Rundown once it's been looked at (the card below steps aside for it): phones and
             // tablets - the right end of the "Dashboard - Updated" line; computers - in the stats row.
-            badge={<span className="inline-flex pr-1.5 pt-1.5 lg:hidden">
-              <span className="sm:hidden"><BriefingButton compact /></span>
-              <span className="hidden sm:inline-flex"><BriefingButton /></span>
-            </span>}
+            // One slim pill (count inside it), centred on the line and no taller than it.
+            badge={<span className="inline-flex lg:hidden"><BriefingButton compact /></span>}
             asideClassName="max-sm:hidden lg:w-[400px] xl:w-[460px] lg:-mt-6"
             actionsClassName="max-sm:hidden"
             aside={

@@ -8,15 +8,21 @@
 // follow-up. On a computer: the text with a Copy button, and a QR code that opens this page on
 // the phone. No login - the code is the key, like the Mark-as-done page.
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { useParams } from 'next/navigation'
 import { AlertTriangle, CheckCircle2, Loader2, Mail, MessageSquare, Phone, RotateCcw, XCircle } from 'lucide-react'
 import { DesktopTextLayout, MailSheet, type TextPageData } from './parts'
 import api, { API_BASE_URL } from '@/lib/api-service'
 
-import { OhpWordmark } from '@/components/brand/OhpBrand'
 import OhpLoader from '@/components/brand/OhpLoader'
 import { isPhoneDevice, smsHref } from '@/lib/smsLink'
 import { useQrDataUrl } from '@/lib/qr'
+
+// Their alert switches, once it's checked off (owner, 10/27) - loaded on their own.
+const DoneLeadAlerts = dynamic(() => import('@/components/tasks/DoneLeadAlerts'), { ssr: false })
+
+// The card rises in, then its parts follow (same feel as the Mark-as-done page).
+const CSS = `@keyframes ttIn{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}@keyframes ttUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}.tt-in{animation:ttIn .55s cubic-bezier(.22,1,.36,1) both}.tt-up{animation:ttUp .45s cubic-bezier(.22,1,.36,1) both}@media (prefers-reduced-motion:reduce){.tt-in,.tt-up{animation:none}}`
 
 const prettyPhone = (p: string) => {
   const d = p.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '')
@@ -100,12 +106,13 @@ export default function TapToTextPage() {
 
   // On a computer: its own two-column layout (user, 10/25 - it was the phone card stretched).
   if (state === 'ready' && data && phone === false) {
-    return <DesktopTextLayout data={data} qr={qr} sentNow={sentNow} busy={busy} onDone={markDone} onSent={onText} onUndo={undo} />
+    return <DesktopTextLayout code={code} data={data} qr={qr} sentNow={sentNow} busy={busy} onDone={markDone} onSent={onText} onUndo={undo} />
   }
 
   return (
     <div className="flex min-h-screen items-start justify-center bg-gradient-to-br from-[#0B0B0B] via-[#1a2438] to-[#4a3820] px-4 py-8 sm:items-center">
-      <div className="w-full max-w-sm overflow-hidden rounded-3xl bg-white text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)] dark:bg-[#151517]">
+      <style>{CSS}</style>
+      <div key={state === 'loading' ? 'l' : 'r'} className={`${state === 'loading' ? '' : 'tt-in '}w-full max-w-sm overflow-hidden rounded-3xl bg-white text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)] dark:bg-[#151517]`}>
         {state === 'loading' && <OhpLoader fullScreen={false} label="Getting the text ready" className="py-14" />}
 
         {(state === 'error' || state === 'nophone') && (
@@ -125,8 +132,7 @@ export default function TapToTextPage() {
         {state === 'ready' && data && (
           <>
             <div className="bg-gray-50 px-6 pb-5 pt-7 dark:bg-white/5">
-              <OhpWordmark className="text-lg text-[#111827] dark:text-white" />
-              <p className="mt-2 text-2xl font-black text-[#111827] dark:text-white">{data.phone && data.email ? `Text or email ${first}` : data.phone ? `Text ${first}` : `Email ${first}`}</p>
+              <p className="tt-up text-2xl font-black text-[#111827] dark:text-white">{data.phone && data.email ? `Text or email ${first}` : data.phone ? `Text ${first}` : `Email ${first}`}</p>
               {data.context && <p className="mt-0.5 text-sm font-medium text-gray-500 dark:text-gray-400">{data.context}</p>}
               {data.phone && <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">{prettyPhone(data.phone)}</p>}
               {data.email && <p className={`${data.phone ? 'mt-0.5' : 'mt-1'} truncate text-xs font-semibold text-gray-500 dark:text-gray-400`}>{data.email}</p>}
@@ -140,7 +146,7 @@ export default function TapToTextPage() {
             )}
 
             {/* The message, as it will appear in Messages */}
-            <div className="px-5 pt-4 text-left">
+            <div className="tt-up px-5 pt-4 text-left" style={{ animationDelay: '.12s' }}>
               <div className="ml-auto max-w-[92%] whitespace-pre-wrap rounded-[20px] rounded-br-md bg-[#0A84FF] px-3.5 py-2.5 text-[13.5px] font-medium leading-snug text-white shadow-sm">
                 {data.message}
               </div>
@@ -202,6 +208,10 @@ export default function TapToTextPage() {
                 )
               ) : null}
             </div>
+
+            {data.done && data.contact && data.alerts && (
+              <DoneLeadAlerts code={code} alerts={data.alerts} firstName={first === 'them' ? '' : first} delay={0.1} />
+            )}
 
             <div className="flex items-center justify-center gap-4 border-t border-gray-100 px-6 py-3 dark:border-gray-800">
               {data.sms_to && <a href={`tel:${data.sms_to}`} className="inline-flex items-center gap-1 text-xs font-black text-[#8b7355] hover:underline dark:text-[#d7b974]"><Phone className="h-3.5 w-3.5" /> Call instead</a>}
