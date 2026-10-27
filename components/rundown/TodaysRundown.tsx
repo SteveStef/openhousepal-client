@@ -172,8 +172,8 @@ export function TodaysRundownSheet({ open, onClose }: { open: boolean; onClose: 
   const release = usePagePin(open)
   if (!host) return null
   return createPortal(
-    <AnimatePresence onExitComplete={release}>
-      {open && <RundownWindow key="rundown" onClose={onClose} />}
+    <AnimatePresence onExitComplete={() => release()}>
+      {open && <RundownWindow key="rundown" onClose={onClose} leave={() => release(true)} />}
     </AnimatePresence>,
     host,
   )
@@ -181,7 +181,7 @@ export function TodaysRundownSheet({ open, onClose }: { open: boolean; onClose: 
 
 // -------------------------------------------------------------------------------------------------
 
-function RundownWindow({ onClose }: { onClose: () => void }) {
+function RundownWindow({ onClose, leave }: { onClose: () => void; leave: () => void }) {
   const router = useRouter()
   const phone = useIsPhone()
   const sheetMotion = useSheetMotion()
@@ -194,7 +194,15 @@ function RundownWindow({ onClose }: { onClose: () => void }) {
   // A phone turned sideways (844x390) is wider than a phone but very short: the window fills the
   // screen and the header / footer slim down so the content still has room.
   const [short, setShort] = useState(false)
-  useEffect(() => { markRundownSeen() }, [])
+  // The window slides in first; the numbers and sections fill in once it has arrived, so nothing
+  // heavy is drawn during the slide (owner, 10/26: "it doesn't open smoothly").
+  const reduceMotion = useReducedMotion()
+  const [settled, setSettled] = useState(!!reduceMotion)
+  useEffect(() => {
+    const t = window.setTimeout(() => setSettled(true), 650)   // backstop if the animation event is missed
+    return () => window.clearTimeout(t)
+  }, [])
+  useEffect(() => { if (settled) markRundownSeen() }, [settled])
   useEffect(() => {
     const mq = window.matchMedia('(max-height: 519px)')
     const on = () => setShort(mq.matches)
@@ -204,8 +212,9 @@ function RundownWindow({ onClose }: { onClose: () => void }) {
 
   const go = (link: string) => {
     if (!link) return
+    if (/^https?:\/\//.test(link) && !link.startsWith(window.location.origin)) { onClose(); window.location.href = link; return }
+    leave()   // the page underneath lets go now - the next page opens at its top, no jump
     onClose()
-    if (/^https?:\/\//.test(link) && !link.startsWith(window.location.origin)) { window.location.href = link; return }
     router.push(link.startsWith(window.location.origin) ? link.slice(window.location.origin.length) || '/' : link)
   }
   const markAll = async () => {
@@ -220,7 +229,7 @@ function RundownWindow({ onClose }: { onClose: () => void }) {
   return (
     <motion.div {...backdropMotion} data-scroll-lock="off" onClick={e => { if (e.target === e.currentTarget) onClose() }}
       className={`fixed inset-0 z-[10050] flex bg-[#0b0b0c]/60 ${phone ? 'items-end' : short ? 'items-center justify-center p-2' : 'items-center justify-center p-6'}`}>
-      <motion.div ref={sheetRef} {...sheetMotion} style={phone ? { y } : undefined} role="dialog" aria-modal="true" aria-label="Today's Rundown"
+      <motion.div ref={sheetRef} {...sheetMotion} onAnimationComplete={() => setSettled(true)} style={phone ? { y, willChange: 'transform' } : { willChange: 'transform' }} role="dialog" aria-modal="true" aria-label="Today's Rundown"
         data-testid="rundown-window"
         className={`relative flex w-full flex-col overflow-hidden bg-[#FAFAF7] shadow-[0_40px_100px_-30px_rgba(0,0,0,.7)] dark:bg-[#0d0d0f] ${
           phone ? 'h-[94dvh] rounded-t-[30px]' : short ? 'h-[calc(100dvh-1rem)] max-w-3xl rounded-[22px]' : 'h-[min(880px,calc(100dvh-3rem))] max-w-3xl rounded-[30px]'}`}>
@@ -253,7 +262,7 @@ function RundownWindow({ onClose }: { onClose: () => void }) {
                 : <OhpLoader fullScreen={false} label="Gathering your day…" />}
             </div>
           ) : (
-            <RundownBody data={data} phone={phone} short={short} go={go} />
+            <RundownBody data={data} phone={phone} short={short} go={go} settled={settled} />
           )}
         </div>
 
@@ -287,12 +296,16 @@ function RundownWindow({ onClose }: { onClose: () => void }) {
 
 // -------------------------------------------------------------------------------------------------
 
+// Showcase news shows a few homes as photo cards (newest news first) and links to the rest - a busy
+// day with 40 homes is a "See all", not 40 big photos.
+const HOMES_SHOWN = 6
+
 const rise = (i: number, reduce: boolean | null) => reduce ? {} : {
   initial: { opacity: 0, y: 18 },
   animate: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 260, damping: 28, delay: 0.08 + i * 0.07 } },
 }
 
-function RundownBody({ data, phone, short = false, go }: { data: Rundown; phone: boolean; short?: boolean; go: (link: string) => void }) {
+function RundownBody({ data, phone, short = false, go, settled = true }: { data: Rundown; phone: boolean; short?: boolean; go: (link: string) => void; settled?: boolean }) {
   const reduce = useReducedMotion()
   const status = briefingStatus(data)
   // Busy numbers first, then quiet ones (as dimmed zeros) just to fill the last row - never a gap,
@@ -338,7 +351,8 @@ function RundownBody({ data, phone, short = false, go }: { data: Rundown; phone:
 
           {/* The day's numbers - each one counts up and opens its page. */}
           <div className={`mt-5 grid gap-2 ${cols === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
-            {stats.map((s, i) => (
+            {!settled && stats.map(s => <span key={s.key} aria-hidden className="h-[72px] rounded-2xl border border-[#C9A24D]/15 bg-white/40 dark:border-white/[0.05] dark:bg-white/[0.03]" />)}
+            {settled && stats.map((s, i) => (
               <motion.button key={s.key} type="button" onClick={() => go(s.link)}
                 initial={reduce ? false : { opacity: 0, y: 14, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ type: 'spring', stiffness: 320, damping: 26, delay: 0.25 + i * 0.05 }} whileTap={{ scale: 0.95 }}
@@ -353,6 +367,7 @@ function RundownBody({ data, phone, short = false, go }: { data: Rundown; phone:
         </div>
       </div>
 
+      {!settled ? <div className="h-[60vh]" aria-hidden /> : (
       <div className="space-y-6 px-4 pt-5 sm:px-8">
         {/* Things to do */}
         <Section i={4} icon={<CalendarClock className="h-4 w-4" />} title="Things to do" count={todo}
@@ -390,9 +405,17 @@ function RundownBody({ data, phone, short = false, go }: { data: Rundown; phone:
             <div className={phone
               ? '-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
               : 'grid grid-cols-2 gap-3 lg:grid-cols-3'} data-no-sheet-drag={phone ? '' : undefined}>
-              {data.showcase.homes.slice(0, phone ? 12 : 6).map((h, k) => <HomeCard key={k} home={h} index={k} phone={phone} go={go} />)}
+              {data.showcase.homes.slice(0, HOMES_SHOWN).map((h, k) => <HomeCard key={k} home={h} index={k} phone={phone} go={go} />)}
+              {phone && data.showcase.homes.length > HOMES_SHOWN && (
+                <button type="button" onClick={() => go('/showcases')}
+                  className="flex w-[46%] shrink-0 snap-start flex-col items-center justify-center gap-2 rounded-[22px] border-2 border-dashed border-[#C9A24D]/40 bg-white/60 p-4 text-center text-[13px] font-black text-[#8b7355] dark:border-white/15 dark:bg-white/[0.03] dark:text-[#e8c97a]">
+                  <Building2 className="h-6 w-6" />
+                  See all {data.showcase.homes.length} homes
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              )}
             </div>
-            {!phone && data.showcase.homes.length > 6 && (
+            {!phone && data.showcase.homes.length > HOMES_SHOWN && (
               <button type="button" onClick={() => go('/showcases')} className="mt-3 inline-flex items-center gap-1 text-xs font-black text-[#8b7355] hover:underline dark:text-[#e8c97a]">
                 See all {data.showcase.homes.length} homes in Showcases <ChevronRight className="h-3.5 w-3.5" />
               </button>
@@ -443,6 +466,7 @@ function RundownBody({ data, phone, short = false, go }: { data: Rundown; phone:
           Updates on its own · same as your daily briefing email, with everything in it
         </p>
       </div>
+      )}
     </div>
   )
 }
@@ -517,7 +541,7 @@ function HomeCard({ home: h, index, phone, go }: { home: Home; index: number; ph
       transition={{ type: 'spring', stiffness: 280, damping: 28, delay: 0.45 + index * 0.06 }}
       className={`flex min-w-0 flex-col overflow-hidden rounded-[22px] border border-gray-200/80 bg-white shadow-[0_18px_34px_-26px_rgba(17,24,39,.6)] dark:border-white/[0.07] dark:bg-[#141416] ${phone ? 'w-[78%] shrink-0 snap-start' : ''}`}>
       <button type="button" onClick={() => first && go(first.link)} className="relative block aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-[#efe6d4] to-[#d9c7a3] dark:from-[#1d1a14] dark:to-[#2a2218]">
-        {h.image && <img src={h.image} alt="" onLoad={() => setLoaded(true)} className={`h-full w-full object-cover transition duration-700 ${loaded ? 'scale-100 opacity-100' : 'scale-105 opacity-0'}`} />}
+        {h.image && <img src={h.image} alt="" loading="lazy" decoding="async" onLoad={() => setLoaded(true)} className={`h-full w-full object-cover transition duration-700 ${loaded ? 'scale-100 opacity-100' : 'scale-105 opacity-0'}`} />}
         <span className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
         <span className={`absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-wide shadow ${h.is_price_drop ? 'bg-rose-500 text-white' : 'bg-[#e8c97a] text-[#111827]'}`}>
           {h.is_price_drop ? <><TrendingDown className="h-3 w-3" /> Price drop{h.savings ? <span className="whitespace-nowrap normal-case"> · −{h.savings}</span> : null}</> : <><Sparkles className="h-3 w-3" /> New match</>}

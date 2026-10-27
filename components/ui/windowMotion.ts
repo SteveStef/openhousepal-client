@@ -157,9 +157,12 @@ export function useSwipeToClose(onClose: () => void, enabled: boolean): { sheetR
  *  Laid down before the first paint (useLayoutEffect) so the page never scrolls a frame first. The
  *  overlay should opt out of the site-wide ScrollLockWatcher (data-scroll-lock="off") - two locks
  *  fighting over <body> is what made a phone jump to the top and back when details closed (10/19).
- *  Returns the handler for the window's <AnimatePresence onExitComplete>, which releases the pin. */
-export function usePagePin(isOpen: boolean): () => void {
-  const unlockRef = useRef<(() => void) | null>(null)
+ *  Returns the handler for the window's <AnimatePresence onExitComplete>, which releases the pin.
+ *  Called with `true` (going to another page from inside the window) it lets go at once, even while
+ *  the window is still closing, and the new page starts at the top instead of jumping to the old
+ *  page's scroll spot when the close animation ends (owner, 10/26: "it glitches before it loads"). */
+export function usePagePin(isOpen: boolean): (leaving?: boolean) => void {
+  const unlockRef = useRef<((toTop?: boolean) => void) | null>(null)
   const isOpenRef = useRef(isOpen)
   isOpenRef.current = isOpen
   useLayoutEffect(() => {
@@ -176,7 +179,7 @@ export function usePagePin(isOpen: boolean): () => void {
     body.style.right = '0'
     body.style.width = '100%'
     html.style.overflow = 'hidden'
-    unlockRef.current = () => {
+    unlockRef.current = (toTop?: boolean) => {
       unlockRef.current = null
       body.style.overflow = saved.overflow
       body.style.position = saved.position
@@ -188,7 +191,7 @@ export function usePagePin(isOpen: boolean): () => void {
       // Same frame, no smooth scrolling: the page is back exactly where it was, no jump or flash.
       const behavior = html.style.scrollBehavior
       html.style.scrollBehavior = 'auto'
-      window.scrollTo(0, scrollY)
+      window.scrollTo(0, toTop ? 0 : scrollY)
       html.style.scrollBehavior = behavior
     }
   }, [isOpen])
@@ -200,5 +203,8 @@ export function usePagePin(isOpen: boolean): () => void {
     return () => window.clearTimeout(t)
   }, [isOpen])
   useEffect(() => () => unlockRef.current?.(), [])
-  return useCallback(() => { if (!isOpenRef.current) unlockRef.current?.() }, [])
+  return useCallback((leaving?: boolean) => {
+    if (leaving === true) unlockRef.current?.(true)
+    else if (!isOpenRef.current) unlockRef.current?.()
+  }, [])
 }

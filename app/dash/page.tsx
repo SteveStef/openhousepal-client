@@ -448,13 +448,16 @@ export default function DashPage() {
             subtitle={<><span className="sm:hidden">Leads, activity, open houses &amp; follow-ups.</span><span className="hidden sm:inline">New leads, activity, open houses and follow-ups - everything that needs a look today.</span></>}
             subtitleClassName="whitespace-nowrap lg:max-w-none"
             kickerNote={updatedAgo && (
-              <><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 dark:bg-emerald-400" /> Updated {updatedAgo}</>
+              <><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 dark:bg-emerald-400" /> <span className="max-sm:hidden">Updated</span> {updatedAgo}</>
             )}
             // Phones: no stat tiles or quick-create pills up here (user, 10/17) - screen space goes
             // to what needs attention; the same links live in the menu.
             // Today's Rundown once it's been looked at (the card below steps aside for it): phones and
             // tablets - the right end of the "Dashboard - Updated" line; computers - in the stats row.
-            badge={<span className="inline-flex pr-2 pt-2 lg:hidden"><BriefingButton word="hidden sm:inline" /></span>}
+            badge={<span className="inline-flex pr-1.5 pt-1.5 lg:hidden">
+              <span className="sm:hidden"><BriefingButton compact /></span>
+              <span className="hidden sm:inline-flex"><BriefingButton /></span>
+            </span>}
             asideClassName="max-sm:hidden lg:w-[400px] xl:w-[460px] lg:-mt-6"
             actionsClassName="max-sm:hidden"
             aside={

@@ -2,11 +2,11 @@
 
 import Link from 'next/link'
 import { OhpHouse, OhpWordmark } from '@/components/brand/OhpBrand'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useState, useEffect, type ComponentType, type CSSProperties } from 'react'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { Home, Moon, Sun, Menu, X, LogOut, Settings, Layout, ShieldCheck, Palette, LayoutDashboard, Users, AlertCircle, ChevronDown, Globe, Link2, ClipboardList, Newspaper, Search, Building2, Calculator, Lock, HelpCircle, Clapperboard, Mail, ToolCase, CalendarClock, Activity as ActivityIcon, Plug, Send, Star, ListChecks, FileClock, ClipboardCheck, ChevronRight, SwatchBook } from 'lucide-react'
+import { Home, Moon, Sun, Menu, X, LogOut, Settings, Layout, ShieldCheck, Palette, LayoutDashboard, Users, AlertCircle, ChevronDown, Globe, Link2, ClipboardList, Newspaper, Search, Building2, Calculator, Lock, HelpCircle, Clapperboard, Mail, ToolCase, CalendarClock, Activity as ActivityIcon, Plug, Send, Star, ListChecks, FileClock, ClipboardCheck, ChevronRight, SwatchBook, Loader2 } from 'lucide-react'
 import api from '@/lib/api-service'
 import { hasValidSubscription } from '@/lib/auth-helpers'
 import { useAuth } from '@/contexts/AuthContext'
@@ -68,7 +68,22 @@ export default function Header({ mode = 'app' }: HeaderProps) {
   // The phone menu opens with every section folded; tapping a section unfolds its pages (owner, 10/26).
   const [openSection, setOpenSection] = useState<string | null>(null)
   useEffect(() => { if (isMobileMenuOpen) setOpenSection(null) }, [isMobileMenuOpen])
+  // Phone menu: tapping a page keeps the menu up until that page starts showing (its loading screen
+  // or the page itself), then it fades away - closing it first flashed the old page (owner, 10/26).
+  const [menuGoing, setMenuGoing] = useState<string | null>(null)
   const pathname = usePathname()
+  useEffect(() => { setIsMobileMenuOpen(false); setMenuGoing(null) }, [pathname])
+  useEffect(() => {
+    if (!menuGoing) return
+    const t = window.setTimeout(() => { setIsMobileMenuOpen(false); setMenuGoing(null) }, 4000)   // never stuck open
+    return () => window.clearTimeout(t)
+  }, [menuGoing])
+  const menuGo = (href: string) => (e: React.MouseEvent) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return
+    const path = href.split(/[?#]/)[0]
+    if (path === pathname) { setIsMobileMenuOpen(false); return }
+    setMenuGoing(href)
+  }
 
   // Landing nav active-tab tracking - mirrors the gold-underline "you are here" treatment the
   // logged-in nav already has (isActive(path) + motion.div layoutId="headerNavUnderline"), but
@@ -767,8 +782,10 @@ export default function Header({ mode = 'app' }: HeaderProps) {
       )}
 
       {/* Mobile Menu - a full-height sheet: each section a card, its pages a two-column grid. */}
+      <AnimatePresence>
       {isMobileMenuOpen && (
-        <div data-scroll-lock="on" className="fixed inset-0 z-[10000] xl:hidden">
+        <motion.div key="phone-menu" data-scroll-lock="on" className="fixed inset-0 z-[10000] xl:hidden"
+          initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.2, ease: 'easeOut' } }}>
           <div className="absolute inset-0 bg-black/55" onClick={() => setIsMobileMenuOpen(false)} />
           <motion.div
             initial={{ opacity: 0, y: -10, scale: 0.98 }}
@@ -792,11 +809,10 @@ export default function Header({ mode = 'app' }: HeaderProps) {
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-3">
               {!user?.is_admin && !user?.broker_authorized && (
-                <Link href="/broker-authorization" onClick={() => setIsMobileMenuOpen(false)}
+                <Link href="/broker-authorization" onClick={menuGo('/broker-authorization')}
                   className={`flex items-center gap-3 rounded-3xl border bg-white p-3 shadow-[0_8px_24px_-14px_rgba(17,24,39,0.25)] dark:bg-[#151517] ${isActive('/broker-authorization') ? 'border-[#C9A24D]' : 'border-gray-200/80 dark:border-gray-800'}`}>
                   <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#C9A24D]/15 text-[#8b6a2b] dark:text-[#e8c97a]"><ShieldCheck className="h-5 w-5" /></span>
                   <span className="flex-1 text-[17px] font-black text-[#111827] dark:text-white">Broker Authorization</span>
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
                 </Link>
               )}
 
@@ -816,7 +832,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                       <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${openSection === sec.key ? 'rotate-180' : ''}`} />
                     </button>
                   ) : (
-                    <Link href={sec.href} onClick={() => setIsMobileMenuOpen(false)} className="flex min-h-[48px] items-center gap-3 rounded-2xl px-1.5 py-1">
+                    <Link href={sec.href} onClick={menuGo(sec.href)} className={`flex min-h-[48px] items-center gap-3 rounded-2xl px-1.5 py-1 transition ${menuGoing === sec.href ? 'bg-[#C9A24D]/10' : ''}`}>
                     <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${sec.on ? 'bg-[#111827] text-[#e8c97a] dark:bg-[#C9A24D] dark:text-[#111827]' : 'bg-[#C9A24D]/15 text-[#8b6a2b] dark:text-[#e8c97a]'}`}>
                       <sec.icon className="h-5 w-5" />
                     </span>
@@ -824,11 +840,14 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                     {!!sec.badge && sec.badge > 0 && (
                       <span className="flex h-6 min-w-[24px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-black text-white">{sec.badge > 9 ? '9+' : sec.badge}</span>
                     )}
-                      <ChevronRight className="h-5 w-5 text-gray-400" />
+                      {menuGoing === sec.href && <Loader2 className="h-5 w-5 animate-spin text-[#C9A24D]" />}
                     </Link>
                   )}
+                  <AnimatePresence initial={false}>
                   {sec.tiles.length > 0 && openSection === sec.key && (
-                    <div className="mt-2 grid grid-cols-2 gap-2">
+                    <motion.div key="tiles" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                      transition={{ height: { type: 'spring', stiffness: 420, damping: 38 }, opacity: { duration: 0.18 } }} className="overflow-hidden">
+                    <div className="grid grid-cols-2 gap-2 pt-2">
                       {sec.tiles.map(t => {
                         const inner = (
                           <>
@@ -851,10 +870,12 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                         }`
                         return t.soon
                           ? <div key={t.label} aria-disabled className={`${cls} cursor-default`}>{inner}</div>
-                          : <Link key={t.href + t.label} href={t.href} onClick={() => setIsMobileMenuOpen(false)} className={cls}>{inner}</Link>
+                          : <Link key={t.href + t.label} href={t.href} onClick={menuGo(t.href)} className={`${cls} ${menuGoing === t.href ? 'border-[#C9A24D] bg-[#C9A24D]/10' : ''}`}>{inner}</Link>
                       })}
                     </div>
+                    </motion.div>
                   )}
+                  </AnimatePresence>
                 </section>
               ))}
             </div>
@@ -869,8 +890,9 @@ export default function Header({ mode = 'app' }: HeaderProps) {
               </button>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </header>
   )
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
+import { CalendarDays } from 'lucide-react'
 import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import { SEEN_EVENT, openTodaysRundown } from './TodaysRundown'
@@ -14,6 +15,15 @@ type Status = { date: string; seen: boolean; new_since: number }
 // going out) lights it up with how many; opening it again calms it down. It never brings the big
 // card back. Other pages have the bell.
 const POLL_MS = 60000
+
+const BRIEF_CSS = `
+        .ohp-brief-shine{position:absolute;inset:0;z-index:-1;border-radius:inherit;overflow:hidden;pointer-events:none}
+        .ohp-brief-shine::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.75) 48%,transparent 66%);transform:translateX(-120%)}
+        .ohp-brief-lit .ohp-brief-shine::after{animation:ohpBriefShine 2.6s ease-in-out infinite}
+        .ohp-brief-lit{animation:ohpBriefGlow 2.6s ease-in-out infinite}
+        @keyframes ohpBriefShine{0%,35%{transform:translateX(-120%)}75%,100%{transform:translateX(120%)}}
+        @keyframes ohpBriefGlow{0%,100%{box-shadow:0 6px 18px -8px rgba(168,128,58,.9),0 0 0 0 rgba(232,201,122,.55)}50%{box-shadow:0 6px 18px -8px rgba(168,128,58,.9),0 0 0 6px rgba(232,201,122,0)}}
+      `
 
 // One request for every copy on the page (the Dash shows one for phones and one for computers).
 let inflight: Promise<Status | null> | null = null
@@ -28,9 +38,9 @@ function fetchStatus(): Promise<Status | null> {
   return inflight
 }
 
-/** `word` = the classes that show the word "Briefing" (hidden where the header has no room - a
- * phone shows just the calendar page with the date). */
-export default function BriefingButton({ word = 'inline' }: { word?: string }) {
+/** `word` = the classes that show the word "Briefing". `compact` = the phone's small pill on the
+ * Dash's "Updated" line ("Oct 26 Briefing" with a calendar icon, not just a round date). */
+export default function BriefingButton({ word = 'inline', compact = false }: { word?: string; compact?: boolean }) {
   const { isAuthenticated, user } = useAuth()
   const reduce = useReducedMotion()
   const [st, setSt] = useState<Status | null>(null)
@@ -63,20 +73,32 @@ export default function BriefingButton({ word = 'inline' }: { word?: string }) {
   const count = st.new_since > 99 ? '99+' : String(st.new_since)
   const title = st.new_since ? `${st.new_since} new since you last looked` : `Today's briefing`
 
+  if (compact) {
+    return (
+      <motion.button type="button" onClick={openTodaysRundown} title={title} aria-label={`${month} ${day.getDate()} Briefing. ${title}`}
+        data-testid="briefing-button" data-lit={lit ? 'true' : 'false'}
+        initial={reduce ? false : { opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} whileTap={{ scale: 0.94 }}
+        className={`ohp-brief relative isolate inline-flex h-[26px] shrink-0 items-center gap-1 rounded-full py-[3px] pl-[3px] pr-2.5 text-[11px] font-black leading-none text-[#1a1408] shadow-[0_4px_12px_-6px_rgba(168,128,58,.9)] ring-1 ring-[#a8803a]/40 ${lit && !reduce ? 'ohp-brief-lit' : ''}`}
+        style={{ background: 'linear-gradient(115deg,#b8902f 0%,#e8c97a 48%,#C9A24D 100%)' }}>
+        <style>{BRIEF_CSS}</style>
+        <span className="ohp-brief-shine" aria-hidden />
+        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#111827] text-[#e8c97a]"><CalendarDays className="h-3 w-3" /></span>
+        <span className="whitespace-nowrap">{month} {day.getDate()} Briefing</span>
+        {st.new_since > 0 && (
+          <motion.span key={count} initial={reduce ? false : { scale: 0.4 }} animate={{ scale: 1 }}
+            className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[9.5px] font-black tabular-nums text-white ring-2 ring-white dark:ring-[#0B0B0B]">{count}</motion.span>
+        )}
+      </motion.button>
+    )
+  }
+
   return (
     <motion.button type="button" onClick={openTodaysRundown} title={title} aria-label={`${month} ${day.getDate()} Briefing. ${title}`}
       data-testid="briefing-button" data-lit={lit ? 'true' : 'false'}
       initial={reduce ? false : { opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} whileTap={{ scale: 0.94 }}
       className={`ohp-brief group/brief relative isolate inline-flex h-9 shrink-0 items-center gap-1.5 overflow-visible rounded-full p-1 text-[13px] font-black leading-none text-[#1a1408] shadow-[0_6px_18px_-8px_rgba(168,128,58,.9)] ring-1 ring-[#a8803a]/40 transition hover:-translate-y-px sm:h-10 ${lit && !reduce ? 'ohp-brief-lit' : ''}`}
       style={{ background: 'linear-gradient(115deg,#b8902f 0%,#e8c97a 48%,#C9A24D 100%)' }}>
-      <style>{`
-        .ohp-brief-shine{position:absolute;inset:0;z-index:-1;border-radius:inherit;overflow:hidden;pointer-events:none}
-        .ohp-brief-shine::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.75) 48%,transparent 66%);transform:translateX(-120%)}
-        .ohp-brief-lit .ohp-brief-shine::after{animation:ohpBriefShine 2.6s ease-in-out infinite}
-        .ohp-brief-lit{animation:ohpBriefGlow 2.6s ease-in-out infinite}
-        @keyframes ohpBriefShine{0%,35%{transform:translateX(-120%)}75%,100%{transform:translateX(120%)}}
-        @keyframes ohpBriefGlow{0%,100%{box-shadow:0 6px 18px -8px rgba(168,128,58,.9),0 0 0 0 rgba(232,201,122,.55)}50%{box-shadow:0 6px 18px -8px rgba(168,128,58,.9),0 0 0 6px rgba(232,201,122,0)}}
-      `}</style>
+      <style>{BRIEF_CSS}</style>
       <span className="ohp-brief-shine" aria-hidden />
       {/* little calendar page */}
       <span className="flex h-7 w-7 shrink-0 flex-col items-center overflow-hidden rounded-full bg-[#111827] text-white shadow-inner sm:h-8 sm:w-8">
