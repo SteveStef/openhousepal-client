@@ -217,11 +217,13 @@ export function LuxeTabs<T extends string>({ items, active, onChange, label, end
 }
 
 // Compact glass stat chips - no taller than a title line, with an optional one-line note.
-export function LuxeStats({ stats, note, large = false }: {
+export function LuxeStats({ stats, note, large = false, small = false }: {
   stats: { label: string; value: React.ReactNode; icon: LucideIcon; alert?: boolean; urgent?: boolean; onClick?: () => void; title?: string }[]
   note?: string
   /** Bigger tiles - for pages where the numbers are the point (Listing Spotlight). */
   large?: boolean
+  /** Slimmer tiles - when something else shares the row (the Dash's Briefing button). */
+  small?: boolean
 }) {
   return (
     <div className="w-full min-w-0">
@@ -238,7 +240,7 @@ export function LuxeStats({ stats, note, large = false }: {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ type: 'spring', stiffness: 380, damping: 30, delay: 0.08 + i * 0.06 }}
             whileTap={st.onClick ? { scale: 0.97 } : undefined}
-            className={`flex min-w-0 flex-1 items-center rounded-xl border text-left ${st.onClick ? 'transition-shadow hover:-translate-y-0.5 hover:shadow-md' : ''} ${large ? 'gap-3 px-4 py-2.5' : 'gap-2 px-3 py-2'} ${st.urgent
+            className={`flex min-w-0 flex-1 items-center rounded-xl border text-left ${st.onClick ? 'transition-shadow hover:-translate-y-0.5 hover:shadow-md' : ''} ${large ? 'gap-3 px-4 py-2.5' : small ? 'gap-1.5 px-2.5 py-1.5' : 'gap-2 px-3 py-2'} ${st.urgent
             ? 'lx-urgent border-red-300 bg-red-50 text-red-700 dark:border-red-400/60 dark:bg-red-500/20 dark:text-white'
             : st.alert
               ? 'border-[#C9A24D]/50 bg-[#C9A24D]/10 dark:border-[#e8c97a]/50 dark:bg-[#C9A24D]/20'
@@ -246,10 +248,10 @@ export function LuxeStats({ stats, note, large = false }: {
             <st.icon className={`hidden shrink-0 sm:block ${large ? 'h-5 w-5' : 'h-3.5 w-3.5'} ${st.urgent ? 'text-red-500 dark:text-red-300' : 'text-[#8b7355] dark:text-[#e8c97a]'}`} />
             <div className="min-w-0">
               {/* A changed number pops once as it counts to its new value. */}
-              <motion.p key={typeof st.value === 'number' ? 'n' : 'v'} className={`font-serif font-black leading-none tabular-nums ${large ? 'text-2xl sm:text-[1.75rem]' : 'text-lg'}`}>
+              <motion.p key={typeof st.value === 'number' ? 'n' : 'v'} className={`font-serif font-black leading-none tabular-nums ${large ? 'text-2xl sm:text-[1.75rem]' : small ? 'text-base' : 'text-lg'}`}>
                 {typeof st.value === 'number' ? <PopOnChange value={st.value}><AnimatedNumber value={st.value} /></PopOnChange> : st.value}
               </motion.p>
-              <p className={`font-black uppercase leading-tight tracking-tight sm:truncate sm:tracking-wide ${large ? 'mt-1 text-[8px] sm:text-[10px]' : 'mt-0.5 text-[8px] sm:text-[9px]'} ${st.urgent ? 'text-red-600/80 dark:text-white/60' : 'text-gray-500 dark:text-white/50'}`}>{st.label}</p>
+              <p className={`font-black uppercase leading-tight tracking-tight sm:truncate sm:tracking-wide ${large ? 'mt-1 text-[8px] sm:text-[10px]' : small ? 'mt-0.5 text-[8px] sm:text-[8.5px]' : 'mt-0.5 text-[8px] sm:text-[9px]'} ${st.urgent ? 'text-red-600/80 dark:text-white/60' : 'text-gray-500 dark:text-white/50'}`}>{st.label}</p>
             </div>
           </Tile>
           )

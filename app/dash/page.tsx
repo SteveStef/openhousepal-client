@@ -439,11 +439,7 @@ export default function DashPage() {
       <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-5 sm:py-6">
         {/* The shared luxe header (same look as Listing Spotlight): today's three to-do counts on
             the right, the quick-create links inside it. Same links, same plan locks as before. */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="relative">
-          {/* Today's Rundown once it's been looked at - the card below steps aside for this */}
-          <div className="absolute right-3 top-3 z-10 sm:right-5 sm:top-4 lg:hidden">
-            <BriefingButton word="hidden sm:inline" />
-          </div>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <LuxeHero
             kicker="Dashboard"
             icon={LayoutDashboard}
@@ -456,13 +452,16 @@ export default function DashPage() {
             )}
             // Phones: no stat tiles or quick-create pills up here (user, 10/17) - screen space goes
             // to what needs attention; the same links live in the menu.
-            asideClassName="max-sm:hidden lg:w-[400px] lg:-mt-6"
+            // Today's Rundown once it's been looked at (the card below steps aside for it): phones and
+            // tablets - the right end of the "Dashboard - Updated" line; computers - in the stats row.
+            badge={<span className="inline-flex pr-2 pt-2 lg:hidden"><BriefingButton word="hidden sm:inline" /></span>}
+            asideClassName="max-sm:hidden lg:w-[400px] xl:w-[460px] lg:-mt-6"
             actionsClassName="max-sm:hidden"
             aside={
-              <div className="w-full">
-              {/* computers: the Briefing button sits above the tiles (phones/tablets: top right, above) */}
-              <div className="mb-2 hidden justify-end empty:hidden lg:flex"><BriefingButton /></div>
+              <div className="flex w-full items-start gap-2">
+              <div className="min-w-0 flex-1">
               <LuxeStats
+                small
                 stats={[
                   { label: 'Unread', value: newLeadsCount, icon: Users, alert: newLeadsCount > 0 },
                   { label: 'Open houses', value: (openHouseActionCount || 0) + (openHouseHostActionCount || 0), icon: Home, alert: ((openHouseActionCount || 0) + (openHouseHostActionCount || 0)) > 0 },
@@ -470,6 +469,8 @@ export default function DashPage() {
                 ]}
                 note="Waiting on you right now · updates on its own"
               />
+              </div>
+              <div className="hidden pt-0.5 lg:block"><BriefingButton word="hidden xl:inline" /></div>
               </div>
             }
             actions={
