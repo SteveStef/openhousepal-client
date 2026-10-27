@@ -6,15 +6,16 @@ import { createPortal } from 'react-dom'
 import {
   Phone, CheckSquare, Check, Plus,
   Clock, AlertTriangle, ChevronDown, CalendarClock, CalendarCheck, Loader2, X, ArrowRight, Plug,
-  CheckCircle2,
+  CheckCircle2, Sparkles,
 } from 'lucide-react'
 import api from '@/lib/api-service'
-import type { AgentTask, TaskBucket, TaskKind } from '@/types'
+import type { AgentTask, LeadEvent, TaskBucket, TaskKind } from '@/types'
 import LeadDetailModal from '@/components/leads/LeadDetailModal'
 import OhpLoader from '@/components/brand/OhpLoader'
 import FollowupCard from './FollowupCard'
 import { AnimatePresence, motion } from 'framer-motion'
 import { WhenSheet, addDays, nextWeekday, whenText, ymd } from '@/components/ui/WhenPicker'
+import { backdropMotion, useEscapeToClose, useIsPhone, usePagePin, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 
 const DASH_ROWS_KEY = 'dash:followupRows'
 import { useIntegrationStatus } from '@/hooks/useIntegrationStatus'
@@ -146,6 +147,7 @@ export default function TasksPanel({
   onChanged,
   className = '',
   focusTaskId,
+  events,
 }: {
   /** Scope to a single lead + prefill new tasks with it. */
   leadId?: string
@@ -167,6 +169,8 @@ export default function TasksPanel({
   className?: string
   /** Opened from a notification about one follow-up: scroll to it and glow it gold. */
   focusTaskId?: string | null
+  /** The lead's activity (their own page) - suggests a follow-up from the latest thing they did. */
+  events?: LeadEvent[]
 }) {
   const changedRef = useRef(onChanged)
   changedRef.current = onChanged
@@ -302,6 +306,10 @@ export default function TasksPanel({
 
   return (
     <div className={className}>
+      {!compact && leadId && events && !loading && (
+        <SuggestedFollowups leadId={leadId} onAdded={() => { load(); changedRef.current?.() }}
+          items={suggestFollowups(events, leadName, tasks.filter(t => !t.completed_at).map(t => t.title))} />
+      )}
       {!compact && (composerOpen === undefined
         ? <QuickAdd leadId={leadId} leadName={leadName} onAdded={() => { load(); changedRef.current?.() }} />
         : composerOpen && <QuickAdd leadId={leadId} leadName={leadName} onAdded={() => { load(); changedRef.current?.() }} startOpen onClose={onComposerClose} />)}
@@ -470,6 +478,9 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
   const [time, setTime] = useState('')      // HH:MM, empty = any time that day (all-day event)
   const [saving, setSaving] = useState(false)
   const [whenOpen, setWhenOpen] = useState(false)
+  // Phones: "Add a follow-up" opens a slide-up window with everything in it right away (owner,
+  // 10/26 - it used to open in the page, and the slide-up only came with "Add a time").
+  const phone = useIsPhone()
 
   // The chosen day (local), or null for Someday.
   const pickedDay = (): Date | null => {
@@ -513,19 +524,18 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
     }
   }
 
-  if (!open) {
-    return (
+  const closedButton = (
       <button
         onClick={() => setOpen(true)}
         className="mb-3 flex w-full items-center gap-2 rounded-xl border border-dashed border-gray-300 px-3 py-2.5 text-sm font-bold text-gray-400 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700"
       >
         <Plus className="h-4 w-4" /> Add a follow-up{leadName ? ` for ${leadName}` : ''}
       </button>
-    )
-  }
+  )
+  if (!open && !phone) return closedButton
 
-  return (
-    <div className="mb-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
+  const body = (
+    <>
       <div className="flex items-center gap-2">
         <input
           autoFocus
@@ -533,9 +543,9 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
           onChange={e => setTitle(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') setOpen(false) }}
           placeholder="What needs doing?"
-          className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white"
+          className={`min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white ${phone ? 'py-3 text-base' : 'py-2 text-sm'}`}
         />
-        <button onClick={() => setOpen(false)} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10"><X className="h-4 w-4" /></button>
+        {!phone && <button onClick={() => setOpen(false)} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10"><X className="h-4 w-4" /></button>}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {(['call', 'text', 'email', 'showing', 'general'] as TaskKind[]).map(k => (
@@ -601,12 +611,147 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
           setTime(v.anytime ? '' : v.time || '')
           setWhenOpen(false)
         }} />
-      <div className="mt-2 flex justify-end">
+      <div className={phone ? 'mt-4' : 'mt-2 flex justify-end'}>
         <button onClick={submit} disabled={saving || !title.trim()}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[#C9A24D] px-4 py-2 text-xs font-black uppercase tracking-wide text-[#111827] transition hover:brightness-105 disabled:opacity-50">
-          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Add
+          className={`inline-flex items-center justify-center gap-1.5 bg-[#C9A24D] font-black uppercase tracking-wide text-[#111827] transition hover:brightness-105 disabled:opacity-50 ${phone ? 'h-12 w-full rounded-2xl text-sm' : 'rounded-lg px-4 py-2 text-xs'}`}>
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} {phone ? 'Add follow-up' : 'Add'}
         </button>
       </div>
+    </>
+  )
+  if (phone) {
+    return <>{closedButton}<ComposerSheet open={open} onClose={() => setOpen(false)} leadName={leadName}>{body}</ComposerSheet></>
+  }
+  return <div className="mb-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-[#151517]">{body}</div>
+}
+
+function ComposerSheet({ open, onClose, leadName, children }: { open: boolean; onClose: () => void; leadName?: string | null; children: React.ReactNode }) {
+  const [host, setHost] = useState<HTMLElement | null>(null)
+  useEffect(() => { setHost(document.body) }, [])
+  const release = usePagePin(open)
+  if (!host) return null
+  return createPortal(
+    <AnimatePresence onExitComplete={() => release()}>
+      {open && <ComposerWindow key="composer" onClose={onClose} leadName={leadName}>{children}</ComposerWindow>}
+    </AnimatePresence>,
+    host,
+  )
+}
+
+function ComposerWindow({ onClose, leadName, children }: { onClose: () => void; leadName?: string | null; children: React.ReactNode }) {
+  const sheetMotion = useSheetMotion()
+  const { sheetRef, y } = useSwipeToClose(onClose, true)
+  useEscapeToClose(onClose)
+  return (
+    <motion.div {...backdropMotion} data-scroll-lock="off" onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      className="fixed inset-0 z-[140] flex items-end bg-[#0b0b0c]/60">
+      <motion.div ref={sheetRef} {...sheetMotion} style={{ y }} role="dialog" aria-modal="true" aria-label="New follow-up" data-testid="followup-composer"
+        className="relative max-h-[92dvh] w-full overflow-y-auto overscroll-contain rounded-t-[28px] bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-20px_60px_-20px_rgba(0,0,0,.5)] dark:bg-[#151517]">
+        <span aria-hidden className="mx-auto mb-3 block h-1.5 w-10 rounded-full bg-gray-300 dark:bg-white/20" />
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]">New follow-up</p>
+            <p className="truncate font-serif text-xl font-black text-[#111827] dark:text-white">{leadName ? `For ${leadName}` : 'Your follow-up'}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-300"><X className="h-4 w-4" /></button>
+        </div>
+        {children}
+      </motion.div>
+    </motion.div>
+  )
+}
+
+// ------------------------------------------------------------------------------------------------
+// Suggested follow-ups (owner, 10/26): on a lead's page, one tap puts "call / text them" on
+// tomorrow's calendar, based on the latest thing they did. The calendar event already carries
+// their name, phone, email and a save-to-contacts link (calendar_sync_service), so the follow-up
+// itself just says what happened.
+type Suggestion = { key: string; kind: TaskKind; title: string; why: string; note: string }
+
+const SUGGEST: Partial<Record<LeadEvent['source_type'], { key: string; kind: TaskKind; title: (first: string, street: string) => string }>> = {
+  open_house_visitor: { key: 'visit', kind: 'call', title: (f, s) => `Call ${f} - thanks for coming to ${s || 'the open house'}` },
+  open_house_second_visit: { key: 'visit', kind: 'call', title: (f, s) => `Call ${f} - came back to ${s || 'the open house'}` },
+  open_house_disclosure: { key: 'disclosure', kind: 'call', title: (f, s) => `Call ${f} about the disclosures${s ? ` for ${s}` : ''}` },
+  property_tour: { key: 'tour', kind: 'call', title: (f, s) => `Set up ${f}'s showing${s ? ` of ${s}` : ''}` },
+  property_page_tour_request: { key: 'tour', kind: 'call', title: (f, s) => `Set up ${f}'s showing${s ? ` of ${s}` : ''}` },
+  property_website_tour_request: { key: 'tour', kind: 'call', title: (f, s) => `Set up ${f}'s showing${s ? ` of ${s}` : ''}` },
+  form_submission: { key: 'reply', kind: 'call', title: f => `Get back to ${f} about their form` },
+  property_website_inquiry: { key: 'reply', kind: 'call', title: (f, s) => `Answer ${f}'s question${s ? ` about ${s}` : ''}` },
+  property_page_inquiry: { key: 'reply', kind: 'call', title: (f, s) => `Answer ${f}'s question${s ? ` about ${s}` : ''}` },
+  blog_inquiry: { key: 'reply', kind: 'call', title: f => `Answer ${f}'s question` },
+  portal_lead: { key: 'reply', kind: 'call', title: f => `Call ${f} - new lead` },
+  property_comment: { key: 'comment', kind: 'text', title: (f, s) => `Answer ${f}'s comment${s ? ` on ${s}` : ''}` },
+  showcase_like: { key: 'likes', kind: 'text', title: f => `Text ${f} about the homes they liked` },
+  showcase_refine: { key: 'search', kind: 'text', title: f => `Check in with ${f} about their search` },
+  showcase_search_changed: { key: 'search', kind: 'text', title: f => `Check in with ${f} about their new search` },
+  email_clicked: { key: 'email', kind: 'text', title: f => `Check in with ${f} - they clicked your email` },
+  invite_rsvp: { key: 'rsvp', kind: 'text', title: f => `Thank ${f} for the RSVP` },
+}
+
+function happenedWhen(iso: string): string {
+  const d = new Date(iso)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const days = Math.round((today.getTime() - new Date(d).setHours(0, 0, 0, 0)) / 864e5)
+  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  return days <= 0 ? `today ${time}` : days === 1 ? `yesterday ${time}` : d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+export function suggestFollowups(events: LeadEvent[], name: string | null | undefined, openTitles: string[]): Suggestion[] {
+  const first = (name || '').trim().split(/\s+/)[0] || 'them'
+  const recent = [...events].filter(e => Date.now() - Date.parse(e.occurred_at) < 7 * 864e5)
+    .sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))
+  const out: Suggestion[] = []
+  const used = new Set<string>()
+  for (const e of recent) {
+    const rule = SUGGEST[e.source_type]
+    if (!rule || used.has(rule.key)) continue
+    used.add(rule.key)
+    // "239 WINDHAM DR" (some listings come in all caps) -> "239 Windham Dr"
+    const raw = (e.property_address || '').split(',')[0].trim()
+    const street = raw === raw.toUpperCase() ? raw.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase()) : raw
+    const title = rule.title(first, street)
+    if (openTitles.includes(title)) continue
+    const why = `${e.summary} · ${happenedWhen(e.occurred_at)}`
+    out.push({ key: rule.key, kind: rule.kind, title, why, note: `What happened: ${why}` })
+    if (out.length === 2) break
+  }
+  return out
+}
+
+function SuggestedFollowups({ leadId, items, onAdded }: { leadId: string; items: Suggestion[]; onAdded: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null)
+  const [added, setAdded] = useState<string[]>([])
+  if (!items.length) return null
+  const add = async (s: Suggestion) => {
+    setBusy(s.key)
+    // Tomorrow, any time (all-day) - the phone buzzes at 9 AM.
+    const day = new Date(); day.setHours(0, 0, 0, 0); day.setDate(day.getDate() + 1)
+    const at = (h: number) => { const d = new Date(day); d.setHours(h, 0, 0, 0); return d.toISOString() }
+    const res = await api.tasks.create({ title: s.title, kind: s.kind, priority: 'normal', due_at: at(12), remind_at: at(9), all_day: true, lead_id: leadId, notes: s.note })
+    setBusy(null)
+    if (res.success) { setAdded(a => [...a, s.key]); onAdded() }
+  }
+  return (
+    <div className="mb-3 rounded-xl border border-[#C9A24D]/30 bg-[#fffaf0] p-3 dark:border-[#C9A24D]/20 dark:bg-[#C9A24D]/[0.06]" data-testid="suggested-followups">
+      <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7355] dark:text-[#e8c97a]"><Sparkles className="h-3.5 w-3.5" /> Suggested from what they just did</p>
+      {items.map(s => {
+        const done = added.includes(s.key)
+        return (
+          <div key={s.key} className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <div className="min-w-[12rem] flex-1">
+              <p className="text-[13.5px] font-black leading-snug text-[#111827] dark:text-white">{s.title}</p>
+              <p className="mt-0.5 line-clamp-2 text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">{s.why}</p>
+            </div>
+            <button type="button" disabled={!!busy || done} onClick={() => add(s)}
+              className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-[12px] font-black transition max-sm:w-full max-sm:justify-center ${done
+                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300'
+                : 'bg-[#111827] text-white hover:-translate-y-px dark:bg-[#C9A24D] dark:text-[#111827]'}`}>
+              {busy === s.key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : done ? <Check className="h-3.5 w-3.5" /> : <CalendarClock className="h-3.5 w-3.5" />}
+              {done ? 'Added for tomorrow' : 'Add for tomorrow'}
+            </button>
+          </div>
+        )
+      })}
     </div>
   )
 }

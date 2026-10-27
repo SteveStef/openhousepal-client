@@ -336,6 +336,8 @@ export const DashboardView = memo(function DashboardView({
           kicker="Showcases"
           icon={Users}
           title={<>Homes picked <em>for every buyer.</em></>}
+          // One line on a phone (owner, 10/27) - the size follows the screen width up to the usual size.
+          titleClassName="whitespace-nowrap text-[min(1.7rem,5.2vw)] sm:text-4xl"
           subtitle="Manage customer property showcases and preferences."
           aside={
             <div className="w-full">

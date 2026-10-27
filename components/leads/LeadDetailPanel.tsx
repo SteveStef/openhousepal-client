@@ -454,7 +454,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
               <SectionTitle aside={<Link href="/leads/tasks" className="inline-flex items-center gap-1 text-[11px] font-black text-[#8b7355] hover:underline dark:text-[#d7b974]">All follow-ups <ArrowRight className="h-3 w-3" /></Link>}>
                 Follow-ups
               </SectionTitle>
-              <TasksPanel leadId={lead.id} leadName={lead.name} singleColumn onChanged={() => { reload(); onChanged?.() }} />
+              <TasksPanel leadId={lead.id} leadName={lead.name} events={events} singleColumn onChanged={() => { reload(); onChanged?.() }} />
             </Card>
           )}
 
