@@ -12,7 +12,7 @@ const compact = (n: number) => (n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(n >
 export function firstSentences(text: string | undefined | null, n = 2): string {
   const t = String(text || '').trim()
   if (!t) return ''
-  const raw = t.match(/[^.!?]+[.!?]+(\s|$)/g)
+  const raw = t.match(/[^.!?]+[.!?]+['"’”]?(\s|$)/g) // a quote may close after the period ('go into town.')
   if (!raw) return t
   // Re-join pieces split on an abbreviation ("St. Davids", "U.S. Route 30", "Mt. Pleasant").
   const ABBR = /(?:^|\s)(St|Ste|Ave|Rd|Dr|Mt|Ft|Jr|Sr|Dr|No|Rt|Hwy|Blvd|Ln|Pkwy|U\.S|Inc|Co|vs|approx|e\.g|i\.e|[A-Z])\.\s*$/
@@ -53,7 +53,9 @@ export function buildTownFaq(area: any, inventoryTotal: number): TownFaq[] {
   // Prices
   const priceBits: string[] = []
   if (ms.median_price != null && inventoryTotal > 0) {
-    priceBits.push(`Right now the median list price in ${name} is ${money(ms.median_price)}, across ${inventoryTotal} ${inventoryTotal === 1 ? 'home' : 'homes'} for sale.`)
+    // Charlottesville: our MLS feed carries only part of the area's homes (market_coverage) - say so.
+    const feed = area.market_coverage?.thin ? ' in our MLS feed' : ''
+    priceBits.push(`Right now the median list price in ${name} is ${money(ms.median_price)}, across ${inventoryTotal} ${inventoryTotal === 1 ? 'home' : 'homes'} for sale${feed}.`)
   }
   if (tr.median_sold_price) {
     let s = `Over the last 12 months, homes sold for a median of ${money(tr.median_sold_price)}`
@@ -75,7 +77,8 @@ export function buildTownFaq(area: any, inventoryTotal: number): TownFaq[] {
   else if (ms.median_dom != null) pace.push(`Homes for sale in ${name} right now have been listed for a median of ${ms.median_dom} ${ms.median_dom === 1 ? 'day' : 'days'}.`)
   if (typeof tr.median_sale_to_list_pct === 'number') {
     const p = tr.median_sale_to_list_pct
-    pace.push(`The typical home sells for ${p.toFixed(1)}% of its asking price${p >= 100 ? ' - so well-priced homes often draw more than one offer' : ''}.`)
+    // Price vs asking alone says nothing about how many offers a home got (grader 10/27).
+    pace.push(`The typical home sells for ${p.toFixed(1)}% of its asking price.`)
   }
   if (tr.new_last_30_days) pace.push(`${tr.new_last_30_days} new ${tr.new_last_30_days === 1 ? 'listing has' : 'listings have'} come on in the last 30 days.`)
   if (pace.length) out.push({ q: `How fast do homes sell in ${name}?`, a: pace.join(' ') })
@@ -128,11 +131,13 @@ export function buildTownFaq(area: any, inventoryTotal: number): TownFaq[] {
     // "Township" only where every piece is one - Delaware has none, and "Unincorporated Sussex
     // County" isn't a municipality (same rule as the page's Townships / Local government switch).
     const townships = munis.every(m => /township$/i.test(m.name))
+    // The shares are the homes we mapped; a mailing area can touch small slivers of others (19348, 19350).
+    const spans = munis.reduce((t, m) => t + (m.share || 0), 0) >= 99 ? 'spans' : 'mostly covers'
     out.push({
       q: townships ? `What township is ${name} in?` : `Which local government covers ${name}?`,
       a: townships
-        ? `${name} is a mailing address that spans ${munis.length} townships: ${list(munis.map(m => `${m.name} (about ${m.share}% of homes)`))}. The township sets a home's property tax rate, services and zoning, so check which one a specific home is in.`
-        : `${name} is a mailing address that spans ${munis.length} local jurisdictions: ${list(munis.map(m => `${m.name} (about ${m.share}% of homes)`))}. The jurisdiction sets a home's local tax rate, services and zoning, so check which one a specific home is in.`,
+        ? `${name} is a mailing address that ${spans} ${munis.length} townships: ${list(munis.map(m => `${m.name} (about ${m.share}% of homes)`))}. The township sets a home's property tax rate, services and zoning, so check which one a specific home is in.`
+        : `${name} is a mailing address that ${spans} ${munis.length} local jurisdictions: ${list(munis.map(m => `${m.name} (about ${m.share}% of homes)`))}. The jurisdiction sets a home's local tax rate, services and zoning, so check which one a specific home is in.`,
       source: { name: 'U.S. Census Bureau boundaries' },
     })
   }

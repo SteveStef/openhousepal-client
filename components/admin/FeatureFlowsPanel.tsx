@@ -263,7 +263,7 @@ const FLOWS: FeatureFlow[] = [
       'Any flagged phrase that doesn’t literally appear in the original text is thrown out (guards against the model paraphrasing instead of quoting), capped at 25 flags.',
       'Same cost recording/reconcile as the write flow.',
     ],
-    calls: ['Anthropic Claude (claude-haiku-4-5) - both writing and compliance-checking'],
+    calls: ['Anthropic Claude (claude-haiku-5-5) - both writing and compliance-checking'],
     costs: [
       'Reservation held: $0.03 per call (both write and check)',
       'Platform-wide ceiling: $25/day, $300/month',
@@ -292,7 +292,7 @@ const FLOWS: FeatureFlow[] = [
       'Once it has what it needs, it returns a final text reply.',
       'Real cost is computed from actual tokens used and logged.',
     ],
-    calls: ['Anthropic Claude (claude-haiku-4-5)'],
+    calls: ['Anthropic Claude (claude-haiku-5-5)'],
     costs: [
       'Per-user monthly ceiling: $5.00',
       'Platform-wide ceiling: $25/day, $300/month',
@@ -363,7 +363,7 @@ const FLOWS: FeatureFlow[] = [
       'If public schools still can’t be resolved and OpenHousePal’s own MLS data suggests a specific district, ONE upgraded call (a more capable Claude model) makes one last attempt.',
       'Total cost for all of this is recorded as one event, and the results are saved and versioned so this town is never re-researched under the same pipeline version.',
     ],
-    calls: ['Anthropic Claude Haiku (claude-haiku-4-5) - the 5 grouped research calls + follow-ups, each with live web search', 'Anthropic Claude Sonnet (claude-sonnet-5) - rare, public-schools-only fallback'],
+    calls: ['Anthropic Claude Haiku (claude-haiku-5-5) - the 5 grouped research calls + follow-ups, each with live web search', 'Anthropic Claude Sonnet (claude-sonnet-5) - rare, public-schools-only fallback'],
     costs: [
       'Hard cap: $1.00 per community',
       'Platform-wide ceiling: $50/day, $500/month',
@@ -384,7 +384,7 @@ const FLOWS: FeatureFlow[] = [
       'Claude writes a 3–4 sentence paragraph describing the town.',
       'Saves the paragraph and shows it to every agent who serves that area from then on - it is never regenerated per agent or per page view.',
     ],
-    calls: ['Anthropic Claude (claude-haiku-4-5)'],
+    calls: ['Anthropic Claude (claude-haiku-5-5)'],
     costs: [
       'Per-town budget: $0.02 reservation',
       'Monthly ceiling: $2.00',

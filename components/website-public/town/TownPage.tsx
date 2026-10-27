@@ -807,6 +807,10 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
                 <Home className="h-4 w-4" style={{ color: 'var(--site-accent)' }} /> What&apos;s my home worth?
               </a>
             ) : undefined} />
+          {/* Thin MLS coverage (Charlottesville): the sales numbers are off - say why, plainly. */}
+          {area.market_coverage?.note && (
+            <p className="mt-4 max-w-3xl text-sm leading-relaxed" style={{ color: 'var(--site-muted)' }}>{area.market_coverage.note}</p>
+          )}
           <TownInsights data={area.insights} town={area.name} luxe={luxe} />
           <div className="mt-6"><MarketTrendsSection trends={area.market_trends} theme={theme} areaName={area.name} bare /></div>
           {(facts.market_context?.stats?.length || 0) > 0 && (
