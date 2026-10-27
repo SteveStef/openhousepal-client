@@ -13,6 +13,7 @@ import api from '@/lib/api-service'
 import type { AgentMarketArea } from '@/types'
 import type { AgentSale } from '@/lib/agentSales'
 import { inputCls } from './SetupUi'
+import { PopupPortal, useAnchoredStyle } from '@/components/ui/AnchoredPopup'
 
 const MAX = 15
 const RESEARCH_STEPS = ['Finding the schools', 'Pulling home prices', 'Mapping parks & shops', 'Writing your town page']
@@ -45,8 +46,14 @@ export default function TownPicker({ idx = true }: { idx?: boolean }) {
   const [error, setError] = useState('')
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const boxRef = useRef<HTMLDivElement>(null)
+  // The suggestions float on top of the page under the search row - inside the setup card they
+  // were cut off at the card's bottom edge (owner, 10/26).
+  const rowRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  const listOpen = mode === 'city' && open && suggestions.length > 0
+  const listStyle = useAnchoredStyle(rowRef, listRef, listOpen, { maxHeight: 460, gap: 8 })
 
-  const load = useCallback(() => api.sites.getAreas(true).then(r => { if (r.success && r.data) setAreas(r.data) }), [])
+  const load =useCallback(() => api.sites.getAreas(true).then(r => { if (r.success && r.data) setAreas(r.data) }), [])
   useEffect(() => { load() }, [load])
   useEffect(() => {
     api.agentHub.getMine().then(r => { const c = r.success ? r.data?.config : null; if (Array.isArray(c?.recentSales)) setSales(c.recentSales) })
@@ -100,7 +107,7 @@ export default function TownPicker({ idx = true }: { idx?: boolean }) {
   }, [q, mode])
 
   useEffect(() => {
-    const h = (e: MouseEvent) => { if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false) }
+    const h = (e: MouseEvent) => { if (boxRef.current && !boxRef.current.contains(e.target as Node) && !listRef.current?.contains(e.target as Node)) setOpen(false) }
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
   }, [])
@@ -195,7 +202,7 @@ export default function TownPicker({ idx = true }: { idx?: boolean }) {
         </div>
         {mode === 'neighborhood' && <p className="mb-2.5 text-[13.5px] font-medium text-gray-500 dark:text-gray-400">For a named area that isn&apos;t its own town - like Rittenhouse Square, Main Line or Fishtown.</p>}
         <div ref={boxRef} className="relative">
-          <div className="flex gap-2">
+          <div ref={rowRef} className="flex gap-2">
             <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#C9A24D]" />
               <input value={q} onChange={e => { setQ(e.target.value); setOpen(true); setError('') }} onFocus={() => setOpen(true)} onKeyDown={onKey}
@@ -214,10 +221,11 @@ export default function TownPicker({ idx = true }: { idx?: boolean }) {
               </>
             )}
           </div>
+          <PopupPortal from={boxRef}>
           <AnimatePresence>
-            {mode === 'city' && open && suggestions.length > 0 && (
-              <motion.ul initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.16 }}
-                role="listbox" className="absolute inset-x-0 z-50 mt-2 overflow-hidden rounded-[20px] border-2 border-[#ece5d6] bg-white p-1.5 shadow-[0_30px_60px_-30px_rgba(17,24,39,.55)] dark:border-white/10 dark:bg-[#17171a]">
+            {listOpen && (
+              <motion.ul ref={listRef} style={listStyle} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.16 }}
+                role="listbox" className="overflow-y-auto overscroll-contain rounded-[20px] border-2 border-[#ece5d6] bg-white p-1.5 shadow-[0_30px_60px_-30px_rgba(17,24,39,.55)] dark:border-white/10 dark:bg-[#17171a]">
                 {suggestions.map((raw, i) => {
                   const c = splitCity(raw)
                   const already = picked.has(keyOf(c.name, c.state))
@@ -237,6 +245,7 @@ export default function TownPicker({ idx = true }: { idx?: boolean }) {
               </motion.ul>
             )}
           </AnimatePresence>
+          </PopupPortal>
           {mode === 'city' && open && q.trim().length >= 2 && !searching && suggestions.length === 0 && (
             <p className="mt-2 text-[13.5px] font-semibold text-gray-500">No town by that name in the MLS yet - check the spelling, or add it as a neighborhood.</p>
           )}

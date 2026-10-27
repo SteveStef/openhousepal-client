@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Globe2, Loader2, MapPin, Plus, Trash2 } from 'lucide-react'
 import api from '@/lib/api-service'
 import { AgentMarketArea } from '@/types'
+import { PopupPortal, useAnchoredStyle } from '@/components/ui/AnchoredPopup'
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
   PENDING: { label: 'Queued...', className: 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300' },
@@ -45,6 +46,10 @@ export default function AreasPanel({ onChange }: { onChange?: (what?: { added?: 
   const [showSuggestions, setShowSuggestions] = useState(false)
   const suggestionsRef = useRef<HTMLDivElement>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
+  // The town list floats on top of the page under the box - on phones it slid behind the live
+  // preview below this panel (owner, 10/26).
+  const listOpen = mode === 'city' && showSuggestions && suggestions.length > 0
+  const listStyle = useAnchoredStyle(nameInputRef, suggestionsRef, listOpen, { maxHeight: 240, gap: 4 })
   const selectedAreaCount = areas.length
   const atAreaLimit = selectedAreaCount >= MAX_SERVED_AREAS
 
@@ -249,10 +254,12 @@ export default function AreasPanel({ onChange }: { onChange?: (what?: { added?: 
             disabled={atAreaLimit}
             className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white"
           />
-          {mode === 'city' && showSuggestions && suggestions.length > 0 && (
+          {listOpen && (
+            <PopupPortal from={nameInputRef}>
             <div
               ref={suggestionsRef}
-              className="absolute z-[100] mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-[#151517]"
+              style={listStyle}
+              className="overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-[#151517]"
             >
               {suggestions.map(raw => (
                 <div
@@ -264,6 +271,7 @@ export default function AreasPanel({ onChange }: { onChange?: (what?: { added?: 
                 </div>
               ))}
             </div>
+            </PopupPortal>
           )}
         </div>
         <input

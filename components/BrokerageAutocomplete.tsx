@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import api from '@/lib/api-service'
+import { PopupPortal, useAnchoredStyle } from '@/components/ui/AnchoredPopup'
 
 interface BrokerageAutocompleteProps {
   value: string
@@ -35,6 +36,10 @@ export default function BrokerageAutocomplete({
   const suggestionsRef = useRef<HTMLDivElement>(null)
   const lastSelectedRef = useRef(value)
   const suggestionsCacheRef = useRef<string[]>([])
+  // The list floats on top of the page tied to the box (flips above it when the phone keyboard
+  // leaves no room below) - inside sign-up's scroll panel it was cut off on small phones (10/26).
+  const listOpen = showSuggestions && suggestions.length > 0
+  const listStyle = useAnchoredStyle(inputRef, suggestionsRef, listOpen, { maxHeight: 240, gap: 4 })
 
   // Keep internal input value in sync with external value
   useEffect(() => {
@@ -195,10 +200,12 @@ export default function BrokerageAutocomplete({
         )}
       </div>
 
-      {showSuggestions && suggestions.length > 0 && (
+      {listOpen && (
+        <PopupPortal from={inputRef}>
         <div 
           ref={suggestionsRef}
-          className="absolute z-[100] w-full mt-1 bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto"
+          style={listStyle}
+          className="bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl overflow-y-auto overscroll-contain"
         >
           {suggestions.map((name, index) => (
             <div
@@ -218,6 +225,7 @@ export default function BrokerageAutocomplete({
             </div>
           ))}
         </div>
+        </PopupPortal>
       )}
     </div>
   )

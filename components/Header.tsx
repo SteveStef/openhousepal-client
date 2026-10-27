@@ -65,6 +65,9 @@ export default function Header({ mode = 'app' }: HeaderProps) {
   const { showToast } = useToast()
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  // The phone menu opens with every section folded; tapping a section unfolds its pages (owner, 10/26).
+  const [openSection, setOpenSection] = useState<string | null>(null)
+  useEffect(() => { if (isMobileMenuOpen) setOpenSection(null) }, [isMobileMenuOpen])
   const pathname = usePathname()
 
   // Landing nav active-tab tracking - mirrors the gold-underline "you are here" treatment the
@@ -199,7 +202,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
   // The phone menu (owner, 10/26): every section is a card with all of its pages as big buttons in
   // a two-column grid - the same layout as the admin panel's tabs - so nothing is a hover-only
   // dropdown away. Desktop keeps its hover menus above.
-  type MobileTile = { href: string; label: string; icon: ComponentType<{ className?: string }>; badge?: number; alert?: boolean; locked?: boolean; soon?: boolean; on?: boolean }
+  type MobileTile = { href: string; label: string; icon: ComponentType<{ className?: string }>; badge?: number; alert?: boolean; locked?: boolean; soon?: boolean; on?: boolean; wide?: boolean }
   type MobileSection = { key: string; label: string; icon: ComponentType<{ className?: string }>; href: string; on: boolean; badge?: number; tiles: MobileTile[]; dimmed?: boolean }
   const gateHref = (href: string) => (!user?.is_admin && !hasValidSubscription(user) ? '/checkout' : href)
   const navTile = (item: { href: string; label: string; icon: ComponentType<{ className?: string }>; feature?: NavFeatureKey }, extra: Partial<MobileTile> = {}): MobileTile | null => {
@@ -230,6 +233,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
       on: pathname.startsWith('/open-houses') || pathname.startsWith('/discovery'), badge: pendingHostRequestCount,
       tiles: hasCoreAccess ? openHousesSubNav.map(item => navTile(item, {
         badge: item.href === '/open-houses/my-listings' ? listingAgentCount : item.href === '/discovery' ? hostCount : openRequestsCount,
+        wide: item.href === '/open-houses',
       })).filter(isTile) : [],
     })
     if (showcasesAccess.visible) {
@@ -243,7 +247,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
       key: 'leads', label: 'Leads', icon: Users, href: gateHref('/leads'), dimmed: dim,
       on: pathname.startsWith('/leads') || pathname.startsWith('/activity'),
       tiles: hasCoreAccess ? [
-        ...leadsSubNav.map(item => navTile(item, { on: item.href === '/leads' ? pathname === '/leads' : pathname === item.href })).filter(isTile),
+        ...leadsSubNav.map(item => navTile(item, { on: item.href === '/leads' ? pathname === '/leads' : pathname === item.href, wide: item.href === '/leads' })).filter(isTile),
         { href: '', label: 'Action Plans', icon: ListChecks, soon: true },
       ] : [],
     })
@@ -251,7 +255,6 @@ export default function Header({ mode = 'app' }: HeaderProps) {
       key: 'tools', label: 'Tools', icon: ToolCase, href: gateHref('/studio'), dimmed: dim, badge: formsActionCount,
       on: pathname.startsWith('/studio') && !pathname.startsWith('/studio/website'),
       tiles: hasCoreAccess ? [
-        { href: gateHref('/studio'), label: 'All tools', icon: ToolCase, on: pathname === '/studio' },
         { href: gateHref('/studio/brand-kit'), label: 'Branding', icon: SwatchBook, on: pathname.startsWith('/studio/brand-kit') },
         ...studioSubNav.map(item => navTile(item, { badge: item.href === '/studio/forms' ? formsActionCount : 0, on: pathname.startsWith(item.href) })).filter(isTile),
         { href: '', label: 'Deadlines', icon: FileClock, soon: true },
@@ -800,17 +803,31 @@ export default function Header({ mode = 'app' }: HeaderProps) {
               {mobileSections.map(sec => (
                 <section key={sec.key}
                   className={`rounded-3xl border bg-white p-2.5 shadow-[0_8px_24px_-14px_rgba(17,24,39,0.25)] dark:bg-[#151517] ${sec.on ? 'border-[#C9A24D]/60' : 'border-gray-200/80 dark:border-gray-800'} ${sec.dimmed ? 'pointer-events-none opacity-50 grayscale' : ''}`}>
-                  <Link href={sec.href} className="flex min-h-[48px] items-center gap-3 rounded-2xl px-1.5 py-1">
+                  {sec.tiles.length > 0 ? (
+                    <button type="button" aria-expanded={openSection === sec.key} onClick={() => setOpenSection(o => (o === sec.key ? null : sec.key))}
+                      className="flex min-h-[48px] w-full items-center gap-3 rounded-2xl px-1.5 py-1">
                     <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${sec.on ? 'bg-[#111827] text-[#e8c97a] dark:bg-[#C9A24D] dark:text-[#111827]' : 'bg-[#C9A24D]/15 text-[#8b6a2b] dark:text-[#e8c97a]'}`}>
                       <sec.icon className="h-5 w-5" />
                     </span>
-                    <span className="flex-1 text-[17px] font-black tracking-tight text-[#111827] dark:text-white">{sec.label}</span>
+                    <span className="flex-1 text-left text-[17px] font-black tracking-tight text-[#111827] dark:text-white">{sec.label}</span>
                     {!!sec.badge && sec.badge > 0 && (
                       <span className="flex h-6 min-w-[24px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-black text-white">{sec.badge > 9 ? '9+' : sec.badge}</span>
                     )}
-                    <ChevronRight className="h-5 w-5 text-gray-400" />
-                  </Link>
-                  {sec.tiles.length > 0 && (
+                      <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${openSection === sec.key ? 'rotate-180' : ''}`} />
+                    </button>
+                  ) : (
+                    <Link href={sec.href} className="flex min-h-[48px] items-center gap-3 rounded-2xl px-1.5 py-1">
+                    <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${sec.on ? 'bg-[#111827] text-[#e8c97a] dark:bg-[#C9A24D] dark:text-[#111827]' : 'bg-[#C9A24D]/15 text-[#8b6a2b] dark:text-[#e8c97a]'}`}>
+                      <sec.icon className="h-5 w-5" />
+                    </span>
+                    <span className="flex-1 text-left text-[17px] font-black tracking-tight text-[#111827] dark:text-white">{sec.label}</span>
+                    {!!sec.badge && sec.badge > 0 && (
+                      <span className="flex h-6 min-w-[24px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-black text-white">{sec.badge > 9 ? '9+' : sec.badge}</span>
+                    )}
+                      <ChevronRight className="h-5 w-5 text-gray-400" />
+                    </Link>
+                  )}
+                  {sec.tiles.length > 0 && openSection === sec.key && (
                     <div className="mt-2 grid grid-cols-2 gap-2">
                       {sec.tiles.map(t => {
                         const inner = (
@@ -827,7 +844,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                             {t.alert && <AlertCircle className="h-4 w-4 shrink-0 fill-red-500 text-white" aria-label="Needs attention" />}
                           </>
                         )
-                        const cls = `flex min-h-[52px] items-center gap-2.5 rounded-2xl border px-3 py-2 text-[14px] font-bold transition-colors ${
+                        const cls = `${t.wide ? 'col-span-2 ' : ''}flex min-h-[52px] items-center gap-2.5 rounded-2xl border px-3 py-2 text-[14px] font-bold transition-colors ${
                           t.on ? 'border-[#111827] bg-[#111827] text-white shadow-md dark:border-[#C9A24D] dark:bg-[#C9A24D] dark:text-[#111827]'
                             : t.locked || t.soon ? 'border-gray-100 bg-gray-50 text-gray-400 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-500'
                               : 'border-gray-200 bg-[#faf9f7] text-[#111827] active:bg-[#C9A24D]/10 dark:border-gray-800 dark:bg-white/[0.04] dark:text-gray-100'

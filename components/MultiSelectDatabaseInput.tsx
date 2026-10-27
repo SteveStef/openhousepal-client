@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import CityTag from './CityTag'
 import { ApiResponse } from '@/types'
+import { PopupPortal, useAnchoredStyle } from '@/components/ui/AnchoredPopup'
 
 interface MultiSelectDatabaseInputProps {
   values: string[]
@@ -30,6 +31,11 @@ export default function MultiSelectDatabaseInput({
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
+  // The list floats on top of the page, tied to the box - inside setup's Featured "Source" boxes,
+  // modals and scroll panels it used to be cut off (owner, 10/26).
+  const boxRef = useRef<HTMLDivElement>(null)
+  const listOpen = showSuggestions && suggestions.length > 0
+  const listStyle = useAnchoredStyle(boxRef, suggestionsRef, listOpen, { maxHeight: 240, gap: 4 })
 
   // Helper to convert "UPPERCASE NAME, ST" to "Title Case Name, ST" for the UI tags
   const formatDisplayName = (name: string) => {
@@ -125,6 +131,7 @@ export default function MultiSelectDatabaseInput({
   return (
     <div className={`relative ${className}`}>
       <div
+        ref={boxRef}
         onClick={() => inputRef.current?.focus()}
         className={`
           min-h-[42px] w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl
@@ -165,10 +172,12 @@ export default function MultiSelectDatabaseInput({
         )}
       </div>
 
-      {showSuggestions && suggestions.length > 0 && (
-        <div 
+      {listOpen && (
+        <PopupPortal from={boxRef}>
+        <div
           ref={suggestionsRef}
-          className="absolute z-[100] w-full mt-1 bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto"
+          style={listStyle}
+          className="bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl overflow-y-auto overscroll-contain"
         >
           {suggestions.map((name, index) => (
             <div
@@ -187,6 +196,7 @@ export default function MultiSelectDatabaseInput({
             </div>
           ))}
         </div>
+        </PopupPortal>
       )}
     </div>
   )

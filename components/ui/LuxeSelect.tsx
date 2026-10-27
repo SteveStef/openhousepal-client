@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Check, ChevronDown } from 'lucide-react'
 import { useIsPhone } from '@/components/ui/windowMotion'
 import OhSheet from '@/components/open-house-manager/OhSheet'
+import { PopupPortal, useAnchoredStyle } from '@/components/ui/AnchoredPopup'
 
 // A dropdown that matches the app instead of the browser's grey native <select>: a pill button
 // that shows the current pick (gold when a filter is on), and a floating menu that springs open
@@ -34,11 +35,15 @@ export default function LuxeSelect<T extends string>({ value, onChange, options,
   const active = placeholderValue !== undefined && value !== placeholderValue
   const phone = useIsPhone()
   const asSheet = sheetOnPhone && phone
+  // The menu floats on top of the page from the button (flipped above when there's no room below,
+  // kept on screen sideways) - in a modal or near a phone's edge it was cut off (owner, 10/26).
+  const menuRef = useRef<HTMLUListElement>(null)
+  const menuStyle = useAnchoredStyle(rootRef, menuRef, open && !asSheet, { width: menuWidth, align, maxHeight: 440 })
 
   useEffect(() => {
     if (!open || asSheet) return
     setHi(Math.max(0, options.findIndex(o => o.value === value)))
-    const close = (e: MouseEvent) => { if (!rootRef.current?.contains(e.target as Node)) setOpen(false) }
+    const close = (e: MouseEvent) => { if (!rootRef.current?.contains(e.target as Node) && !menuRef.current?.contains(e.target as Node)) setOpen(false) }
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,13 +106,14 @@ export default function LuxeSelect<T extends string>({ value, onChange, options,
           </div>
         </OhSheet>
       )}
+      <PopupPortal from={rootRef}>
       <AnimatePresence>
         {open && !asSheet && (
-          <motion.ul id={id} role="listbox" aria-activedescendant={`${id}-${hi}`}
+          <motion.ul ref={menuRef} id={id} role="listbox" aria-activedescendant={`${id}-${hi}`}
             initial={{ opacity: 0, y: -6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: 0.97, transition: { duration: 0.12 } }}
             transition={{ type: 'spring', stiffness: 520, damping: 34 }}
-            style={{ width: menuWidth, transformOrigin: align === 'right' ? 'top right' : 'top left' }}
-            className={`absolute top-[calc(100%+6px)] z-50 overflow-hidden rounded-2xl border border-gray-200/80 bg-white p-1.5 shadow-[0_24px_60px_-20px_rgba(17,24,39,.45)] dark:border-gray-800 dark:bg-[#151517] ${align === 'right' ? 'right-0' : 'left-0'}`}>
+            style={{ ...menuStyle, transformOrigin: align === 'right' ? 'top right' : 'top left' }}
+            className={`overflow-y-auto overscroll-contain rounded-2xl border border-gray-200/80 bg-white p-1.5 shadow-[0_24px_60px_-20px_rgba(17,24,39,.45)] dark:border-gray-800 dark:bg-[#151517]`}>
             {options.map((o, i) => {
               const sel = o.value === value
               return (
@@ -136,6 +142,7 @@ export default function LuxeSelect<T extends string>({ value, onChange, options,
           </motion.ul>
         )}
       </AnimatePresence>
+      </PopupPortal>
     </div>
   )
 }

@@ -531,7 +531,7 @@ export default function DomainSetupGuide({ hostname, target, pair }: { hostname:
         <>
           <p className="mt-2 text-[14px] leading-snug text-gray-600 dark:text-white/60">
             It usually works within an hour (sometimes up to a day). We check every few minutes, email you when it&apos;s live,
-            and keep an eye on it - if anything&apos;s ever off, your Dash tells you exactly what to change.
+            and keep an eye on it - if anything&apos;s ever off, your Dashboard tells you exactly what to change.
           </p>
           {(g.help.dns || (g.help.forward && g.forward.can)) && (
             <p className="mt-2.5 text-[13px] font-semibold text-gray-500 dark:text-white/50">

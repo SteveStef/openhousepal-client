@@ -52,30 +52,40 @@ export type Rundown = {
 
 // The last Rundown fetched - a reopen shows it instantly while the fresh one loads.
 let cached: Rundown | null = null
+// One request at a time for the whole app, and a fresh copy is reused for a few seconds: the Dash
+// card, the window and every "something changed" refresh used to each ask at once (owner, 10/26 -
+// four at a time on the live site, each slowing the others down).
+let inflight: Promise<Rundown | null> | null = null
+let fetchedAt = 0
+const FRESH_MS = 15000
 
-function fetchRundown() {
-  return api.notifications.rundown().then(r => {
-    if (r.success && r.data) cached = r.data as Rundown
+function fetchRundown(force = false) {
+  if (inflight) return inflight
+  if (!force && cached && Date.now() - fetchedAt < FRESH_MS) return Promise.resolve(cached)
+  inflight = api.notifications.rundown().then(r => {
+    if (r.success && r.data) { cached = r.data as Rundown; fetchedAt = Date.now() }
     return r.success ? (r.data as Rundown) : null
-  })
+  }).finally(() => { inflight = null })
+  return inflight
 }
 
 /** Today's Rundown data, kept fresh (on open, every minute, and when something is read elsewhere). */
 export function useRundown(enabled: boolean, pollMs = 60000) {
   const [data, setData] = useState<Rundown | null>(cached)
   const [failed, setFailed] = useState(false)
-  const load = useCallback(() => fetchRundown().then(d => { if (d) { setData(d); setFailed(false) } else setFailed(true) }), [])
+  const load = useCallback((force = false) => fetchRundown(force).then(d => { if (d) { setData(d); setFailed(false) } else setFailed(true) }), [])
+  const refresh = useCallback(() => load(true), [load])
   useEffect(() => {
     if (!enabled) return
     load()
-    const t = window.setInterval(() => { if (!document.hidden) load() }, pollMs)
+    const t = window.setInterval(() => { if (!document.hidden) load(true) }, pollMs)
     // Marked read in the window -> the Dash card shows it at once (and the other way round).
     const onRead = () => setData(d => d && markedRead(d))
-    window.addEventListener(REFRESH_EVENT, load)
+    window.addEventListener(REFRESH_EVENT, refresh)
     window.addEventListener(READ_EVENT, onRead)
-    return () => { window.clearInterval(t); window.removeEventListener(REFRESH_EVENT, load); window.removeEventListener(READ_EVENT, onRead) }
-  }, [enabled, load, pollMs])
-  return { data, setData, failed, reload: load }
+    return () => { window.clearInterval(t); window.removeEventListener(REFRESH_EVENT, refresh); window.removeEventListener(READ_EVENT, onRead) }
+  }, [enabled, load, refresh, pollMs])
+  return { data, setData, failed, reload: refresh }
 }
 
 /** "Mark all as read" - today's activity, the Rundown's own notification included. */
@@ -530,12 +540,22 @@ function HomeCard({ home: h, index, phone, go }: { home: Home; index: number; ph
 // the day's top numbers, and a small "Mark all read" button next to it.
 
 export function RundownDashCard({ className = '' }: { className?: string }) {
-  const { data, setData } = useRundown(true)
+  const { data, setData, failed, reload } = useRundown(true)
   const reduce = useReducedMotion()
   const [marking, setMarking] = useState(false)
   const now = useRef(new Date()).current
   if (!data) {
-    return <div className={`h-[92px] animate-pulse rounded-3xl border border-[#C9A24D]/20 bg-white/60 dark:border-white/[0.06] dark:bg-white/[0.03] ${className}`} />
+    // Never a blank box: say what's coming, or that it didn't load with a way to try again.
+    return (
+      <div className={`flex h-[92px] items-center gap-3 rounded-3xl border border-[#C9A24D]/25 bg-white/70 px-4 dark:border-white/[0.08] dark:bg-white/[0.03] ${failed ? '' : 'animate-pulse'} ${className}`}>
+        <span className="flex h-[60px] w-[54px] shrink-0 items-center justify-center rounded-2xl bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8c97a]"><Sparkles className="h-5 w-5" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]">Today&apos;s Rundown</span>
+          <span className="block text-sm font-bold text-gray-500 dark:text-gray-400">{failed ? "Couldn't load your rundown." : 'Getting your day ready…'}</span>
+        </span>
+        {failed && <button type="button" onClick={() => reload()} className="shrink-0 rounded-xl bg-[#111827] px-3 py-2 text-xs font-black text-white dark:bg-white dark:text-[#111827]">Try again</button>}
+      </div>
+    )
   }
   const status = briefingStatus(data)
   const top = data.stats.filter(s => s.value > 0).slice(0, 3)

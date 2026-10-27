@@ -440,7 +440,7 @@ export default function DashPage() {
             the right, the quick-create links inside it. Same links, same plan locks as before. */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <LuxeHero
-            kicker="Dash"
+            kicker="Dashboard"
             icon={LayoutDashboard}
             compact
             title={<>What needs your <em>attention.</em></>}

@@ -26,6 +26,7 @@ import { activityMeta, dialable, ORIGIN_META, TONE_CLASSES, timeAgo, todoWhen } 
 import { formatPhone } from '@/lib/leadEventDetails'
 import Pager from '@/components/ui/Pager'
 import { OhpSpinner } from '@/components/brand/OhpLoader'
+import { PopupPortal, useAnchoredStyle } from '@/components/ui/AnchoredPopup'
 
 // The tabs (user, 10/17): what needs the agent, then everyone without an agent (the default -
 // plus anyone with an agent you left a note on), then the pipeline, then All next to the two side piles.
@@ -617,11 +618,15 @@ function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, a
 }) {
   const menuRef = useRef<HTMLDivElement>(null)
   const isPhone = useIsPhone()
+  // Computers: the menu floats on top of the page from the "..." button and flips above it on the
+  // last rows, instead of running off the bottom of the screen (10/26).
+  const panelRef = useRef<HTMLDivElement>(null)
+  const panelStyle = useAnchoredStyle(menuRef, panelRef, menuOpen && !isPhone, { width: 208, align: 'right', maxHeight: 420 })
   // Starred person, or their Showcase is starred: a gold outline so they stand out in the list.
   const starred = !!(lead.is_favorite || lead.showcase_starred)
   useEffect(() => {
     if (!menuOpen || isPhone) return  // the phone's sheet closes itself
-    const close = (e: MouseEvent) => { if (!menuRef.current?.contains(e.target as Node)) onMenu(false) }
+    const close = (e: MouseEvent) => { if (!menuRef.current?.contains(e.target as Node) && !panelRef.current?.contains(e.target as Node)) onMenu(false) }
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [menuOpen, onMenu, isPhone])
@@ -784,15 +789,17 @@ function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, a
             className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-[#C9A24D] hover:text-[#111827] dark:border-white/10 dark:text-gray-300 dark:hover:text-white sm:h-9 sm:w-9">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
           </button>
+          <PopupPortal>
           <AnimatePresence>
             {menuOpen && !isPhone && (
-              <motion.div initial={{ opacity: 0, y: -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }}
+              <motion.div ref={panelRef} style={panelStyle} initial={{ opacity: 0, y: -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }}
                 transition={{ duration: 0.12 }}
-                className="absolute right-0 top-full z-30 mt-1.5 w-52 overflow-hidden rounded-2xl border border-gray-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-[#1A1A1C]">
+                className="overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-[#1A1A1C]">
                 <LeadMenuItems lead={lead} status={status} onStatus={onStatus} onContacted={onContacted} onSeen={onSeen} onDelete={onDelete} />
               </motion.div>
             )}
           </AnimatePresence>
+          </PopupPortal>
         </div>
         <span className="hidden h-9 w-6 items-center justify-center text-gray-300 transition group-hover:text-[#C9A24D] sm:flex"><ArrowRight className="h-4 w-4" /></span>
       </div>

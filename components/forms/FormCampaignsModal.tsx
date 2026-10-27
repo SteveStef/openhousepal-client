@@ -18,6 +18,7 @@ import { ShowcaseFormInfoBlock } from './ShowcaseFormInfo'
 import UnfinishedResponses from '@/components/forms/UnfinishedResponses'
 import FormResultsModal, { SubmissionDetail } from '@/components/forms/FormResultsModal'
 import ScopePicker from '@/components/forms/ScopePicker'
+import { POPUP_Z, PopupPortal, PopupSheet, useAnchoredStyle, usePhoneWidth } from '@/components/ui/AnchoredPopup'
 import NewCampaignModal from '@/components/forms/NewCampaignModal'
 import CampaignRedirectPicker, { CampaignRedirect, campaignRedirectError, campaignRedirectLabel, campaignRedirectPayload } from '@/components/forms/CampaignRedirectPicker'
 import ConfirmationModal from '@/components/ConfirmationModal'
@@ -69,24 +70,40 @@ function HoverInfo({ text }: { text: string }) {
 
 function InfoPopover() {
   const [open, setOpen] = useState(false)
+  // Opens on top of the page, not inside the modal's scroll area, which cut it off on phones
+  // (10/26): a bottom sheet on a phone, a box under the link on a computer.
+  const phone = usePhoneWidth(open)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const boxRef = useRef<HTMLDivElement>(null)
+  const boxStyle = useAnchoredStyle(btnRef, boxRef, open && !phone, { width: 320, align: 'right', maxHeight: 360, gap: 8 })
+  const text = (
+    <>
+      A campaign gives you a separate link and QR code for the same form, so you know where your leads came from. Example: use one link for a Villanova mailer and another for a Facebook ad. Both show the exact same form — OpenHousePal just tracks the results separately.
+      <p className="mt-2 font-black text-[#111827] dark:text-white">Same form. Different tracking link.</p>
+      <p className="mt-2 text-gray-500 dark:text-gray-400">Want to change the questions instead? Use Duplicate to make your own editable copy.</p>
+    </>
+  )
   return (
     <div className="relative inline-block">
       <button
+        ref={btnRef}
         type="button"
         onClick={() => setOpen(current => !current)}
         className="inline-flex items-center gap-1 text-xs font-bold text-[#8b7355] hover:text-[#6b5a43] dark:text-[#e8cf8a] dark:hover:text-[#f0dca6]"
       >
         <Info className="h-3.5 w-3.5" /> What's a campaign?
       </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-20 mt-2 w-80 max-w-[85vw] rounded-xl border border-gray-200 bg-white p-4 text-xs font-medium leading-relaxed text-gray-600 shadow-xl dark:border-gray-700 dark:bg-[#151517] dark:text-gray-300">
-            A campaign gives you a separate link and QR code for the same form, so you know where your leads came from. Example: use one link for a Villanova mailer and another for a Facebook ad. Both show the exact same form — OpenHousePal just tracks the results separately.
-            <p className="mt-2 font-black text-[#111827] dark:text-white">Same form. Different tracking link.</p>
-            <p className="mt-2 text-gray-500 dark:text-gray-400">Want to change the questions instead? Use Duplicate to make your own editable copy.</p>
+      {phone ? (
+        <PopupSheet open={open} onClose={() => setOpen(false)} title="What's a campaign?">
+          <div className="pb-2 text-[15px] font-medium leading-relaxed text-gray-600 dark:text-gray-300">{text}</div>
+        </PopupSheet>
+      ) : open && (
+        <PopupPortal>
+          <div className="fixed inset-0" style={{ zIndex: POPUP_Z - 1 }} onClick={() => setOpen(false)} />
+          <div ref={boxRef} style={boxStyle} className="overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 text-xs font-medium leading-relaxed text-gray-600 shadow-xl dark:border-gray-700 dark:bg-[#151517] dark:text-gray-300">
+            {text}
           </div>
-        </>
+        </PopupPortal>
       )}
     </div>
   )

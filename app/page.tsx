@@ -834,7 +834,7 @@ function HomePageContent() {
         <div className="relative max-w-4xl mx-auto px-6 ohp-hero-mobile-center">
           <div className={`relative text-center mb-8 transform transition-all duration-1000 delay-300 ${seenSections.has('story') ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
             <div className="mb-3"><span className="inline-flex items-center justify-center gap-3 text-[11px] sm:text-xs font-black uppercase tracking-[0.32em] text-[#8b7355] dark:text-[#e8c97a]"><span className="h-px w-8 bg-gradient-to-r from-transparent to-[#C9A24D]" />A Real Success Story<span className="h-px w-8 bg-gradient-to-l from-transparent to-[#C9A24D]" /></span></div>
-            <h3 className="font-serif text-3xl sm:text-5xl font-black text-[#0B0B0B] dark:text-white mb-4 tracking-[-0.02em]">How It Helped <em className="ohp-home-em font-light pr-[0.06em]">Peter Stefanatos</em></h3>
+            <h3 className="font-serif text-3xl sm:text-5xl font-black text-[#0B0B0B] dark:text-white mb-4 tracking-[-0.02em]">How It Helped <em className="ohp-home-em font-light pr-[0.06em] whitespace-nowrap max-sm:block">Peter Stefanatos</em></h3>
             <p className="text-lg text-[#4b5563] dark:text-gray-300 font-normal max-w-2xl mx-auto">
               OpenHousePal enabled Peter Stefanatos to sell $15M+ in his first year in real estate - one of the highest volumes in PA - all through open houses run with the right system, the OpenHousePal System.
             </p>

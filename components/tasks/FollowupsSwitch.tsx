@@ -59,7 +59,7 @@ export default function FollowupsSwitch({ className = '', children }: { classNam
   const { enabled, saving, setEnabled } = useFollowupsEnabled()
   const on = enabled !== false
   const toggle = async () => {
-    if (on && !confirm('Turn off Follow-ups?\n\nNo new automatic follow-ups will be made, and Follow-ups disappears from your Dash, Leads page and daily email. Anything already on your calendar stays there. Your settings are kept - turn it back on any time.')) return
+    if (on && !confirm('Turn off Follow-ups?\n\nNo new automatic follow-ups will be made, and Follow-ups disappears from your Dashboard, Leads page and daily email. Anything already on your calendar stays there. Your settings are kept - turn it back on any time.')) return
     await setEnabled(!on)
   }
   return (
@@ -74,7 +74,7 @@ export default function FollowupsSwitch({ className = '', children }: { classNam
           <p className="mt-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
             {on
               ? 'Already have a CRM that reminds you? Turn this off - OpenHousePal stops making follow-ups and hides them everywhere.'
-              : 'Nothing new is added and it’s hidden from your Dash, Leads page and daily email. Turn it on to pick up where you left off.'}
+              : 'Nothing new is added and it’s hidden from your Dashboard, Leads page and daily email. Turn it on to pick up where you left off.'}
           </p>
           {children}
         </div>
@@ -101,7 +101,7 @@ export function FollowupsHeaderSwitch({ className = '' }: { className?: string }
   const { enabled, saving, setEnabled } = useFollowupsEnabled()
   const on = enabled !== false
   const toggle = async () => {
-    if (on && !confirm('Turn off Follow-ups?\n\nNo new automatic follow-ups will be made, and Follow-ups disappears from your Dash, Leads page and daily email. Anything already on your calendar stays there. Your settings are kept - turn it back on any time.')) return
+    if (on && !confirm('Turn off Follow-ups?\n\nNo new automatic follow-ups will be made, and Follow-ups disappears from your Dashboard, Leads page and daily email. Anything already on your calendar stays there. Your settings are kept - turn it back on any time.')) return
     await setEnabled(!on)
   }
   return (

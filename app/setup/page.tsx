@@ -159,9 +159,13 @@ function SetupFlow() {
     if (id !== 'done') api.setup.setState({ last_step: id })
   }, [router])
 
-  const nextOf = (id: SetupStepId): SetupStepId | 'done' => {
-    const i = ids.indexOf(id)
-    return (ids[i + 1] as SetupStepId) || 'done'
+  // Continue / Skip go to the next step that still needs doing, never one that's already done
+  // (owner, 10/26) - after the last one, round to any earlier step still open, then the finish.
+  const nextOf = (id: SetupStepId, fresh?: SetupData | null): SetupStepId | 'done' => {
+    const steps = (fresh || data)?.steps || []
+    const i = steps.findIndex(s => s.id === id)
+    const open = (s: SetupData['steps'][number]) => s.id !== id && s.status === 'todo'
+    return (steps.slice(i + 1).find(open) || steps.slice(0, Math.max(0, i)).find(open))?.id || 'done'
   }
   const onContinue = async () => {
     if (!current || current === 'done' || advancing) return
@@ -179,8 +183,7 @@ function SetupFlow() {
         if (res === false) { setGateMsg(g.message || 'Something didn’t save - please check and try again.'); setShake(s => s + 1); return }
       }
       await api.setup.setState({ unskip: current })
-      await refresh()
-      goTo(nextOf(current))
+      goTo(nextOf(current, await refresh()))
     } finally {
       setAdvancing(false)
     }
@@ -190,7 +193,7 @@ function SetupFlow() {
     await flush()
     const r = await api.setup.setState({ skip: current })
     if (r.success && r.data) setData(r.data)
-    goTo(nextOf(current))
+    goTo(nextOf(current, r.data))
   }
   const onBack = () => {
     if (!current) return

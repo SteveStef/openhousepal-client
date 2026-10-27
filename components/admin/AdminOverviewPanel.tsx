@@ -62,7 +62,7 @@ export default function AdminOverviewPanel({ users, groups, supportUnread, quest
             <Globe className="h-4 w-4 text-red-500" /> Domains that aren&apos;t working
             <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-black text-red-700 dark:bg-red-500/10 dark:text-red-300">{domainIssues.length}</span>
           </p>
-          <p className="mt-0.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">The agent sees this on their Dash too - a quick note from you usually gets it fixed.</p>
+          <p className="mt-0.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">The agent sees this on their Dashboard too - a quick note from you usually gets it fixed.</p>
           <div className="mt-2 divide-y divide-gray-100 dark:divide-white/[0.06]">
             {domainIssues.map(i => (
               <div key={i.agent_id + i.hostname + i.code} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center">

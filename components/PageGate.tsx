@@ -25,6 +25,11 @@ const NAV_WAIT_MS = 5000  // a clicked link that never navigates lets go after t
 const NAV_SLOW_MS = 45000 // ...unless the new page is still on its way (slow network / a rebuilding dev server)
 
 // ---- in-flight API calls -------------------------------------------------------------------
+// Calls that aren't the page itself - the header's badge counts and Today's Rundown (it has its own
+// "Getting your day ready…" card) - never hold the page behind the loader (owner, 10/26: switching
+// pages sat on the logo while these finished). The Activity page's list IS its notifications.
+const BACKGROUND_CALLS = /\/(unread-count|action-counts|refine-requests\/count|rundown\/today)(\?|$)|\/api\/v1\/notifications(\?|$)/
+const isBackgroundCall = (url: string) => BACKGROUND_CALLS.test(url.split('#')[0]) && !(url.includes('/api/v1/notifications') && window.location.pathname.startsWith('/activity'))
 let pending = 0
 let pageFetches = 0 // Next's own fetches for the next page (?_rsc=) - a navigation still in progress
 let patched = false
@@ -41,6 +46,7 @@ function countApiCalls() {
       const fin = () => { if (!over) { over = true; pageFetches-- } }
       return original(input, init).then(r => { fin(); return r }, e => { fin(); throw e })
     }
+    if (isBackgroundCall(url)) return original(input, init)
     pending++
     let done = false
     const end = () => { if (!done) { done = true; pending-- } }

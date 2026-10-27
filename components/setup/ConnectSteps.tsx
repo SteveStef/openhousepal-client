@@ -60,7 +60,7 @@ export function AlertsStep({ ctx }: { ctx: StepCtx }) {
           <p className="inline-flex items-center gap-1.5 rounded-full bg-[#111827] px-3 py-1 text-[10.5px] font-black uppercase tracking-[0.2em] text-[#e8c97a] dark:bg-[#C9A24D] dark:text-[#111827]"><BellRing className="h-3.5 w-3.5" /> Follow-ups</p>
           <h3 className="mt-3 font-serif text-[23px] font-black leading-tight tracking-tight text-[#111827] dark:text-white">Never forget who to call back</h3>
           <p className="mt-2 text-[15px] font-medium leading-relaxed text-gray-600 dark:text-gray-300">
-            When someone signs in at an open house, fills in a form or asks about a home, OpenHousePal makes a follow-up for you: <b className="text-[#111827] dark:text-white">who to contact, when, and a message ready to send</b> with one tap. They show on your Dash, in your daily email, and on your calendar.
+            When someone signs in at an open house, fills in a form or asks about a home, OpenHousePal makes a follow-up for you: <b className="text-[#111827] dark:text-white">who to contact, when, and a message ready to send</b> with one tap. They show on your Dashboard, in your daily email, and on your calendar.
           </p>
           {rules && rules.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">
