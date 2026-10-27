@@ -38,10 +38,14 @@ export const LOADER_CSS = `
 @media (prefers-reduced-motion:reduce){.ohp-ld *,.ohp-ld *::after{animation-duration:0s!important;animation-iteration-count:1!important}.ohp-ld-house .r,.ohp-ld-house .w{stroke-dashoffset:0}.ohp-ld-house .door,.ohp-ld-house .win{transform:none}}
 `
 
-/** "Loading your activity" -> ["Loading your", "activity"]: the last word is set in gold italic, like
- * the page titles ("One step *left*"). */
+/** "Loading your activity" -> ["Your", "activity"]: the last word is set in gold italic, like the page
+ * titles ("One step *left*"). A leading "Loading"/"Opening" is dropped - the animation already says
+ * that (owner, 10/26). */
 export function splitLabel(label?: string): [string, string] {
-  const words = (label || 'Getting things ready').trim().split(/\s+/)
+  let text = (label || '').trim().replace(/^(loading|opening)\s+/i, '')
+  if (!text || /^(loading|opening)\b/i.test(text)) text = 'Getting things ready'
+  text = text.charAt(0).toUpperCase() + text.slice(1)
+  const words = text.split(/\s+/)
   const last = words.pop() || ''
   return [words.join(' '), last]
 }
