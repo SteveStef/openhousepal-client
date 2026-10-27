@@ -291,7 +291,7 @@ function CmaDashboardInner() {
         <StudioPageHeader
           icon={Calculator}
           kicker="Comparative Market Analysis"
-          title={<>Price it right, <em>prove it.</em></>}
+          title={<>Price it right, <em>prove it</em></>}
           subtitle="Build a client-ready pricing report from comparable sales and your own judgment."
           asideClassName="w-full lg:w-[360px] lg:self-center"
           actions={

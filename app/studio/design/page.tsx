@@ -208,7 +208,7 @@ function DesignStudioDashboardInner() {
         <StudioPageHeader
           icon={Palette}
           kicker="Studio"
-          title={<>Marketing <em>in minutes.</em></>}
+          title={<>Marketing <em>in minutes</em></>}
           subtitle="Flyers, social posts, brochures & campaigns from your listing data."
           asideClassName="w-full lg:w-auto lg:max-w-[560px] lg:self-center lg:-translate-y-3"
           actions={

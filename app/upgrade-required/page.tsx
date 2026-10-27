@@ -9,6 +9,7 @@ import { PRICING_PLANS, type PlanTierId } from '@/lib/pricing'
 import { PricingTierCard } from '@/components/pricing/PricingCards'
 import { IdxDomainNotice } from '@/components/IdxDomainNotice'
 import MissedShowcasesBanner from '@/components/MissedShowcasesBanner'
+import { smartBack } from '@/lib/navHistory'
 
 const VALID_TIERS: PlanTierId[] = ['NO_MLS', 'PRO_NO_MLS', 'BASIC', 'PREMIUM', 'IDX']
 
@@ -107,7 +108,7 @@ function UpgradeRequiredContent() {
 
           <div className="text-center mt-12">
             <button
-              onClick={() => router.back()}
+              onClick={() => smartBack(router, '/dash')}
               className="group inline-flex items-center text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white font-bold text-xs uppercase tracking-widest transition-all duration-300 px-6 py-3 rounded-full hover:bg-white dark:hover:bg-[#151517] hover:shadow-sm"
             >
               <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />

@@ -416,7 +416,7 @@ function Article({ m, n }: { m: SpotlightModel; n: string }) {
   return (
     <section id="story" className="ee-paper scroll-mt-16 px-5 py-24 sm:px-10 sm:py-32">
       <div className="mx-auto max-w-[1500px]">
-        <SectionHead n={n} kicker="The house" title={<>Made of <i>place.</i></>} aside={[m.p.year_built && `Built ${m.p.year_built}`, m.p.subdivision_name || m.p.county].filter(Boolean).join(' · ')} />
+        <SectionHead n={n} kicker="The house" title={<>Made of <i>place</i></>} aside={[m.p.year_built && `Built ${m.p.year_built}`, m.p.subdivision_name || m.p.county].filter(Boolean).join(' · ')} />
         <div className={`grid gap-12 ${photo ? 'lg:grid-cols-[1.5fr_1fr]' : ''} lg:gap-20`}>
           <Reveal>
             <div className={`relative ${long && !expanded ? 'max-h-[34rem] overflow-hidden' : ''}`}>
@@ -454,7 +454,7 @@ function PhotoEssay({ m, n, onOpen }: { m: SpotlightModel; n: string; onOpen: (i
   return (
     <section id="photos" className="ee-paper scroll-mt-16 px-5 pb-24 sm:px-10 sm:pb-32">
       <div className="mx-auto max-w-[1500px]">
-        <SectionHead n={n} kicker="A photo essay" title={<>In the right <i>light.</i></>} aside={`${photos.length} photograph${photos.length === 1 ? '' : 's'}`} />
+        <SectionHead n={n} kicker="A photo essay" title={<>In the right <i>light</i></>} aside={`${photos.length} photograph${photos.length === 1 ? '' : 's'}`} />
         <Reveal>
           <PhotoShow photos={photos} alt={m.p.address} onOpen={onOpen} tone="light" fontClass="sp-mono" />
         </Reveal>
@@ -509,7 +509,7 @@ function Features({ m, n }: { m: SpotlightModel; n: string }) {
   return (
     <section id="features" className="ee-paper scroll-mt-16 px-5 py-24 sm:px-10 sm:py-32">
       <div className="mx-auto max-w-[1500px]">
-        <SectionHead n={n} kicker="Material inventory" title={<>Considered <i>elements.</i></>} aside={total ? `${total} details` : undefined} />
+        <SectionHead n={n} kicker="Material inventory" title={<>Considered <i>elements</i></>} aside={total ? `${total} details` : undefined} />
         {signature.length > 0 && (
           <div className={`mb-16 grid grid-cols-2 gap-px border border-[#172522]/15 bg-[#172522]/15 ${cols} [&>*:last-child:nth-child(odd)]:col-span-2 lg:[&>*:last-child:nth-child(odd)]:col-span-1`}>
             {signature.map((f, i) => {
@@ -580,7 +580,7 @@ function FilmAndTour({ m, n, videoUrl }: { m: SpotlightModel; n: string; videoUr
         <Reveal className="mb-12 flex flex-col gap-4 border-b border-[#f3efe6]/20 pb-6 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="sp-mono text-[10px] uppercase tracking-[0.2em] text-[color:var(--ee-gold)]">{n} — {showVideo && m.has.tour ? 'Film & 3D tour' : showVideo ? 'The film' : '3D tour'}</p>
-            <h2 className="sp-display mt-4 text-[clamp(2.6rem,6vw,5.6rem)] leading-[0.92] tracking-[-0.03em]">{showVideo ? <>A moving <i>portrait.</i></> : <>Walk it <i>yourself.</i></>}</h2>
+            <h2 className="sp-display mt-4 text-[clamp(2.6rem,6vw,5.6rem)] leading-[0.92] tracking-[-0.03em]">{showVideo ? <>A moving <i>portrait</i></> : <>Walk it <i>yourself</i></>}</h2>
           </div>
         </Reveal>
         <div className={`grid gap-6 ${showVideo && m.has.tour ? 'lg:grid-cols-[1.6fr_1fr]' : ''}`}>
@@ -628,7 +628,7 @@ function FloorPlans({ m, n, onZoom }: { m: SpotlightModel; n: string; onZoom: (i
   return (
     <section id="floor-plans" className="ee-paper scroll-mt-16 px-5 py-24 sm:px-10 sm:py-32">
       <div className="mx-auto max-w-[1500px]">
-        <SectionHead n={n} kicker="Plans" title={<>The <i>arrangement.</i></>} aside={m.p.sqft ? `${fmtNumber(m.p.sqft)} sq ft` : undefined} />
+        <SectionHead n={n} kicker="Plans" title={<>The <i>arrangement</i></>} aside={m.p.sqft ? `${fmtNumber(m.p.sqft)} sq ft` : undefined} />
         {m.floorPlans.length > 1 && (
           <div className="mb-8 flex flex-wrap gap-6" role="tablist">
             {m.floorPlans.map((pl, i) => (
@@ -655,7 +655,7 @@ function Details({ m, n }: { m: SpotlightModel; n: string }) {
   return (
     <section id="details" className="ee-sand scroll-mt-16 px-5 py-24 sm:px-10 sm:py-32">
       <div className="mx-auto max-w-[1500px]">
-        <SectionHead n={n} kicker="Specifications" title={<>The <i>particulars.</i></>} aside={m.isMls && m.p.mls_number ? `MLS# ${m.p.mls_number}` : undefined} />
+        <SectionHead n={n} kicker="Specifications" title={<>The <i>particulars</i></>} aside={m.isMls && m.p.mls_number ? `MLS# ${m.p.mls_number}` : undefined} />
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {groups.map((g, i) => {
             const Icon = g.icon
@@ -708,7 +708,7 @@ function Location({ m, n, siteId }: { m: SpotlightModel; n: string; siteId: stri
   return (
     <section id="location" className="ee-paper scroll-mt-16 px-5 py-24 sm:px-10 sm:py-32">
       <div className="mx-auto max-w-[1500px]">
-        <SectionHead n={n} kicker={explore ? 'Location · Explore nearby' : 'Location'} title={explore ? <>What’s <i>nearby.</i></> : p.city ? <>A private <i>latitude.</i></> : <>Where it <i>sits.</i></>}
+        <SectionHead n={n} kicker={explore ? 'Location · Explore nearby' : 'Location'} title={explore ? <>What’s <i>nearby</i></> : p.city ? <>A private <i>latitude</i></> : <>Where it <i>sits</i></>}
           aside={m.hasCoords ? `${toDMS(p.latitude!, 'N', 'S')} / ${toDMS(p.longitude!, 'E', 'W')}` : [p.city, p.state].filter(Boolean).join(', ')} />
         {explore && (
           <Reveal className="-mt-6 mb-8 flex max-w-2xl items-start gap-3 md:-mt-10">
@@ -763,7 +763,7 @@ function Payment({ m, n }: { m: SpotlightModel; n: string }) {
   return (
     <section id="payment" className="ee-sand scroll-mt-16 px-5 py-24 sm:px-10 sm:py-32">
       <div className="mx-auto max-w-[1500px]">
-        <SectionHead n={n} kicker="The arithmetic" title={<>Monthly, <i>roughly.</i></>} />
+        <SectionHead n={n} kicker="The arithmetic" title={<>Monthly, <i>roughly</i></>} />
         <Reveal className="border border-[#172522]/15 bg-[#f3efe6] p-6 sm:p-12">
           <PaymentEstimator price={m.p.price!} taxesMonthly={m.taxesMonthly} hoaMonthly={m.hoaMonthly} tone="light" />
         </Reveal>
@@ -776,7 +776,7 @@ function OpenHouses({ m, n, url }: { m: SpotlightModel; n: string; url: string }
   return (
     <section id="open-houses" className="ee-paper scroll-mt-16 px-5 py-24 sm:px-10 sm:py-32">
       <div className="mx-auto max-w-[1500px]">
-        <SectionHead n={n} kicker="Viewing calendar" title={<>Open <i>house.</i></>} aside="No appointment needed" />
+        <SectionHead n={n} kicker="Viewing calendar" title={<>Open <i>house</i></>} aside="No appointment needed" />
         <ol>
           {m.openHouses.map((oh, i) => {
             const d = parseDay(oh.date)!
@@ -808,7 +808,7 @@ function Documents({ m, n, siteId }: { m: SpotlightModel; n: string; siteId: str
   return (
     <section id="documents" className="ee-paper scroll-mt-16 px-5 pb-24 sm:px-10 sm:pb-32">
       <div className="mx-auto max-w-[1500px]">
-        <SectionHead n={n} kicker="Supplements" title={<>For the <i>file.</i></>} aside={m.documents.length > 1 ? 'Emailed to you on request' : 'Emailed to you'} />
+        <SectionHead n={n} kicker="Supplements" title={<>For the <i>file</i></>} aside={m.documents.length > 1 ? 'Emailed to you on request' : 'Emailed to you'} />
         <ul className="grid gap-x-14 md:grid-cols-2">
           {m.documents.map((d, i) => (
             <li key={i}>

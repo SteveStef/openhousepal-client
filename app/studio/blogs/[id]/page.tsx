@@ -1373,7 +1373,7 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
                   <span className={`h-1.5 w-1.5 rounded-full ${blog.status === 'PUBLISHED' ? 'animate-pulse bg-emerald-500' : 'bg-gray-400'}`} />{statusLabel}
                 </span>
               </div>
-              <p className="lx-title mt-1 font-serif text-2xl font-black">{blog.status === 'PUBLISHED' ? <>It&apos;s <em>live.</em></> : <>Ready when <em>you are.</em></>}</p>
+              <p className="lx-title mt-1 font-serif text-2xl font-black">{blog.status === 'PUBLISHED' ? <>It&apos;s <em>live</em></> : <>Ready when <em>you are</em></>}</p>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <motion.button whileTap={{ scale: 0.97 }} onClick={() => onStatusChange('PUBLISHED')} disabled={busy}
                   className="lx-shine relative inline-flex flex-1 items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-4 py-3.5 text-sm font-black text-[#111827] shadow-[0_14px_30px_-14px_rgba(201,162,77,.9)] transition hover:-translate-y-0.5 disabled:opacity-60">

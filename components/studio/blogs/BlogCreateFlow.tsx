@@ -115,7 +115,7 @@ export default function BlogCreateFlow({ onClose }: { onClose: () => void }) {
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#8b7355] dark:text-[#e8c97a]">New Article</p>
               <h2 className="mt-1 font-serif text-[1.4rem] font-black leading-tight min-[380px]:text-2xl text-[#111827] dark:text-white sm:text-3xl">
                 {step === 0 && <>What&apos;s it <em className="font-light text-[#a8803a] dark:text-[#e8c97a]">about?</em></>}
-                {step === 1 && <>Give it a <em className="font-light text-[#a8803a] dark:text-[#e8c97a]">title.</em></>}
+                {step === 1 && <>Give it a <em className="font-light text-[#a8803a] dark:text-[#e8c97a]">title</em></>}
                 {step === 2 && <>How should we <em className="font-light text-[#a8803a] dark:text-[#e8c97a]">write it?</em></>}
               </h2>
             </div>

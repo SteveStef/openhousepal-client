@@ -116,7 +116,7 @@ export const CreateCollectionModal = memo(function CreateCollectionModal({ isOpe
                   <X className="h-4 w-4" />
                 </button>
               }
-              title={<>Homes picked <em>for {first || 'your client'}.</em></>}
+              title={<>Homes picked <em>for {first || 'your client'}</em></>}
               subtitle={step === 0 ? 'Who is this showcase for?' : `Where ${first || 'they'} ${first ? 'is' : 'are'} in the search - so it fits.`}
               tabs={
                 <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none]">

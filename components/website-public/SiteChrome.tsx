@@ -558,7 +558,7 @@ export function SiteFooter({
             className="text-center md:col-span-2 xl:order-2 xl:col-span-1">
             <p className="text-[10px] font-black uppercase tracking-[0.32em]" style={{ color: 'var(--site-accent-text)' }}>Ready when you are</p>
             <h2 className={`mx-auto mt-3 max-w-3xl text-3xl leading-[1.08] sm:text-[2.6rem] ${classic ? 'font-extrabold tracking-tight' : `font-black ${serif}`}`} style={{ color: head }}>
-              Let&apos;s talk about your <span className={classic ? '' : 'ohp-text-shimmer'} style={classic ? { color: 'var(--site-accent)' } : undefined}>next move.</span>
+              Let&apos;s talk about your <span className={classic ? '' : 'ohp-text-shimmer'} style={classic ? { color: 'var(--site-accent)' } : undefined}>next move</span>
             </h2>
             <p className="mx-auto mt-3 max-w-md text-sm" style={{ color: muted }}>Buying, selling, or just curious what your home is worth - pick one and I&apos;ll take it from there.</p>
             <div className="mt-6 flex flex-wrap justify-center gap-2.5">

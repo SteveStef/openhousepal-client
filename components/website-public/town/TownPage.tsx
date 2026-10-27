@@ -954,7 +954,7 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
           <div className="relative grid grid-cols-1 items-center gap-8 lg:grid-cols-[1.4fr_1fr]">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em]" style={{ color: luxe ? theme.secondary_color : 'rgba(255,255,255,0.7)' }}>Thinking about {area.name}?</p>
-              <h2 className={`ohp-site-heading mt-2 text-3xl font-black leading-tight text-white sm:text-[2.6rem] ${luxe ? fontClass(theme.heading_font, 'font-serif') : ''}`}>Let&apos;s find your place here.</h2>
+              <h2 className={`ohp-site-heading mt-2 text-3xl font-black leading-tight text-white sm:text-[2.6rem] ${luxe ? fontClass(theme.heading_font, 'font-serif') : ''}`}>Let&apos;s find your place here</h2>
               <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-white/75">Buying or selling in {area.name}, I&apos;ll walk you through the streets, the schools and the numbers - no pressure.</p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <a href={`${basePrefix}/contact`} data-ohp-form="buying" data-ohp-form-title={`Buying in ${area.name}`} data-ohp-prefill={prefill}

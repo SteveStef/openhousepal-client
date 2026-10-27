@@ -27,7 +27,7 @@ export default function PrivacyPage() {
 
       {/* Content */}
       <div className="flex-1">
-          <LegalDoc kicker="Legal" icon={ShieldCheck} title={<>Privacy <em>Policy.</em></>} updated="October 18, 2026">
+          <LegalDoc kicker="Legal" icon={ShieldCheck} title={<>Privacy <em>Policy</em></>} updated="October 18, 2026">
 
             <div className="prose prose-gray dark:prose-invert max-w-none space-y-6 text-gray-700 dark:text-gray-300">
               <section>

@@ -118,7 +118,7 @@ function CalendarPageInner() {
         <StudioPageHeader
           icon={CalendarClock}
           kicker="Calendar"
-          title={<>Your follow-ups, <em>on your calendar.</em></>}
+          title={<>Your follow-ups, <em>on your calendar</em></>}
           subtitle="Put your follow-ups and scheduled open houses on the calendar you already use."
         />
 

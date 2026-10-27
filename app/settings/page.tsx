@@ -582,7 +582,7 @@ export default function SettingsPage() {
           className="mb-6"
           kicker="Settings"
           icon={SettingsIcon}
-          title={<>Your account, <em>your way.</em></>}
+          title={<>Your account, <em>your way</em></>}
           subtitle={<>Kept in sync with{' '}<Link href="/studio/site" className="underline decoration-[#C9A24D]/50 underline-offset-2 transition-colors hover:text-[#8b7355]">Tools → Site</Link>.</>}
           badge={planName && (
             <button type="button" onClick={() => selectTab('billing')} title="Manage your plan"

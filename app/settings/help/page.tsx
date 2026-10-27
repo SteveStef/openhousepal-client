@@ -217,7 +217,7 @@ function HelpPageContent() {
           backLabel="Dashboard"
           kicker="Help & Support"
           icon={LifeBuoy}
-          title={<>We&apos;re here <em>to help.</em></>}
+          title={<>We&apos;re here <em>to help</em></>}
           subtitle="Submit a ticket and hear back from the OpenHousePal team, right here."
           asideClassName="w-full lg:w-[290px] lg:-mt-2"
           aside={

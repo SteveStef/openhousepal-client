@@ -83,7 +83,7 @@ export default function NeighborhoodsExplorer({ areas, theme, basePrefix = '', c
               <Compass className="h-3.5 w-3.5" /> Explore the area
             </p>
             <h1 className={`mt-4 text-5xl leading-[1.02] sm:text-7xl ${luxe ? `font-black text-white ${serif}` : 'font-extrabold tracking-tight'}`} style={luxe ? undefined : { color: 'var(--site-heading)' }}>
-              Find where you <span className={luxe ? 'ohp-text-shimmer' : ''} style={luxe ? undefined : { color: 'var(--site-accent)' }}>belong.</span>
+              Find where you <span className={luxe ? 'ohp-text-shimmer' : ''} style={luxe ? undefined : { color: 'var(--site-accent)' }}>belong</span>
             </h1>
             <p className={`mx-auto mt-5 max-w-2xl text-base sm:text-lg ${luxe ? 'text-white/75' : ''}`} style={luxe ? undefined : { color: 'var(--site-muted)' }}>
               Every town I serve - real homes for sale, real prices, schools, the train and the best local spots.

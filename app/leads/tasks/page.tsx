@@ -55,7 +55,7 @@ export default function FollowUpsPage() {
           <PageHeader
             icon={CalendarClock}
             kicker="Follow-ups"
-            title={<>Never miss <em>a follow-up.</em></>}
+            title={<>Never miss <em>a follow-up</em></>}
             subtitle="Who to reach out to and when. Most are added for you automatically - choose which situations below."
             backHref="/leads"
             backLabel="Leads"

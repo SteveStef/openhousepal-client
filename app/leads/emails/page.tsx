@@ -95,7 +95,7 @@ function EmailsInner() {
           icon={Mail}
           backHref="/leads"
           backLabel="Leads"
-          title={<>Every email, <em>tracked.</em></>}
+          title={<>Every email, <em>tracked</em></>}
           subtitle="What your clients were sent, if they opened it and if they clicked. People who stop opening get fewer emails, so the rest keep landing in the inbox."
           asideClassName="w-full lg:w-[400px] lg:-mt-2"
           aside={

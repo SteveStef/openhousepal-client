@@ -297,7 +297,7 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
                 icon={Users}
                 backHref="/open-houses"
                 backLabel="Open Houses"
-                title={<>Visitor <em>insights.</em></>}
+                title={<>Visitor <em>insights</em></>}
                 subtitle={openHouse?.address ? <>{toTitleCase(String(openHouse?.address || '').split(',')[0])}{openHouse.price ? ` · $${Number(openHouse.price).toLocaleString()}` : ''}</> : 'Everyone who signed in at this open house.'}
                 aside={!isLoading && !error && (
                   <LuxeStats

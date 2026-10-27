@@ -214,7 +214,7 @@ function BrandKitPageInner() {
           backLabel="Tools"
           kicker="Branding"
           icon={Wand2}
-          title={<>Your brand, <em>everywhere.</em></>}
+          title={<>Your brand, <em>everywhere</em></>}
           subtitle={<>{brandWearers(user?.plan_tier)} <span className="sr-only">{lookName}</span></>}
         />
         <style>{BRANDING_CSS}</style>

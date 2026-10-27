@@ -27,7 +27,7 @@ function WebsiteStudioPage() {
           asideClassName="lg:w-[400px] lg:-mt-5"
           kicker="IDX Website"
           icon={Globe}
-          title={<>Your site, <em>your brand.</em></>}
+          title={<>Your site, <em>your brand</em></>}
           subtitle="Edit any part of your site and watch it change in the preview - then publish it live on your OpenHousePal address or your own domain."
           aside={actions}
           tabs={<LuxeTabs items={TABS} active={tab} onChange={setTab} label="Site sections" end={barEnd} />}

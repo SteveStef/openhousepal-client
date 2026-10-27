@@ -138,7 +138,7 @@ function MediaLabListPage() {
           backLabel="Tools"
           kicker="Media Lab"
           icon={Clapperboard}
-          title={<>Every photo, <em>at its best.</em></>}
+          title={<>Every photo, <em>at its best</em></>}
           subtitle="Twilight, virtual staging, lights-on and video - from any listing photo or your own."
           aside={
             // AI usage lines up with the title, storage with the line under it - side by side on a

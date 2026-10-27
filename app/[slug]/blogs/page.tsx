@@ -78,7 +78,7 @@ export default function PublicBlogListPage() {
               <span className="h-px w-8 bg-[#C9A24D]" />{agentName ? `${agentName}'s journal` : 'The journal'}
             </p>
             <h1 className="mt-3 font-serif text-[2.6rem] font-black leading-[1.02] tracking-[-0.02em] text-[#111827] dark:text-white sm:text-6xl">
-              Stories &amp; <em className="font-light text-[#a8803a] dark:text-[#e8c97a]">local insight.</em>
+              Stories &amp; <em className="font-light text-[#a8803a] dark:text-[#e8c97a]">local insight</em>
             </h1>
             <p className="mt-3 max-w-xl text-base font-medium text-gray-600 dark:text-white/60">Market updates, neighborhood guides and honest advice for buying and selling here.</p>
           </motion.div>

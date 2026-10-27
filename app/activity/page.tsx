@@ -241,7 +241,7 @@ export default function ActivityPage() {
           icon={ActivityIcon}
           backHref="/dash"
           backLabel="Dashboard"
-          title={<>Everything, <em>as it happens.</em></>}
+          title={<>Everything, <em>as it happens</em></>}
           subtitle="Every sign-in, request, like, comment, email open and hosting update across your account."
           titleClassName="text-[1.7rem] sm:text-4xl lg:whitespace-nowrap"
           asideClassName="w-full lg:w-[330px] lg:-mt-1"

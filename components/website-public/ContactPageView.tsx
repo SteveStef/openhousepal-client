@@ -49,7 +49,7 @@ export default function ContactPageView({ profile, theme, basePrefix = '' }: { p
         <Reveal>
           <p className="text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: luxe ? 'var(--site-accent-light)' : 'var(--site-accent-text)' }}>Contact</p>
           <h1 className={`mt-3 text-5xl leading-[1.02] sm:text-7xl ${luxe ? `font-black text-white ${serif}` : 'font-extrabold tracking-tight'}`} style={luxe ? undefined : { color: 'var(--site-heading)' }}>
-            Let&apos;s <span className={luxe ? 'ohp-text-shimmer' : ''} style={luxe ? undefined : { color: 'var(--site-accent)' }}>talk.</span>
+            Let&apos;s <span className={luxe ? 'ohp-text-shimmer' : ''} style={luxe ? undefined : { color: 'var(--site-accent)' }}>talk</span>
           </h1>
           <p className={`mx-auto mt-4 max-w-xl text-base sm:text-lg ${luxe ? 'text-white/70' : ''}`} style={luxe ? undefined : { color: 'var(--site-muted)' }}>A question, a home, a plan - send a note below, or reach me directly. I answer every message myself.</p>
         </Reveal>

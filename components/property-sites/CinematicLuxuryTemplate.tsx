@@ -665,7 +665,7 @@ function StorySection({ m }: { m: SpotlightModel }) {
               mid-address ("Inside 239 / Windham Dr."). */}
           <h2 className="sp-display mt-5 font-light leading-[1.02] tracking-[-0.015em]">
             <span className="block text-[clamp(1.6rem,2.6vw,2.4rem)] text-white/60">Inside</span>
-            <em className="mt-1 block text-balance text-[clamp(2.3rem,4.2vw,4rem)] italic text-white/90">{street}.</em>
+            <em className="mt-1 block text-balance text-[clamp(2.3rem,4.2vw,4rem)] italic text-white/90">{street}</em>
           </h2>
           <p className="cl-prose mt-7 text-[17px] leading-[1.8] text-white/70 sm:text-[18px]">{excerpt}</p>
           {more && (
@@ -763,7 +763,7 @@ function GallerySection({ m, onOpen }: { m: SpotlightModel; onOpen: (i: number) 
               <span className="h-px w-8 bg-[color:var(--sp-accent)]" /> The gallery
             </p>
             <h2 className="sp-display mt-4 text-[clamp(2rem,4.4vw,3.6rem)] font-light leading-none tracking-[-0.015em] lg:whitespace-nowrap">
-              Every room, <em className="italic text-white/80">in its best light.</em>
+              Every room, <em className="italic text-white/80">in its best light</em>
             </h2>
           </div>
           {photos.length > 1 && <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-white/45">{photos.length} photographs</p>}
@@ -799,7 +799,7 @@ function FeaturesSection({ m }: { m: SpotlightModel }) {
   const total = m.allFeatureTags.length
   const cols = fit === 6 || fit === 3 ? 'lg:grid-cols-3' : fit === 2 ? 'lg:grid-cols-2' : fit === 1 ? '' : 'lg:grid-cols-4'
   return (
-    <Section id="features" eyebrow="Features & amenities" title={<>Crafted <em className="italic text-white/80">in detail.</em></>}
+    <Section id="features" eyebrow="Features & amenities" title={<>Crafted <em className="italic text-white/80">in detail</em></>}
       intro={total > 0 ? <><span className="sp-display mr-2 text-3xl text-[color:var(--sp-accent)]">{total}</span>details that set this home apart.</> : undefined}>
       {signature.length > 0 && (
         <div className={`cl-stagger mb-14 grid grid-cols-2 gap-2.5 sm:gap-3 ${cols} [&>*:last-child:nth-child(odd)]:col-span-2 lg:[&>*:last-child:nth-child(odd)]:col-span-1`}>
@@ -895,7 +895,7 @@ function VideoSection({ url, poster }: { url: string; poster?: string | null }) 
   const ref = useRef<HTMLVideoElement>(null)
   const [playing, setPlaying] = useState(false)
   return (
-    <Section id="video" eyebrow="The film" title={<>See it <em className="italic text-white/80">in motion.</em></>} wide>
+    <Section id="video" eyebrow="The film" title={<>See it <em className="italic text-white/80">in motion</em></>} wide>
       <div className="cl-reveal relative aspect-video w-full overflow-hidden rounded-[2px] bg-black">
         {/* suppressHydrationWarning: some browser extensions inject attributes onto <video>. */}
         <video
@@ -931,7 +931,7 @@ function VirtualTourSection({ url, poster }: { url: string; poster?: string | nu
   const close = useCallback(() => setOpen(false), [])
   useModalLock(open, close)
   return (
-    <Section id="tour" eyebrow="3D virtual tour" title={<>Walk through, <em className="italic text-white/80">from anywhere.</em></>} wide>
+    <Section id="tour" eyebrow="3D virtual tour" title={<>Walk through, <em className="italic text-white/80">from anywhere</em></>} wide>
       <button onClick={() => setOpen(true)} className="cl-reveal group relative flex aspect-[21/9] min-h-[320px] w-full items-center justify-center overflow-hidden rounded-[2px] bg-[#111]">
         {poster && <img src={poster} alt="" loading="lazy" className="absolute inset-0 h-full w-full scale-105 object-cover opacity-50 blur-[2px] transition-[transform,opacity] duration-700 group-hover:scale-100 group-hover:opacity-60" />}
         <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/40" />
@@ -960,7 +960,7 @@ function FloorPlansSection({ plans, onZoom }: { plans: { label: string; image_ur
   const [active, setActive] = useState(0)
   const plan = plans[active] || plans[0]
   return (
-    <Section id="floor-plans" eyebrow="Floor plans" title={<>Every level, <em className="italic text-white/80">laid out.</em></>}>
+    <Section id="floor-plans" eyebrow="Floor plans" title={<>Every level, <em className="italic text-white/80">laid out</em></>}>
       {plans.length > 1 && (
         <div className="mb-6 flex flex-wrap gap-2" role="tablist">
           {plans.map((pl, i) => (
@@ -982,7 +982,7 @@ function FloorPlansSection({ plans, onZoom }: { plans: { label: string; image_ur
 function DetailsSection({ m }: { m: SpotlightModel }) {
   const groups = groupSpecs(m.keyFacts)
   return (
-    <Section id="details" eyebrow="Property details" title={<>The <em className="italic text-white/80">particulars.</em></>} wide
+    <Section id="details" eyebrow="Property details" title={<>The <em className="italic text-white/80">particulars</em></>} wide
       intro={m.isMls ? 'Straight from the MLS record for this home.' : undefined}>
       <div className="cl-stagger grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {groups.map(g => {
@@ -1034,7 +1034,7 @@ function LocationSection({ m, siteId }: { m: SpotlightModel; siteId: string }) {
   const explore = m.has.nearby && m.hasCoords
   return (
     <Section id="location" eyebrow={explore ? 'Location · Explore nearby' : 'Location'}
-      title={explore ? <>Explore what’s <em className="italic text-white/80">nearby.</em></> : <>{m.has.town ? <>On the <em className="italic text-white/80">map.</em></> : p.city ? <>Life in <em className="italic text-white/80">{p.city}.</em></> : 'Where you’ll live.'}</>}
+      title={explore ? <>Explore what’s <em className="italic text-white/80">nearby</em></> : <>{m.has.town ? <>On the <em className="italic text-white/80">map</em></> : p.city ? <>Life in <em className="italic text-white/80">{p.city}</em></> : 'Where you’ll live.'}</>}
       intro={explore ? <span className="inline-flex items-start gap-3"><Compass className="mt-0.5 h-5 w-5 shrink-0 text-[color:var(--sp-accent)]" strokeWidth={1.5} /><span>Restaurants, coffee, parks and more - tap a kind of place and they drop onto the map, each with how far it is from {p0(p.address)}.</span></span> : undefined}
       wide>
       <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
@@ -1087,7 +1087,7 @@ function LocationSection({ m, siteId }: { m: SpotlightModel; siteId: string }) {
 
 function PaymentSection({ m }: { m: SpotlightModel }) {
   return (
-    <Section id="payment" eyebrow="Affordability" title={<>What it could <em className="italic text-white/80">cost monthly.</em></>} className="bg-[#0d0d0d]">
+    <Section id="payment" eyebrow="Affordability" title={<>What it could <em className="italic text-white/80">cost monthly</em></>} className="bg-[#0d0d0d]">
       <div className="cl-reveal rounded-[2px] border border-white/[0.08] bg-[#0A0A0A] p-6 sm:p-10">
         <PaymentEstimator price={m.p.price!} taxesMonthly={m.taxesMonthly} hoaMonthly={m.hoaMonthly} tone="dark" />
       </div>
@@ -1097,7 +1097,7 @@ function PaymentSection({ m }: { m: SpotlightModel }) {
 
 function OpenHousesSection({ m, url }: { m: SpotlightModel; url: string }) {
   return (
-    <Section id="open-houses" eyebrow="Open house" title={<>Come see it <em className="italic text-white/80">in person.</em></>}
+    <Section id="open-houses" eyebrow="Open house" title={<>Come see it <em className="italic text-white/80">in person</em></>}
       intro="No appointment needed - just stop by. Can't make it? Book a private tour instead.">
       <div className="cl-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {m.openHouses.map((oh, i) => {
@@ -1133,7 +1133,7 @@ function DocumentsSection({ m, siteId }: { m: SpotlightModel; siteId: string }) 
   const last = useRef(0)
   if (open !== null) last.current = open
   return (
-    <Section id="documents" eyebrow="Documents" title={<>Brochures &amp; <em className="italic text-white/80">disclosures.</em></>}
+    <Section id="documents" eyebrow="Documents" title={<>Brochures &amp; <em className="italic text-white/80">disclosures</em></>}
       intro={documents.length > 1 ? 'Tap one - we’ll email it to you, or all of them at once.' : 'Tap it and we’ll email it straight to you.'}>
       <div className="cl-stagger grid gap-3 sm:grid-cols-2">
         {documents.map((d, i) => (

@@ -137,7 +137,7 @@ export default function TownSection({ name, facts, body, place, kicker, tone, ph
           <div className="tw-rise" style={{ ['--d' as string]: '0ms' }}>
             {kicker}
             <h2 className={`${display} mt-4 text-[clamp(2.8rem,6vw,5.6rem)] leading-[0.9] tracking-[-0.03em] ${editorial ? '' : 'font-light'}`}>
-              Life in <em className="tw-accent italic">{name}.</em>
+              Life in <em className="tw-accent italic">{name}</em>
             </h2>
             {f.tagline && <p className={`${display} mt-4 text-[clamp(1.15rem,1.7vw,1.5rem)] italic leading-snug tw-soft`}>{f.tagline}</p>}
           </div>

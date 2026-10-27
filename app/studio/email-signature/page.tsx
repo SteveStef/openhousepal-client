@@ -463,7 +463,7 @@ export default function EmailSignaturePage() {
               backHref="/studio"
               backLabel="Tools"
               kicker="Signature"
-              title={<>Your brand, <em>in every email.</em></>}
+              title={<>Your brand, <em>in every email</em></>}
               subtitle="Your branding in your email, on your site, and everywhere you show up - built once, always in sync."
               subtitleClassName="max-w-none lg:whitespace-nowrap"
               asideClassName="w-full lg:w-auto lg:self-start lg:-mt-5"

@@ -294,7 +294,7 @@ function LeadsPageInner() {
           className="relative z-20"
           kicker="Leads"
           icon={Users}
-          title={<>Every lead, <em>one place.</em></>}
+          title={<>Every lead, <em>one place</em></>}
           subtitle="Everyone who signs in, fills out a form, asks about a home or uses their Showcase - one lead per person, with everything they've done."
           asideClassName="w-full lg:w-[460px] lg:-mt-1 xl:w-[600px]"
           aside={

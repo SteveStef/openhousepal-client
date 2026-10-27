@@ -1528,12 +1528,12 @@ async function NeighborhoodComparePage({ siteId, theme, basePrefix, compareParam
     return (
       <main>
       {theme.template === 'default' ? (
-        <ClassicPageHero eyebrow="Neighborhood compare" title="Choose two" accent="neighborhoods." subtitle="Pick any two of the neighborhoods this agent serves and see them side by side." align="center" />
+        <ClassicPageHero eyebrow="Neighborhood compare" title="Choose two" accent="neighborhoods" subtitle="Pick any two of the neighborhoods this agent serves and see them side by side." align="center" />
       ) : (
         <>
         <div className="relative px-6 py-20 text-center" style={{ backgroundColor: theme.primary_color }}>
           <p className="text-xs font-black uppercase tracking-[0.24em]" style={{ color: theme.secondary_color }}>Neighborhood Compare</p>
-          <h1 className="ohp-site-heading mx-auto mt-3 max-w-3xl text-4xl font-black text-white sm:text-6xl">Choose two neighborhoods.</h1>
+          <h1 className="ohp-site-heading mx-auto mt-3 max-w-3xl text-4xl font-black text-white sm:text-6xl">Choose two neighborhoods</h1>
           <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-white/70">Compare only the neighborhoods this agent serves, using existing research and live OHP listing data.</p>
           <div id="site-hero-sentinel" className="pointer-events-none absolute inset-x-0 bottom-0 h-px" />
         </div>

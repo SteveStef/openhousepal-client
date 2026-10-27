@@ -65,7 +65,7 @@ export default function HomeCollection({ listings, theme, basePrefix = '', onQui
         <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: 'rgba(255,255,255,.12)' }}><BellRing className="h-6 w-6" style={{ color: luxe ? 'var(--site-accent-light)' : '#fff' }} /></span>
         <span className="relative">
           <span className="text-[10px] font-black uppercase tracking-[0.28em]" style={{ color: luxe ? 'var(--site-accent-light)' : 'rgba(255,255,255,.75)' }}>Free · private</span>
-          <span className={`mt-2 block text-[26px] leading-tight ${luxe ? `font-black ${serif}` : 'font-extrabold tracking-tight'}`}>Get homes like these before anyone else.</span>
+          <span className={`mt-2 block text-[26px] leading-tight ${luxe ? `font-black ${serif}` : 'font-extrabold tracking-tight'}`}>Get homes like these before anyone else</span>
           <span className="mt-2 block text-sm text-white/70">Tell me what you love - you&apos;ll get your own private page that finds new matches the minute they list.</span>
         </span>
         <span className={`relative inline-flex w-fit items-center gap-2 px-5 py-3 text-sm font-black transition group-hover:gap-3 ${luxe ? 'rounded-full' : 'rounded-xl'}`} style={luxe ? { backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' } : { backgroundColor: '#fff', color: 'var(--site-accent-deep)' }}>

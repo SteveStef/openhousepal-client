@@ -244,7 +244,7 @@ function IntegrationsPageInner() {
         <StudioPageHeader
           icon={Plug}
           kicker="CRM"
-          title={<>Every lead, <em>where it belongs.</em></>}
+          title={<>Every lead, <em>where it belongs</em></>}
           subtitle="Send new leads to your CRM, and pull in leads forwarded from Zillow, Realtor.com and more."
         />
 

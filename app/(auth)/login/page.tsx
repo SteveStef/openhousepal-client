@@ -154,7 +154,7 @@ function LoginContent() {
           {/* Header */}
           <div className="mb-6 text-center w-full">
             <AuthKicker>Sign in</AuthKicker>
-            <h2 className="mb-1 font-serif text-4xl font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Welcome <em className="ohp-home-em">back.</em></h2>
+            <h2 className="mb-1 font-serif text-4xl font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Welcome <em className="ohp-home-em">back</em></h2>
             <p className="text-[#6B7280] dark:text-gray-400 text-sm font-medium">Please enter your details to sign in.</p>
           </div>
 

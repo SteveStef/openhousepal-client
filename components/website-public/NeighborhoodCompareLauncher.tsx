@@ -73,7 +73,7 @@ export default function NeighborhoodCompareLauncher({
               <GitCompareArrows className="h-5 w-5" />
             </span>
             <p className="mt-6 text-xs font-black uppercase tracking-[0.24em]" style={{ color: 'var(--site-accent-text-dm)' }}>Compare Neighborhoods</p>
-            <h2 className="ohp-site-heading mt-2 text-3xl font-black leading-tight text-white sm:text-4xl">Find the right fit side by side.</h2>
+            <h2 className="ohp-site-heading mt-2 text-3xl font-black leading-tight text-white sm:text-4xl">Find the right fit side by side</h2>
             <p className="mt-4 text-sm leading-relaxed text-white/70">
               Compare the neighborhoods this agent serves using live homes for sale, market data, schools, transportation, and local lifestyle research.
             </p>

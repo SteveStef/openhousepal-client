@@ -3129,7 +3129,7 @@ function AgentHubContent() {
               <PageHeader
                 icon={FileText}
                 kicker="Forms & Invites"
-                title={formsView === 'invites' ? <>Invite them in, <em>in style.</em></> : <>Capture every lead, <em>your way.</em></>}
+                title={formsView === 'invites' ? <>Invite them in, <em>in style</em></> : <>Capture every lead, <em>your way</em></>}
                 subtitle={formsView === 'invites'
                   ? 'Beautiful invitations for open houses, broker’s opens and client dinners - one link, every RSVP in one place.'
                   : 'Create and share lead-capture forms, then track responses and open house requests right here.'}
@@ -3375,7 +3375,7 @@ function AgentHubContent() {
                 <PageHeader
                   icon={Globe}
                   kicker="Agent Hub"
-                  title={<>One link, <em>all of you.</em></>}
+                  title={<>One link, <em>all of you</em></>}
                   subtitle="Your profile, listings, sales and stories - one page that's always current."
                   backHref="/studio"
                   backLabel="Tools"

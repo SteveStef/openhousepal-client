@@ -242,7 +242,7 @@ function ResetPasswordForm() {
             <span className="text-[28px] text-[#111827] dark:text-white"><GoldPal animate /></span>
           </Link>
           <div><AuthKicker>Account help</AuthKicker></div>
-          <h2 className="mb-2 font-serif text-4xl font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Create new <em className="ohp-home-em">password.</em></h2>
+          <h2 className="mb-2 font-serif text-4xl font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Create new <em className="ohp-home-em">password</em></h2>
           <p className="font-medium text-[#6B7280] dark:text-gray-400">Enter a strong password for your account</p>
         </div>
 

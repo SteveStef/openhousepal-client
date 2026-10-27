@@ -386,7 +386,7 @@ function SpotlightHero({ covers, stats, onCreate }: { covers: string[]; stats: {
       backHref="/studio"
       backLabel="Tools"
       kicker="Listing Spotlight"
-      title={<>Every listing deserves<br /><em>its own stage.</em></>}
+      title={<>Every listing deserves<br /><em>its own stage</em></>}
       subtitle="A cinematic website for every listing - built for you in seconds."
       covers={covers}
       aside={

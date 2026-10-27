@@ -376,7 +376,7 @@ export default function RegisterPage() {
             <section className={phoneStep === 1 ? '' : 'hidden'} aria-hidden={phoneStep !== 1}>
               <div className="mb-5 text-center">
                 <AuthKicker>Start free</AuthKicker>
-                <h2 className="mb-1 font-serif text-[34px] leading-tight font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Create <em className="ohp-home-em">Account.</em></h2>
+                <h2 className="mb-1 font-serif text-[34px] leading-tight font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Create <em className="ohp-home-em">Account</em></h2>
                 <p className="text-sm font-medium text-[#6B7280] dark:text-gray-400">Start your {TRIAL_PERIOD_DAYS}-day free trial today.</p>
               </div>
               <p className={phoneLabelCls}>Which MLS are you in?</p>
@@ -407,7 +407,7 @@ export default function RegisterPage() {
             {/* 2 - Name + email */}
             <section className={phoneStep === 2 ? '' : 'hidden'} aria-hidden={phoneStep !== 2}>
               <div className="mb-5">
-                <h2 className="font-serif text-[30px] leading-tight font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">About <em className="ohp-home-em">you.</em></h2>
+                <h2 className="font-serif text-[30px] leading-tight font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">About <em className="ohp-home-em">you</em></h2>
                 <p className="mt-1 text-sm font-medium text-[#6B7280] dark:text-gray-400">Your name and the email you&apos;ll sign in with.</p>
               </div>
               <div className="space-y-4">
@@ -509,7 +509,7 @@ export default function RegisterPage() {
             {/* 4 - Password + terms */}
             <section className={phoneStep === 4 ? '' : 'hidden'} aria-hidden={phoneStep !== 4}>
               <div className="mb-5">
-                <h2 className="font-serif text-[30px] leading-tight font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Set a <em className="ohp-home-em">password.</em></h2>
+                <h2 className="font-serif text-[30px] leading-tight font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Set a <em className="ohp-home-em">password</em></h2>
                 <p className="mt-1 text-sm font-medium text-[#6B7280] dark:text-gray-400">At least 8 characters. Then we&apos;ll email you a code.</p>
               </div>
               <div className="space-y-4">
@@ -657,7 +657,7 @@ export default function RegisterPage() {
           {/* Header */}
           <div className="mb-4 text-center">
             <AuthKicker>Start free</AuthKicker>
-            <h2 className="mb-2 font-serif text-4xl font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Create <em className="ohp-home-em">Account.</em></h2>
+            <h2 className="mb-2 font-serif text-4xl font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Create <em className="ohp-home-em">Account</em></h2>
             <p className="text-[#6B7280] dark:text-gray-400 text-sm font-medium">Start your {TRIAL_PERIOD_DAYS}-day free trial today.</p>
           </div>
 

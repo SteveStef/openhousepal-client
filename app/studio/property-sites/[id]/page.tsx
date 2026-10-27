@@ -1265,7 +1265,7 @@ function PropertySiteEditorPage() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10" />
             <div className="relative flex min-h-[220px] flex-col justify-end p-5 text-white sm:min-h-[260px] sm:p-7">
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#e8c97a]">{town.hidden ? 'Hidden on your page' : 'On your page'}</p>
-              <p className="mt-1 font-serif text-4xl font-light leading-none sm:text-5xl">Life in <em className="text-[#e8c97a]">{town.name || cityLabel}.</em></p>
+              <p className="mt-1 font-serif text-4xl font-light leading-none sm:text-5xl">Life in <em className="text-[#e8c97a]">{town.name || cityLabel}</em></p>
               {town.facts?.tagline && <p className="mt-2 max-w-xl font-serif text-base italic text-white/85">{town.facts.tagline}</p>}
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {town.photo?.caption && <span className="rounded-full bg-black/40 px-2.5 py-1 text-[10px] font-bold">{town.photo.caption}</span>}
@@ -1562,7 +1562,7 @@ function PropertySiteEditorPage() {
                       <ScaledPreview className="min-w-0" src={`/spotlight-preview/${templateId}?site=${site.id}&embed=1`} aspect={0.6} label={siteLabel} poster={heroImage} />
                       <div>
                         <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-[#e8c97a]"><span className="h-px w-6 bg-[#e8c97a]" /> Step 9 · Review &amp; publish</p>
-                        <h3 className="mt-2 font-serif text-3xl font-black leading-[1.05] sm:text-4xl">{live ? <>Your page is <em className="font-light text-[#e8c97a]">live.</em></> : <>Your page is <em className="font-light text-[#e8c97a]">ready.</em></>}</h3>
+                        <h3 className="mt-2 font-serif text-3xl font-black leading-[1.05] sm:text-4xl">{live ? <>Your page is <em className="font-light text-[#e8c97a]">live</em></> : <>Your page is <em className="font-light text-[#e8c97a]">ready</em></>}</h3>
                         <p className="mt-2 text-[13px] font-semibold text-white/60">{live ? <><span className="font-black text-white/85">All {STEPS.length} steps done.</span> <span className="lg:whitespace-nowrap">Tap any card below to change something - it goes live&nbsp;by&nbsp;itself.</span></> : `${doneCount} of ${STEPS.length} steps done - publish to finish.`}</p>
                         <div className="mt-4 flex gap-1.5" aria-hidden>
                           {STEPS.map((x, i) => <span key={x.key} className={`rv-seg h-1.5 flex-1 rounded-full ${i < doneCount ? 'bg-gradient-to-r from-[#C9A24D] to-[#e8c97a]' : 'bg-white/15'}`} style={{ ['--i' as string]: i }} />)}

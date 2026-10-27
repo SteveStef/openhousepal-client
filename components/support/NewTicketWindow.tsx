@@ -42,24 +42,24 @@ const COPY: Record<SupportTicketCategory, {
   sentTitle: React.ReactNode; sentSub: string
 }> = {
   support: {
-    kicker: 'Contact support', heading: <>Ask us <em>anything.</em></>, sub: 'A real person on our team reads every ticket.',
+    kicker: 'Contact support', heading: <>Ask us <em>anything</em></>, sub: 'A real person on our team reads every ticket.',
     subjectLabel: 'What do you need help with?', subjectPh: 'e.g. Changing my brokerage name',
     mainLabel: 'Tell us more', mainPh: 'Share as much detail as you like - what you’re trying to do and where you’re stuck.',
-    sentTitle: <>We&apos;re <em>on it.</em></>, sentSub: 'Your question is with our team. We’ll reply right here, and you’ll get a notification when we do.',
+    sentTitle: <>We&apos;re <em>on it</em></>, sentSub: 'Your question is with our team. We’ll reply right here, and you’ll get a notification when we do.',
   },
   bug: {
     kicker: 'Report a bug', heading: <>Something <em>broke?</em></>, sub: 'Tell us what happened - we’ll include the technical details for you.',
     subjectLabel: 'Sum it up in a few words', subjectPh: 'e.g. Flyer won’t download',
     mainLabel: 'What happened?', mainPh: 'What did you click, and what went wrong?',
     extraLabel: 'What did you expect to happen?', extraPh: 'e.g. The PDF should have downloaded.',
-    sentTitle: <>Thanks for <em>the catch.</em></>, sentSub: 'Your bug report is in. We’ll dig in and reply right here as soon as we know more.',
+    sentTitle: <>Thanks for <em>the catch</em></>, sentSub: 'Your bug report is in. We’ll dig in and reply right here as soon as we know more.',
   },
   feature: {
     kicker: 'Suggest a feature', heading: <>Got an <em>idea?</em></>, sub: 'The best parts of OpenHousePal started as an agent’s idea.',
     subjectLabel: 'Your idea in a few words', subjectPh: 'e.g. Text guests after an open house',
     mainLabel: 'What would you like?', mainPh: 'Describe what you’d love OpenHousePal to do.',
     extraLabel: 'How would it help you?', extraPh: 'e.g. I’d save an hour after every open house.',
-    sentTitle: <>Love <em>this idea.</em></>, sentSub: 'Your idea is with the product team. We read every one and will reply right here.',
+    sentTitle: <>Love <em>this idea</em></>, sentSub: 'Your idea is with the product team. We read every one and will reply right here.',
   },
 }
 

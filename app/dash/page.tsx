@@ -444,7 +444,9 @@ export default function DashPage() {
             kicker="Dashboard"
             icon={LayoutDashboard}
             compact
-            title={<>What needs your <em>attention.</em></>}
+            title={<>What needs your <em>attention</em></>}
+            // Phones: shrinks with the screen so the title always stays on one line (it needs ~13x its font size)
+            titleClassName="whitespace-nowrap text-[length:min(1.7rem,calc((100vw_-_58px)*0.072))] sm:text-4xl"
             subtitle={<><span className="sm:hidden">Leads, activity, open houses &amp; follow-ups.</span><span className="hidden sm:inline">New leads, activity, open houses and follow-ups - everything that needs a look today.</span></>}
             subtitleClassName="whitespace-nowrap lg:max-w-none"
             kickerNote={updatedAgo && (

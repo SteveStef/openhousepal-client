@@ -1092,7 +1092,7 @@ export default function OpenHouseDiscovery() {
                 icon={Search}
                 backHref="/open-houses"
                 backLabel="Open Houses"
-                title={<>Find homes <em>to host.</em></>}
+                title={<>Find homes <em>to host</em></>}
                 subtitle="Find brokerage listings you may be able to host and request approval in one place."
                 asideClassName="w-full lg:w-[620px] lg:-mt-[18px]"
                 aside={

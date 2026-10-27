@@ -201,7 +201,7 @@ function ReviewsPageInner() {
         <StudioPageHeader
           icon={Star}
           kicker="Reviews"
-          title={<>Five stars, <em>on repeat.</em></>}
+          title={<>Five stars, <em>on repeat</em></>}
           subtitle="Collect client reviews, and turn your best ones into Google & Zillow reviews."
         />
 
@@ -224,7 +224,7 @@ function ReviewsPageInner() {
 
             {/* How it works - the funnel as a picture, not a paragraph */}
             <motion.div variants={rise} className="overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-white shadow-sm dark:border-white/[0.07] dark:bg-[#121214]">
-              <LuxeSectionHeader icon={Sparkles} kicker="How it works" title={<>One link, <em>two paths.</em></>} subtitle="Happy clients go public. Unhappy ones come to you first." />
+              <LuxeSectionHeader icon={Sparkles} kicker="How it works" title={<>One link, <em>two paths</em></>} subtitle="Happy clients go public. Unhappy ones come to you first." />
               <div className="grid gap-px bg-[#C9A24D]/15 sm:grid-cols-3 dark:bg-white/[0.06]">
                 {[
                   { icon: Link2, t: 'You send your link', d: 'Text or email it after closing - it takes them 30 seconds.' },
@@ -248,7 +248,7 @@ function ReviewsPageInner() {
             <motion.div variants={rise} className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
               <LuxeSurface icon={Link2} className="rounded-3xl border border-[#C9A24D]/30 p-5 text-[#111827] shadow-[0_24px_50px_-34px_rgba(139,115,85,.55)] dark:border-white/[0.07] dark:text-white sm:p-6">
                 <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#8b7355] dark:text-[#e8c97a]">Your review link</p>
-                <p className="lx-title mt-1 font-serif text-xl font-black">Send it after <em>every closing.</em></p>
+                <p className="lx-title mt-1 font-serif text-xl font-black">Send it after <em>every closing</em></p>
                 <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                   <input readOnly value={shareUrl} onFocus={e => e.currentTarget.select()}
                     className="min-w-0 flex-1 rounded-xl border border-[#C9A24D]/30 bg-white/80 px-3.5 py-3 text-xs font-bold text-[#6b5a45] outline-none dark:border-white/10 dark:bg-white/[0.05] dark:text-white/70" />

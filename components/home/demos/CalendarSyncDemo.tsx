@@ -136,7 +136,7 @@ export default function CalendarSyncDemo() {
         {beat.k === 'connect' && (
           <div className="flex h-full flex-col justify-center animate-fadeIn">
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#8b7355] dark:text-[#d7b974]">Tools · Calendar</p>
-            <p className="mt-1 font-serif text-[24px] font-black leading-tight text-[#111827] dark:text-white">Your follow-ups, <em className="font-light text-[#a8853d] dark:text-[#e8c97a]">on your calendar.</em></p>
+            <p className="mt-1 font-serif text-[24px] font-black leading-tight text-[#111827] dark:text-white">Your follow-ups, <em className="font-light text-[#a8853d] dark:text-[#e8c97a]">on your calendar</em></p>
             <p className="mt-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Connect once. We fill it in.</p>
             <div className="mt-4 grid grid-cols-2 gap-3">
               {[{ m: <span className="inline-block h-[26px] w-[26px]"><GoogleCalendarLogo /></span>, n: 'Google Calendar', d: "Two-way - edit events right in Google, and we skip times you're already booked.", g: true }, { m: <MicrosoftMark size={24} />, n: 'Outlook Calendar', d: 'Two-way with Outlook / Microsoft 365 - events you can drag and edit.', g: false }].map(p => {
@@ -202,7 +202,7 @@ export default function CalendarSyncDemo() {
         {beat.k === 'crm' && (
           <div className="flex h-full flex-col animate-fadeIn">
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#8b7355] dark:text-[#d7b974]">Tools · Integrations · Leads out</p>
-            <p className="mt-1 font-serif text-[22px] font-black leading-tight text-[#111827] dark:text-white">Send leads to <em className="font-light text-[#a8853d] dark:text-[#e8c97a]">your CRM.</em></p>
+            <p className="mt-1 font-serif text-[22px] font-black leading-tight text-[#111827] dark:text-white">Send leads to <em className="font-light text-[#a8853d] dark:text-[#e8c97a]">your CRM</em></p>
             <div className="mt-3 grid flex-1 grid-cols-[1.25fr_1fr] gap-3 max-sm:flex-none max-sm:grid-cols-1 max-sm:gap-2">
               <div className="rounded-2xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-[#151517]">
                 <p className="text-[11px] font-black text-[#111827] dark:text-white"><span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#C9A24D] text-[9px] text-[#111827]">1</span>Which CRM do you use?</p>

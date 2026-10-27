@@ -96,7 +96,7 @@ function EmailSettingsInner() {
         <StudioPageHeader
           icon={Mail}
           kicker="Email"
-          title={<>Every email, <em>your way.</em></>}
+          title={<>Every email, <em>your way</em></>}
           subtitle="Choose which emails go out, which address sends them, and which ones come to you. These settings only ever send less than our standard - never more."
         />
 

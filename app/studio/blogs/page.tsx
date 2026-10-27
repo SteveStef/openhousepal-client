@@ -126,7 +126,7 @@ function BlogsDashboardInner() {
         <StudioPageHeader
           icon={Newspaper}
           kicker="Blogs"
-          title={<>Be the author of <em>your market.</em></>}
+          title={<>Be the author of <em>your market</em></>}
           subtitle={`Market updates, neighborhood guides and advice for buyers and sellers - in your voice, on your Agent Hub${hasIdx ? ' and IDX site' : ''}.`}
           asideClassName="w-full lg:w-[360px] lg:self-center"
           badge={statSummary && <StatCard chip metric="blog_reads" label="Reads" icon={Eye} entry={statSummary.blog_reads} />}

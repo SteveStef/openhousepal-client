@@ -51,7 +51,7 @@ export default function StudioHomePage() {
           compact
           kicker="Tools"
           icon={ToolCase}
-          title={<>Market every listing, <em>grow your name.</em></>}
+          title={<>Market every listing, <em>grow your name</em></>}
           subtitle="Connected to your properties, your brand and your Agent Hub - all in one place."
           aside={<div className="flex w-full lg:justify-end"><BrandKitButton /></div>}
           asideClassName="lg:w-auto"

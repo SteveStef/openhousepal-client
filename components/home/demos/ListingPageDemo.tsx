@@ -311,7 +311,7 @@ export default function ListingPageDemo() {
                   <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                   <span className="absolute bottom-1.5 left-2 right-2">
                     <span className="block text-[6px] font-black uppercase tracking-[0.3em] text-[#e8c97a]">On your page</span>
-                    <span className="block font-serif text-[15px] font-black text-white">Life in <em className="font-light text-[#e8c97a]">{L.town.name}.</em></span>
+                    <span className="block font-serif text-[15px] font-black text-white">Life in <em className="font-light text-[#e8c97a]">{L.town.name}</em></span>
                   </span>
                 </div>
                 <p className="mt-2 font-serif text-[8.5px] italic text-gray-600 dark:text-gray-300">{L.town.tagline}</p>
@@ -396,7 +396,7 @@ export default function ListingPageDemo() {
             </div>
             <div className="relative flex min-w-0 flex-1 flex-col">
               <p className="text-[6.5px] font-black uppercase tracking-[0.3em] text-[#e8c97a]">Step 9 · Review &amp; publish</p>
-              <p className="mt-1 font-serif text-[20px] font-black leading-tight">{live ? <>Your page is <em className="font-light text-[#e8c97a]">live.</em></> : 'Almost there…'}</p>
+              <p className="mt-1 font-serif text-[20px] font-black leading-tight">{live ? <>Your page is <em className="font-light text-[#e8c97a]">live</em></> : 'Almost there…'}</p>
               <p className="mt-0.5 text-[7.5px] font-semibold text-white/60">{done} of {EDITOR_STEPS.length} steps done{live ? ' - change anything later and it updates by itself.' : ''}</p>
               <div className="mt-2 flex gap-0.5">{EDITOR_STEPS.map((_, k) => <span key={k} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${k < done ? 'bg-gradient-to-r from-[#C9A24D] to-[#e8c97a]' : 'bg-white/15'}`} />)}</div>
               <div className="mt-2.5 grid grid-cols-3 gap-1">
@@ -486,7 +486,7 @@ export default function ListingPageDemo() {
           <section style={{ height: SECTION_H }} className="relative flex items-center gap-4 bg-[#0b0b0b] px-6">
             <div className="w-[44%]">
               <p className="flex items-center gap-2 text-[6.5px] font-black uppercase tracking-[0.35em] text-[#C9A24D]"><span className="h-px w-5 bg-[#C9A24D]" />The residence</p>
-              <h5 className="mt-1.5 font-serif leading-tight text-white"><span className="block text-[15px] text-white/60">Inside</span><em className="block text-[22px] text-[#e8c97a]">{L.address}.</em></h5>
+              <h5 className="mt-1.5 font-serif leading-tight text-white"><span className="block text-[15px] text-white/60">Inside</span><em className="block text-[22px] text-[#e8c97a]">{L.address}</em></h5>
               <p className="mt-2 text-[7.5px] leading-relaxed text-white/65">{L.story}</p>
               <span className="mt-3 inline-flex items-center gap-1.5 text-[7px] font-black text-white"><span className="flex h-4 w-4 items-center justify-center rounded-full border border-[#C9A24D]/60"><ArrowRight className="h-2 w-2 text-[#e8c97a]" /></span>Read the full story <span className="font-semibold text-white/40">· 1 min</span></span>
             </div>
@@ -519,7 +519,7 @@ export default function ListingPageDemo() {
           {/* 3 · Life in the town */}
           <section style={{ height: SECTION_H }} className="relative flex flex-col justify-center bg-gradient-to-b from-[#0b0b0b] to-[#14110c] px-6">
             <p className="flex items-center gap-2 text-[6.5px] font-black uppercase tracking-[0.35em] text-[#C9A24D]"><span className="h-px w-5 bg-[#C9A24D]" />The town</p>
-            <h5 className="mt-1 font-serif text-[24px] leading-tight text-white">Life in <em className="text-[#e8c97a]">{L.town.name}.</em></h5>
+            <h5 className="mt-1 font-serif text-[24px] leading-tight text-white">Life in <em className="text-[#e8c97a]">{L.town.name}</em></h5>
             <p className="font-serif text-[8.5px] italic text-white/60">{L.town.tagline}</p>
             <div className="mt-3 grid grid-cols-[1.1fr_1fr] gap-3">
               <div>
@@ -544,7 +544,7 @@ export default function ListingPageDemo() {
           <section style={{ height: SECTION_H }} className="relative flex flex-col justify-center overflow-hidden bg-[#14110c] px-6">
             <div className="absolute inset-y-0 right-0 w-[46%] opacity-40"><Image src={L.rooms[3].photo} alt="" fill className="object-cover" unoptimized /><span className="absolute inset-0 bg-gradient-to-r from-[#14110c] via-[#14110c]/60 to-transparent" /></div>
             <p className="relative flex items-center gap-2 text-[6.5px] font-black uppercase tracking-[0.35em] text-[#C9A24D]"><span className="h-px w-5 bg-[#C9A24D]" />Affordability</p>
-            <h5 className="relative mt-1 font-serif text-[28px] leading-tight text-white">What it could <em className="text-[#e8c97a]">cost monthly.</em></h5>
+            <h5 className="relative mt-1 font-serif text-[28px] leading-tight text-white">What it could <em className="text-[#e8c97a]">cost monthly</em></h5>
             <p className="relative text-[7.5px] font-semibold text-white/50">Taxes and HOA straight from the MLS record - drag anything to try your own.</p>
             <div className="relative mt-4 grid grid-cols-[1.05fr_1fr] gap-4 rounded-sm border border-[#C9A24D]/25 bg-black/60 p-5 ">
               <div className="flex items-center gap-3">
@@ -576,7 +576,7 @@ export default function ListingPageDemo() {
           {/* 5 · See it for yourself - and the request lands in Leads */}
           <section style={{ height: SECTION_H }} className="relative flex flex-col justify-center bg-gradient-to-b from-[#14110c] to-[#0b0b0b] px-6">
             <p className="flex items-center gap-2 text-[6.5px] font-black uppercase tracking-[0.35em] text-[#C9A24D]"><span className="h-px w-5 bg-[#C9A24D]" />Private showings</p>
-            <h5 className="mt-1 font-serif text-[24px] leading-tight text-white">See it for yourself, <em className="text-[#e8c97a]">{L.address}.</em></h5>
+            <h5 className="mt-1 font-serif text-[24px] leading-tight text-white">See it for yourself, <em className="text-[#e8c97a]">{L.address}</em></h5>
             <div className="mt-3 grid grid-cols-[1.25fr_1fr] gap-3">
               <div className="rounded-sm border border-white/10 bg-white/[0.03] p-3">
                 <div className="flex gap-1">{['Request info', 'Schedule a tour'].map((t, k) => <span key={t} className={`rounded-full px-2 py-0.5 text-[6.5px] font-black ${k === 1 ? 'bg-[#C9A24D] text-[#111827]' : 'border border-white/20 text-white/70'}`}>{t}</span>)}</div>

@@ -27,7 +27,7 @@ export default function TermsPage() {
 
       {/* Content */}
       <div className="flex-1">
-          <LegalDoc kicker="Legal" icon={ScrollText} title={<>Terms of <em>Service.</em></>} updated="September 17, 2026">
+          <LegalDoc kicker="Legal" icon={ScrollText} title={<>Terms of <em>Service</em></>} updated="September 17, 2026">
 
             <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-600 p-4 mb-8">
               <p className="text-sm text-yellow-800 dark:text-yellow-200">

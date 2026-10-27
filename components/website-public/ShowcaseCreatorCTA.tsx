@@ -128,7 +128,7 @@ export default function ShowcaseCreatorCTA({ theme, basePrefix, listings, agent 
             <Sparkles className="h-3 w-3" /> Free · private · made for you
           </span>
           <h2 className={`mt-5 text-4xl leading-[1.06] sm:text-5xl ${luxe ? `font-black text-white ${serif}` : 'font-extrabold tracking-tight'}`} style={luxe ? undefined : { color: 'var(--site-heading)' }}>
-            Your own private home search - <span className={luxe ? 'ohp-text-shimmer' : ''} style={luxe ? undefined : { color: 'var(--site-accent)' }}>it finds the homes for you.</span>
+            Your own private home search - <span className={luxe ? 'ohp-text-shimmer' : ''} style={luxe ? undefined : { color: 'var(--site-accent)' }}>it finds the homes for you</span>
           </h2>
           <p className={`mt-4 max-w-xl text-base leading-relaxed ${luxe ? 'text-white/70' : ''}`} style={luxe ? undefined : { color: 'var(--site-muted)' }}>
             A <b className={luxe ? 'text-white' : ''} style={luxe ? undefined : { color: 'var(--site-heading)' }}>Showcase</b> is a page made just for you with every home for sale that fits - and it keeps itself up to date. New listings and price drops show up the moment they happen, and {agentFirst} is one tap away.

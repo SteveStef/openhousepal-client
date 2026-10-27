@@ -14,11 +14,11 @@ export type AdminSection = { key: string; label: string; icon: Icon; title: stri
 
 export const ADMIN_SECTIONS: AdminSection[] = [
   {
-    key: 'overview', label: 'Overview', icon: LayoutDashboard, title: 'Run OpenHousePal.', subtitle: 'Everything that needs you, at a glance.',
+    key: 'overview', label: 'Overview', icon: LayoutDashboard, title: 'Run OpenHousePal', subtitle: 'Everything that needs you, at a glance.',
     tabs: [{ key: 'overview', label: 'Overview', icon: LayoutDashboard, blurb: 'Everything that needs you, at a glance.' }],
   },
   {
-    key: 'people', label: 'People', icon: Users, title: 'Agents & deals.', subtitle: 'Approve agents, change plans, brokerage deals and sign-up codes.',
+    key: 'people', label: 'People', icon: Users, title: 'Agents & deals', subtitle: 'Approve agents, change plans, brokerage deals and sign-up codes.',
     tabs: [
       { key: 'agents', label: 'Agents', icon: Users, blurb: 'Approve agents, change plans and see how each one pays.' },
       { key: 'groups', label: 'Brokerage groups', icon: Building2, blurb: 'Custom deals where a brokerage pays for its agents.' },
@@ -27,7 +27,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     ],
   },
   {
-    key: 'insights', label: 'Insights', icon: BarChart3, title: 'How the site is used.', subtitle: 'What agents and their guests actually do - so we know what to make better.',
+    key: 'insights', label: 'Insights', icon: BarChart3, title: 'How the site is used', subtitle: 'What agents and their guests actually do - so we know what to make better.',
     tabs: [
       { key: 'summary', label: 'Summary', icon: Gauge, blurb: 'Agents in the app, sign-ups and the big numbers.' },
       { key: 'signins', label: 'Sign-ins & forms', icon: ClipboardSignature, blurb: 'Open house sign-ins - how many, how long they take, how many finish.' },
@@ -39,14 +39,14 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     ],
   },
   {
-    key: 'inbox', label: 'Inbox', icon: Inbox, title: 'Messages.', subtitle: 'Support tickets from agents and questions from the public site.',
+    key: 'inbox', label: 'Inbox', icon: Inbox, title: 'Messages', subtitle: 'Support tickets from agents and questions from the public site.',
     tabs: [
       { key: 'support', label: 'Support', icon: LifeBuoy, blurb: 'Messages from agents.' },
       { key: 'questions', label: 'Questions', icon: HelpCircle, blurb: 'Questions from the public site.' },
     ],
   },
   {
-    key: 'costs', label: 'Costs', icon: Receipt, title: 'Costs & health.', subtitle: 'What we spend, and anything that failed for an agent.',
+    key: 'costs', label: 'Costs', icon: Receipt, title: 'Costs & health', subtitle: 'What we spend, and anything that failed for an agent.',
     tabs: [
       { key: 'failures', label: 'Recent failures', icon: AlertOctagon, blurb: 'Anything that failed for an agent - who, which feature, when, and the error.' },
       { key: 'ai', label: 'AI usage & cost', icon: Cpu, blurb: 'AI spend by agent and feature, and the spending limits.' },
@@ -55,7 +55,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     ],
   },
   {
-    key: 'tools', label: 'Tools', icon: Wrench, title: 'Admin tools.', subtitle: 'CMA lookup, the CMA accuracy test, town pages and how each feature works.',
+    key: 'tools', label: 'Tools', icon: Wrench, title: 'Admin tools', subtitle: 'CMA lookup, the CMA accuracy test, town pages and how each feature works.',
     tabs: [
       { key: 'cma', label: 'CMA lookup', icon: FileSearch, blurb: 'Find any CMA by its code.' },
       { key: 'cmatest', label: 'CMA accuracy test', icon: FlaskConical, blurb: 'Re-run real past sales through the CMA and score it against what they sold for.' },

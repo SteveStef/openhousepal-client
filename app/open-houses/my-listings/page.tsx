@@ -256,7 +256,7 @@ function MyListingsContent() {
           icon={Building2}
           backHref="/open-houses"
           backLabel="Open Houses"
-          title={<>Every open, <em>covered.</em></>}
+          title={<>Every open, <em>covered</em></>}
           subtitle="Coordinate opens - find hosts, approve requests, and track results in one place."
           asideClassName="w-full lg:w-[620px] lg:-mt-[18px]"
           aside={data && (

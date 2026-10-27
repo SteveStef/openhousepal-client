@@ -273,7 +273,7 @@ export function FeatureShowcase({ kit, look, usage, idxPlan, person, agent }: {
       <div className="mb-4 flex items-end justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#8b7355] dark:text-[#e8c97a]">See it everywhere</p>
-          <h2 className="mt-1 font-serif text-2xl font-black leading-tight text-[#111827] dark:text-white">Every feature, <em className="font-light text-[#a8803a] dark:text-[#e8c97a]">in your color.</em></h2>
+          <h2 className="mt-1 font-serif text-2xl font-black leading-tight text-[#111827] dark:text-white">Every feature, <em className="font-light text-[#a8803a] dark:text-[#e8c97a]">in your color</em></h2>
           <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-white/55">Change the color above - they all change with it. Tap one for a closer look.</p>
         </div>
         <div className="hidden shrink-0 items-center gap-1.5 sm:flex lg:hidden">
