@@ -71,9 +71,9 @@ export default function NeighborhoodsExplorer({ areas, theme, basePrefix = '', c
       {/* Hero */}
       <section className="relative isolate overflow-hidden" style={{ backgroundColor: luxe ? theme.primary_color : 'var(--site-bg-alt)' }}>
         {photos.map((p, i) => (photos.length < 4 || i === bg || i === (bg + 1) % photos.length || i === (bg - 1 + photos.length) % photos.length) && (
-          <div key={`${p}-${i}`} className={`absolute inset-0 -z-10 bg-cover bg-center transition-opacity duration-[1600ms] ${i === bg ? (luxe ? 'opacity-100' : 'opacity-100') : 'opacity-0'}`}
+          <div key={`${p}-${i}`} className={`ohp-mls-crop absolute inset-0 -z-10 bg-cover bg-center transition-opacity duration-[1600ms] ${i === bg ? (luxe ? 'opacity-100' : 'opacity-100') : 'opacity-0'}`}
             style={{ backgroundImage: sizedBg(p, 1920) }}>
-            {i === bg && <div className="ohp-hero-kenburns absolute inset-0 bg-cover bg-center" style={{ backgroundImage: sizedBg(p, 1920) }} />}
+            {i === bg && <div className="ohp-mls-crop ohp-hero-kenburns absolute inset-0 bg-cover bg-center" style={{ backgroundImage: sizedBg(p, 1920) }} />}
           </div>
         ))}
         <div className="absolute inset-0 -z-10" style={{ background: luxe ? `linear-gradient(180deg, rgba(0,0,0,.55), ${theme.primary_color} 96%)` : 'linear-gradient(180deg, rgba(255,255,255,.55), var(--site-bg) 92%)' }} />
@@ -138,7 +138,7 @@ export default function NeighborhoodsExplorer({ areas, theme, basePrefix = '', c
               <Reveal key={a.slug} delay={(i % 3) * 80} className={`h-full ${big ? 'sm:col-span-2 lg:row-span-2' : ''}`}>
                 <div className={`group relative flex h-full min-h-[360px] flex-col justify-end overflow-hidden ${luxe ? 'rounded-[28px]' : 'rounded-3xl'}`} style={{ boxShadow: '0 30px 60px -36px rgba(0,0,0,.6)' }}>
                   <a href={`${basePrefix}/${a.slug}`} aria-label={`Explore ${a.name}`} className="absolute inset-0 z-10" />
-                  <div className="absolute inset-0 bg-cover bg-center transition duration-[1400ms] group-hover:scale-110" style={{ backgroundImage: sizedBg(a.photo, 640), backgroundColor: theme.primary_color }} />
+                  <div className="ohp-mls-crop absolute inset-0 bg-cover bg-center transition duration-[1400ms] group-hover:scale-110" style={{ backgroundImage: sizedBg(a.photo, 640), backgroundColor: theme.primary_color }} />
                   {/* The big card's text climbs high up the photo, so its shade does too */}
                   <div className={`absolute inset-0 bg-gradient-to-t ${big ? 'from-black/95 via-black/65 to-black/25' : 'from-black/90 via-black/30 to-black/10'} transition duration-500 group-hover:from-black/95 group-hover:via-black/60`} />
                   {luxe && <span aria-hidden className="ohp-card-sheen pointer-events-none absolute inset-0" />}

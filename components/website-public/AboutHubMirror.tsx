@@ -108,7 +108,7 @@ export default function AboutHubMirror({ data, theme, siteId, basePrefix = '' }:
   const salesRecent = salesAreRecent(stats.sold_volume ?? data.recent_sales.reduce((t, l: any) => t + (l.price || l.close_price || 0), 0))
   const statItems = [
     stats.active_listings ? { label: stats.active_listings === 1 ? 'Active Listing' : 'Active Listings', value: String(stats.active_listings) } : null,
-    stats.sold_count ? { label: stats.sold_count === 1 ? 'Home Sold' : 'Homes Sold', value: String(stats.sold_count) } : null,
+    stats.sold_count ? { label: salesRecent ? (stats.sold_count === 1 ? 'Recent Sale' : 'Recent Sales') : (stats.sold_count === 1 ? 'Home Sold' : 'Homes Sold'), value: String(stats.sold_count) } : null,
     stats.sold_volume ? { label: 'Sales Volume', value: formatVolume(stats.sold_volume) } : null,
   ].filter(Boolean) as { label: string; value: string }[]
   const socialLinks = (p.social_links || []).filter(l => l.url?.trim())

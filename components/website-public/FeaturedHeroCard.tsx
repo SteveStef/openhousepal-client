@@ -8,6 +8,7 @@ import KioskPhotoLayer from './KioskPhotoLayer'
 import ListingFactBar from './ListingFactBar'
 import OpenHouseChip from '@/components/OpenHouseChip'
 import SpotlightChip from './SpotlightChip'
+import { isNewListing } from './listingFormat'
 
 // The Featured page hero carousel's individual card (see FeaturedHeroCarousel) - real photos via
 // the kiosk-style cycler (KioskPhotoLayer, adapted from the open house sign-in sheet's rotating
@@ -64,7 +65,7 @@ export default function FeaturedHeroCard({ listing, theme, basePrefix = '', vari
   }
   const photos = listing.photos && listing.photos.length > 0 ? listing.photos : listing.photo ? [listing.photo] : []
   const isHero = variant === 'hero'
-  const justListed = listing.days_on_market != null && listing.days_on_market <= 7
+  const justListed = isNewListing(listing.days_on_market)
 
   // A div, not an <a>: the Spotlight chip inside is its own link (a link can't hold a link).
   const href = `${basePrefix}/properties/${encodeURIComponent(listing.listing_key)}`

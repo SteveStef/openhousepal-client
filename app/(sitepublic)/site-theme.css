@@ -523,3 +523,14 @@ html.ohp-cv-off .ohp-town-section { content-visibility: visible; }
    accent's own readable "on" color instead. */
 .ohp-site .pp .bg-\[var\(--pp-gold\)\].text-\[color\:var\(--pp-ink\)\] { color: var(--site-on-accent) !important; }
 .ohp-site[data-template="luxe"] .pp .bg-\[var\(--pp-gold\)\].text-\[color\:var\(--pp-ink\)\] { color: var(--pp-ink) !important; }
+
+/* Listing photos on cards: Bright MLS stamps its badge in the bottom-left corner of every photo.
+   Anchored to the top and zoomed a touch (the `scale` property, so it stacks with any hover zoom
+   on `transform`), the bottom ~12% falls outside the card - the badge with it. Images and
+   background-photo layers alike; the parent must clip (overflow-hidden). */
+.ohp-mls-crop {
+  scale: 1.14;
+  transform-origin: 50% 0 !important;
+  object-position: 50% 0 !important;
+  background-position: 50% 0 !important;
+}

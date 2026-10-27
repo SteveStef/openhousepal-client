@@ -39,7 +39,7 @@ const DARK: google.maps.MapTypeStyle[] = [
 const kindOf = (name: string) => name.match(/(Township|Borough|Town|City|Village|County)$/i)?.[1] || ''
 const shortDistrict = (name: string) => name.replace(/\s+(School District|Sch Dist|SD)$/i, '').replace(/\s+Area$/i, ' Area')
 
-export default function HomeAreaMap({ latitude, longitude, accent: accentProp = '#C9A24D', dark: darkProp, className = 'h-full w-full', rounded = 'rounded-2xl', places, activePlace, onActivePlace, showHome = true, homeLabel, holdCamera = false, gestures = 'cooperative' }: {
+export default function HomeAreaMap({ latitude, longitude, accent: accentProp = '#C9A24D', dark: darkProp, className = 'h-full w-full', rounded = 'rounded-2xl', places, activePlace, onActivePlace, showHome = true, homeLabel, holdCamera = false, gestures = 'cooperative', frameTown = false }: {
   latitude: number
   longitude: number
   address?: string | null
@@ -61,6 +61,9 @@ export default function HomeAreaMap({ latitude, longitude, accent: accentProp = 
   holdCamera?: boolean
   /** 'cooperative' = two fingers to move on a phone (the page scrolls past it); 'greedy' = one. */
   gestures?: 'cooperative' | 'greedy'
+  /** A town page: places always framed WITH the whole town, so every category opens on the town
+   *  (user, 10/27) - not zoomed onto a cluster of pins with the lines half out of view. */
+  frameTown?: boolean
 }) {
   const boxRef = useRef<HTMLDivElement>(null)
   const divRef = useRef<HTMLDivElement>(null)
@@ -119,7 +122,7 @@ export default function HomeAreaMap({ latitude, longitude, accent: accentProp = 
   return (
     <div ref={boxRef} className={`${placed ? '' : 'relative'} overflow-hidden ${rounded} ${className}`}>
       <div ref={divRef} className="h-full w-full" />
-      <HomeAreaOverlay map={map} latitude={latitude} longitude={longitude} accent={accent} dark={dark} showHome={showHome} label={homeLabel}
+      <HomeAreaOverlay map={map} latitude={latitude} longitude={longitude} accent={accent} dark={dark} showHome={showHome} label={homeLabel} frameTown={frameTown}
         markers={places} activeMarker={activePlace} onActiveMarker={onActivePlace} holdCamera={holdCamera} />
     </div>
   )
@@ -138,7 +141,7 @@ const spanOf = (b: Bounds | null) => (b ? (b.n - b.s) * (b.e - b.w) : 0)
 /** The lines + the layer switch, on any Google map already showing this home (HomeAreaMap's own,
  *  or the CMA's comparables map - fit={false} leaves that map's framing alone). Sits in the map's
  *  positioned box. */
-export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', dark = false, fit = true, showHome = false, label, markers, activeMarker, onActiveMarker, holdCamera = false }: {
+export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', dark = false, fit = true, showHome = false, label, markers, activeMarker, onActiveMarker, holdCamera = false, frameTown = false }: {
   map: google.maps.Map | null
   latitude: number
   longitude: number
@@ -153,6 +156,8 @@ export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', 
   onActiveMarker?: (id: string | null) => void
   /** Places are loading - keep the camera still until they're in. */
   holdCamera?: boolean
+  /** Frame the places together with the whole town (see HomeAreaMap). */
+  frameTown?: boolean
 }) {
   const [areas, setAreas] = useState<Areas | null>(null)
   // `layer` = the switch (moves the moment it's tapped); `shown` = the lines actually drawn, which
@@ -214,12 +219,13 @@ export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', 
       const b = new google.maps.LatLngBounds()
       markers.forEach(mk => b.extend({ lat: mk.lat, lng: mk.lng }))
       b.extend({ lat: latitude, lng: longitude })
+      if (frameTown && muni) muni.rings.forEach(r => r.forEach(([lng, lat]) => b.extend({ lat, lng })))
       map.fitBounds(b, { top: 64, bottom: 28, left: 28, right: 28 })
       return
     }
     frame(layerRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, fit, muni, districts, latitude, longitude, placesKey, holdCamera])
+  }, [map, fit, muni, districts, latitude, longitude, placesKey, holdCamera, frameTown])
 
   // Township lines <-> school district lines (user, 10/24): to a bigger area - zoom out first, then
   // the old line fades and the new one draws itself in, then its name; to a smaller one - the old

@@ -44,7 +44,7 @@ export default function IdxHomeGridCard({ listing, theme, basePrefix = '', onQui
     <>
       <span className="relative block aspect-[4/3] overflow-hidden" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
         <SitePhoto src={photos[0]} widths={IMG.card} sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw" priority={priority}
-          className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1.4s] ease-out group-hover/hc:scale-[1.06]" />
+          className="ohp-mls-crop absolute inset-0 h-full w-full object-cover transition-transform duration-[1.4s] ease-out group-hover/hc:scale-[1.06]" />
         <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/15" />
         <span className="absolute left-3 right-3 top-3 flex items-center gap-1.5">
           {listing.status && <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] shadow" style={{ backgroundColor: badge.bg, color: badge.fg }}>{formatStatus(listing.status)}</span>}

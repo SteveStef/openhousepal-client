@@ -54,12 +54,12 @@ export default function ClassicPageHero({ eyebrow, title, titleTag, accent, subt
           <>
             <div className="relative hidden h-[420px] lg:block">
               <span className="absolute -left-4 top-12 h-[270px] w-28 rounded-[22px]" style={{ backgroundColor: 'var(--site-accent)' }} />
-              {pics[0] && <img src={sizedImage(pics[0], 828)} loading="lazy" decoding="async" alt="" className="ohp-classic-pic absolute left-0 top-0 h-[300px] w-[62%] rounded-[22px] object-cover shadow-[0_30px_60px_-30px_rgba(17,24,39,.45)]" />}
-              {pics[1] && <img src={sizedImage(pics[1], 640)} loading="lazy" decoding="async" alt="" className="ohp-classic-pic absolute right-0 top-10 h-[220px] w-[42%] rounded-[22px] object-cover shadow-[0_30px_60px_-30px_rgba(17,24,39,.45)]" style={{ animationDelay: '.12s' }} />}
-              {pics[2] && <img src={sizedImage(pics[2], 640)} loading="lazy" decoding="async" alt="" className="ohp-classic-pic absolute bottom-0 right-[8%] h-[170px] w-[52%] rounded-[22px] object-cover ring-8 shadow-[0_30px_60px_-30px_rgba(17,24,39,.45)]" style={{ animationDelay: '.24s', ['--tw-ring-color' as string]: 'var(--site-bg-alt)' }} />}
+              {pics[0] && <span className="ohp-classic-pic absolute left-0 top-0 h-[300px] w-[62%] overflow-hidden rounded-[22px] shadow-[0_30px_60px_-30px_rgba(17,24,39,.45)]"><img src={sizedImage(pics[0], 828)} loading="lazy" decoding="async" alt="" className="ohp-mls-crop h-full w-full object-cover" /></span>}
+              {pics[1] && <span className="ohp-classic-pic absolute right-0 top-10 h-[220px] w-[42%] overflow-hidden rounded-[22px] shadow-[0_30px_60px_-30px_rgba(17,24,39,.45)]" style={{ animationDelay: '.12s' }}><img src={sizedImage(pics[1], 640)} loading="lazy" decoding="async" alt="" className="ohp-mls-crop h-full w-full object-cover" /></span>}
+              {pics[2] && <span className="ohp-classic-pic absolute bottom-0 right-[8%] h-[170px] w-[52%] overflow-hidden rounded-[22px] ring-8 shadow-[0_30px_60px_-30px_rgba(17,24,39,.45)]" style={{ animationDelay: '.24s', ['--tw-ring-color' as string]: 'var(--site-bg-alt)' }}><img src={sizedImage(pics[2], 640)} loading="lazy" decoding="async" alt="" className="ohp-mls-crop h-full w-full object-cover" /></span>}
             </div>
             <div className="-mx-6 flex gap-3 overflow-x-auto px-6 lg:hidden [scrollbar-width:none]">
-              {pics.map((src, i) => <img key={src + i} src={sizedImage(src, 384)} loading="lazy" decoding="async" alt="" className="h-32 w-[46%] shrink-0 rounded-2xl object-cover" />)}
+              {pics.map((src, i) => <span key={src + i} className="h-32 w-[46%] shrink-0 overflow-hidden rounded-2xl"><img src={sizedImage(src, 384)} loading="lazy" decoding="async" alt="" className="ohp-mls-crop h-full w-full object-cover" /></span>)}
             </div>
           </>
         )}

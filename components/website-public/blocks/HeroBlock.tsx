@@ -169,7 +169,7 @@ export default function HeroBlock({ data, theme, siteId, basePrefix = '' }: { da
               <div className="relative h-[420px] overflow-hidden rounded-[28px] shadow-[0_50px_90px_-45px_rgba(17,24,39,.6)] sm:h-[560px]">
                 {slides.map((s, i) => nearSlide(i) && (
                   <SitePhoto key={`${s.photo}-${i}`} src={s.photo} widths={IMG.half} sizes="(min-width: 1024px) 52vw, 100vw" priority={i === 0}
-                    className={`absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-[1400ms] ${i === index ? 'scale-100 opacity-100' : 'scale-105 opacity-0'}`} style={{ objectPosition: 'center 40%' }} />
+                    className={`ohp-mls-crop absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-[1400ms] ${i === index ? 'scale-100 opacity-100' : 'scale-105 opacity-0'}`} style={{ objectPosition: 'center 40%' }} />
                 ))}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
                 {home && listedAgo(home.days_on_market) && (
@@ -193,7 +193,7 @@ export default function HeroBlock({ data, theme, siteId, basePrefix = '' }: { da
                 <div className="mt-3 grid grid-cols-3 gap-3">
                   {upcoming.map(({ k, s }) => (
                     <button key={`${k}-${s.home!.listing_key}`} type="button" onClick={() => setIndex((index + k) % slides.length)} className="group relative h-20 overflow-hidden rounded-2xl text-left sm:h-24">
-                      <span className="absolute inset-0 bg-cover bg-center transition duration-500 group-hover:scale-110" style={{ backgroundImage: sizedBg(s.photo, 384) }} />
+                      <span className="ohp-mls-crop absolute inset-0 bg-cover bg-center transition duration-500 group-hover:scale-110" style={{ backgroundImage: sizedBg(s.photo, 384) }} />
                       <span className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                       <span className="absolute bottom-2 left-2.5 text-[12px] font-extrabold text-white sm:text-sm">{fullPrice(s.home!.price)}</span>
                     </button>
@@ -216,7 +216,7 @@ export default function HeroBlock({ data, theme, siteId, basePrefix = '' }: { da
     >
       {slides.map((s, i) => nearSlide(i) && (
         <div key={`${s.photo}-${i}`} className={`absolute inset-0 overflow-hidden transition-opacity duration-[1600ms] ${i === index ? 'opacity-100' : 'opacity-0'}`}>
-          <SitePhoto src={s.photo} widths={IMG.hero} sizes="100vw" priority={i === 0} className={`absolute inset-0 h-full w-full object-cover ${i === index ? 'ohp-hero-kenburns' : ''}`} style={{ objectPosition: 'center 35%' }} />
+          <SitePhoto src={s.photo} widths={IMG.hero} sizes="100vw" priority={i === 0} className={`ohp-mls-crop absolute inset-0 h-full w-full object-cover ${i === index ? 'ohp-hero-kenburns' : ''}`} style={{ objectPosition: 'center 35%' }} />
         </div>
       ))}
       {slides.length > 0 && (
@@ -280,7 +280,7 @@ export default function HeroBlock({ data, theme, siteId, basePrefix = '' }: { da
               <span className="mr-1 pb-1 text-right text-[10px] font-black uppercase tracking-[0.24em] text-white/50">Up next</span>
               {upcoming.map(({ k, s }) => (
                 <button key={`${k}-${s.home!.listing_key}`} type="button" onClick={() => setIndex((index + k) % slides.length)} className="group relative h-24 w-36 overflow-hidden rounded-2xl ring-1 ring-white/15 transition hover:-translate-y-1 hover:ring-white/40">
-                  <span className="absolute inset-0 bg-cover bg-center transition duration-700 group-hover:scale-110" style={{ backgroundImage: sizedBg(s.photo, 384) }} />
+                  <span className="ohp-mls-crop absolute inset-0 bg-cover bg-center transition duration-700 group-hover:scale-110" style={{ backgroundImage: sizedBg(s.photo, 384) }} />
                   <span className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent" />
                   <span className="absolute bottom-2 left-2.5 text-left">
                     <span className="block text-[13px] font-black">{fullPrice(s.home!.price)}</span>

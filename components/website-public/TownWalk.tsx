@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { Footprints, ShoppingBasket, TrainFront, Trees, UtensilsCrossed } from 'lucide-react'
+import { walkShareDots, walkShareWords } from './townGuide'
 
 // Town page, Getting around: what's within about a 15-minute walk of the town's homes - the share
 // of homes with a grocery store / several restaurants / a park / a train station that close, from
@@ -27,7 +28,7 @@ export default function TownWalk({ data, town, luxe }: { data?: WalkData | null;
           <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent-text)' }}><Footprints className="h-3.5 w-3.5" /> On foot from home</p>
           {data?.level && <p className="ohp-site-heading mt-2 text-2xl font-black sm:text-3xl" style={{ color: 'var(--site-heading)' }}>{data.level}</p>}
         </div>
-        <p className="text-[12px] font-semibold" style={{ color: 'var(--site-muted)' }}>Share of {town} homes within about a {mins}-minute walk of…</p>
+        <p className="text-[12px] font-semibold" style={{ color: 'var(--site-muted)' }}>How many {town} homes are within about a {mins}-minute walk of…</p>
       </div>
       <div className="mt-6 grid gap-x-8 gap-y-5 sm:grid-cols-2">
         {rows.map((r, i) => {
@@ -37,11 +38,16 @@ export default function TownWalk({ data, town, luxe }: { data?: WalkData | null;
               <div className="flex items-center gap-2.5">
                 <span className={`flex h-8 w-8 shrink-0 items-center justify-center ${luxe ? 'rounded-full' : 'rounded-lg'}`} style={{ backgroundColor: 'rgba(var(--site-accent-rgb),.12)', color: 'var(--site-accent)' }}><Icon className="h-4 w-4" /></span>
                 <p className="min-w-0 flex-1 text-[14px] font-bold" style={{ color: 'var(--site-heading)' }}>{r.label}</p>
-                <span className="shrink-0 text-lg font-black tabular-nums" style={{ color: 'var(--site-heading)' }}>{r.pct_words || `${r.pct}%`}</span>
               </div>
-              <div className="ml-[42px] mt-2 h-2 overflow-hidden rounded-full" style={{ backgroundColor: 'var(--site-line)' }}>
-                <motion.div className="h-full origin-left rounded-full" style={{ backgroundColor: 'var(--site-accent)', width: `${r.pct}%` }}
-                  initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.08 + i * 0.1 }} />
+              {/* Words and five dots, not a percentage (user, 10/27) - see walkShareWords. */}
+              <div className="ml-[42px] mt-2 flex items-center gap-3">
+                <span className="flex gap-1">
+                  {[0, 1, 2, 3, 4].map(d => (
+                    <motion.span key={d} className="h-2 w-5 rounded-full" style={{ backgroundColor: d < walkShareDots(r.pct) ? 'var(--site-accent)' : 'var(--site-line)' }}
+                      initial={{ opacity: 0, scale: 0.6 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: 0.08 + i * 0.1 + d * 0.06 }} />
+                  ))}
+                </span>
+                <span className="text-[13px] font-black" style={{ color: 'var(--site-heading)' }}>{walkShareWords(r.pct)} homes</span>
               </div>
             </div>
           )

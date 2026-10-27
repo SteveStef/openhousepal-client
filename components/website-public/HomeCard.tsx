@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowUpRight, Bath, BedDouble, Camera, Eye, Heart, LandPlot, MessageCircle, Ruler } from 'lucide-react'
 import type { SiteTheme } from './types'
 import { fontClass } from './blocks/fontClass'
-import { cleanStreet, formatStatus, listedAgo, statusBadgeColor, tidyCaps } from './listingFormat'
+import { cleanStreet, formatStatus, isNewListing, listedAgo, statusBadgeColor, tidyCaps } from './listingFormat'
 import OpenHouseChip from '@/components/OpenHouseChip'
 import SpotlightChip from './SpotlightChip'
 import type { ShowcaseListing } from './PropertyShowcaseCard'
@@ -48,7 +48,7 @@ export default function HomeCard({ listing, theme, basePrefix = '', onQuickView,
   const open = () => { if (onQuickView && !listing.spotlight_url) onQuickView(listing.listing_key); else window.location.assign(href) }
   const street = cleanStreet(listing.address, listing.city)
   const full = [street, listing.city, listing.state].filter(Boolean).join(', ')
-  const fresh = listing.days_on_market != null && listing.days_on_market <= 7
+  const fresh = isNewListing(listing.days_on_market)
   const badge = statusBadgeColor(listing.status)
   const facts = [
     listing.bedrooms != null ? { icon: BedDouble, v: `${listing.bedrooms}`, l: 'bd' } : null,
@@ -81,7 +81,7 @@ export default function HomeCard({ listing, theme, basePrefix = '', onQuickView,
             screen and the next one - never all 8 photos of every card up front (10/19 sweep). */}
         {photos.map((url, k) => (k === 0 || (hover && (k === i || k === (i + 1) % photos.length))) && (
           <SitePhoto key={`${url}-${k}`} src={url} widths={IMG.card} sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
-            className={`absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-700 ${k === i ? 'opacity-100' : 'opacity-0'} ${hover ? 'scale-[1.05]' : 'scale-100'}`}
+            className={`ohp-mls-crop absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-700 ${k === i ? 'opacity-100' : 'opacity-0'} ${hover ? 'scale-[1.05]' : 'scale-100'}`}
             style={{ transitionDuration: '1000ms, 6000ms' }} />
         ))}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-black/25" />

@@ -28,7 +28,7 @@ function PhotoFrame({ photos, photoIndex, effectOffset }: { photos: string[]; ph
     <AnimatePresence mode="sync">
       <motion.div
         key={photoIndex}
-        className="absolute inset-0 bg-cover bg-center"
+        className="ohp-mls-crop absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url(${photos[photoIndex]})`, transformOrigin: '50% 50%' }}
         initial={{ opacity: 0, scale: zoomOut ? ZOOM_BIG : ZOOM_SMALL }}
         animate={{ opacity: 1, scale: zoomOut ? ZOOM_SMALL : ZOOM_BIG }}
@@ -95,7 +95,7 @@ export default function KioskPhotoLayer({ photos: rawPhotos, active, effectOffse
     // The hero card's hover state - deliberately just a slow, plain zoom on the ONE cover photo,
     // not a photo swap. A long duration (not the usual snappy hover transition) is what makes it
     // read as a considered, cinematic zoom rather than a quick UI hover effect.
-    return <div className="absolute inset-0 bg-cover bg-center transition-transform duration-[4000ms] ease-out group-hover:scale-110" style={{ backgroundImage: `url(${photos[0]})` }} />
+    return <div className="ohp-mls-crop absolute inset-0 bg-cover bg-center transition-transform duration-[4000ms] ease-out group-hover:scale-110" style={{ backgroundImage: `url(${photos[0]})` }} />
   }
   return <PhotoFrame photos={photos} photoIndex={index} effectOffset={effectOffset} />
 }

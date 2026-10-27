@@ -26,7 +26,7 @@ export default function CinematicHeroBackground({ photos }: { photos: string[] }
       {photos.map((url, i) => (photos.length < 4 || i === index || i === (index + 1) % photos.length || i === (index - 1 + photos.length) % photos.length) && (
         <div
           key={`${url}-${i}`}
-          className={`${i === index ? 'ohp-hero-pan' : ''} absolute inset-0 scale-105 bg-cover transition-opacity duration-1000 ${i === index ? 'opacity-100' : 'opacity-0'}`}
+          className={`${i === index ? 'ohp-hero-pan' : ''} ohp-mls-crop absolute inset-0 scale-105 bg-cover transition-opacity duration-1000 ${i === index ? 'opacity-100' : 'opacity-0'}`}
           style={{ backgroundImage: sizedBg(url, 1920), backgroundPosition: 'center 30%' }}
         />
       ))}

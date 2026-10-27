@@ -147,7 +147,7 @@ function ClassicSpotlight({ listings, onOpen }: { listings: Listing[]; onOpen: (
       </div>
       <div key={l.listing_key} className="mt-5 grid animate-fadeIn overflow-hidden rounded-[24px] border lg:grid-cols-[1.45fr_1fr]" style={{ borderColor: 'var(--site-line)', backgroundColor: 'var(--site-surface)' }}>
         <button type="button" onClick={() => onOpen(l.listing_key)} className="relative aspect-[16/10] overflow-hidden lg:aspect-auto lg:min-h-[420px]" aria-label="Open this home">
-          <div className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.4s] hover:scale-[1.03]" style={{ backgroundImage: sizedBg(l.photo, 1920), backgroundColor: 'var(--site-bg-alt)' }} />
+          <div className="ohp-mls-crop absolute inset-0 bg-cover bg-center transition-transform duration-[1.4s] hover:scale-[1.03]" style={{ backgroundImage: sizedBg(l.photo, 1920), backgroundColor: 'var(--site-bg-alt)' }} />
           {l.status && <span className="absolute left-4 top-4 rounded-md px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider shadow-sm" style={{ backgroundColor: badge.bg, color: badge.fg }}>{formatStatus(l.status)}</span>}
         </button>
         <div className="flex flex-col p-7 sm:p-9">

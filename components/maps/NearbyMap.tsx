@@ -207,7 +207,7 @@ export default function NearbyMap({ latitude, longitude, address, accent, dark, 
       <div className={boxClassName}>
         <HomeAreaMap latitude={latitude} longitude={longitude} address={address} accent={accent} dark={dark} className="absolute inset-0 h-full w-full" rounded=""
           places={markers} activePlace={nb.selected} onActivePlace={id => nb.selectPlace(id)} showHome={showHome} homeLabel={homeLabel}
-          holdCamera={!!nb.active && (nb.loading === nb.active || !nb.places)} gestures={gestures} />
+          holdCamera={!!nb.active && (nb.loading === nb.active || !nb.places)} gestures={gestures} frameTown={controlled} />
       </div>
       {enabled && <NearbyPicker nb={nb} accent={pinColor} tone={tone} originLabel={originLabel} categories={categories} variant={variant} chips={!controlled} />}
     </div>

@@ -41,7 +41,8 @@ export default function OpenHousesBlock({ data, theme }: { data: Record<string, 
       <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
         {events.map(event => (
           <div key={event.id} className="ohp-card overflow-hidden rounded-3xl bg-white shadow-[0_2px_24px_rgba(17,24,39,0.08)] ring-1 ring-black/[0.04]">
-            <div className="relative aspect-[4/3] w-full bg-gray-100 bg-cover bg-center" style={{ backgroundImage: sizedBg(event.photo, 640) }}>
+            <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
+              <div className="ohp-mls-crop absolute inset-0 bg-cover bg-center" style={{ backgroundImage: sizedBg(event.photo, 640) }} />
               {event.scheduled_date && (
                 <span
                   className="absolute left-3 top-3 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-sm"

@@ -43,7 +43,7 @@ export default function HomeValuePage({ theme, basePrefix, profile, areas, revie
         style={luxe ? { backgroundColor: theme.primary_color } : { background: 'linear-gradient(180deg, var(--site-bg-alt), var(--site-bg))' }}>
         {luxe && photo && (
           <>
-            <div className="ohp-hero-pan absolute inset-0 bg-cover bg-center" style={{ backgroundImage: sizedBg(resolveMediaUrl(photo), 1920) }} />
+            <div className="ohp-mls-crop ohp-hero-pan absolute inset-0 bg-cover bg-center" style={{ backgroundImage: sizedBg(resolveMediaUrl(photo), 1920) }} />
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-black/30" />
           </>
         )}
@@ -68,7 +68,7 @@ export default function HomeValuePage({ theme, basePrefix, profile, areas, revie
           {!luxe && photo && (
             <div className="relative hidden lg:block">
               <div className="aspect-[4/3.2] overflow-hidden rounded-3xl" style={{ boxShadow: 'var(--site-shadow-lift)' }}>
-                <SitePhoto src={resolveMediaUrl(photo)} widths={IMG.half} className="ohp-hero-pan h-full w-full object-cover" />
+                <SitePhoto src={resolveMediaUrl(photo)} widths={IMG.half} className="ohp-mls-crop ohp-hero-pan h-full w-full object-cover" />
               </div>
               {reviews?.show && reviews.summary?.count > 0 && (
                 <div className="absolute -bottom-5 -left-5 flex items-center gap-3 rounded-2xl border px-4 py-3" style={card}>
@@ -114,7 +114,7 @@ export default function HomeValuePage({ theme, basePrefix, profile, areas, revie
               {towns.map(a => (
                 <a key={a.slug} href={`${basePrefix}/${a.slug}#market`} className={`group relative overflow-hidden border transition hover:-translate-y-1 ${round}`} style={card}>
                   <div className="relative h-24 overflow-hidden sm:h-28" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
-                    {a.photo && <SitePhoto src={resolveMediaUrl(a.photo)} widths={IMG.card} className="h-full w-full transition duration-700 group-hover:scale-105 object-cover" />}
+                    {a.photo && <SitePhoto src={resolveMediaUrl(a.photo)} widths={IMG.card} className="ohp-mls-crop h-full w-full transition duration-700 group-hover:scale-105 object-cover" />}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     <p className="absolute bottom-2 left-3 text-[15px] font-black text-white">{a.name}</p>
                   </div>

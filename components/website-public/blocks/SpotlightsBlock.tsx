@@ -50,7 +50,7 @@ function Card({ item, theme, luxe }: { item: SpotlightCard; theme: SiteTheme; lu
       <div className="relative aspect-[16/11] w-full overflow-hidden">
         {/* The cover loads with the page; the rest only while hovered (current + next). */}
         {photos.length > 0 ? photos.map((url, i) => (i === 0 || (hover && (i === index || i === (index + 1) % photos.length))) && (
-          <div key={`${url}-${i}`} className="absolute inset-0 bg-cover bg-center transition-all duration-1000 group-hover:scale-105" style={{ backgroundImage: sizedBg(url, 828), opacity: i === index ? 1 : 0 }} />
+          <div key={`${url}-${i}`} className="ohp-mls-crop absolute inset-0 bg-cover bg-center transition-all duration-1000 group-hover:scale-105" style={{ backgroundImage: sizedBg(url, 828), opacity: i === index ? 1 : 0 }} />
         )) : <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${theme.primary_color}, #000)` }} />}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/10" />
         <div className="absolute left-4 top-4 flex flex-wrap items-center gap-2">

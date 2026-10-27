@@ -82,8 +82,9 @@ export default function TownMap({ data, town, luxe }: { data?: TownBoundaries | 
     munis.length ? { id: 'munis', label: govLabel, icon: Landmark } : null,
     districts.length ? { id: 'schools', label: 'Schools', icon: GraduationCap } : null,
   ].filter(Boolean)) as { id: Layer; label: string; icon: any }[]
-  // A town split across school districts or townships opens on that split - it's the thing people don't know.
-  const [layer, setLayer] = useState<Layer>(districts.length > 1 ? 'schools' : munis.length > 1 ? 'munis' : layers[0]?.id || 'area')
+  // Opens on the whole town (user, 10/27: a first view full of district / township lines was too
+  // much) - the splits are one tap away on the other tabs.
+  const [layer, setLayer] = useState<Layer>(layers[0]?.id || 'area')
   // Which district's Public / Private switch is on ("<group key>|pub"). Nothing until the visitor picks.
   const [shown, setShown] = useState<Record<string, boolean>>({})
   const [hover, setHover] = useState<string | null>(null)

@@ -9,7 +9,7 @@ import { buildTownFaq, daysOnMarketStat, firstSentences } from '@/components/web
 import MarketTrendsSection from '@/components/website-public/MarketTrendsSection'
 import CinematicHeroBackground from '@/components/website-public/CinematicHeroBackground'
 import ClassicPageHero from '@/components/website-public/ClassicPageHero'
-import { formatCompactPrice, formatStatus, statusBadgeColor } from '@/components/website-public/listingFormat'
+import { cleanStreet, formatCompactPrice, formatStatus, statusBadgeColor } from '@/components/website-public/listingFormat'
 import HomeCard from '@/components/website-public/HomeCard'
 import SpotlightChip from '@/components/website-public/SpotlightChip'
 import SitePhoto from '@/components/website-public/SitePhoto'
@@ -135,9 +135,10 @@ export function ListingCard({ item, theme, basePrefix, showStatus = true, dateLa
   const inner = (
     <>
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
-        <SitePhoto src={item.photo} widths={IMG.card} className="h-full w-full transition-transform duration-700 ease-out group-hover:scale-110 object-cover" />
+        <SitePhoto src={item.photo} widths={IMG.card} className="ohp-mls-crop h-full w-full transition-transform duration-700 ease-out group-hover:scale-110 object-cover" />
         {dateLabel ? (
-          <span className="absolute left-3 top-3 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide shadow-sm" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>
+          // A sold date wears Sold red (statusBadgeColor), not the site's accent - user, 10/27.
+          <span className="absolute left-3 top-3 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide shadow-sm" style={String(item.status || '').toUpperCase().includes('CLOSED') ? { backgroundColor: badge.bg, color: badge.fg } : { backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>
             {dateLabel}
           </span>
         ) : (
@@ -149,7 +150,7 @@ export function ListingCard({ item, theme, basePrefix, showStatus = true, dateLa
         )}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/55 to-transparent" />
         {item.price != null && (
-          <span className={`absolute bottom-3 left-4 text-2xl font-black text-white drop-shadow ohp-site-heading ${fontClass(theme.heading_font, 'font-serif')}`}>
+          <span className={`absolute bottom-3 left-4 text-[28px] font-black leading-none text-white [text-shadow:0_2px_14px_rgba(0,0,0,.6)] ohp-site-heading ${fontClass(theme.heading_font, 'font-serif')}`}>
             ${item.price.toLocaleString()}
           </span>
         )}
@@ -162,11 +163,13 @@ export function ListingCard({ item, theme, basePrefix, showStatus = true, dateLa
         )}
       </div>
       <div className="p-5">
-        <p className="truncate text-sm font-bold text-gray-700">
-          {item.address}
-          {item.city && <span className="font-medium" style={{ color: 'var(--site-muted)' }}>, {[item.city, item.state].filter(Boolean).join(', ')}</span>}
+        {/* "Street, Town" once - the town the same size in a softer colour, no state / ZIP (the
+            address used to carry them, then the town and state again after it) - facts below. */}
+        <p className="truncate text-[16px] font-bold" style={{ color: 'var(--site-heading)' }}>
+          {cleanStreet(item.address, item.city) || 'Address on request'}
+          {item.city && <span className="font-semibold" style={{ color: 'var(--site-muted)' }}>, {item.city}</span>}
         </p>
-        {statLine && <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-gray-500"><span className="h-1 w-1 rounded-full" style={{ backgroundColor: theme.secondary_color }} />{statLine}</p>}
+        {statLine && <p className="mt-1.5 flex items-center gap-2 truncate text-xs font-semibold text-gray-500"><span className="h-1 w-1 shrink-0 rounded-full" style={{ backgroundColor: theme.secondary_color }} />{statLine}</p>}
         {item.list_office_name && <p className="mt-2 truncate text-[10px] font-medium" style={{ color: 'var(--site-muted)' }}>Courtesy of {item.list_office_name}</p>}
       </div>
     </>
@@ -936,7 +939,7 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
               <div key={related.slug} className={`group overflow-hidden border transition hover:-translate-y-1 ${luxe ? 'rounded-[24px]' : 'rounded-2xl'}`} style={TOWN_CARD_STYLE}>
                 <a href={`${basePrefix}/${related.slug}`} className="block">
                   <div className="relative aspect-[16/10] w-full overflow-hidden" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
-                    <SitePhoto src={resolveMediaUrl(related.photo)} widths={IMG.card} className="h-full w-full transition-transform duration-700 group-hover:scale-105 object-cover" />
+                    <SitePhoto src={resolveMediaUrl(related.photo)} widths={IMG.card} className="ohp-mls-crop h-full w-full transition-transform duration-700 group-hover:scale-105 object-cover" />
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     <p className="absolute bottom-3 left-4 text-xl font-black text-white">{related.name}{related.state ? `, ${related.state}` : ''}</p>
                   </div>

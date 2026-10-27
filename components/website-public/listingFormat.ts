@@ -39,10 +39,21 @@ export function formatCompactPrice(price: number): string {
 export function cleanStreet(address?: string | null, city?: string | null): string {
   let a = String(address || '').replace(/\s+/g, ' ').trim()
   a = a.replace(/,\s*[^,]+,\s*[A-Z]{2}\s+\d{5}(-\d{4})?$/, '')
+  // "1536 MONTICELLO DR GLADWYNE PA 19035": with the town known, drop just "GLADWYNE PA 19035" -
+  // the all-caps guess below can't tell an all-caps street from the town and ate it ("1536").
+  const town = (city || '').trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  if (town) a = a.replace(new RegExp(`[,\\s]+${town}[,\\s]+[A-Z]{2}\\s+\\d{5}(-\\d{4})?$`, 'i'), '')
+  const kept = a
   a = a.replace(/\s+[A-Z][A-Z.'-]*(\s+[A-Z][A-Z.'-]*)*\s+[A-Z]{2}\s+\d{5}(-\d{4})?$/, '')
+  if (!/[A-Za-z]/.test(a)) a = kept.replace(/[,\s]+[A-Z]{2}\s+\d{5}(-\d{4})?$/, '')
   const c = (city || '').trim().toLowerCase()
   if (c && a.toLowerCase().endsWith(` ${c}`)) a = a.slice(0, a.length - c.length).replace(/[,\s]+$/, '')
   return a.replace(/\b([A-Z]{2,})\b/g, w => (/^(NE|NW|SE|SW|PO|US)$/.test(w) ? w : w[0] + w.slice(1).toLowerCase())).trim()
+}
+
+/** The NEW tag: on the market under a week (days 0-6) - never a home listed a week or more ago. */
+export function isNewListing(days?: number | null): boolean {
+  return days != null && days >= 0 && days < 7
 }
 
 /** "Listed today" / "Listed 3 days ago" / "New this week" - for fresh-listing badges. */

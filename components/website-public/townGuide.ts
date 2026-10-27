@@ -111,12 +111,12 @@ export function buildTownFaq(area: any, inventoryTotal: number): TownFaq[] {
   if (walk?.rows?.length) {
     const pct = (k: string) => walk.rows.find((r: any) => r.key === k)?.pct
     // 95%+ reads "nearly all" - a 0.6-mile straight line is an estimate, not a promise for every home.
-    const share = (p: number, first: boolean) => (p >= 95 ? (first ? 'Nearly all homes' : 'nearly all') : first ? `${p}% of homes` : `${p}%`)
+    const share = (p: number, first: boolean) => (first ? `${walkShareWords(p)} homes` : walkShareWords(p).toLowerCase())
     const trolley = !!walk.has_trolley || /trolley/i.test(walk.rows.find((r: any) => r.key === 'transit')?.label || '')
     const bits = [
       pct('grocery') != null ? `${share(pct('grocery'), true)} are within about a 15-minute walk of a grocery store` : '',
       pct('food') != null ? `${share(pct('food'), pct('grocery') == null)} ${pct('grocery') == null ? 'are within about a 15-minute walk' : 'are within that walk'} of three or more restaurants or cafes` : '',
-      pct('transit') ? `${share(pct('transit'), false)} can walk to ${trolley ? 'a train or trolley stop' : 'a train station'}` : '',
+      pct('transit') ? `${share(pct('transit'), false)} are a walk from ${trolley ? 'a train or trolley stop' : 'a train station'}` : '',
     ].filter(Boolean)
     out.push({
       q: `Is ${name} walkable?`,
@@ -183,4 +183,14 @@ export function buildTownFaq(area: any, inventoryTotal: number): TownFaq[] {
     a: `Yes - tell me what you're looking for and you'll get matching homes in ${name} as soon as they're listed, in your own private Showcase.`,
   })
   return out
+}
+
+/** A walk share in words, never a bare percentage (user, 10/27: "14%" of homes near a grocery
+ *  store read as odd) - our 0.6-mile straight line is an estimate, so plain bands fit it better.
+ *  Also how many of five dots TownWalk fills. */
+export function walkShareWords(pct: number): string {
+  return pct >= 90 ? 'Nearly all' : pct >= 65 ? 'Most' : pct >= 40 ? 'About half of' : pct >= 20 ? 'Some' : pct >= 5 ? 'A few' : 'Very few'
+}
+export function walkShareDots(pct: number): number {
+  return pct >= 90 ? 5 : pct >= 65 ? 4 : pct >= 40 ? 3 : pct >= 20 ? 2 : pct >= 5 ? 1 : 0
 }

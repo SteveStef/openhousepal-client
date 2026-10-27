@@ -12,7 +12,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowLeft, ArrowRight, Bath, BedDouble, Bell, Building2, Check, GraduationCap, Heart, Home, Loader2,
-  MapPin, Search, Sparkles, X, type LucideIcon,
+  MapPin, Search, Sparkles, ThumbsUp, X, type LucideIcon,
 } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { saveVisitor, showcaseCodeOf, useVisitor, type SiteVisitor } from '@/lib/visitor'
@@ -114,6 +114,13 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
   const steps: Step[] = ['where', 'place', 'needs', 'you']
   const at = steps.indexOf(step)
   const go = (s: Step, d = 1) => { setDir(d); setError(''); setStep(s); if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  // Out of the builder: back a page when they came from this site, else its home page.
+  const leave = () => {
+    let fromHere = false
+    try { fromHere = !!document.referrer && new URL(document.referrer).host === window.location.host } catch { /* bad referrer */ }
+    if (fromHere && window.history.length > 1) window.history.back()
+    else window.location.assign(`${basePrefix}/`)
+  }
 
   // "Find homes like this one": the home's price (give or take a quarter) and its bedrooms.
   const pickHome = (h: PickedHome, like = likeThis) => {
@@ -204,7 +211,7 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
   const slide = { initial: (d: number) => ({ opacity: 0, x: d * 36 }), animate: { opacity: 1, x: 0 }, exit: (d: number) => ({ opacity: 0, x: d * -36 }) }
 
   return (
-    <section className="relative isolate min-h-[calc(100dvh-5rem)] overflow-hidden px-4 pb-24 pt-8 sm:px-6 sm:pt-12">
+    <section className="relative isolate min-h-[calc(100dvh-5rem)] overflow-hidden px-4 pb-10 pt-4 sm:px-6 sm:pb-24 sm:pt-12">
       <style>{BUILDER_CSS}</style>
       {/* glow behind the card - soft colour, no blur filters (cheap to paint on phones) */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
@@ -233,42 +240,50 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
         <AnimatePresence mode="wait" custom={dir} initial={false}>
           {/* ---------------- intro ---------------- */}
           {step === 'intro' && (
-            <motion.div key="intro" custom={dir} variants={slide} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.4, ease }} className={`${card} p-6 sm:p-10`} style={cardStyle}>
-              <div className="flex items-center gap-3">
-                {agent.photo_url && <img src={resolveMediaUrl(agent.photo_url) || agent.photo_url} alt="" className="h-11 w-11 rounded-full object-cover ring-2" style={{ ['--tw-ring-color' as any]: 'var(--site-accent)' }} />}
-                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em]" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),.12)', color: 'var(--site-accent-text)' }}>
-                  <Sparkles className="h-3.5 w-3.5" /> Free · about a minute
-                </span>
-              </div>
-              <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08, duration: 0.6, ease }} className="mt-6">
-                <H>{first ? `${first}, let's build your Showcase` : "Let's build your Showcase"}</H>
-                <Explain>
-                  A Showcase is <b style={{ color: 'var(--site-heading)' }}>your own private page of homes</b>. Tell us what you like one time. We&apos;ll keep it filled with homes that fit,
-                  and let you know the moment a new one comes on the market. You can change it anytime.
-                </Explain>
-              </motion.div>
-              <div className="mt-6 grid gap-2.5 sm:grid-cols-3">
-                {[
-                  { icon: Heart, t: 'Only homes that fit you', s: 'No scrolling past ones you’d never buy.' },
-                  { icon: Bell, t: 'New homes first', s: 'The minute one lists, it’s on your page.' },
-                  { icon: MapPin, t: `${agentFirst} on your side`, s: 'Questions or a tour - one tap away.' },
-                ].map((b, i) => (
-                  <motion.div key={b.t} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 + i * 0.08, duration: 0.5, ease }}
-                    className="rounded-2xl p-4" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
-                    <b.icon className="h-5 w-5" style={{ color: 'var(--site-accent)' }} />
-                    <p className="mt-2 text-sm font-black" style={{ color: 'var(--site-heading)' }}>{b.t}</p>
-                    <p className="mt-0.5 text-[12.5px] leading-snug" style={{ color: 'var(--site-muted)' }}>{b.s}</p>
-                  </motion.div>
-                ))}
-              </div>
-              {existingCode && (
-                <a href={`${basePrefix}/my-showcase`} className="mt-5 flex items-center justify-between gap-3 rounded-2xl border p-4 text-sm font-bold transition hover:-translate-y-0.5" style={{ borderColor: 'var(--site-accent)', color: 'var(--site-heading)' }}>
-                  <span><Sparkles className="mr-1.5 inline h-4 w-4 align-[-3px]" style={{ color: 'var(--site-accent)' }} />You already have a Showcase - open it</span><ArrowRight className="h-4 w-4" />
-                </a>
-              )}
-              <div className="mt-7 flex flex-wrap items-center gap-4">
-                <button type="button" onClick={() => go('where')} className={`${primaryBtn} sb-shine`} style={primaryStyle}>Let&apos;s start <ArrowRight className="h-4 w-4" /></button>
-                <span className="text-xs font-semibold" style={{ color: 'var(--site-faint)' }}>4 quick steps</span>
+            <motion.div key="intro" custom={dir} variants={slide} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.4, ease }}>
+              {/* Back to where they came from on this site (the home page if they landed here
+                  straight from a link) - the page had no way back (user, 10/27). */}
+              <button type="button" onClick={leave} className="mb-3 inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[13px] font-black transition hover:-translate-x-0.5 sm:mb-5" style={{ borderColor: 'var(--site-line)', backgroundColor: 'var(--site-surface)', color: 'var(--site-heading)' }}>
+                <ArrowLeft className="h-4 w-4" /> Back
+              </button>
+              {/* Fits one phone screen - no scrolling (user, 10/27): tighter padding and one-line
+                  perks on phones; the perks' second line only from sm up. */}
+              <div className={`${card} p-5 sm:p-10`} style={cardStyle}>
+                <div className="flex items-center gap-3">
+                  {agent.photo_url && <img src={resolveMediaUrl(agent.photo_url) || agent.photo_url} alt="" className="h-10 w-10 rounded-full object-cover ring-2 sm:h-11 sm:w-11" style={{ ['--tw-ring-color' as any]: 'var(--site-accent)' }} />}
+                  <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em]" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),.12)', color: 'var(--site-accent-text)' }}>
+                    <Sparkles className="h-3.5 w-3.5" /> Free · about a minute
+                  </span>
+                </div>
+                <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08, duration: 0.6, ease }} className="mt-4 sm:mt-6">
+                  <H>{first ? `${first}, let's build your Showcase` : "Let's build your Showcase"}</H>
+                  <Explain>
+                    Pick where you want to live and what you need - just a few taps. Your <b style={{ color: 'var(--site-heading)' }}>private page of homes</b> is made right away, and it keeps itself up to date.
+                  </Explain>
+                </motion.div>
+                <div className="mt-5 grid gap-2 sm:mt-6 sm:grid-cols-3 sm:gap-2.5">
+                  {[
+                    { icon: Heart, t: 'Only homes that fit you', s: 'No scrolling past ones you’d never buy.' },
+                    { icon: Bell, t: 'New homes first', s: 'The minute one lists, it’s on your page.' },
+                    { icon: ThumbsUp, t: 'Like, pass & tour', s: `Save favorites - ask ${agentFirst} for a tour in one tap.` },
+                  ].map((b, i) => (
+                    <motion.div key={b.t} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 + i * 0.08, duration: 0.5, ease }}
+                      className="flex items-center gap-3 rounded-2xl px-3.5 py-2.5 sm:block sm:p-4" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
+                      <b.icon className="h-5 w-5 shrink-0" style={{ color: 'var(--site-accent)' }} />
+                      <p className="text-sm font-black sm:mt-2" style={{ color: 'var(--site-heading)' }}>{b.t}</p>
+                      <p className="mt-0.5 hidden text-[12.5px] leading-snug sm:block" style={{ color: 'var(--site-muted)' }}>{b.s}</p>
+                    </motion.div>
+                  ))}
+                </div>
+                {existingCode && (
+                  <a href={`${basePrefix}/my-showcase`} className="mt-4 flex items-center justify-between gap-3 rounded-2xl border p-3.5 text-sm font-bold transition hover:-translate-y-0.5 sm:mt-5 sm:p-4" style={{ borderColor: 'var(--site-accent)', color: 'var(--site-heading)' }}>
+                    <span><Sparkles className="mr-1.5 inline h-4 w-4 align-[-3px]" style={{ color: 'var(--site-accent)' }} />You already have a Showcase - open it</span><ArrowRight className="h-4 w-4" />
+                  </a>
+                )}
+                <div className="mt-6 flex flex-wrap items-center gap-4 sm:mt-7">
+                  <button type="button" onClick={() => go('where')} className={`${primaryBtn} sb-shine`} style={primaryStyle}>Let&apos;s start <ArrowRight className="h-4 w-4" /></button>
+                  <span className="text-xs font-semibold" style={{ color: 'var(--site-faint)' }}>4 quick steps</span>
+                </div>
               </div>
             </motion.div>
           )}

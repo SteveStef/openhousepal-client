@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Bath, BedDouble, Bell, Check, ChevronDown, Grid3x3, Heart, List, Loader2, Map as MapIcon, Pencil, Ruler, Search, SlidersHorizontal, X } from 'lucide-react'
 import { googleMapsLoader } from '@/lib/googleMapsLoader'
 import { backdropMotion, useSwipeToClose } from '@/components/ui/windowMotion'
-import { cleanStreet, formatCompactPrice, formatStatus, listedAgo, statusBadgeColor } from './listingFormat'
+import { cleanStreet, formatCompactPrice, formatStatus, isNewListing, listedAgo, statusBadgeColor } from './listingFormat'
 import OpenHouseChip from '@/components/OpenHouseChip'
 import type { MlsOpenHouse } from '@/lib/mlsOpenHouses'
 import { SearchFilterParams, SiteTheme } from './types'
@@ -396,11 +396,11 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
         <a href={href(l)} onClick={() => markViewed(l.listing_key)} className="block">
           <div className={`relative overflow-hidden ${compact ? 'h-40' : 'h-48'}`} style={{ backgroundColor: 'var(--site-bg-alt)' }}>
             {/* A real lazy <img>: the list holds up to 120 homes - background photos all downloaded at once. */}
-            <SitePhoto src={l.photo} widths={IMG.card} sizes="(min-width: 1024px) 340px, (min-width: 640px) 50vw, 100vw" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-110" />
+            <SitePhoto src={l.photo} widths={IMG.card} sizes="(min-width: 1024px) 340px, (min-width: 640px) 50vw, 100vw" className="ohp-mls-crop absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-110" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
             <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
               {l.status && <span className="rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: badge.bg, color: badge.fg }}>{formatStatus(l.status)}</span>}
-              {l.days_on_market != null && l.days_on_market <= 7 && <span className="rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>New</span>}
+              {isNewListing(l.days_on_market) && <span className="rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>New</span>}
               {viewed.has(l.listing_key) && <span className="rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-white">Seen</span>}
             </div>
             <p className="absolute bottom-2.5 left-3 text-xl font-black text-white drop-shadow">{l.price ? `$${l.price.toLocaleString()}` : 'Price on request'}</p>

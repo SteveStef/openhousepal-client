@@ -2,6 +2,7 @@ import { ArrowUpRight, Facebook, Globe, Instagram, Mail, MapPin, MessageSquare, 
 import { SiteTheme } from '../types'
 import { fontClass } from './fontClass'
 import { sizedImage } from '@/lib/siteImage'
+import { salesAreRecent } from '@/lib/salesWording'
 
 function formatVolume(value: number): string {
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(value >= 10_000_000 ? 0 : 1)}M`
@@ -31,9 +32,12 @@ export default function AboutAgentBlock({ data, theme, basePrefix = '' }: { data
   const email = source.email as string | undefined
   const socialLinks = (source.social_links || []) as { id: string; label: string; url: string }[]
   const stats = source.stats as { active_listings?: number; sold_count?: number; sold_volume?: number } | undefined
+  // "Recent sales" until the agent's volume passes $50M (lib/salesWording, same rule as the Agent
+  // Hub and the Recently Sold section) - "Homes sold" read like their whole career.
+  const recent = salesAreRecent(stats?.sold_volume)
   const statItems = [
     stats?.active_listings ? { label: stats.active_listings === 1 ? 'Active listing' : 'Active listings', value: String(stats.active_listings) } : null,
-    stats?.sold_count ? { label: stats.sold_count === 1 ? 'Home sold' : 'Homes sold', value: String(stats.sold_count) } : null,
+    stats?.sold_count ? { label: recent ? (stats.sold_count === 1 ? 'Recent sale' : 'Recent sales') : (stats.sold_count === 1 ? 'Home sold' : 'Homes sold'), value: String(stats.sold_count) } : null,
     stats?.sold_volume ? { label: 'Sales volume', value: formatVolume(stats.sold_volume) } : null,
   ].filter(Boolean) as { label: string; value: string }[]
 

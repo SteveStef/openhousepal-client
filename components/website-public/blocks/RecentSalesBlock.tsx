@@ -1,7 +1,9 @@
 import { SiteTheme } from '../types'
 import { fontClass } from './fontClass'
-import { sizedBg } from '@/lib/siteImage'
-import { statusBadgeColor } from '../listingFormat'
+import { IMG } from '@/lib/siteImage'
+import { cleanStreet, statusBadgeColor } from '../listingFormat'
+import SitePhoto from '../SitePhoto'
+import { salesAreRecent } from '@/lib/salesWording'
 
 interface SaleCard {
   id: string
@@ -42,29 +44,35 @@ export default function RecentSalesBlock({ data, theme, siteId, basePrefix = '' 
         {/* Hidden when the agent turned off "Show my sold stats" (setup Sales step). */}
         {data.show_stats !== false && (
           <div className="mt-4 flex flex-wrap items-center justify-center gap-6 text-sm">
-            <span className="font-bold text-gray-500">{soldCount} {soldCount === 1 ? 'Home' : 'Homes'} Sold</span>
+            <span className="font-bold text-gray-500">{soldCount} {salesAreRecent(totalVolume) ? (soldCount === 1 ? 'Recent Sale' : 'Recent Sales') : (soldCount === 1 ? 'Home Sold' : 'Homes Sold')}</span>
             {totalVolume > 0 && <span className="font-bold text-gray-500">{formatVolume(totalVolume)} in Volume</span>}
           </div>
         )}
       </div>
-      <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {sales.map(sale => {
           const statLine = [
             sale.bedrooms != null ? `${sale.bedrooms} bd` : null,
             sale.bathrooms != null ? `${sale.bathrooms} ba` : null,
             sale.living_area != null ? `${sale.living_area.toLocaleString()} sqft` : null,
           ].filter(Boolean).join(' · ')
+          // Price on the photo (shadowed so it reads on any photo), then "street, Town" on one line -
+          // the town the same size in a softer colour, no state / ZIP - and the facts below (user, 10/27).
           const card = (
-            <div className="ohp-card group overflow-hidden rounded-3xl bg-white shadow-[0_2px_24px_rgba(17,24,39,0.08)] ring-1 ring-black/[0.04] transition hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(17,24,39,0.16)]">
-              <div className="relative aspect-[4/3] w-full bg-gray-100 bg-cover bg-center" style={{ backgroundImage: sizedBg((sale as any).photo, 640) }}>
+            <div className="ohp-card group overflow-hidden rounded-3xl shadow-[0_2px_24px_rgba(17,24,39,0.08)] ring-1 ring-black/[0.04] transition hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(17,24,39,0.16)]" style={{ backgroundColor: 'var(--site-surface)' }}>
+              <div className="relative aspect-[16/11] w-full overflow-hidden" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
+                <SitePhoto src={(sale as any).photo} widths={IMG.card} className="ohp-mls-crop absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
                 {/* Sold is red everywhere (listingFormat.statusBadgeColor) - it was the theme's dark color */}
                 <span className="absolute left-3 top-3 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide shadow-sm" style={{ backgroundColor: statusBadgeColor('CLOSED').bg, color: statusBadgeColor('CLOSED').fg }}>Sold</span>
+                {sale.price != null && <p className={`absolute bottom-3 left-4 text-[28px] font-black leading-none text-white [text-shadow:0_2px_14px_rgba(0,0,0,.6)] ${fontClass(theme.heading_font, 'font-serif')}`}>${sale.price.toLocaleString()}</p>}
               </div>
-              <div className="p-5">
-                {sale.price != null && <p className={`text-xl font-black ${fontClass(theme.heading_font, 'font-serif')}`} style={{ color: 'var(--site-heading)' }}>${sale.price.toLocaleString()}</p>}
-                <p className={`mt-1 truncate text-sm font-bold text-gray-700 ${fontClass(theme.body_font)}`}>{sale.address}</p>
-                <p className="text-xs text-gray-400">{[sale.city, sale.state].filter(Boolean).join(', ')}</p>
-                {statLine && <p className="mt-2 text-xs font-semibold text-gray-500">{statLine}</p>}
+              <div className="px-5 py-4">
+                <p className={`truncate text-[17px] font-bold ${fontClass(theme.body_font)}`} style={{ color: 'var(--site-heading)' }}>
+                  {cleanStreet(sale.address, sale.city) || 'Address on request'}
+                  {sale.city && <span className="font-semibold" style={{ color: 'var(--site-muted)' }}>, {sale.city}</span>}
+                </p>
+                {statLine && <p className="mt-1 truncate text-xs font-semibold" style={{ color: 'var(--site-muted)' }}>{statLine}</p>}
               </div>
             </div>
           )

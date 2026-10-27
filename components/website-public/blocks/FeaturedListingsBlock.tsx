@@ -59,7 +59,7 @@ export function ClassicListingCard({ listing, href, onOpen }: { listing: Listing
     >
       <div className="relative aspect-[4/3] overflow-hidden" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
         {pics.map((u, i) => (
-          <div key={u + i} className="absolute inset-0 bg-cover bg-center transition-all duration-700 group-hover:scale-[1.03]" style={{ backgroundImage: sizedBg(u, 640), opacity: i === pi ? 1 : 0 }} />
+          <div key={u + i} className="ohp-mls-crop absolute inset-0 bg-cover bg-center transition-all duration-700 group-hover:scale-[1.03]" style={{ backgroundImage: sizedBg(u, 640), opacity: i === pi ? 1 : 0 }} />
         ))}
         <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5">
           {listing.status && <span className="rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider shadow-sm" style={{ backgroundColor: badge.bg, color: badge.fg }}>{formatStatus(listing.status)}</span>}
