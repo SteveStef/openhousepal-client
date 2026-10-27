@@ -24,6 +24,7 @@ import DashLeadCard from '@/components/dash/DashLeadCard'
 import LeadDetailModal from '@/components/leads/LeadDetailModal'
 import DashActivityFeed from '@/components/dash/DashActivityFeed'
 import { RundownDashCard } from '@/components/rundown/TodaysRundown'
+import BriefingButton from '@/components/rundown/BriefingButton'
 import { DiscoveryListing } from '@/components/dash/DashOpensPanel'
 import { DiscoveryListingStatus } from '@/components/dash/DashDiscoveryPanel'
 import DashManagerCard from '@/components/dash/DashManagerCard'
@@ -438,7 +439,11 @@ export default function DashPage() {
       <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-5 sm:py-6">
         {/* The shared luxe header (same look as Listing Spotlight): today's three to-do counts on
             the right, the quick-create links inside it. Same links, same plan locks as before. */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="relative">
+          {/* Today's Rundown once it's been looked at - the card below steps aside for this */}
+          <div className="absolute right-3 top-3 z-10 sm:right-5 sm:top-4 lg:hidden">
+            <BriefingButton word="hidden sm:inline" />
+          </div>
           <LuxeHero
             kicker="Dashboard"
             icon={LayoutDashboard}
@@ -454,6 +459,9 @@ export default function DashPage() {
             asideClassName="max-sm:hidden lg:w-[400px] lg:-mt-6"
             actionsClassName="max-sm:hidden"
             aside={
+              <div className="w-full">
+              {/* computers: the Briefing button sits above the tiles (phones/tablets: top right, above) */}
+              <div className="mb-2 hidden justify-end empty:hidden lg:flex"><BriefingButton /></div>
               <LuxeStats
                 stats={[
                   { label: 'Unread', value: newLeadsCount, icon: Users, alert: newLeadsCount > 0 },
@@ -462,6 +470,7 @@ export default function DashPage() {
                 ]}
                 note="Waiting on you right now · updates on its own"
               />
+              </div>
             }
             actions={
               <div className="grid min-w-0 grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:gap-2 [&>*]:min-w-0">

@@ -12,7 +12,6 @@ import { hasValidSubscription } from '@/lib/auth-helpers'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import NotificationBell from './NotificationBell'
-import BriefingButton from './rundown/BriefingButton'
 import IncompleteSettingsModal from './IncompleteSettingsModal'
 import { useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
 import { useOpenRequestsCount } from '@/hooks/useOpenRequestsCount'
@@ -348,8 +347,6 @@ export default function Header({ mode = 'app' }: HeaderProps) {
             {!isCheckingAuth && isAuthenticated && (
               <div className="flex items-center space-x-1 sm:space-x-3">
                 <IncompleteSettingsModal />
-                {/* Today's Rundown ("Oct 26 Briefing") - phones and tablets here, computers next to the bell */}
-                {mode === 'app' && <div className="xl:hidden"><BriefingButton word="hidden sm:inline" /></div>}
                 {/* Mobile Only: Priority icons before hamburger */}
                 <div className="flex items-center space-x-1 sm:hidden">
                   <NotificationBell />
@@ -357,7 +354,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                 </div>
                 
                 {/* Desktop Menu */}
-                <div className="hidden xl:flex items-center space-x-1 sm:space-x-2 2xl:space-x-3">
+                <div className="hidden xl:flex items-center space-x-1 sm:space-x-3">
                 {/* Admin: each big area is its own tab, with its pages in a hover menu (lib/adminNav.ts). */}
                 {user?.is_admin && ADMIN_SECTIONS.map(sec => {
                   const href = sec.key === 'overview' ? '/admin' : `/admin/${sec.key}`
@@ -708,7 +705,6 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                       </Link>
                     )}
 
-                    {mode === 'app' && <BriefingButton word="hidden min-[1400px]:inline" />}
                     <NotificationBell />
                     <ThemeToggle />
                   </div>

@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { usePathname } from 'next/navigation'
 import { motion, useReducedMotion } from 'framer-motion'
 import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
@@ -9,30 +8,42 @@ import { SEEN_EVENT, openTodaysRundown } from './TodaysRundown'
 
 type Status = { date: string; seen: boolean; new_since: number }
 
-// Today's Rundown in the header (owner, 10/26): once the agent has looked at it - opened it here,
-// or opened / clicked the briefing email - the big Dash card steps aside and this "Oct 26 Briefing"
-// button opens it from any page. Before that it's on every page except the Dash (the card is there).
-// Something new since they looked (a sign-in, a like, the briefing going out) lights it up with how
-// many; opening it again calms it down. It never brings the big card back.
+// Today's Rundown, top right of the Dashboard's header (owner, 10/26): once the agent has looked
+// at it - opened it here, or opened / clicked the briefing email - the big Dash card steps aside for
+// this "Oct 26 Briefing" button. Something new since they looked (a sign-in, a like, the briefing
+// going out) lights it up with how many; opening it again calms it down. It never brings the big
+// card back. Other pages have the bell.
 const POLL_MS = 60000
+
+// One request for every copy on the page (the Dash shows one for phones and one for computers).
+let inflight: Promise<Status | null> | null = null
+let last: { at: number; st: Status } | null = null
+function fetchStatus(): Promise<Status | null> {
+  if (last && Date.now() - last.at < 5000) return Promise.resolve(last.st)
+  if (!inflight) {
+    inflight = api.notifications.rundownStatus()
+      .then(r => { if (r.success && r.data) { last = { at: Date.now(), st: r.data }; return r.data } return null })
+      .finally(() => { inflight = null })
+  }
+  return inflight
+}
 
 /** `word` = the classes that show the word "Briefing" (hidden where the header has no room - a
  * phone shows just the calendar page with the date). */
 export default function BriefingButton({ word = 'inline' }: { word?: string }) {
   const { isAuthenticated, user } = useAuth()
-  const pathname = usePathname()
   const reduce = useReducedMotion()
   const [st, setSt] = useState<Status | null>(null)
   const on = isAuthenticated && !!user && !user.is_admin
 
   const load = useCallback(() => {
-    api.notifications.rundownStatus().then(r => { if (r.success && r.data) setSt(r.data) })
+    fetchStatus().then(s => { if (s) setSt(s) })
   }, [])
   useEffect(() => {
     if (!on) return
     load()
     const t = window.setInterval(() => { if (!document.hidden) load() }, POLL_MS)
-    const onSeen = () => setSt(s => s && { ...s, seen: true, new_since: 0 })
+    const onSeen = () => { last = null; setSt(s => s && { ...s, seen: true, new_since: 0 }) }
     const onFocus = () => load()
     window.addEventListener(SEEN_EVENT, onSeen)
     window.addEventListener('leads-notification-count:refresh', load)
@@ -43,15 +54,14 @@ export default function BriefingButton({ word = 'inline' }: { word?: string }) {
     }
   }, [on, load])
 
-  if (!on || !st) return null
-  if (!st.seen && pathname === '/dash') return null   // the big card is right there
+  if (!on || !st || !st.seen) return null   // not looked at yet - the big card is showing
 
   const [y, m, d] = st.date.split('-').map(Number)
   const day = new Date(y, (m || 1) - 1, d || 1)
   const month = day.toLocaleDateString('en-US', { month: 'short' })
-  const lit = !st.seen || st.new_since > 0
+  const lit = st.new_since > 0
   const count = st.new_since > 99 ? '99+' : String(st.new_since)
-  const title = !st.seen ? `Today's briefing - not opened yet` : st.new_since ? `${st.new_since} new since you last looked` : `Today's briefing`
+  const title = st.new_since ? `${st.new_since} new since you last looked` : `Today's briefing`
 
   return (
     <motion.button type="button" onClick={openTodaysRundown} title={title} aria-label={`${month} ${day.getDate()} Briefing. ${title}`}
@@ -74,11 +84,10 @@ export default function BriefingButton({ word = 'inline' }: { word?: string }) {
         <span className="-mt-px font-serif text-[12px] font-black leading-none sm:text-[13px]">{day.getDate()}</span>
       </span>
       <span className={`${word} whitespace-nowrap pr-2`}>Briefing</span>
-      {st.seen && st.new_since > 0 && (
+      {st.new_since > 0 && (
         <motion.span key={count} initial={reduce ? false : { scale: 0.4 }} animate={{ scale: 1 }}
           className="absolute -right-1.5 -top-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-600 px-1 text-[10.5px] font-black tabular-nums text-white ring-2 ring-white dark:ring-[#0B0B0B]">{count}</motion.span>
       )}
-      {!st.seen && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-rose-600 ring-2 ring-white dark:ring-[#0B0B0B]" aria-hidden />}
     </motion.button>
   )
 }
