@@ -34,7 +34,8 @@ export const metadata: Metadata = {
   // Declared here (file lives in public/) rather than the app/favicon.ico convention, which Next
   // attaches to every route - agent IDX sites set their own tab icon and must not also get ours.
   icons: {
-    // The house mark, black with the gold door, no background (user's pick, 10/27). The SVG stays
+    // The house mark, white outline with a thin dark edge and the gold door, no background - white
+    // so it shows on dark browser tabs, the edge so it still shows on light ones (user, 10/28). The SVG stays
     // crisp at any size; the .ico / .png are for browsers that don't take SVG icons.
     icon: [{ url: '/favicon.ico', sizes: 'any' }, { url: '/icon.svg', type: 'image/svg+xml' }, { url: '/icon-512.png', type: 'image/png', sizes: '512x512' }],
     apple: '/apple-touch-icon.png',
