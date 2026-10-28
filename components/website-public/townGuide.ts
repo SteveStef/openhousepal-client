@@ -28,6 +28,12 @@ function entities(facts: Record<string, any>, key: string): any[] {
   return Array.isArray(facts?.[key]?.entities) ? facts[key].entities : []
 }
 
+/** A city neighborhood's places inside its own border (backend neighborhood_places marks the rest
+ *  "Nearby in ..."); every place for a town without that mark. */
+function local(items: any[]): any[] {
+  return items.filter((e: any) => !/^nearby|^regional/i.test(String(e?.where || '')))
+}
+
 function list(names: string[]): string {
   if (names.length <= 1) return names[0] || ''
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
@@ -90,15 +96,21 @@ export function buildTownFaq(area: any, inventoryTotal: number): TownFaq[] {
     const high: string[] = (ps.high_schools || []).map((s: any) => s.name).filter(Boolean).slice(0, 3)
     let a = districts.length > 1
       ? `${name} is served by more than one public school district: ${list(districts)}. Which one depends on the exact address.`
-      : `${name} is served by ${districts[0]}.`
-    if (high.length) a += ` High schools include ${list(high)}.`
-    a += ' Always confirm the assigned schools for a specific home with the district.'
+      : `${name} is served by ${/^school district/i.test(districts[0]) ? 'the ' : ''}${districts[0]}.`
+    if (ps.zones) {
+      // Philadelphia: the district's own zone maps (philly_schools) - zoned, never "attended by everyone".
+      if (high.length) a += ` By the district's ${ps.zones.school_year} zone maps, homes here are zoned for ${list(high)} for high school, depending on the address.`
+      a += ' Citywide and criteria-based schools such as Central, Masterman or AMY are separate application-based options, not assigned by address. Confirm the assigned schools for a specific home with the district\'s school finder.'
+    } else {
+      if (high.length) a += ` High schools include ${list(high)}.`
+      a += ' Always confirm the assigned schools for a specific home with the district.'
+    }
     out.push({ q: `What school district is ${name} in?`, a })
   }
 
   // Getting around
   const transit = facts.transportation
-  const stations = entities(facts, 'transportation').map((e: any) => e.name).filter(Boolean).slice(0, 3)
+  const stations = local(entities(facts, 'transportation')).map((e: any) => e.name).filter(Boolean).slice(0, 3)
   const trips: any[] = facts.commute?.destinations || []
   if (trips.length) {
     const parts = trips.map((t: any) => `${t.name} is about ${t.drive_minutes} minutes by car${t.transit_minutes ? ` (${t.transit_minutes} by train or bus)` : ''}`)
@@ -111,7 +123,8 @@ export function buildTownFaq(area: any, inventoryTotal: number): TownFaq[] {
   if (walk?.rows?.length) {
     const pct = (k: string) => walk.rows.find((r: any) => r.key === k)?.pct
     // 95%+ reads "nearly all" - a 0.6-mile straight line is an estimate, not a promise for every home.
-    const share = (p: number, first: boolean) => (first ? `${walkShareWords(p)} homes` : walkShareWords(p).toLowerCase())
+    // Later in the sentence the homes are already named: "about half are", not "about half of are".
+    const share = (p: number, first: boolean) => (first ? `${walkShareWords(p)} homes` : walkShareWords(p).toLowerCase().replace(/ of$/, ''))
     const trolley = !!walk.has_trolley || /trolley/i.test(walk.rows.find((r: any) => r.key === 'transit')?.label || '')
     const bits = [
       pct('grocery') != null ? `${share(pct('grocery'), true)} are within about a 15-minute walk of a grocery store` : '',
@@ -120,7 +133,7 @@ export function buildTownFaq(area: any, inventoryTotal: number): TownFaq[] {
     ].filter(Boolean)
     out.push({
       q: `Is ${name} walkable?`,
-      a: `${walk.level}. ${bits.length ? `${bits.join(', ')}.` : ''}${walk.stations?.length ? ` ${trolley ? 'Stops' : 'Stations'} within walking distance include ${list(walk.stations.slice(0, 3))}.` : ''}`,
+      a: `${walk.level}. ${bits.length ? `${bits.join(', ')}.` : ''}${walk.homes_checked ? ` Based on ${Number(walk.homes_checked).toLocaleString()} homes checked, counting about a 15-minute walk as 0.6 mile in a straight line - actual routes vary by address.` : ''}${walk.stations?.length ? ` ${trolley ? 'Stops' : 'Stations'} within walking distance include ${list(walk.stations.slice(0, 3))}.` : ''}`,
       source: { name: 'OpenStreetMap' },
     })
   }
@@ -143,8 +156,9 @@ export function buildTownFaq(area: any, inventoryTotal: number): TownFaq[] {
   }
 
   // Things to do
-  const dining = entities(facts, 'restaurants').map((e: any) => e.name).filter(Boolean).slice(0, 3)
-  const parks = entities(facts, 'parks').map((e: any) => e.name).filter(Boolean).slice(0, 3)
+  // A city neighborhood names only its own places here - "Nearby in Fairmount" isn't a local favorite.
+  const dining = local(entities(facts, 'restaurants')).map((e: any) => e.name).filter(Boolean).slice(0, 3)
+  const parks = local(entities(facts, 'parks')).map((e: any) => e.name).filter(Boolean).slice(0, 3)
   if (dining.length || parks.length) {
     const bits = [
       facts.downtown_centers?.notes ? firstSentences(facts.downtown_centers.notes, 1) : '',
@@ -163,7 +177,8 @@ export function buildTownFaq(area: any, inventoryTotal: number): TownFaq[] {
   if (tx?.per_sqft) {
     out.push({
       q: `What are property taxes like in ${name}?`,
-      a: `Homes in ${name} pay about $${Number(tx.per_sqft).toFixed(2)} per square foot a year in property taxes${tx.typical_sqft && tx.typical_annual ? ` - about $${Number(tx.typical_annual).toLocaleString()} a year for a typical ${Number(tx.typical_sqft).toLocaleString()} sq ft home` : ''}.${(tx.districts || []).length > 1 ? ` It differs by school district: ${list(tx.districts.map((d: any) => `${d.name} about $${Number(d.per_sqft).toFixed(2)}`))}.` : ''} Every home's bill depends on its own assessment - ask for the current tax figure on any home you're considering.`,
+      // A sample of recorded bills, not how the tax is set (grader 10/27) - a bill comes from the assessed value.
+      a: `Among ${tx.homes ? `the ${Number(tx.homes).toLocaleString()} ` : ''}homes we looked at in ${name}, recorded property taxes averaged about $${Number(tx.per_sqft).toFixed(2)} per square foot a year${tx.typical_sqft && tx.typical_annual ? ` - about $${Number(tx.typical_annual).toLocaleString()} a year for a typical ${Number(tx.typical_sqft).toLocaleString()} sq ft home` : ''}.${(tx.districts || []).length > 1 ? ` It differs by school district: ${list(tx.districts.map((d: any) => `${d.name} about $${Number(d.per_sqft).toFixed(2)}`))}.` : ''} Property taxes are set from each home's assessed value, less any exemptions or abatements - verify the current bill for a specific home.`,
       source: { name: `Recorded tax bills of ${tx.homes} homes (MLS)` },
     })
   } else if (taxes.length) {

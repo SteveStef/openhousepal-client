@@ -9,7 +9,7 @@ import { tidyAllCaps } from '@/lib/cheatSheetContent'
 export interface SeoAgent { name?: string | null; brokerage?: string | null; market?: string | null; phone?: string | null; title?: string | null; bio?: string | null
   /** false once the agent's sales volume passes $50M - "sold", not "recently sold" (lib/salesWording). */
   sales_recent?: boolean | null }
-export interface SeoArea { slug: string; name: string; state?: string | null; median_price?: number | null; active_count?: number | null; school_districts?: string[] | null; summary?: string | null }
+export interface SeoArea { slug: string; name: string; state?: string | null; area_type?: string | null; parent_area_name?: string | null; median_price?: number | null; active_count?: number | null; school_districts?: string[] | null; summary?: string | null }
 export interface SeoPost { slug: string; title: string; subtitle?: string | null; seo_title?: string | null; meta_description?: string | null; seoTitle?: string | null; metaDescription?: string | null }
 export interface SeoCtx { agent: SeoAgent; towns: string[]; reviews?: { count: number; average: number | null } | null }
 export interface SeoMeta { title: string; description: string }
@@ -195,7 +195,9 @@ export function autoPageMeta(page: { title?: string | null; blocks?: { type?: st
 
 /** A neighborhood (town) page. */
 export function autoTownMeta(area: SeoArea, ctx: SeoCtx): SeoMeta {
-  const place = [area.name, area.state].filter(Boolean).join(', ')
+  // A city neighborhood names its city ("Bella Vista, Philadelphia, PA") when the title still fits.
+  const inCity = area.area_type === 'neighborhood' && area.parent_area_name ? [area.name, area.parent_area_name, area.state].filter(Boolean).join(', ') : ''
+  const place = inCity && `${inCity} Homes for Sale & Area Guide`.length <= SEO_TITLE_MAX ? inCity : [area.name, area.state].filter(Boolean).join(', ')
   const bits: string[] = []
   if (area.active_count) bits.push(`${area.active_count} ${area.active_count === 1 ? 'home' : 'homes'} for sale${area.median_price ? ` (median ${compactUsd(area.median_price)})` : ''}`)
   const district = String((area.school_districts || [])[0] || '').toLowerCase().replace(/(^|[\s-])\S/g, c => c.toUpperCase())

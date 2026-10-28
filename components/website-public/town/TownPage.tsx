@@ -74,8 +74,9 @@ function categoryHasContent(facts: Record<string, any>, categoryKey: string) {
 function entityMeta(e: CuratedEntity) {
   return [
     e.category,
-    e.city,
-    typeof e.distance_miles === 'number' ? `${e.distance_miles.toFixed(e.distance_miles < 1 ? 1 : 0)} mi` : null,
+    // A city neighborhood's places say where they are: "In Bella Vista" / "Nearby in Fairmount".
+    e.where || e.city,
+    typeof e.distance_miles === 'number' ? `${e.distance_miles.toFixed(e.distance_miles < 1 ? 1 : 0)} mi` : e.access_note,
   ].filter(Boolean).join(' · ')
 }
 
@@ -84,6 +85,8 @@ export interface CuratedEntity {
   category?: string
   relationship?: string
   city?: string
+  where?: string
+  access_note?: string
   distance_miles?: number
   source_url?: string
   source_type?: string
@@ -283,7 +286,7 @@ function TownPlaceCard({ categoryKey, data, luxe, label, state }: { categoryKey:
   )
 }
 
-function TownSchoolColumn({ label, schools }: { label: string; schools: { name: string; district?: string; source_url?: string }[] }) {
+function TownSchoolColumn({ label, schools }: { label: string; schools: { name: string; district?: string; source_url?: string; note?: string; plan_note?: string }[] }) {
   if (!schools.length) return null
   return (
     <div>
@@ -292,7 +295,9 @@ function TownSchoolColumn({ label, schools }: { label: string; schools: { name: 
         {schools.map((s, i) => (
           <li key={i} className="text-sm font-semibold leading-snug" style={{ color: 'var(--site-ink)' }}>
             {s.source_url ? <a href={s.source_url} target="_blank" rel="noreferrer" className="hover:underline">{s.name}</a> : s.name}
-            {s.district && <span className="block text-[11px] font-medium" style={{ color: 'var(--site-muted)' }}>{s.district}</span>}
+            {/* Philadelphia: the district's zone - grades and the share of homes zoned for it */}
+            {(s.note || s.district) && <span className="block text-[11px] font-medium" style={{ color: 'var(--site-muted)' }}>{s.note || s.district}</span>}
+            {s.plan_note && <span className="block text-[11px] font-medium text-amber-600">{s.plan_note}</span>}
           </li>
         ))}
       </ul>
@@ -340,7 +345,7 @@ function TownSchools({ facts, name, luxe, state }: { facts: Record<string, any>;
           <TownSchoolColumn label="High school" schools={high} />
         </div>
         <p className="mt-6 border-t pt-4 text-[11px] leading-relaxed" style={{ borderColor: 'var(--site-line)', color: 'var(--site-muted)' }}>
-          School assignment depends on the exact address and can change - confirm the schools for any specific home with {districts.length === 1 ? districts[0].name : 'the school district'}.
+          School assignment depends on the exact address and can change - confirm the schools for any specific home with {districts.length === 1 ? `${/^school district/i.test(districts[0].name) ? 'the ' : ''}${districts[0].name}` : 'the school district'}.
         </p>
       </div>
       {privateSchools.length > 0 ? (
@@ -480,10 +485,10 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
   ].filter(Boolean) as { id: string; label: string }[]
 
   const goodToKnow = [
-    facts.downtown_centers?.notes ? { icon: Building2, label: 'Town center', text: firstSentences(facts.downtown_centers.notes, 1) } : null,
+    facts.downtown_centers?.notes ? { icon: Building2, label: area.area_type === 'neighborhood' ? 'Neighborhood center' : 'Town center', text: firstSentences(facts.downtown_centers.notes, 1) } : null,
     facts.transportation?.notes ? { icon: Train, label: 'Commute', text: firstSentences(facts.transportation.notes, 1) } : null,
     facts.parks?.notes ? { icon: Trees, label: 'Outdoors', text: firstSentences(facts.parks.notes, 1) } : null,
-    facts.public_schools?.districts?.length ? { icon: GraduationCap, label: 'Schools', text: `Served by ${facts.public_schools.districts.map((d: any) => d.name).join(', ')}.` } : null,
+    facts.public_schools?.districts?.length ? { icon: GraduationCap, label: 'Schools', text: `Served by ${facts.public_schools.districts.map((d: any) => /^school district/i.test(d.name) ? `the ${d.name}` : d.name).join(', ')}.` } : null,
   ].filter(Boolean) as { icon: any; label: string; text: string }[]
 
   const d = demographics || {}
@@ -501,11 +506,14 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
   ].filter(Boolean) as [string, string][])
   const glance = ([
     // Says which area the count is for - "Malvern borough" is far smaller than the Malvern mailing area this page covers.
+    // A city neighborhood isn't a town of its own (grader 10/27: the Philadelphia pages read as towns).
+    area.area_type === 'neighborhood' && area.parent_area_name ? ['Neighborhood of', `${area.parent_area_name}, ${area.state}`] : null,
     d.population?.value ? [d.population.label ? `Population (${d.population.label})` : 'Population', Math.round(d.population.value).toLocaleString()] : null,
     // No age / income / who-owns rows - describing residents is off-limits under Fair Housing.
     countyLabel ? [countyIsCity ? (countyLabel === 'Independent city' ? 'Local government' : 'County / city') : / and |counties$/i.test(countyLabel) ? 'Counties' : 'County', countyLabel] : null,
     facts.walk?.level ? ['Walkability', String(facts.walk.level)] : null,
-    facts.flood?.homes_checked ? ['High flood-risk homes', `${facts.flood.high_risk_pct}%`] : null,
+    // A sample of the area's homes against FEMA's high-risk zones - not any one home's risk.
+    facts.flood?.homes_checked ? ['In a FEMA high-risk flood zone', `${facts.flood.high_risk_pct}% of ${Number(facts.flood.homes_checked).toLocaleString()} homes checked`] : null,
   ].filter(Boolean) as [string, string][])
   const hasGlance = glanceStats.length > 0 || glance.length > 0 || municipalities.length > 0
 
@@ -849,7 +857,7 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
               map={area.explore_origin ? { siteId, slug, origin: area.explore_origin, accent: theme.secondary_color || '#C9A24D' } : null}
               categories={livingKeys.map(k => ({
               key: k, label: CURATED_CATEGORY_META[k]?.label || k, notes: facts[k]?.notes || null,
-              items: categoryEntities(facts[k]).map(e => ({ name: e.name, category: e.category, city: e.city, distance_miles: e.distance_miles, description: e.description, source_url: e.source_url })),
+              items: categoryEntities(facts[k]).map(e => ({ name: e.name, category: e.category, city: e.where || e.city, distance_miles: e.distance_miles, description: e.description, source_url: e.source_url })),
             }))} />
           )}
           <div className="mt-8 gap-5 lg:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
