@@ -9,6 +9,17 @@ export function fontClass(font: string | undefined, fallback: 'font-serif' | 'fo
   // Default look, whose plain .ohp-site-heading is set in the sans (see site-theme.css).
   if (font === 'serif') return 'ohp-site-heading ohp-site-heading-serif'
   if (font === 'mono') return 'font-mono'
-  if (font === 'sans') return 'ohp-site-body'
+  if (font === 'sans') return 'ohp-site-sans'
   return fallback === 'font-serif' ? 'ohp-site-heading' : 'ohp-site-body'
+}
+
+/** A section's main heading in the agent's Heading font, on either look. Plain .ohp-site-heading
+ *  follows the look (Classic sans, Luxe serif) and ignored the picker on Classic's big headings
+ *  (the welcome headline, section titles - 10/27 audit); this keeps the heading styling and adds
+ *  the chosen family on top. */
+export function headingClass(font: string | undefined): string {
+  if (font === 'serif') return 'ohp-site-heading ohp-site-heading-serif'
+  if (font === 'sans') return 'ohp-site-heading ohp-site-heading-sans'
+  if (font === 'mono') return 'ohp-site-heading ohp-site-heading-mono'
+  return 'ohp-site-heading'
 }

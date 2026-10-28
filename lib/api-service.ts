@@ -411,6 +411,9 @@ class ApiService {
       method: 'PATCH',
       body: JSON.stringify(preferences),
     }),
+    /** Agents who have listed homes in the areas this agent serves, busiest first. */
+    agents: (q?: string) => this.request<{ success: boolean; data: { name: string; office?: string | null; listings: number }[] }>(
+      `/api/discovery/agents${q ? `?q=${encodeURIComponent(q)}` : ''}`),
   }
 
   /**

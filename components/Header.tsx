@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { OhpHouse, OhpWordmark } from '@/components/brand/OhpBrand'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useState, useEffect, type ComponentType, type CSSProperties } from 'react'
+import { useState, useEffect, useRef, type ComponentType, type CSSProperties } from 'react'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { Home, Moon, Sun, Menu, X, LogOut, Settings, Layout, ShieldCheck, Palette, LayoutDashboard, Users, AlertCircle, ChevronDown, Globe, Link2, ClipboardList, Newspaper, Search, Building2, Calculator, Lock, HelpCircle, Clapperboard, Mail, ToolCase, CalendarClock, Activity as ActivityIcon, Plug, Send, Star, ListChecks, FileClock, ClipboardCheck, ChevronRight, SwatchBook, Loader2 } from 'lucide-react'
@@ -68,6 +68,43 @@ export default function Header({ mode = 'app' }: HeaderProps) {
   // The phone menu opens with every section folded; tapping a section unfolds its pages (owner, 10/26).
   const [openSection, setOpenSection] = useState<string | null>(null)
   useEffect(() => { if (isMobileMenuOpen) setOpenSection(null) }, [isMobileMenuOpen])
+  // Opening a section glides the menu down just enough to show all of its pages - also when another
+  // section above it is folding shut at the same time (Leads open, tap Tools); folding it back
+  // glides up to where the menu was before (user, 10/27). Followed frame by frame for the length of
+  // the fold, so it moves with the animation instead of jumping after it.
+  const menuListRef = useRef<HTMLDivElement>(null)
+  const menuRestoreTop = useRef(0)
+  const toggleMenuSection = (key: string) => {
+    if (openSection === null && menuListRef.current) menuRestoreTop.current = menuListRef.current.scrollTop
+    setOpenSection(openSection === key ? null : key)
+  }
+  useEffect(() => {
+    const list = menuListRef.current
+    if (!list || !isMobileMenuOpen) return
+    const target = () => {
+      if (!openSection) return menuRestoreTop.current
+      const sec = list.querySelector<HTMLElement>(`[data-menu-sec="${openSection}"]`)
+      if (!sec) return list.scrollTop
+      const head = sec.firstElementChild as HTMLElement | null
+      const tiles = sec.querySelector<HTMLElement>('[data-menu-tiles]')
+      const top = list.scrollTop + sec.getBoundingClientRect().top - list.getBoundingClientRect().top
+      const full = (head?.offsetHeight || 0) + (tiles?.offsetHeight || 0) + 20
+      let t = list.scrollTop
+      if (top + full > t + list.clientHeight - 12) t = top + full - list.clientHeight + 12
+      if (top - 12 < t) t = top - 12
+      return Math.max(0, t)
+    }
+    const start = performance.now()
+    let raf = 0
+    const tick = (now: number) => {
+      const want = Math.min(target(), list.scrollHeight - list.clientHeight)
+      const cur = list.scrollTop
+      list.scrollTop = Math.abs(want - cur) < 1 ? want : cur + (want - cur) * 0.22
+      if (now - start < 650) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [openSection, isMobileMenuOpen])
   // Phone menu: tapping a page keeps the menu up until that page starts showing (its loading screen
   // or the page itself), then it fades away - closing it first flashed the old page (owner, 10/26).
   const [menuGoing, setMenuGoing] = useState<string | null>(null)
@@ -807,7 +844,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-3">
+            <div ref={menuListRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-3">
               {!user?.is_admin && !user?.broker_authorized && (
                 <Link href="/broker-authorization" onClick={menuGo('/broker-authorization')}
                   className={`flex items-center gap-3 rounded-3xl border bg-white p-3 shadow-[0_8px_24px_-14px_rgba(17,24,39,0.25)] dark:bg-[#151517] ${isActive('/broker-authorization') ? 'border-[#C9A24D]' : 'border-gray-200/80 dark:border-gray-800'}`}>
@@ -817,10 +854,10 @@ export default function Header({ mode = 'app' }: HeaderProps) {
               )}
 
               {mobileSections.map(sec => (
-                <section key={sec.key}
+                <section key={sec.key} data-menu-sec={sec.key}
                   className={`rounded-3xl border bg-white p-2.5 shadow-[0_8px_24px_-14px_rgba(17,24,39,0.25)] dark:bg-[#151517] ${sec.on ? 'border-[#C9A24D]/60' : 'border-gray-200/80 dark:border-gray-800'} ${sec.dimmed ? 'pointer-events-none opacity-50 grayscale' : ''}`}>
                   {sec.tiles.length > 0 ? (
-                    <button type="button" aria-expanded={openSection === sec.key} onClick={() => setOpenSection(o => (o === sec.key ? null : sec.key))}
+                    <button type="button" aria-expanded={openSection === sec.key} onClick={() => toggleMenuSection(sec.key)}
                       className="flex min-h-[48px] w-full items-center gap-3 rounded-2xl px-1.5 py-1">
                     <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${sec.on ? 'bg-[#111827] text-[#e8c97a] dark:bg-[#C9A24D] dark:text-[#111827]' : 'bg-[#C9A24D]/15 text-[#8b6a2b] dark:text-[#e8c97a]'}`}>
                       <sec.icon className="h-5 w-5" />
@@ -847,7 +884,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                   {sec.tiles.length > 0 && openSection === sec.key && (
                     <motion.div key="tiles" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                       transition={{ height: { type: 'spring', stiffness: 420, damping: 38 }, opacity: { duration: 0.18 } }} className="overflow-hidden">
-                    <div className="grid grid-cols-2 gap-2 pt-2">
+                    <div data-menu-tiles className="grid grid-cols-2 gap-2 pt-2">
                       {sec.tiles.map(t => {
                         const inner = (
                           <>

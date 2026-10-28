@@ -9,7 +9,7 @@ import {
   GraduationCap, Heart, HeartPulse, Home, LandPlot, MapPin, Ruler,
   School, ShoppingBag, ShoppingBasket, Sparkles, Train, Trees, TrendingUp, Utensils,
 } from 'lucide-react'
-import { autoListingMeta, autoPostMeta, autoSectionMeta, autoTownMeta, seoClip, withSiteName, type SeoCtx } from '@/lib/siteSeoAuto'
+import { autoListingMeta, autoPageMeta, autoPostMeta, autoSectionMeta, autoTownMeta, seoClip, withSiteName, type SeoCtx } from '@/lib/siteSeoAuto'
 import SitePageRenderer from '@/components/website-public/SitePageRenderer'
 import SiteShell from '@/components/website-public/SiteShell'
 import { SiteHeader, SiteFooter } from '@/components/website-public/SiteChrome'
@@ -401,7 +401,10 @@ function applySiteSeo(meta: Metadata, resolved: ResolveResponse, path: string[] 
   let title = meta.title
   let description = meta.description
   // Automatic title + description (lib/siteSeoAuto - the same text the editor's Google tab previews).
-  const auto = key && (SEO_SECTION_KEYS.has(key) || !isPageSlug) ? autoSectionMeta(key, ctx) : null
+  // A page the agent made (or the starter Sold page): its own automatic wording, the same the
+  // Google tab previews - it used to fall through to the site-wide description.
+  const ownPage = isPageSlug && !SEO_SECTION_KEYS.has(key!) ? pages.find((p: any) => p.slug === key) : null
+  const auto = key && (SEO_SECTION_KEYS.has(key) || !isPageSlug) ? autoSectionMeta(key, ctx) : ownPage ? (autoSectionMeta(key!, ctx) || autoPageMeta(ownPage, ctx)) : null
   if (key === 'home') {
     title = (seo.home_title || '').trim() || auto?.title || siteName || baseTitle
     description = (seo.description || '').trim() || meta.description || auto?.description

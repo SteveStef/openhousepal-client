@@ -63,11 +63,32 @@ export default function SearchAppearancePanel({ seo, onChange, pages, defaults, 
   const fileRef = useRef<HTMLInputElement>(null)
   const siteName = seo.site_name || defaults.siteName
 
+  // The picture a shared link shows (texts, Facebook, LinkedIn...) - seo.share_image_url, which the
+  // live site already used but nothing in the editor could set (10/27 audit). Blank = the designed
+  // card made from the agent's photo, name and towns.
+  const [shareUploading, setShareUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const [iconError, setIconError] = useState('')
+  const shareRef = useRef<HTMLInputElement>(null)
+  const uploadShare = async (file: File) => {
+    setShareUploading(true); setUploadError('')
+    // Design uploads take JPG only - any picture is turned into one first (a PNG used to fail silently).
+    const r = await api.studio.uploadMedia(await shareJpeg(file), 'design')
+    setShareUploading(false)
+    if (r.success && r.data?.url) set({ share_image_url: r.data.url })
+    else setUploadError(r.error || 'That picture could not be uploaded. Try a JPG or PNG.')
+  }
+
   const upload = async (file: File) => {
     setUploading(true)
-    const r = await api.studio.uploadMedia(await squareIcon(file), 'design')
+    setIconError('')
+    // The square icon is a PNG - the logo upload takes PNGs; the design one is JPG-only, so the
+    // tab icon upload always failed (found with the share picture, 10/27).
+    const icon = await squareIcon(file)
+    const r = await api.studio.uploadMedia(icon, icon.type === 'image/png' ? 'brand_logo' : 'design')
     setUploading(false)
     if (r.success && r.data?.url) set({ favicon_url: r.data.url })
+    else setIconError(r.error || 'That icon could not be uploaded. Try a JPG or PNG.')
   }
 
   // The live site fills a blank home title/description automatically - those count as ready.
@@ -124,12 +145,36 @@ export default function SearchAppearancePanel({ seo, onChange, pages, defaults, 
               {defaults.logoUrl && seo.favicon_url !== defaults.logoUrl && <button type="button" onClick={() => set({ favicon_url: defaults.logoUrl! })} className="rounded-xl px-2.5 py-2 text-[11px] font-black text-[#8b7355] transition hover:text-[#111827] dark:text-[#e8c97a]">Use my logo</button>}
               {seo.favicon_url && <button type="button" onClick={() => set({ favicon_url: null })} className="rounded-xl px-2.5 py-2 text-[11px] font-black text-gray-400 transition hover:text-[#111827] dark:hover:text-white">Back to house icon</button>}
             </div>
-            <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = '' }} />
+            <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = '' }} />
           </div>
+          {iconError && <p className="mt-1.5 text-[11px] font-bold text-red-500">{iconError}</p>}
           <p className="mt-1.5 text-[11px] font-semibold text-gray-400">
             Shows on the browser tab for everything on your own domain - your site, Showcases, Spotlights, forms and CMAs. Any image works; it&apos;s fitted to a crisp square for you (a simple logo mark reads best that small). Until you pick one, the OpenHousePal house icon is used. Shows once you publish.
           </p>
         </div>
+      </Group>
+
+      {/* The picture on a shared link */}
+      <Group title="When your link is shared" hint="The picture people see when your website's link is texted or posted." active={focusKey === 'share'} onFocus={() => onFocusKey('share')}>
+        <div className="flex items-center gap-3">
+          <span className="relative flex h-[63px] w-[120px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gradient-to-br from-[#111827] to-[#2a2f3a] shadow-sm dark:border-white/10">
+            {seo.share_image_url
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={seo.share_image_url} alt="" className="h-full w-full object-cover" />
+              : <span className="px-2 text-center text-[9px] font-black uppercase leading-tight tracking-wide text-[#e8c97a]">Your designed card</span>}
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={() => shareRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-xl bg-[#111827] px-3 py-2 text-[11px] font-black text-white transition hover:-translate-y-0.5 dark:bg-white dark:text-[#111827]">
+              {shareUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} {seo.share_image_url ? 'Change picture' : 'Use my own picture'}
+            </motion.button>
+            {seo.share_image_url && <button type="button" onClick={() => set({ share_image_url: null })} className="rounded-xl px-2.5 py-2 text-[11px] font-black text-gray-400 transition hover:text-[#111827] dark:hover:text-white">Back to my designed card</button>}
+          </div>
+          <input ref={shareRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadShare(f); e.target.value = '' }} />
+        </div>
+        {uploadError && <p className="mt-1.5 text-[11px] font-bold text-red-500">{uploadError}</p>}
+        <p className="mt-1.5 text-[11px] font-semibold text-gray-400">
+          Until you pick one, we make a card for you from your photo, name and towns - it updates itself. Your own picture works best wide (about 1200 x 630).
+        </p>
       </Group>
 
       {/* Home result */}
@@ -229,9 +274,31 @@ function Field({ label, value: own, placeholder, auto, onChange: setOwn, max, mu
 
 
 /** A tab icon has to read at 16px: fit the picture (whole, never cropped) into a crisp 256px
- * square PNG before uploading. SVG / .ico files are already icon-ready and go up as they are. */
+ * square PNG before uploading. SVGs too (the upload takes JPG / PNG only). */
+/** A shared-link picture as a JPG (what design uploads take), at most 1600px wide. */
+async function shareJpeg(file: File): Promise<File> {
+  if (file.type === 'image/jpeg' || typeof document === 'undefined') return file
+  try {
+    const url = URL.createObjectURL(file)
+    const img = await new Promise<HTMLImageElement>((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = fail; i.src = url })
+    const scale = Math.min(1, 1600 / img.width)
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(img.width * scale); canvas.height = Math.round(img.height * scale)
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height) // see-through parts turn white, not black
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    URL.revokeObjectURL(url)
+    const blob = await new Promise<Blob | null>(ok => canvas.toBlob(ok, 'image/jpeg', 0.9))
+    return blob ? new File([blob], 'share-picture.jpg', { type: 'image/jpeg' }) : file
+  } catch {
+    return file
+  }
+}
+
 async function squareIcon(file: File): Promise<File> {
-  if (/svg|icon/.test(file.type) || typeof document === 'undefined') return file
+  // SVGs are drawn into the square too - uploads take JPG / PNG only
+  if (typeof document === 'undefined') return file
   try {
     const url = URL.createObjectURL(file)
     const img = await new Promise<HTMLImageElement>((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = fail; i.src = url })

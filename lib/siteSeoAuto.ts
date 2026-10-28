@@ -6,7 +6,9 @@
 // always wins over these.
 import { tidyAllCaps } from '@/lib/cheatSheetContent'
 
-export interface SeoAgent { name?: string | null; brokerage?: string | null; market?: string | null; phone?: string | null; title?: string | null; bio?: string | null }
+export interface SeoAgent { name?: string | null; brokerage?: string | null; market?: string | null; phone?: string | null; title?: string | null; bio?: string | null
+  /** false once the agent's sales volume passes $50M - "sold", not "recently sold" (lib/salesWording). */
+  sales_recent?: boolean | null }
 export interface SeoArea { slug: string; name: string; state?: string | null; median_price?: number | null; active_count?: number | null; school_districts?: string[] | null; summary?: string | null }
 export interface SeoPost { slug: string; title: string; subtitle?: string | null; seo_title?: string | null; meta_description?: string | null; seoTitle?: string | null; metaDescription?: string | null }
 export interface SeoCtx { agent: SeoAgent; towns: string[]; reviews?: { count: number; average: number | null } | null }
@@ -138,6 +140,19 @@ export function autoSectionMeta(key: string, ctx: SeoCtx): SeoMeta | null {
           `Find out what your home is really worth - a free, no-obligation value from ${name || 'a local agent'}, built from real recent sales${where ? ` in ${where}` : ' nearby'}.`,
           `Find out what your home is really worth - a free, no-obligation value built from real recent sales${where ? ` in ${where}` : ' nearby'}.`),
       }
+    case 'sold': {
+      // The agent's own sales page (the starter "Sold" page). Same "recent" rule as everywhere
+      // else: "recently sold" until their volume passes $50M (user, 10/27: was left blank).
+      const recent = ctx.agent.sales_recent !== false
+      const sold = recent ? 'recently sold' : 'sold'
+      return {
+        title: recent ? 'Recently Sold Homes' : 'Homes Sold',
+        description: fit(D,
+          name && `Homes ${name} has ${sold}${inWhere} - the prices they sold for, photos and details. Thinking of selling? Get a free home value.`,
+          name && `Homes ${name} has ${sold}${inWhere} - sale prices, photos and details, plus a free home value for yours.`,
+          `Homes ${sold}${inWhere} - the prices they sold for, photos and details. Thinking of selling? Get a free home value.`),
+      }
+    }
     case 'contact':
       return {
         title: name ? `Contact ${name}` : 'Contact',
@@ -148,6 +163,33 @@ export function autoSectionMeta(key: string, ctx: SeoCtx): SeoMeta | null {
       }
     default:
       return null
+  }
+}
+
+/** A page the agent made themselves (not one of the built-in sections): its own title, and a
+ *  description from the page's own words - the first real sentence or two of its text - else a
+ *  plain line about the agent. Never left blank for the agent to work out (user, 10/27). */
+export function autoPageMeta(page: { title?: string | null; blocks?: { type?: string; hidden?: boolean; data?: Record<string, any> }[] | null }, ctx: SeoCtx): SeoMeta {
+  const title = (page.title || '').trim() || 'Page'
+  const words = (v: unknown) => (typeof v === 'string' ? v.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim() : '')
+  let text = ''
+  for (const b of page.blocks || []) {
+    if (b.hidden) continue
+    const d = b.data || {}
+    for (const k of ['subtitle', 'subheadline', 'body', 'text', 'description', 'content', 'html']) {
+      const w = words(d[k])
+      if (w.length >= 60) { text = w; break }
+    }
+    if (text) break
+  }
+  const who = agentLine(ctx)
+  const where = market(ctx)
+  return {
+    title,
+    description: text ? seoClip(text) : fit(SEO_DESC_MAX,
+      who && where && `${title} - from ${who}, helping buyers and sellers across ${where}.`,
+      who && `${title} - from ${who}, helping buyers and sellers find and sell their homes.`,
+      `${title} - helping buyers and sellers${where ? ` across ${where}` : ''} find and sell their homes.`),
   }
 }
 

@@ -34,6 +34,7 @@ import PropertyQuickViewModal from '@/components/PropertyQuickViewModal'
 import { useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
 import { IncomingBroadcast, TeamMembership } from '@/types'
 import WeekendCalendarCards from '@/components/open-house-manager/WeekendCalendarCards'
+import CardPhotoSwiper from '@/components/property/CardPhotoSwiper'
 import { copyText } from '@/lib/copyText'
 
 const US_STATES = [
@@ -233,6 +234,14 @@ const StatCard = ({ title, value, icon: Icon, accent = 'neutral' }: { title: str
   )
 }
 
+// The card's photos: the listing's own photo list (its first one is the cover, at a bigger size than
+// Image - so Image is only the fallback, else the cover showed twice). Backend sends up to 10.
+function cardPhotos(property: any): string[] {
+  const photos = ((property.Photos || []) as string[]).filter(Boolean).map(u => normalizeImageUrl(u))
+  if (photos.length) return photos.slice(0, 10)
+  return [property.Image ? normalizeImageUrl(property.Image) : '/placeholder.jpg']
+}
+
 // --- Dashboard Property Row ---
 const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, openHouseSchedule, isNewAndUnseen, onRequestToHost, onViewDetail, requestedDates, busyDates, eager = false }: { eager?: boolean, requestedDates?: string[], busyDates?: string[], property: any, openHouseSchedule?: { status: string, scheduled_date?: string | null, scheduled_start_time?: string | null, scheduled_end_time?: string | null, scheduled_opens?: { scheduled_date: string | null, scheduled_start_time: string | null, scheduled_end_time: string | null, hosting_agent_id?: string | null }[] }, isNewAndUnseen: boolean, onRequestToHost: (p: any, prefillDate?: string) => void, onViewDetail: (p: any) => void }) {
   const { user } = useAuth()
@@ -258,25 +267,24 @@ const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, open
           city overlaid on the photo itself with a MapPin, same treatment as the open house
           page cards. */}
       <div className="relative w-full md:w-[188px] aspect-[4/3] md:self-start xl:self-stretch xl:aspect-auto xl:h-auto shrink-0 overflow-hidden rounded-2xl bg-gray-100 dark:bg-[#0B0B0B]">
-        <Image
-          // No photo yet: the site's own placeholder. Prefixing it with the API address pointed it at
-          // a host next/image doesn't allow, which crashed the whole page on a photo-less listing.
-          src={property.Image ? normalizeImageUrl(property.Image) : '/placeholder.jpg'}
+        {/* Flip through the photos right on the card (user, 10/27). No photo yet: the site's own
+            placeholder - prefixing it with the API address pointed it at a host next/image doesn't
+            allow, which crashed the whole page on a photo-less listing. */}
+        <CardPhotoSwiper
+          photos={cardPhotos(property)}
           alt={property.Street}
-          fill
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
           sizes="(max-width: 768px) 100vw, 188px"
           priority={eager}
         />
 
         {/* Price overlay - mobile only, bottom-left over a gradient scrim (city moved into the
-            address line instead). */}
-        <div className="md:hidden absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-black/90 via-black/60 to-transparent px-2.5 pb-2.5 pt-8">
+            address line instead). Touches pass through to the photos underneath. */}
+        <div className="pointer-events-none md:hidden absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-black/90 via-black/60 to-transparent px-2.5 pb-2.5 pt-8">
           <span className="text-lg font-black text-white tracking-tight">{property.Price}</span>
         </div>
 
         {isNewAndUnseen && (
-          <div className="absolute top-2.5 left-2.5">
+          <div className="pointer-events-none absolute top-2.5 left-2.5">
             <span className="bg-[#C9A24D] text-white text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-widest shadow-lg border border-white/10">
               New
             </span>
@@ -296,14 +304,14 @@ const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, open
           </div>
         )}
         {/* Days on Market - top-right of the photo on mobile; desktop keeps its own text row below. */}
-        <div className="md:hidden absolute top-2.5 right-2.5">
+        <div className="pointer-events-none md:hidden absolute top-2.5 right-2.5">
           <span className="flex items-center gap-1 bg-black/60 text-white text-[9px] font-bold px-2 py-1 rounded-lg border border-white/10 whitespace-nowrap">
             <Clock size={10} />
             {property.DaysOnMarket === 0 ? 'New' : `${property.DaysOnMarket}d`}
           </span>
         </div>
         {property.DistanceFromLandmark && (
-          <div className="absolute bottom-2.5 right-2.5">
+          <div className="pointer-events-none absolute bottom-2.5 right-2.5">
             <div className="bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-lg border border-white/10">
               {property.DistanceFromLandmark.toFixed(1)} mi
             </div>
@@ -367,7 +375,8 @@ const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, open
 
         {/* Phones / smaller screens (user, 10/24): when it has an open house, say when, plus the
             same small day cards the wide screen shows - open days to ask for vs taken ones. Tap
-            an open day to ask to host it. (Wide screens keep the big cards in their own column.) */}
+            an open day to ask to host it. The cards show even before a listing has any open house,
+            so a day is one tap away (user, 10/27). (Wide screens keep the big cards in their own column.) */}
         {(isOpenHouseScheduled || upcomingOpens.length > 0) && nextOpen && (
           <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] font-black text-emerald-700 dark:text-emerald-400 xl:hidden">
             <Calendar size={12} className="shrink-0" />
@@ -375,7 +384,7 @@ const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, open
             {laterOpens > 0 && <span className="shrink-0 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">+{laterOpens} more</span>}
           </p>
         )}
-        <div className={`${isOpenHouseScheduled ? 'block' : 'hidden md:block'} mt-1 xl:hidden`}>
+        <div className="mt-1 xl:hidden">
           <WeekendCalendarCards
             opens={upcomingOpens}
             size="md"
@@ -510,6 +519,9 @@ export default function OpenHouseDiscovery() {
   // the listing agents already present in the current discovery results instead.
   const [showAgentDropdown, setShowAgentDropdown] = useState(false)
   const [agentSearch, setAgentSearch] = useState('')
+  // Agents who have listed homes in this agent's areas (Areas towns + the Discovery search area) -
+  // still there after one is picked, unlike agents pulled from the current results.
+  const [areaAgents, setAreaAgents] = useState<{ name: string; office?: string | null; listings: number }[] | null>(null)
 
   const [showCityDropdown, setShowCityDropdown] = useState(false)
   const [citySearch, setCitySearch] = useState('')
@@ -818,6 +830,11 @@ export default function OpenHouseDiscovery() {
   const searchedAgents = agentSearch
     ? knownAgents.filter(name => name.toLowerCase().includes(agentSearch.toLowerCase()))
     : knownAgents
+  // The suggestion list: agents active in this agent's areas when we have them, else the agents in
+  // the current results. Picked agents are listed above it, so they're left out here.
+  const agentSuggestions: { name: string; office?: string | null; listings?: number }[] = (
+    areaAgents && areaAgents.length ? areaAgents : searchedAgents.map(name => ({ name }))
+  ).filter(a => !preferences?.excluded_agents?.includes(a.name))
   const isAgentIncludeMode = preferences?.agent_filter_mode === 'include'
   const agentAccent = isAgentIncludeMode
     ? { border: 'border-emerald-400', pillActive: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', hoverBorder: 'hover:border-emerald-300', ring: 'focus:ring-emerald-300', selected: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500 border-emerald-500', badge: 'bg-emerald-500' }
@@ -934,6 +951,17 @@ export default function OpenHouseDiscovery() {
   }, [searchParams, listings]);
 
   // Debounced Searches
+  useEffect(() => {
+    if (!showAgentDropdown) return
+    const t = setTimeout(async () => {
+      try {
+        const { success, data } = await api.discovery.agents(agentSearch.trim() || undefined)
+        setAreaAgents(success && data?.data ? data.data : [])
+      } catch { setAreaAgents([]) }
+    }, agentSearch ? 250 : 0)
+    return () => clearTimeout(t)
+  }, [showAgentDropdown, agentSearch])
+
   useEffect(() => {
     const searchTimer = setTimeout(async () => {
       if (!brokerageSearch) { setSearchedBrokerages([]); return; }
@@ -1186,13 +1214,14 @@ export default function OpenHouseDiscovery() {
                     </div>
                     </ExpandOnFocus>
 
-                    {/* Find - same row as the search bar on every breakpoint, including mobile. */}
+                    {/* Search - just a magnifying glass (user, 10/27), so the address box gets the room. */}
                     <button
                       onClick={() => addressRef.current?.resolveAddress()}
-                      className="flex flex-none items-center justify-center gap-1.5 bg-[#C9A24D] text-white px-4 py-3.5 rounded-[1.25rem] text-[10px] font-black uppercase tracking-[0.15em] shadow-lg shadow-[#C9A24D]/30 hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap"
+                      aria-label="Search"
+                      title="Search"
+                      className="grid h-11 w-11 flex-none place-items-center bg-[#C9A24D] text-white rounded-2xl shadow-lg shadow-[#C9A24D]/30 hover:scale-[1.04] active:scale-[0.96] transition-all"
                     >
-                      <Search size={13} />
-                      Find
+                      <Search size={17} strokeWidth={2.75} />
                     </button>
                   </div>
 
@@ -1379,7 +1408,7 @@ export default function OpenHouseDiscovery() {
                             </div>
                           </div>
                           <div className="max-h-60 overflow-y-auto p-2">
-                            {(!agentSearch && preferences?.excluded_agents?.length > 0) && (
+                            {(preferences?.excluded_agents?.length > 0) && (
                               <>
                                 {preferences.excluded_agents.map((agent: string, idx: number) => (
                                   <button
@@ -1396,21 +1425,30 @@ export default function OpenHouseDiscovery() {
                                 <div className="my-1 border-t border-gray-50 dark:border-gray-800/50" />
                               </>
                             )}
-                            {searchedAgents.filter(agent => !preferences?.excluded_agents?.includes(agent)).length > 0 ? (
-                              searchedAgents.filter(agent => !preferences?.excluded_agents?.includes(agent)).map((agent, idx) => (
-                                <button
-                                  key={idx}
-                                  onClick={() => toggleAgent(agent)}
-                                  className="w-full text-left px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5"
-                                >
-                                  <div className="w-4 h-4 rounded border mr-3 flex items-center justify-center transition-all border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0B0B0B]" />
-                                  <span className="truncate">{agent}</span>
-                                </button>
-                              ))
-                            ) : (!preferences?.excluded_agents?.length) && (
+                            {agentSuggestions.length > 0 ? (
+                              <>
+                                <p className="px-3 pb-1 pt-1.5 text-[9px] font-black uppercase tracking-widest text-gray-400">
+                                  {areaAgents && areaAgents.length ? (agentSearch ? 'Agents in your areas' : 'Suggested - most listings in your areas') : 'Agents in these results'}
+                                </p>
+                                {agentSuggestions.map((agent) => (
+                                  <button
+                                    key={agent.name}
+                                    onClick={() => toggleAgent(agent.name)}
+                                    className="w-full text-left px-3 py-2 rounded-xl flex items-center transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5"
+                                  >
+                                    <div className="w-4 h-4 shrink-0 rounded border mr-3 flex items-center justify-center transition-all border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0B0B0B]" />
+                                    <span className="min-w-0 flex-1">
+                                      <span className="block truncate text-[10px] font-black uppercase tracking-widest">{agent.name}</span>
+                                      {agent.office && <span className="block truncate text-[10px] font-semibold normal-case tracking-normal text-gray-400">{agent.office}</span>}
+                                    </span>
+                                    {agent.listings ? <span className="ml-2 shrink-0 rounded-md bg-gray-100 px-1.5 py-0.5 text-[9px] font-black text-gray-500 dark:bg-white/5 dark:text-gray-400">{agent.listings} {agent.listings === 1 ? 'listing' : 'listings'}</span> : null}
+                                  </button>
+                                ))}
+                              </>
+                            ) : (
                               <div className="px-3 py-6 text-center">
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                                  {agentSearch ? 'No matches found' : knownAgents.length === 0 ? 'No agents in current results yet' : 'Start typing to search'}
+                                  {agentSearch ? 'No matches found' : areaAgents === null ? 'Loading agents...' : 'Start typing to search'}
                                 </p>
                               </div>
                             )}

@@ -1939,3 +1939,22 @@ div[role="button"]:active {
 @media (pointer: coarse) {
   :is(button, a, label, input, select, textarea, [role='button']) { touch-action: manipulation; }
 }
+
+/* IDX editor: the Publish button breathes while there's something to put live. */
+.ohp-publish-glow { animation: ohp-publish-glow 1.8s ease-in-out infinite; }
+@keyframes ohp-publish-glow {
+  0%, 100% { box-shadow: 0 10px 24px -10px rgba(201, 162, 77, .65), 0 0 0 0 rgba(201, 162, 77, .55); }
+  50% { box-shadow: 0 10px 30px -8px rgba(201, 162, 77, .9), 0 0 0 7px rgba(201, 162, 77, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .ohp-publish-glow { animation: none; box-shadow: 0 0 0 3px rgba(201, 162, 77, .45); } }
+
+/* Listing photos on cards: Bright MLS stamps its badge in the bottom-left corner of every photo.
+   Anchored to the top and zoomed a touch (the `scale` property, so it stacks with any hover zoom
+   on `transform`), the bottom ~12% falls outside the card - the badge with it. Images and
+   background-photo layers alike; the parent must clip (overflow-hidden). */
+.ohp-mls-crop {
+  scale: 1.14;
+  transform-origin: 50% 0 !important;
+  object-position: 50% 0 !important;
+  background-position: 50% 0 !important;
+}

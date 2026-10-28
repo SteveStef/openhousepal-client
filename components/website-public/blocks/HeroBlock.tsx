@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, Bath, BedDouble, DollarSign, KeyRound, MapPin, Mouse, Ruler, Search, Sparkles, TrendingUp } from 'lucide-react'
 import { SiteTheme } from '../types'
-import { fontClass } from './fontClass'
+import { fontClass, headingClass } from './fontClass'
 import { cleanStreet, fullPrice, listedAgo } from '../listingFormat'
 import SitePhoto from '../SitePhoto'
 import { IMG, sizedBg } from '@/lib/siteImage'
@@ -142,7 +142,7 @@ export default function HeroBlock({ data, theme, siteId, basePrefix = '' }: { da
               <span className="relative flex h-2 w-2"><span className="absolute inset-0 animate-ping rounded-full opacity-60" style={{ backgroundColor: 'var(--site-accent)' }} /><span className="relative h-2 w-2 rounded-full" style={{ backgroundColor: 'var(--site-accent)' }} /></span>
               {eyebrowText}
             </span>
-            <h1 className="ohp-site-heading mt-6 text-[2.8rem] font-extrabold leading-[1.02] tracking-tight sm:text-6xl lg:text-[4.6rem]" style={{ color: 'var(--site-heading)' }}>
+            <h1 className={`${headingClass(theme.heading_font)} mt-6 text-[2.8rem] font-extrabold leading-[1.02] tracking-tight sm:text-6xl lg:text-[4.6rem]`} style={{ color: 'var(--site-heading)' }}>
               {headlinePlain.length > 0 && <>{headlinePlain.join(' ')} </>}
               <span className="relative whitespace-nowrap" style={{ color: 'var(--site-accent)' }}>
                 {headlineGold.join(' ')}

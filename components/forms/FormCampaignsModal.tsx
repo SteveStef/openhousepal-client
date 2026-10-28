@@ -15,6 +15,8 @@ import { openHousePalPublicUrl, websitePublicHostname, websitePublicUrl } from '
 import FormQrCode from '@/components/forms/FormQrCode'
 import { FormStatsContent } from '@/components/forms/FormStatsModal'
 import { ShowcaseFormInfoBlock } from './ShowcaseFormInfo'
+import FormPlacementsNotice from './FormPlacementsNotice'
+import { useAuth } from '@/contexts/AuthContext'
 import UnfinishedResponses from '@/components/forms/UnfinishedResponses'
 import FormResultsModal, { SubmissionDetail } from '@/components/forms/FormResultsModal'
 import ScopePicker from '@/components/forms/ScopePicker'
@@ -266,6 +268,7 @@ export default function FormCampaignsModal({
   initialView?: 'unfinished'
 }) {
   const { showToast } = useToast()
+  const { user } = useAuth()
   const [tab, setTab] = useState<Tab>(initialView ? 'results' : 'campaigns')
   // Results tab: submitted responses, or people who started but never pressed Submit.
   const [resultsView, setResultsView] = useState<'submitted' | 'new' | 'unfinished'>(initialView || 'submitted')
@@ -463,6 +466,8 @@ export default function FormCampaignsModal({
         </div>
         {/* When this form builds the person their own Showcase (only the 3 premade ones that do). */}
         <ShowcaseFormInfoBlock formType={form.form_type} />
+        {/* A premade form: everywhere it opens (user, 10/27) - a line here, the full list in the editor. */}
+        {form.form_type !== 'custom' && <div className="max-h-[40vh] shrink-0 overflow-y-auto"><FormPlacementsNotice formType={form.form_type} planTier={user?.plan_tier} compact /></div>}
 
         <div className="flex shrink-0 gap-1 border-b border-gray-100 bg-white px-5 pt-2 dark:border-gray-800 dark:bg-[#0B0B0B]">
           {([

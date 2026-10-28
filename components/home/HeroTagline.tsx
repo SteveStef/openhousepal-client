@@ -24,7 +24,7 @@ export default function HeroTagline() {
       <AnimatePresence mode="wait" initial={false}>
         <motion.span
           key={i}
-          className="relative inline-flex flex-wrap justify-center gap-x-[0.3em] rounded-md px-[0.35em] py-[0.08em] font-semibold text-[#0B0B0B] dark:text-white"
+          className="relative isolate inline-flex flex-wrap justify-center gap-x-[0.3em] rounded-md px-[0.35em] py-[0.08em] font-semibold text-[#0B0B0B] dark:text-white"
           initial="hidden"
           animate="shown"
           exit="gone"
@@ -33,25 +33,27 @@ export default function HeroTagline() {
           {/* Gold highlight that wipes in behind the words, and wipes out to the right on exit. */}
           <motion.span
             aria-hidden
-            className="absolute inset-0 -z-10 origin-left rounded-md bg-gradient-to-r from-[#C9A24D]/35 via-[#e8c97a]/30 to-[#C9A24D]/25"
+            className="absolute inset-0 z-0 origin-left rounded-md bg-gradient-to-r from-[#C9A24D]/35 via-[#e8c97a]/30 to-[#C9A24D]/25"
             variants={{
               hidden: { scaleX: 0, opacity: 1 },
               shown: { scaleX: 1, opacity: 1, transition: { duration: reduce ? 0 : 0.7, delay: reduce ? 0 : 0.25, ease: [0.22, 1, 0.36, 1] } },
               gone: { scaleX: 0, opacity: 0, originX: 1, transition: { duration: reduce ? 0 : 0.45, ease: [0.55, 0, 0.75, 0.25] } },
             }}
           />
-          {/* A glint of light that passes through as the line leaves. */}
+          {/* A glint of light that passes through as the line leaves - kept inside the highlight's
+              own box, so it never shows as a dark bar out past the words (phones, user 10/27). */}
           {!reduce && (
-            <motion.span
-              aria-hidden
-              className="pointer-events-none absolute inset-y-0 -left-1/4 w-1/4 -skew-x-12 bg-gradient-to-r from-transparent via-white/80 to-transparent dark:via-[#fff3cf]/40"
-              variants={{ hidden: { x: '0%', opacity: 0 }, shown: { x: '0%', opacity: 0 }, gone: { x: '560%', opacity: [0, 1, 0], transition: { duration: 0.55, ease: 'easeInOut' } } }}
-            />
+            <span aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-md">
+              <motion.span
+                className="absolute inset-y-0 -left-1/4 w-1/4 -skew-x-12 bg-gradient-to-r from-transparent via-white/80 to-transparent dark:via-[#fff3cf]/40"
+                variants={{ hidden: { x: '0%', opacity: 0 }, shown: { x: '0%', opacity: 0 }, gone: { x: '560%', opacity: [0, 1, 0], transition: { duration: 0.55, ease: 'easeInOut' } } }}
+              />
+            </span>
           )}
           {words.map((w, k) => (
             <motion.span
               key={k}
-              className="inline-block"
+              className="relative z-10 inline-block"
               variants={{
                 hidden: { opacity: 0, y: reduce ? 0 : 14 },
                 shown: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } },

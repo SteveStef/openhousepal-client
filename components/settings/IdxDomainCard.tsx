@@ -10,7 +10,7 @@
 // LinkDomainShortcut is the one-line version the website builder's Domain tab shows.
 import { ReactNode, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowUpRight, CheckCircle2, Globe, Link2, Loader2, PowerOff, Star } from 'lucide-react'
+import { ArrowUpRight, CheckCircle2, Globe, Link2, Loader2, Lock, PowerOff, Star } from 'lucide-react'
 import api from '@/lib/api-service'
 import { useSaveTracker } from '@/components/ui/SaveStatus'
 import DomainHealthBanner from '@/components/DomainHealthBanner'
@@ -242,16 +242,23 @@ export function LinkDomainShortcut() {
   const { state } = useLinkDomain()
   if (!state) return null
   const label = state.site_enabled === false ? 'IDX site: off' : state.use_own_domain ? 'Own domain: on' : state.has_custom_domain ? 'Own domain: off' : 'Default address'
+  const own = state.site_enabled !== false && !!state.use_own_domain
   return (
     // Phones: stacked - label + status on one line, the full address under it, a real Change pill
     // (owner, 10/24: the one-row version wrapped the label and cut the domain off at 390px).
-    <Link href="/settings#idx-domain" className="group mb-4 flex flex-col gap-2.5 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left shadow-sm transition-colors hover:border-[#C9A24D] dark:border-gray-800 dark:bg-[#151517] sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+    <Link href="/settings#idx-domain" className={`group mb-4 flex flex-col gap-2.5 rounded-2xl border bg-white px-4 py-3 ${own ? 'border-emerald-300 dark:border-emerald-500/35' : 'border-gray-200'} text-left shadow-sm transition-colors hover:border-[#C9A24D] ${own ? '' : 'dark:border-gray-800'} dark:bg-[#151517] sm:flex-row sm:items-center sm:justify-between sm:gap-3`}>
       <span className="min-w-0">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-widest text-gray-400">Your links use</span>
-          <span className="whitespace-nowrap rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-500 dark:bg-white/10 dark:text-gray-300">{label}</span>
+          {/* The own domain in use reads as live - green, like its card below (user, 10/27: a grey
+              "Own domain: on" didn't look on) */}
+          {own ? (
+            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-500 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" /> Own domain · live</span>
+          ) : (
+            <span className="whitespace-nowrap rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-500 dark:bg-white/10 dark:text-gray-300">{label}</span>
+          )}
         </span>
-        <span className="mt-1 block break-all font-mono text-[13px] font-bold leading-snug text-[#8b7355] dark:text-[#d7b974]">{hostOf(state.current_base_url)}</span>
+        <span className={`mt-1 flex items-center gap-1.5 break-all font-mono text-[13px] font-bold leading-snug ${own ? 'text-emerald-700 dark:text-emerald-300' : 'text-[#8b7355] dark:text-[#d7b974]'}`}>{own && <Lock className="h-3.5 w-3.5 shrink-0" />}{hostOf(state.current_base_url)}</span>
       </span>
       <span className="inline-flex shrink-0 items-center justify-center gap-1 self-start rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-black uppercase tracking-wide text-gray-600 transition group-hover:border-[#C9A24D] group-hover:text-[#111827] dark:border-gray-700 dark:text-gray-300 dark:group-hover:text-white sm:self-center">
         Change <ArrowUpRight className="h-3.5 w-3.5" />

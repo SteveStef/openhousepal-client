@@ -194,7 +194,9 @@ export const wrapRealHtmlForPreview = (html: string) => `<!DOCTYPE html><html><h
 <script>
   function reportHeight() {
     var h = document.body.scrollHeight;
-    window.parent.postMessage({ type: 'signature-real-preview-height', height: h }, '*');
+    var t = document.querySelector('table');
+    var w = t ? Math.ceil(t.getBoundingClientRect().width) : 0;
+    window.parent.postMessage({ type: 'signature-real-preview-height', height: h, width: w }, '*');
   }
   window.addEventListener('load', reportHeight);
   if (window.ResizeObserver) new ResizeObserver(reportHeight).observe(document.body);

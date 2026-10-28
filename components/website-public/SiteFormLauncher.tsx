@@ -49,7 +49,8 @@ export default function SiteFormLauncher({ forms, hubSlug, siteId }: { forms: Si
           return
         } catch { /* fall through to the full form */ }
       }
-      const form = pickSiteForm(forms, el.dataset.ohpForm || '')
+      // A section can ask for one exact form (data-ohp-form-slug - the Lead Form section), else a kind.
+      const form = (el.dataset.ohpFormSlug && forms.find(f => f.slug === el.dataset.ohpFormSlug)) || pickSiteForm(forms, el.dataset.ohpForm || '')
       if (!form) return
       e.preventDefault()
       // A form button inside a clickable card (a home card's "Ask") must not also open the card.

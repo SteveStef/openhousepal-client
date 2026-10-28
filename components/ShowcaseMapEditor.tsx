@@ -722,6 +722,10 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
 
     // Turning off Draw and Place-Center are mutually exclusive map click-modes.
     if (isPlacingCenter) togglePlacingCenter()
+    // Straight to the map, ready to trace (user, 10/27): a phone flips from the criteria tab to the
+    // map, and a computer showing just the home grid brings the map back beside it.
+    if (mobileTab !== 'map') setMobileTab('map')
+    if (viewMode === 'grid') setViewMode('split')
 
     drawPathRef.current = []
     livePolygonRef.current?.setMap(null)

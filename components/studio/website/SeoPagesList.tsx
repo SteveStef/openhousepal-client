@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, Check, ChevronDown, ExternalLink, FileText, Home, LayoutGrid, MapPin, RotateCcw } from 'lucide-react'
 import type { SitePage, SiteSeo } from '@/types'
 import type { SeoPagesData } from '@/lib/api-service'
-import { autoListingMeta, autoPostMeta, autoSectionMeta, autoTownMeta, seoChecks, SEO_DESC_MAX, SEO_TITLE_MAX, withSiteName, type SeoCtx } from '@/lib/siteSeoAuto'
+import { autoListingMeta, autoPageMeta, autoPostMeta, autoSectionMeta, autoTownMeta, seoChecks, SEO_DESC_MAX, SEO_TITLE_MAX, withSiteName, type SeoCtx } from '@/lib/siteSeoAuto'
 
 // IDX editor -> Google tab -> "Every page on Google": every page Google can find on the site -
 // the main pages, each neighborhood, each article and each Featured home - with exactly the
@@ -47,12 +47,13 @@ export default function SeoPagesList({ seo, onChange, pages, data, siteName, foc
     if (!data) return []
     const main: Row[] = [
       ...(['search', 'properties', 'neighborhoods', 'blog'] as const).map(k => ({ key: k, path: k })),
-      ...pages.filter(p => !p.is_home && p.slug && !['about', 'contact'].includes(p.slug)).map(p => ({ key: p.slug, path: p.slug, title: p.title })),
+      ...pages.filter(p => !p.is_home && p.slug && !['about', 'contact'].includes(p.slug)).map(p => ({ key: p.slug, path: p.slug, title: p.title, page: p })),
       { key: 'home-value', path: 'home-value' },
       ...(data.reviews ? [{ key: 'testimonials', path: 'testimonials' }] : []),
       { key: 'about', path: 'about' }, { key: 'contact', path: 'contact' },
     ].map((m: any) => {
-      const auto = autoSectionMeta(m.key, ctx) || { title: m.title || m.key, description: '' }
+      // a page the agent made gets wording from its own text, never a blank (autoPageMeta)
+      const auto = autoSectionMeta(m.key, ctx) || autoPageMeta(m.page || { title: m.title || m.key }, ctx)
       return { key: m.key, kind: 'main' as Kind, label: auto.title, path: m.path, crumbs: [auto.title], auto, editable: true }
     })
     const towns: Row[] = data.areas.map(a => {

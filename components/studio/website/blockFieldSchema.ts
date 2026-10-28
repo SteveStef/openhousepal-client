@@ -21,7 +21,12 @@ export const BLOCK_TYPE_LABELS: Record<SiteBlockType, string> = Object.fromEntri
 
 // Every data-backed section lets the agent pick how many items show; which items show is always
 // automatic (the hidden `source_mode` from the data model is left untouched - no UI for it).
-const LIMIT_FIELD = (what: string, placeholder = '6'): BlockField => ({ key: 'limit', label: `How many ${what} to show`, kind: 'number', placeholder })
+// The placeholder is what a blank box really gives (backend content_adapters._DEFAULT_LIMITS), and
+// `max` is the most the section can lay out - higher numbers used to do nothing (10/27 audit).
+const LIMIT_FIELD = (what: string, placeholder = '6', max?: number): BlockField => ({
+  key: 'limit', label: `How many ${what} to show`, kind: 'number', placeholder,
+  hint: `Leave blank for ${placeholder}.${max ? ` Up to ${max}.` : ''}`,
+})
 
 export const BLOCK_FIELD_SCHEMA: Record<SiteBlockType, BlockField[]> = {
   hero: [
@@ -72,7 +77,7 @@ export const BLOCK_FIELD_SCHEMA: Record<SiteBlockType, BlockField[]> = {
     { key: 'eyebrow', label: 'Small line above it', kind: 'text', placeholder: 'Featured' },
     { key: 'subtext', label: 'A line underneath (optional)', kind: 'textarea', placeholder: 'A curated selection of exceptional homes available now.' },
     // Which homes show always follows the Featured tab (one source of truth); this only sets how many.
-    LIMIT_FIELD('homes', '9'),
+    LIMIT_FIELD('homes', '6', 9),
   ],
   recent_sales: [
     { key: 'headline', label: 'Headline', kind: 'text', placeholder: 'Recently Sold' },
@@ -80,11 +85,11 @@ export const BLOCK_FIELD_SCHEMA: Record<SiteBlockType, BlockField[]> = {
   ],
   open_houses: [
     { key: 'headline', label: 'Headline', kind: 'text', placeholder: 'Upcoming Open Houses' },
-    LIMIT_FIELD('open houses'),
+    LIMIT_FIELD('open houses', '4'),
   ],
   blog_posts: [
     { key: 'headline', label: 'Headline', kind: 'text', placeholder: 'Latest Articles' },
-    LIMIT_FIELD('articles', '3'),
+    LIMIT_FIELD('articles', '3', 4),
   ],
   form: [
     { key: 'form_id', label: 'Which form', kind: 'form_picker', hint: 'The general version of the form - answers go to your Leads.' },
@@ -98,13 +103,13 @@ export const BLOCK_FIELD_SCHEMA: Record<SiteBlockType, BlockField[]> = {
     { key: 'headline', label: 'Headline', kind: 'text', placeholder: 'Explore Neighborhoods' },
     { key: 'eyebrow', label: 'Small line above it', kind: 'text', placeholder: 'Neighborhoods We Serve' },
     { key: 'subtext', label: 'A line underneath (optional)', kind: 'textarea', placeholder: 'Live inventory, price ranges, schools and local context at a glance.' },
-    LIMIT_FIELD('neighborhoods', '10'),
+    LIMIT_FIELD('neighborhoods', '6'),
   ],
   newly_listed: [
     { key: 'headline', label: 'Headline', kind: 'text', placeholder: 'Newly Listed' },
     { key: 'eyebrow', label: 'Small line above it', kind: 'text', placeholder: 'Just Listed' },
     { key: 'subtext', label: 'A line underneath (optional)', kind: 'textarea', placeholder: 'The latest exceptional properties to hit the market.' },
-    LIMIT_FIELD('homes'),
+    LIMIT_FIELD('homes', '8'),
   ],
   // Published OpenHousePal reviews (client-submitted + imported from Google), newest first.
   testimonials: [

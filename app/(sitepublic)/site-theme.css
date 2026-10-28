@@ -57,7 +57,7 @@
 
   background-color: var(--site-bg);
   color: var(--site-ink);
-  font-family: var(--font-site-body), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--site-text-font, var(--font-site-body)), ui-sans-serif, system-ui, sans-serif;
   color-scheme: light;
 }
 
@@ -99,6 +99,10 @@
 }
 
 .ohp-site-body {
+  font-family: var(--site-text-font, var(--font-site-body)), ui-sans-serif, system-ui, sans-serif;
+}
+/* A plain sans whatever the Body font is - a "Sans" Heading font choice (blocks/fontClass). */
+.ohp-site-sans {
   font-family: var(--font-site-body), ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -111,6 +115,16 @@
 .ohp-site .ohp-site-heading-serif,
 .ohp-site[data-template="default"] .ohp-site-heading-serif {
   font-family: var(--font-site-heading), Georgia, serif;
+  letter-spacing: 0;
+}
+/* The agent's other Heading font choices, on either look (blocks/fontClass.headingClass). */
+.ohp-site .ohp-site-heading-sans,
+.ohp-site[data-template="default"] .ohp-site-heading-sans {
+  font-family: var(--font-site-body), ui-sans-serif, system-ui, sans-serif;
+}
+.ohp-site .ohp-site-heading-mono,
+.ohp-site[data-template="default"] .ohp-site-heading-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   letter-spacing: 0;
 }
 
@@ -524,13 +538,4 @@ html.ohp-cv-off .ohp-town-section { content-visibility: visible; }
 .ohp-site .pp .bg-\[var\(--pp-gold\)\].text-\[color\:var\(--pp-ink\)\] { color: var(--site-on-accent) !important; }
 .ohp-site[data-template="luxe"] .pp .bg-\[var\(--pp-gold\)\].text-\[color\:var\(--pp-ink\)\] { color: var(--pp-ink) !important; }
 
-/* Listing photos on cards: Bright MLS stamps its badge in the bottom-left corner of every photo.
-   Anchored to the top and zoomed a touch (the `scale` property, so it stacks with any hover zoom
-   on `transform`), the bottom ~12% falls outside the card - the badge with it. Images and
-   background-photo layers alike; the parent must clip (overflow-hidden). */
-.ohp-mls-crop {
-  scale: 1.14;
-  transform-origin: 50% 0 !important;
-  object-position: 50% 0 !important;
-  background-position: 50% 0 !important;
-}
+/* .ohp-mls-crop (hides the Bright MLS photo badge) lives in app/globals.css - used app-wide. */

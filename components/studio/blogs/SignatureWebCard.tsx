@@ -45,9 +45,13 @@ const SOCIAL: Record<string, { label: string; color: string; path: React.ReactNo
   tiktok: { label: 'TikTok', color: '#111827', path: <><ellipse cx="9.4" cy="17.4" rx="3.4" ry="2.9" fill="currentColor" stroke="none" /><rect x="11.6" y="3.8" width="1.8" height="13.6" rx="0.9" fill="currentColor" stroke="none" /><path d="M13.4 3.8 A3.1 3.1 0 0 1 17.3 6.6" /></> },
 }
 
+// One home per slide - a recent sale too, one at a time, big, like a listing (user, 10/27: three
+// small sold tiles side by side read cramped on a wide card).
 type Slide =
   | { kind: 'listing'; item: any; href: string }
-  | { kind: 'sales'; items: { image: string; city: string; price: string }[]; href: string }
+  | { kind: 'sale'; item: { image: string; city: string; price: string }; href: string }
+const saleSlides = (items: { image: string; city: string; price: string }[] | undefined, href: string): Slide[] =>
+  (items || []).map(item => ({ kind: 'sale' as const, item, href }))
 
 export default function SignatureWebCard({ input, onForm, formPaths, followPage = true }: {
   input: Input
@@ -77,11 +81,11 @@ export default function SignatureWebCard({ input, onForm, formPaths, followPage 
   const slides: Slide[] = useMemo(() => {
     if (rotation) {
       const out: Slide[] = rotation.listings.map((it: any) => ({ kind: 'listing' as const, item: it, href: it.href || rotation.listingsHref || '' }))
-      if (rotation.sales?.length) out.splice(Math.max(0, Math.min(rotation.salesAt ?? out.length, out.length)), 0, { kind: 'sales', items: rotation.sales, href: rotation.salesHref || '' })
+      if (rotation.sales?.length) out.splice(Math.max(0, Math.min(rotation.salesAt ?? out.length, out.length)), 0, ...saleSlides(rotation.sales, rotation.salesHref || ''))
       return out
     }
     if (listing) return [{ kind: 'listing', item: listing, href: listingHref || listing.href || '' }]
-    if (saleCards?.length) return [{ kind: 'sales', items: saleCards, href: salesHref || '' }]
+    if (saleCards?.length) return saleSlides(saleCards, salesHref || '')
     return []
   }, [rotation, listing, saleCards, listingHref, salesHref])
   const [at, setAt] = useState(0)
@@ -108,7 +112,6 @@ export default function SignatureWebCard({ input, onForm, formPaths, followPage 
   const initials = (identity.name || 'A').split(' ').slice(0, 2).map((p: string) => p[0]?.toUpperCase() || '').join('')
   const isForm = (url: string) => { try { return formPaths.includes(new URL(url, window.location.href).pathname.replace(/\/$/, '')) } catch { return false } }
   const hasSide = slides.length > 0 || (!!stats && !statsStrip)
-  const soldWord = salesWords('Recently sold', salesRecent !== false)
   // Two columns once the card itself is wide enough (it sits in columns of every width), else stacked.
   const rootRef = useRef<HTMLDivElement>(null)
   const [wide, setWide] = useState(false)
@@ -140,7 +143,13 @@ export default function SignatureWebCard({ input, onForm, formPaths, followPage 
             <div className="min-w-0">
               {identity.name && (
                 <p className="flex items-center gap-1.5 text-[22px] font-black leading-[1.1] tracking-[-0.01em] sm:text-[27px]" style={{ fontFamily }}>
-                  <span className="min-w-0 break-words">{identity.name}{identity.showVerifiedBadge && <BadgeCheck className="ml-1.5 inline-block h-5 w-5 -translate-y-0.5 align-middle text-white" style={{ fill: "#1685e5" }} aria-label="Verified" />}</span>
+                  {/* The checkmark rides with the last word, so a long name never leaves it alone on
+                      its own line (user, 10/27). */}
+                  <span className="min-w-0 break-words">{(() => {
+                    const words = String(identity.name).trim().split(/\s+/)
+                    const last = words.pop()
+                    return <>{words.length ? `${words.join(' ')} ` : ''}<span className="whitespace-nowrap">{last}{identity.showVerifiedBadge && <BadgeCheck className="ml-1.5 inline-block h-5 w-5 -translate-y-0.5 align-middle text-white" style={{ fill: "#1685e5" }} aria-label="Verified" />}</span></>
+                  })()}</span>
                 </p>
               )}
               {subLine.length > 0 && (
@@ -195,16 +204,18 @@ export default function SignatureWebCard({ input, onForm, formPaths, followPage 
 
           {/* the agent's buttons (My Agent Hub, their forms...) */}
           {buttons.length > 0 && (
-            <div className={`mt-3 grid gap-2 ${buttons.length > 1 && wide ? 'grid-cols-2' : ''}`}>
+            // One per row on every size - side by side cut long ones off ("What's My Home Worth?"),
+            // user 10/27. The label wraps rather than being trimmed.
+            <div className="mt-3 grid gap-2">
               {buttons.map((b, i) => {
                 const label = b.label.replace(/[→]/g, '').trim()
                 const first = i === 0
                 return (
                   <a key={`${b.label}-${i}`} href={b.url || '#'} target="_blank" rel="noopener"
                     onClick={e => { if (b.url && isForm(b.url)) { e.preventDefault(); onForm(b.url, label) } }}
-                    className={`group flex min-h-[50px] items-center justify-center gap-2 rounded-2xl px-4 text-center text-[13px] font-black transition-transform hover:-translate-y-0.5 active:scale-[0.98] ${wide && buttons.length > 1 && buttons.length % 2 === 1 && i === buttons.length - 1 ? 'col-span-2' : ''}`}
+                    className="group flex min-h-[48px] items-center justify-center gap-2 rounded-2xl px-4 py-2 text-center text-[13px] font-black leading-tight transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
                     style={first ? { background: fill, color: onAccent, boxShadow: `0 14px 28px -16px ${accent}` } : { border: `1.5px solid ${accent}`, color: ink }}>
-                    <span className="min-w-0 truncate">{label}</span>
+                    <span className="min-w-0 text-balance">{label}</span>
                     <ArrowUpRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
                   </a>
                 )
@@ -214,7 +225,7 @@ export default function SignatureWebCard({ input, onForm, formPaths, followPage 
 
           {/* socials */}
           {socials.length > 0 && (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className={`mt-4 flex flex-wrap items-center gap-2 ${wide ? '' : 'justify-center'}`}>
               {socials.map(s => {
                 const look = SOCIAL[s.network]
                 if (!look) return null
@@ -232,32 +243,38 @@ export default function SignatureWebCard({ input, onForm, formPaths, followPage 
           {stats && statsStrip && <Stats stats={stats} accent={accent} line={line} soft={soft} muted={muted} href={salesHref} className="mt-5" />}
         </div>
 
-        {/* ---- their homes: the featured listing rotation / recent sales + their numbers */}
+        {/* ---- their numbers, then their homes (user, 10/27: numbers first - on a phone they used
+            to come last, under the homes). One home at a time - photo filling the column on a wide
+            card, its details and the arrows under it. */}
         {hasSide && (
           <div className={`flex min-w-0 flex-col gap-3 p-3 sm:p-4 ${wide ? "border-l" : "border-t"}`} style={{ borderColor: line }}
             onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+            {stats && !statsStrip && <Stats stats={stats} accent={accent} line={line} soft={soft} muted={muted} href={salesHref} />}
             {slide && (
-              <div className="relative">
-                <AnimatePresence mode="wait" initial={false}>
+              <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[22px]" style={{ background: soft, border: `1px solid ${line}` }}>
+                <AnimatePresence mode="popLayout" initial={false}>
                   <motion.a key={at} href={slide.href || undefined} target="_blank" rel="noopener"
-                    initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -18 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-                    className="block overflow-hidden rounded-[22px]" style={{ background: soft, border: `1px solid ${line}` }}>
-                    {slide.kind === 'listing' ? <ListingSlide item={slide.item} accent={accent} muted={muted} salesRecent={salesRecent !== false} />
-                      : <SalesSlide items={slide.items} accent={accent} label={soldWord} />}
+                    initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+                    className="flex min-h-0 flex-1 flex-col">
+                    <HomeSlide slide={slide} accent={accent} muted={muted} salesRecent={salesRecent !== false} tall={wide} />
                   </motion.a>
                 </AnimatePresence>
                 {slides.length > 1 && (
-                  <div className="mt-2.5 flex items-center justify-between px-1">
-                    <div className="flex gap-1.5">
-                      {slides.map((_, k) => (
-                        <button key={k} type="button" aria-label={`Show ${k + 1}`} onClick={() => setAt(k)}
-                          className="h-1.5 rounded-full transition-all duration-300" style={{ width: k === at % slides.length ? 20 : 6, background: k === at % slides.length ? accent : line }} />
-                      ))}
+                  <div className="flex items-center justify-between gap-3 px-4 pb-3">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      {slides.map((_, k) => {
+                        const cur = at % slides.length
+                        const start = Math.min(Math.max(0, cur - 3), Math.max(0, slides.length - 7))
+                        if (k < start || k >= start + 7) return null
+                        return <button key={k} type="button" aria-label={`Show ${k + 1}`} onClick={() => { setPaused(true); setAt(k) }}
+                          className="h-1.5 rounded-full transition-all duration-300" style={{ width: k === cur ? 20 : 6, background: k === cur ? accent : line }} />
+                      })}
                     </div>
-                    <div className="flex gap-1.5">
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <span className="mr-1 text-[11px] font-black tabular-nums" style={{ color: muted }}>{(at % slides.length) + 1} / {slides.length}</span>
                       {[[-1, ChevronLeft], [1, ChevronRight]].map(([d, Icon]: any) => (
                         <button key={d} type="button" aria-label={d < 0 ? 'Previous' : 'Next'} onClick={() => { setPaused(true); setAt(i => (i + d + slides.length) % slides.length) }}
-                          className="grid h-9 w-9 place-items-center rounded-full transition-colors" style={{ background: soft, border: `1px solid ${line}` }}>
+                          className="grid h-8 w-8 place-items-center rounded-full transition-transform hover:scale-105 active:scale-95" style={{ background: dark ? 'rgba(255,255,255,.08)' : '#fff', border: `1px solid ${line}` }}>
                           <Icon className="h-4 w-4" />
                         </button>
                       ))}
@@ -266,7 +283,6 @@ export default function SignatureWebCard({ input, onForm, formPaths, followPage 
                 )}
               </div>
             )}
-            {stats && !statsStrip && <Stats stats={stats} accent={accent} line={line} soft={soft} muted={muted} href={salesHref} />}
           </div>
         )}
       </div>
@@ -274,44 +290,29 @@ export default function SignatureWebCard({ input, onForm, formPaths, followPage 
   )
 }
 
-function ListingSlide({ item, accent, muted, salesRecent }: { item: any; accent: string; muted: string; salesRecent: boolean }) {
-  const c = chip(item.status)
-  const kicker = c.label === 'Coming Soon' ? 'Coming soon' : c.label === 'Sold' ? salesWords('Recent sale', salesRecent) : /just listed/i.test(item.kicker || '') ? item.kicker : 'Featured listing'
-  const specs = [item.beds ? `${item.beds} bd` : '', item.baths ? `${item.baths} ba` : '', item.sqft ? `${Number(item.sqft).toLocaleString()} sqft` : '', !item.sqft && item.acres ? `${item.acres} ac` : ''].filter(Boolean)
+function HomeSlide({ slide, accent, muted, salesRecent, tall }: { slide: Slide; accent: string; muted: string; salesRecent: boolean; tall: boolean }) {
+  const sale = slide.kind === 'sale'
+  const item: any = slide.item
+  const c = sale ? { label: 'Sold', bg: '#e11d48' } : chip(item.status)
+  const kicker = sale ? salesWords('Recently sold', salesRecent)
+    : c.label === 'Coming Soon' ? 'Coming soon' : c.label === 'Sold' ? salesWords('Recent sale', salesRecent) : /just listed/i.test(item.kicker || '') ? item.kicker : 'Featured listing'
+  const specs = sale ? [] : [item.beds ? `${item.beds} bd` : '', item.baths ? `${item.baths} ba` : '', item.sqft ? `${Number(item.sqft).toLocaleString()} sqft` : '', !item.sqft && item.acres ? `${item.acres} ac` : ''].filter(Boolean)
+  const title = sale ? item.city : item.address
+  const sub = sale ? '' : [item.location, specs.join(' · ')].filter(Boolean).join('  ·  ')
   return (
     <>
-      <div className="relative aspect-[16/10] w-full overflow-hidden bg-black/10">
-        {item.image && <img src={item.image} alt={item.address} className="h-full w-full object-cover object-left-bottom" loading="lazy" />}
+      <div className={`relative w-full overflow-hidden bg-black/10 ${tall ? 'min-h-[200px] flex-1' : 'aspect-[16/10]'}`}>
+        {item.image && <img src={item.image} alt={title || ''} className="ohp-mls-crop absolute inset-0 h-full w-full object-cover object-left-bottom" loading="lazy" />}
         <span className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white shadow" style={{ background: c.bg }}>{c.label}</span>
-        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/55 to-transparent" />
-        {item.price && <span className="absolute bottom-3 left-3 text-[22px] font-black leading-none text-white drop-shadow">{item.price}</span>}
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/60 to-transparent" />
+        {item.price && <span className="absolute bottom-3 left-3 text-[24px] font-black leading-none text-white drop-shadow">{item.price}</span>}
       </div>
-      <div className="px-4 py-3">
+      <div className="px-4 pb-2 pt-3">
         <p className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: accent }}>{kicker}</p>
-        <p className="mt-0.5 truncate text-[15px] font-black">{item.address}</p>
-        <p className="truncate text-[12.5px] font-semibold" style={{ color: muted }}>{[item.location, specs.join(' · ')].filter(Boolean).join('  ·  ')}</p>
+        {title && <p className="mt-0.5 truncate text-[15px] font-black">{title}</p>}
+        {sub && <p className="truncate text-[12.5px] font-semibold" style={{ color: muted }}>{sub}</p>}
       </div>
     </>
-  )
-}
-
-function SalesSlide({ items, accent, label }: { items: { image: string; city: string; price: string }[]; accent: string; label: string }) {
-  return (
-    <div className="p-3">
-      <p className="px-1 pb-2 text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: accent }}>{label}</p>
-      <div className="grid grid-cols-3 gap-2">
-        {items.slice(0, 3).map((s, k) => (
-          <div key={k} className="relative aspect-[3/4] overflow-hidden rounded-2xl" style={{ background: s.image ? undefined : accent }}>
-            {s.image && <img src={s.image} alt="" className="h-full w-full object-cover" loading="lazy" />}
-            <span className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/75 to-transparent" />
-            <span className="absolute inset-x-2 bottom-2 text-white">
-              {s.city && <span className="block truncate text-[10px] font-bold opacity-85">{s.city}</span>}
-              {s.price && <span className="block truncate text-[13px] font-black leading-tight">{s.price}</span>}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
   )
 }
 

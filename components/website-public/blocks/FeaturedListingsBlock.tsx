@@ -153,7 +153,7 @@ export default function FeaturedListingsBlock({ data, theme, siteId, basePrefix 
   return (
     <section className="px-6 py-16 sm:py-24" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
       <div className="mx-auto max-w-7xl">
-        <ClassicSectionHead eyebrow={data.eyebrow || 'Featured'} title={data.headline || 'Featured Listings'} sub={data.subtext || 'A curated selection of exceptional homes available now.'} href={siteId ? `${basePrefix}/properties` : undefined} linkLabel="View all homes" />
+        <ClassicSectionHead font={theme.heading_font} eyebrow={data.eyebrow || 'Featured'} title={data.headline || 'Featured Listings'} sub={data.subtext || 'A curated selection of exceptional homes available now.'} href={siteId ? `${basePrefix}/properties` : undefined} linkLabel="View all homes" />
         <FeaturedGrid listings={listings} theme={theme} basePrefix={basePrefix} onQuickView={siteId ? setQuickViewKey : undefined} />
       </div>
       {siteId && <PropertyQuickViewModal siteId={siteId} listingKey={quickViewKey} onClose={() => setQuickViewKey(null)} theme={theme} basePrefix={basePrefix} />}

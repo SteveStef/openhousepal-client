@@ -72,6 +72,9 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
   // Any hand edit here means the site stops following the Brand Kit (the "Match my Brand Kit"
   // button below brings it back).
   const set = (patch: Partial<SiteTheme>) => onChange({ ...theme, ...patch, follow_brand_kit: false })
+  // Settings the Brand Kit never supplies (visitor light/dark switch, footer signature, loading
+  // mark) - changing one must not quietly stop the site following the Brand Kit (10/27 audit).
+  const setOwn = (patch: Partial<SiteTheme>) => onChange({ ...theme, ...patch })
   const template: 'default' | 'luxe' = theme.template === 'default' ? 'default' : 'luxe'
   const mode: 'light' | 'dark' = theme.mode === 'dark' ? 'dark' : 'light'
   const vars = siteThemeVars(theme)
@@ -104,7 +107,7 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
     setLoaderUploading(true)
     const res = await api.studio.uploadMedia(file, 'brand_logo')
     setLoaderUploading(false)
-    if (res.success && res.data?.url) set({ loader_logo_url: res.data.url })
+    if (res.success && res.data?.url) setOwn({ loader_logo_url: res.data.url })
     else showToast(res.error || 'Could not upload that file.', 'error')
   }
 
@@ -256,7 +259,7 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
         </div>
         <label className="mt-2 flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 px-3 py-2.5 dark:border-gray-800">
           <span className="min-w-0 pr-3"><span className="block text-xs font-black text-[#111827] dark:text-white">Let visitors switch</span><span className="block text-[10px] font-semibold text-gray-400">A sun / moon button in your site&apos;s header. Their choice is remembered on their device.</span></span>
-          <OhpSwitch on={theme.allow_mode_toggle !== false} onChange={v => set({ allow_mode_toggle: v })} testId="site-mode-toggle-switch" />
+          <OhpSwitch on={theme.allow_mode_toggle !== false} onChange={v => setOwn({ allow_mode_toggle: v })} testId="site-mode-toggle-switch" />
         </label>
       </div>
 
@@ -316,7 +319,7 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
                 {loaderUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />} {theme.loader_logo_url ? 'Replace' : 'Upload logo'}
               </button>
               {theme.loader_logo_url && (
-                <button type="button" onClick={() => set({ loader_logo_url: null })} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-black uppercase tracking-wide text-gray-400 transition hover:text-red-600"><Trash2 className="h-3 w-3" /> Use my initials</button>
+                <button type="button" onClick={() => setOwn({ loader_logo_url: null })} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-black uppercase tracking-wide text-gray-400 transition hover:text-red-600"><Trash2 className="h-3 w-3" /> Use my initials</button>
               )}
             </div>
           </div>
@@ -327,7 +330,7 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
       {/* 6. Signature in the footer */}
       <label className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 px-3 py-2.5 dark:border-gray-800">
         <span className="min-w-0 pr-3"><span className="block text-xs font-black text-[#111827] dark:text-white">My email signature in the footer</span><span className="block text-[10px] font-semibold text-gray-400">Your signature card is the agent block at the bottom of every page (Studio → Email Signature). Off = plain name &amp; contact details.</span></span>
-        <OhpSwitch on={theme.footer_signature === true} onChange={v => set({ footer_signature: v })} testId="site-footer-signature-switch" />
+        <OhpSwitch on={theme.footer_signature === true} onChange={v => setOwn({ footer_signature: v })} testId="site-footer-signature-switch" />
       </label>
 
     </div>

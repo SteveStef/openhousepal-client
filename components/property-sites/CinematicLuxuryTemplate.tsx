@@ -295,7 +295,7 @@ function NavBar({ items, m, logoUrl, onShare, allowTour }: { items: NavItem[]; m
 
   return (
     <>
-      <nav className={`fixed inset-x-0 top-0 z-[90] transition-[background-color,border-color] duration-500 ${solid ? 'border-b border-white/[0.07] bg-[#0A0A0A] shadow-[0_10px_30px_-18px_rgba(0,0,0,.9)]' : 'bg-gradient-to-b from-black/60 to-transparent'}`}>
+      <nav data-spot-nav className={`fixed inset-x-0 top-0 z-[90] transition-[background-color,border-color] duration-500 ${solid ? 'border-b border-white/[0.07] bg-[#0A0A0A] shadow-[0_10px_30px_-18px_rgba(0,0,0,.9)]' : 'bg-gradient-to-b from-black/60 to-transparent'}`}>
         <div className={`flex w-full items-center justify-between gap-4 px-5 transition-[height] duration-500 sm:px-10 xl:px-14 ${solid ? 'h-16' : 'h-20'}`}>
           <button onClick={() => goTo('overview')} className="flex min-w-0 items-center gap-3 text-left" aria-label="Back to top">
             {/* The agent - photo, name, brokerage - on every screen (user, 10/17: phones showed only

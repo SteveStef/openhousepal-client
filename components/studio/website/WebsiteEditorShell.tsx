@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Check, Copy, ExternalLink, Globe, Layers, Loader2, MapPin, MessageSquareQuote, Monitor, Palette, PlaySquare, Rocket, Save, Search, Star } from 'lucide-react'
+import { AlertTriangle, Check, Copy, ExternalLink, Globe, Layers, Loader2, MapPin, MessageSquareQuote, Monitor, Palette, PlaySquare, Rocket, Save, Search, Star } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import api from '@/lib/api-service'
 import { FeaturedSettings, MediaSettings, Site, SiteBlock, SitePage, SiteSeo, SiteTheme } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
@@ -590,6 +591,9 @@ export default function WebsiteEditorShell({ onActionsChange, onBarEndChange, ta
     if (next === reviewsNow.current) return
     reviewsNow.current = next
     setReviewsShowing(next)
+    // re-fetch the preview's data so a Client Reviews section follows the switch (areasVersion is
+    // the preview's "saved elsewhere, reload the data" counter)
+    setAreasVersion(v => v + 1)
     const find = either(inPreview('[data-ohp-spot="nav-reviews"]'), inPreview('[data-ohp-spot="foot-reviews"]'))
     runSpot(next
       ? { kind: 'on', find, noScroll: true, label: 'Added · Reviews in your menu & footer' }
@@ -604,6 +608,7 @@ export default function WebsiteEditorShell({ onActionsChange, onBarEndChange, ta
       : { kind: 'off', find, noScroll: true, label: 'Reviews page is off' })
   }
   const onReviewsMinRating = (onlyTop: boolean) => {
+    setAreasVersion(v => v + 1)
     runSpot({ kind: onlyTop ? 'on' : 'change', find: inPreview('[data-ohp-spot="nav-reviews"]'), noScroll: true, label: onlyTop ? 'Reviews page · only 4 and 5-star reviews' : 'Reviews page · every review' })
   }
 
@@ -670,6 +675,35 @@ export default function WebsiteEditorShell({ onActionsChange, onBarEndChange, ta
   const snap = () => JSON.stringify([homePage, otherPages, theme, featuredSettings, mediaSettings, seo])
   useEffect(() => { if (!loading && savedSnap.current === null) savedSnap.current = snap() }, [loading]) // eslint-disable-line react-hooks/exhaustive-deps
   const dirty = !loading && savedSnap.current !== null && savedSnap.current !== snap()
+  // Saved but not live yet: the draft differs from what was last published (publish copies the
+  // draft as-is, so equal = nothing to publish). Key order can differ once stored, hence stable().
+  const live = site?.status === 'PUBLISHED'
+  const unpublished = !!site && live && stable(publishable(site.draft_data)) !== stable(publishable(site.published_snapshot))
+  // The Publish button: glows while there's something to put live; "Published" once there isn't.
+  const publishState: 'publish' | 'changes' | 'published' = !live ? 'publish' : dirty || unpublished ? 'changes' : 'published'
+
+  // Leaving with unsaved edits: the browser's own "leave site?" for a reload / closed tab, and our
+  // window for any link inside the app - save it as a draft, publish it, or leave it (user, 10/27).
+  const router = useRouter()
+  const [leaveTo, setLeaveTo] = useState<string | null>(null)
+  const [leaveBusy, setLeaveBusy] = useState<'' | 'save' | 'publish'>('')
+  const dirtyRef = useRef(false)
+  dirtyRef.current = dirty
+  useEffect(() => {
+    const onUnload = (e: BeforeUnloadEvent) => { if (dirtyRef.current) { e.preventDefault(); e.returnValue = '' } }
+    const onClick = (e: MouseEvent) => {
+      if (!dirtyRef.current || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+      const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null
+      if (!a || a.target === '_blank' || a.hasAttribute('download') || a.closest('[data-editor-preview]')) return
+      const url = new URL(a.href, window.location.href)
+      if (url.origin !== window.location.origin || (url.pathname === window.location.pathname && url.search === window.location.search)) return
+      e.preventDefault(); e.stopPropagation()
+      setLeaveTo(url.pathname + url.search + url.hash)
+    }
+    window.addEventListener('beforeunload', onUnload)
+    document.addEventListener('click', onClick, true)
+    return () => { window.removeEventListener('beforeunload', onUnload); document.removeEventListener('click', onClick, true) }
+  }, [])
 
   const saveDraft = async (): Promise<boolean> => {
     setSaving(true)
@@ -689,25 +723,28 @@ export default function WebsiteEditorShell({ onActionsChange, onBarEndChange, ta
     if (ok) showToast('Draft saved.', 'success')
   }
 
-  const handlePublish = async () => {
+  const handlePublish = async (): Promise<boolean> => {
     // The site is built from the Agent Hub - say what will show up blank before it goes live.
     const hub = await api.agentHub.getMine()
     const blanks = hubMissing(hub.success ? hub.data?.config : null, user).filter(m => m.required)
     if (blanks.length && !window.confirm(`Your Agent Hub is missing: ${blanks.map(m => m.label).join(', ')}.
 
-Your website is built from your Agent Hub, so these parts will show up blank. Publish anyway?`)) return
+Your website is built from your Agent Hub, so these parts will show up blank. Publish anyway?`)) return false
     setPublishing(true)
+    let live = false
     const savedOk = await saveDraft()
     if (savedOk) {
       const res = await api.sites.publish()
       if (res.success && res.data) {
         setSite(res.data)
         showToast('Your website is live.', 'success')
+        live = true
       } else {
         showToast(res.error || 'Could not publish your website.', 'error')
       }
     }
     setPublishing(false)
+    return live
   }
 
   // The Save/Publish buttons below are built once per site/saving change and handed up to the page
@@ -751,32 +788,39 @@ Your website is built from your Agent Hub, so these parts will show up blank. Pu
           <div className="mt-3 flex gap-2">
             <button
               onClick={() => saveRef.current()}
-              disabled={saving || publishing}
-              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-black text-[#111827] transition hover:border-[#C9A24D] disabled:opacity-50 dark:border-white/15 dark:bg-white/5 dark:text-white"
+              disabled={saving || publishing || !dirty}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-black text-[#111827] transition hover:border-[#C9A24D] disabled:cursor-default disabled:opacity-50 disabled:hover:border-gray-200 dark:border-white/15 dark:bg-white/5 dark:text-white"
             >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save draft
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : dirty ? <Save className="h-4 w-4" /> : <Check className="h-4 w-4" />} {dirty || saving ? 'Save draft' : 'Draft saved'}
             </button>
-            <button
-              onClick={() => publishRef.current()}
-              disabled={saving || publishing}
-              className="lx-shine relative inline-flex flex-1 items-center justify-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-4 py-2.5 text-sm font-black text-[#111827] shadow-lg shadow-[#C9A24D]/30 transition hover:-translate-y-0.5 disabled:opacity-60"
-            >
-              {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />} Publish
-            </button>
+            {publishState === 'published' && !publishing ? (
+              // Nothing new to put live - says so instead of inviting a pointless publish.
+              <span className="inline-flex flex-1 cursor-default items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-black text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-500/10 dark:text-emerald-300" title="Everything you see here is live">
+                <Check className="h-4 w-4" /> Published
+              </span>
+            ) : (
+              <button
+                onClick={() => publishRef.current()}
+                disabled={saving || publishing}
+                className={`lx-shine relative inline-flex flex-1 items-center justify-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-4 py-2.5 text-sm font-black text-[#111827] shadow-lg shadow-[#C9A24D]/30 transition hover:-translate-y-0.5 disabled:opacity-60 ${publishing ? '' : 'ohp-publish-glow'}`}
+              >
+                {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />} {publishing ? 'Publishing' : publishState === 'changes' ? 'Publish changes' : 'Publish'}
+              </button>
+            )}
           </div>
         </div>
       )
     )
     return () => onActionsChange(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [site, siteUrl, copied, saving, publishing])
+  }, [site, siteUrl, copied, saving, publishing, dirty, publishState])
 
   useEffect(() => {
     if (!onBarEndChange) return
     onBarEndChange(!site ? null : (
       <>
         <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${
-          saving || publishing ? 'border-[#C9A24D]/40 bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#e8c97a]'
+          saving || publishing || (!dirty && publishState === 'changes') ? 'border-[#C9A24D]/40 bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#e8c97a]'
             : dirty ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-300'
               : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-300'
         }`}>
@@ -784,7 +828,8 @@ Your website is built from your Agent Hub, so these parts will show up blank. Pu
             ? <><Loader2 className="h-3 w-3 animate-spin" /> {publishing ? 'Publishing' : 'Saving'}</>
             : dirty
               ? <><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" /> Unsaved changes</>
-              : <><Check className="h-3 w-3" /> All changes saved</>}
+              : publishState === 'changes' ? <><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#C9A24D]" /> Saved - not published yet</>
+                : publishState === 'published' ? <><Check className="h-3 w-3" /> Published</> : <><Check className="h-3 w-3" /> All changes saved</>}
         </span>
         <a href={siteUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-[#111827] transition hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.06] dark:text-white">
           View site <ExternalLink className="h-3 w-3" />
@@ -793,7 +838,7 @@ Your website is built from your Agent Hub, so these parts will show up blank. Pu
     ))
     return () => onBarEndChange(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [site, siteUrl, dirty, saving, publishing])
+  }, [site, siteUrl, dirty, saving, publishing, publishState])
 
   if (loading) {
     return (
@@ -843,8 +888,45 @@ Your website is built from your Agent Hub, so these parts will show up blank. Pu
     logoUrl: theme.logo_url,
   }
 
+  const leaveWith = async (how: 'save' | 'publish' | 'drop') => {
+    const to = leaveTo
+    if (!to) return
+    if (how !== 'drop') {
+      setLeaveBusy(how)
+      const ok = how === 'save' ? await saveDraft() : await publishRef.current()
+      setLeaveBusy('')
+      if (!ok) return
+    }
+    dirtyRef.current = false
+    setLeaveTo(null)
+    router.push(to)
+  }
+
   return (
     <div>
+      {leaveTo && (
+        <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="ohp-leave-title" onClick={() => !leaveBusy && setLeaveTo(null)}>
+          <div className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#151517]" onClick={e => e.stopPropagation()}>
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300"><AlertTriangle className="h-5 w-5" /></span>
+            <h2 id="ohp-leave-title" className="mt-4 text-xl font-black text-[#111827] dark:text-white">You have changes that aren&apos;t saved</h2>
+            <p className="mt-1.5 text-sm font-semibold leading-relaxed text-gray-500 dark:text-white/60">If you leave now, what you just changed on your website will be lost. Save it as a draft to finish later, or publish it so it&apos;s live.</p>
+            <div className="mt-5 grid gap-2">
+              <button type="button" disabled={!!leaveBusy} onClick={() => leaveWith('publish')}
+                className="lx-shine relative inline-flex items-center justify-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-4 py-3 text-sm font-black text-[#111827] shadow-lg shadow-[#C9A24D]/30 disabled:opacity-60">
+                {leaveBusy === 'publish' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />} Publish and leave
+              </button>
+              <button type="button" disabled={!!leaveBusy} onClick={() => leaveWith('save')}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-black text-[#111827] transition hover:border-[#C9A24D] disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-white">
+                {leaveBusy === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save as a draft and leave
+              </button>
+              <div className="mt-1 flex items-center justify-between gap-3">
+                <button type="button" disabled={!!leaveBusy} onClick={() => leaveWith('drop')} className="text-xs font-black text-red-600 underline-offset-4 hover:underline disabled:opacity-50 dark:text-red-400">Leave without saving</button>
+                <button type="button" disabled={!!leaveBusy} onClick={() => setLeaveTo(null)} className="rounded-xl px-4 py-2 text-xs font-black text-gray-600 transition hover:bg-gray-100 disabled:opacity-50 dark:text-white/70 dark:hover:bg-white/10">Keep editing</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Every part of the site, one pill each - same feel as the Spotlight editor's step bar */}
       {!tabProp && <nav className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none]" aria-label="Site sections">
         <div className="flex min-w-max items-center gap-1.5 rounded-2xl border border-gray-200 bg-white/80 p-1.5 shadow-sm dark:border-gray-800 dark:bg-[#151517]/80">
@@ -906,7 +988,7 @@ Your website is built from your Agent Hub, so these parts will show up blank. Pu
             <GoogleResultPreview seo={seo} pages={[homePage, ...otherPages]} defaults={seoDefaults} siteUrl={siteUrl} focusKey={seoFocus} ctx={seoData ? seoCtxFrom(seoData) : undefined} page={seoPreviewPage} rating={seoData?.google_rating ?? null} />
           </div>
         ) : (
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_24px_50px_-30px_rgba(17,24,39,.45)] dark:border-gray-800 dark:bg-[#151517] lg:sticky lg:top-24">
+        <div data-editor-preview className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_24px_50px_-30px_rgba(17,24,39,.45)] dark:border-gray-800 dark:bg-[#151517] lg:sticky lg:top-24">
           <div ref={barRef} className="flex items-center gap-1.5 border-b border-gray-100 bg-gray-50 px-3 py-2 dark:border-white/10 dark:bg-[#1c1c1e]">
             <span className="h-2.5 w-2.5 rounded-full bg-red-400" /><span className="h-2.5 w-2.5 rounded-full bg-amber-400" /><span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
             <span className={`ml-2 min-w-0 flex-1 truncate rounded-md px-2.5 py-1 font-mono text-[10px] font-semibold transition-all duration-500 ${activeTab === 'domains' ? 'ohp-addr bg-[#C9A24D]/15 text-[#8b7355] ring-2 ring-[#C9A24D] dark:text-[#e8c97a]' : 'bg-white text-gray-400 dark:bg-black/30'}`}>{siteUrl.replace(/^https?:\/\//, '')}</span>
@@ -1006,3 +1088,26 @@ function spotBox(r: SpotRect): React.CSSProperties {
 }
 const FX_EASE = 'cubic-bezier(.65,0,.35,1)'
 const wait = (ms: number) => new Promise<void>(r => window.setTimeout(r, ms))
+
+// What the Brand Kit decides while the site follows it - filled in when a page is shown
+// (backend content_adapters.resolve_theme), so the stored copy never reaches visitors.
+const BRAND_KIT_THEME_KEYS = ['primary_color', 'secondary_color', 'heading_font', 'body_font', 'logo_url', 'template', 'mode', 'luxe_metal']
+
+/** The part of a saved site that changes what visitors see - for "anything to publish?". */
+function publishable(content: any): any {
+  if (!content || typeof content !== 'object') return content
+  const theme = content.theme
+  if (!theme || theme.follow_brand_kit === false) return content
+  const own = { ...theme }
+  for (const k of BRAND_KIT_THEME_KEYS) delete own[k]
+  return { ...content, theme: own }
+}
+
+/** JSON with object keys sorted, so two copies of the same content compare equal however stored.
+ *  A blank (null) field and a section's "hidden: false" count as not set - turning a section off
+ *  and on again is the same site, not a change to publish. */
+function stable(v: unknown): string {
+  return JSON.stringify(v ?? null, (_k, x) => (x && typeof x === 'object' && !Array.isArray(x)
+    ? Object.fromEntries(Object.keys(x).sort().filter(k => (x as any)[k] !== null && !(k === 'hidden' && (x as any)[k] === false)).map(k => [k, (x as any)[k]]))
+    : x))
+}

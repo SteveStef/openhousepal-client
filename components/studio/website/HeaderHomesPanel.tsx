@@ -32,7 +32,7 @@ export default function HeaderHomesPanel({ data, onChange, onEditHero }: {
   }, [])
 
   if (!data) {
-    return <p className="rounded-2xl border border-dashed border-gray-300 p-4 text-xs font-semibold text-gray-400 dark:border-gray-700">Your home page has no header section. Add &quot;Header&quot; from the Sections tab.</p>
+    return <p className="rounded-2xl border border-dashed border-gray-300 p-4 text-xs font-semibold text-gray-400 dark:border-gray-700">Your home page has no header section. Your Welcome Screen (the top of your home page) shows these homes - switch it back on in the Sections tab.</p>
   }
 
   const picked: string[] = Array.isArray(data.header_towns) ? data.header_towns : []

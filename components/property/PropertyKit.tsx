@@ -518,9 +518,28 @@ function PhoneStrip({ home, photos, extraBadges, onOpen, className = '' }: {
     const el = ref.current
     if (el) setAt(Math.min(n - 1, Math.max(0, Math.round(el.scrollLeft / Math.max(1, el.clientWidth)))))
   }
+  // Backup for iPhone Safari (user, 10/27: the photos in a home's window wouldn't swipe there): a
+  // clear sideways swipe that didn't move the strip on its own still turns the photo.
+  const touch = useRef<{ x: number; y: number; left: number } | null>(null)
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0]
+    touch.current = t && ref.current ? { x: t.clientX, y: t.clientY, left: ref.current.scrollLeft } : null
+  }
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const s = touch.current, t = e.changedTouches[0], el = ref.current
+    touch.current = null
+    if (!s || !t || !el || n < 2) return
+    const dx = t.clientX - s.x, dy = t.clientY - s.y
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.3) return
+    window.setTimeout(() => {
+      if (Math.abs(el.scrollLeft - s.left) > 4) return
+      const k = Math.max(0, Math.min(n - 1, at + (dx < 0 ? 1 : -1)))
+      el.scrollTo({ left: k * el.clientWidth, behavior: 'smooth' })
+    }, 90)
+  }
   return (
     <div className={`relative aspect-[4/3] overflow-hidden rounded-t-[22px] bg-black/5 sm:rounded-t-[26px] ${className}`}>
-      <div ref={ref} onScroll={onScroll}
+      <div ref={ref} onScroll={onScroll} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
         className="flex h-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {photos.map((src, k) => (
           <button key={`${k}-${src}`} type="button" onClick={() => onOpen(k)} aria-label={`Open photo ${k + 1} full screen`}

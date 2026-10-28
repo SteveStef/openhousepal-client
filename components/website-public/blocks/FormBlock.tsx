@@ -1,55 +1,27 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { ArrowRight, Clock, Loader2, ShieldCheck, UserRound } from 'lucide-react'
 import { SiteTheme } from '../types'
-import { fontClass } from './fontClass'
-
-interface FormQuestionField {
-  id: string
-  type: string
-  label: string
-  required?: boolean
-}
-
-interface FormQuestion extends FormQuestionField {
-  fields?: FormQuestionField[]
-}
+import { fontClass, headingClass } from './fontClass'
 
 interface PublicFormShape {
   formId: string
+  formType?: string
+  slug?: string
   title: string
   headline?: string | null
   subtitle?: string | null
-  questions: FormQuestion[]
-  successHeading?: string | null
-  successMessage?: string | null
 }
 
-// Flattens contact_group questions (the real shape agent-built forms use, see
-// backend/app/schemas/forms.py) into a plain list of fields to render - a real renderer for
-// existing OHP forms, not a second form builder (Website Builder never edits questions/schema).
-function flattenFields(questions: FormQuestion[]): FormQuestionField[] {
-  const fields: FormQuestionField[] = []
-  for (const q of questions) {
-    if (q.type === 'statement') continue
-    if (q.type === 'contact_group' && q.fields) {
-      fields.push(...q.fields)
-    } else {
-      fields.push(q)
-    }
-  }
-  return fields
-}
-
-export default function FormBlock({ data, theme, siteId }: { data: Record<string, any>; theme: SiteTheme; siteId?: string }) {
+// The "Lead Form" section: the agent's real form, opened in a window over the page by the site's
+// form launcher (SiteFormLauncher - the same one every lead button uses), so its choices, follow-up
+// questions and steps all work. It used to draw the questions itself as plain text boxes - a
+// "buy or sell?" choice became a blank box and every follow-up question showed at once (10/27).
+export default function FormBlock({ data, theme, siteId, basePrefix = '' }: { data: Record<string, any>; theme: SiteTheme; siteId?: string; basePrefix?: string }) {
   const formId = data.form_id as string | undefined
   const [form, setForm] = useState<PublicFormShape | null>(null)
   const [loading, setLoading] = useState(true)
-  const [values, setValues] = useState<Record<string, string>>({})
-  const [submitting, setSubmitting] = useState(false)
-  const [done, setDone] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!formId || !siteId) { setLoading(false); return }
@@ -62,101 +34,35 @@ export default function FormBlock({ data, theme, siteId }: { data: Record<string
   }, [formId, siteId])
 
   if (!formId) return null
-  if (!siteId) {
-    // In-editor preview has no published site_id yet to fetch through - show a lightweight
-    // placeholder instead of a spinner that would never resolve.
-    return (
-      <section className="mx-auto max-w-xl px-6 py-14 text-center text-sm font-semibold text-gray-400">
-        Form preview available once your site is published.
-      </section>
-    )
-  }
+  const luxe = theme.template !== 'default'
+  const serif = fontClass(theme.heading_font, 'font-serif')
   if (loading) return (
-    <section className="mx-auto max-w-xl px-6 py-14 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin text-gray-300" /></section>
+    <section className="mx-auto max-w-3xl px-6 py-16 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" style={{ color: 'var(--site-faint)' }} /></section>
   )
   if (!form) return null
 
-  const fields = flattenFields(form.questions)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitting(true)
-    setError(null)
-    const res = await fetch(`/api/website-forms/${formId}?site_id=${encodeURIComponent(siteId!)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers: Object.entries(values).map(([questionId, value]) => ({ questionId, value })) }),
-    })
-    const body = await res.json()
-    setSubmitting(false)
-    if (res.ok && body.success) {
-      setDone(true)
-    } else {
-      setError(body.detail || 'Something went wrong. Please try again.')
-    }
-  }
-
-  if (done) {
-    return (
-      <section className="mx-auto max-w-xl px-6 py-16 sm:py-20">
-        <div className="rounded-3xl bg-white p-10 text-center shadow-[0_2px_30px_rgba(17,24,39,0.06)] ring-1 ring-black/[0.04]">
-          <div
-            className="mx-auto flex h-12 w-12 items-center justify-center rounded-full text-lg"
-            style={{ backgroundColor: `${theme.secondary_color}20`, color: theme.secondary_color }}
-          >
-            ✓
-          </div>
-          <h2 className={`mt-4 text-2xl font-black ${fontClass(theme.heading_font, 'font-serif')}`} style={{ color: 'var(--site-heading)' }}>
-            {form.successHeading || 'Thank you!'}
-          </h2>
-          {form.successMessage && <p className="mt-2 text-gray-600">{form.successMessage}</p>}
-        </div>
-      </section>
-    )
-  }
-
+  const title = form.headline || form.title
+  const href = `${basePrefix}/forms/${encodeURIComponent(form.slug || form.formId)}?site_chrome=1`
   return (
-    <section className="mx-auto max-w-xl px-6 py-16 sm:py-20">
-      <div className="rounded-3xl bg-white p-8 shadow-[0_2px_30px_rgba(17,24,39,0.06)] ring-1 ring-black/[0.04] sm:p-10">
-        <h2 className={`text-center text-2xl font-black sm:text-3xl ${fontClass(theme.heading_font, 'font-serif')}`} style={{ color: 'var(--site-heading)' }}>
-          {form.headline || form.title}
+    <section className="px-5 py-16 sm:px-6 sm:py-20">
+      <div className={`relative mx-auto max-w-3xl overflow-hidden border px-6 py-10 text-center sm:px-12 sm:py-14 ${luxe ? 'rounded-[28px]' : 'rounded-2xl'}`}
+        style={{ backgroundColor: 'var(--site-surface)', borderColor: 'var(--site-line)', boxShadow: 'var(--site-shadow)' }}>
+        <span aria-hidden className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[70%] -translate-x-1/2 rounded-full opacity-60 blur-3xl" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),.18)' }} />
+        <p className="relative text-[11px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent-text)' }}>Let&apos;s talk</p>
+        <h2 className={`ohp-site-heading relative mt-3 text-[1.9rem] leading-[1.1] sm:text-4xl ${luxe ? `font-black ${serif}` : `font-extrabold tracking-tight ${headingClass(theme.heading_font)}`}`} style={{ color: 'var(--site-heading)' }}>
+          {title}
         </h2>
-        {form.subtitle && <p className="mt-2 text-center text-gray-500">{form.subtitle}</p>}
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          {fields.map(field => (
-            <div key={field.id}>
-              <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-gray-500">
-                {field.label}{field.required && ' *'}
-              </label>
-              {field.type === 'long_text' ? (
-                <textarea
-                  required={field.required}
-                  rows={4}
-                  className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#C9A24D] focus:ring-2 focus:ring-[#C9A24D]/20"
-                  value={values[field.id] || ''}
-                  onChange={e => setValues(v => ({ ...v, [field.id]: e.target.value }))}
-                />
-              ) : (
-                <input
-                  required={field.required}
-                  type={field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'}
-                  className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#C9A24D] focus:ring-2 focus:ring-[#C9A24D]/20"
-                  value={values[field.id] || ''}
-                  onChange={e => setValues(v => ({ ...v, [field.id]: e.target.value }))}
-                />
-              )}
-            </div>
-          ))}
-          {error && <p className="text-sm font-semibold text-red-500">{error}</p>}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="ohp-gold-sheen w-full rounded-full px-6 py-3.5 text-sm font-black uppercase tracking-wide text-white shadow-lg transition hover:-translate-y-0.5 disabled:opacity-50"
-            style={{ backgroundColor: theme.primary_color }}
-          >
-            {submitting ? 'Sending...' : 'Submit'}
-          </button>
-        </form>
+        {form.subtitle && <p className={`relative mx-auto mt-3 max-w-xl text-[15px] leading-relaxed ${fontClass(theme.body_font)}`} style={{ color: 'var(--site-muted)' }}>{form.subtitle}</p>}
+        <a href={href} data-ohp-form={form.formType || 'how_can_i_help'} data-ohp-form-slug={form.slug || undefined} data-ohp-form-title={title}
+          className={`relative mt-7 inline-flex items-center gap-2 px-8 py-4 text-sm font-black transition hover:-translate-y-0.5 ${luxe ? 'ohp-gold-sheen rounded-full uppercase tracking-[0.14em]' : 'rounded-xl shadow-md'}`}
+          style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>
+          Get started <ArrowRight className="h-4 w-4" />
+        </a>
+        <div className="relative mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-bold" style={{ color: 'var(--site-ink-soft)' }}>
+          <span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" style={{ color: 'var(--site-accent)' }} /> About a minute</span>
+          <span className="inline-flex items-center gap-1.5"><UserRound className="h-3.5 w-3.5" style={{ color: 'var(--site-accent)' }} /> Goes straight to me</span>
+          <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" style={{ color: 'var(--site-accent)' }} /> No spam, ever</span>
+        </div>
       </div>
     </section>
   )

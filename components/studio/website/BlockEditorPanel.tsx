@@ -139,7 +139,7 @@ function SectionRow({
   block: SiteBlock; index: number; count: number; expanded: boolean; options: ContentOptions
   onToggleOpen: () => void; onMove: (dir: -1 | 1) => void; onHide: () => void; onRemove: () => void
   onField: (key: string, value: string) => void; onDragEnd: () => void
-  onSwitchTab?: (tab: 'featured' | 'areas' | 'media') => void
+  onSwitchTab?: (tab: 'featured' | 'areas' | 'media' | 'reviews') => void
 }) {
   const def = sectionDef(block.type)
   const controls = useDragControls()
@@ -206,7 +206,7 @@ export default function BlockEditorPanel({
   /** The section open for editing (or null) - the live preview scrolls to and outlines it. */
   onOpenChange?: (id: string | null) => void
   /** Shortcuts from a section to the editor tab that feeds it (Featured homes, Areas). */
-  onSwitchTab?: (tab: 'featured' | 'areas' | 'media') => void
+  onSwitchTab?: (tab: 'featured' | 'areas' | 'media' | 'reviews') => void
 }) {
   const { showToast } = useToast()
   const [options, setOptions] = useState<ContentOptions>({ forms: [], showcases: [] })
@@ -256,7 +256,11 @@ export default function BlockEditorPanel({
       if (!general) { showToast('Create a form first in Studio → Forms, then add it here.', 'error'); return }
       extra.form_id = general.id
     }
-    if (def.type === 'showcase' && options.showcases[0]) extra.collection_id = options.showcases[0].id
+    if (def.type === 'showcase') {
+      // No showcase to show = a section nobody would ever see (it renders nothing) - say so instead.
+      if (!options.showcases[0]) { showToast('Make a Showcase first in Showcases, then add it here.', 'error'); return }
+      extra.collection_id = options.showcases[0].id
+    }
     const block = newSectionBlock(def.type, extra)
     // New sections land just above the closing Contact band when it's last, otherwise at the end.
     const next = [...blocks]

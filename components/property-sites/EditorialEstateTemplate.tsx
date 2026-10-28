@@ -239,7 +239,7 @@ function Masthead({ items, m, onShare, allowTour }: { items: NavItem[]; m: Spotl
 
   return (
     <>
-      <header className={`ee-masthead ${solid ? 'is-solid' : ''}`}>
+      <header data-spot-nav className={`ee-masthead ${solid ? 'is-solid' : ''}`}>
         <div className="flex h-16 w-full items-center justify-between gap-6 px-5 sm:px-10 xl:px-14">
           <button onClick={() => go('overview')} className="flex min-w-0 items-center gap-3 text-left" aria-label="Back to cover">
             {agentPhoto

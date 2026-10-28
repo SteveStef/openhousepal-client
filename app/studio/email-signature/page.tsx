@@ -24,7 +24,7 @@ import type { AgentFormConfig } from '@/types'
 import {
   BadgeCheck, Check, Copy, ExternalLink, Mail, Palette, Plus, RefreshCw, Sparkles, Trash2, X,
   Image as ImageIcon, User as UserIcon, MousePointerClick, Share2, Loader2, Home, TrendingUp, BarChart3,
-  Phone, AtSign, Briefcase, Users, Globe, Instagram, Facebook, Youtube, Music2, Moon, Sun,
+  Phone, AtSign, Briefcase, Users, Globe, Instagram, Facebook, Youtube, Music2, Moon, Sun, Download,
 } from 'lucide-react'
 
 import {
@@ -104,6 +104,11 @@ export default function EmailSignaturePage() {
   // "blank window around the card" problem the Live Preview's own dynamic previewHeight already
   // solves above.
   const [realHtmlHeight, setRealHtmlHeight] = useState(200)
+  // The email version is a fixed-width table (inboxes don't reflow it), so on a phone it's shown
+  // whole, scaled down to fit the screen, instead of running off the side (user, 10/27).
+  const [realHtmlWidth, setRealHtmlWidth] = useState(0)
+  const [emailBoxW, setEmailBoxW] = useState(0)
+  const emailBoxRef = useRef<HTMLDivElement>(null)
   // Which of the two main-screen previews is showing - "site" (the animated CSS/flexbox design,
   // the version this card will eventually appear in on IDX bios/footers elsewhere on
   // OpenHousePal) or "email" (the real install HTML, same as what Copy HTML actually pastes).
@@ -111,6 +116,13 @@ export default function EmailSignaturePage() {
   // buried inside the Install modal) - explicit ask was to surface both on the main screen behind
   // one switch instead.
   const [previewMode, setPreviewMode] = useState<'site' | 'email'>('site')
+  useEffect(() => {
+    const el = emailBoxRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(([e]) => setEmailBoxW(e.contentRect.width))
+    ro.observe(el)
+    return () => ro.disconnect()
+  })
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const seededDefaultsRef = useRef(false)
   const [previewHeight, setPreviewHeight] = useState(190)
@@ -199,6 +211,7 @@ export default function EmailSignaturePage() {
         setPreviewHeight(Math.ceil(e.data.height))
       } else if (e.data && e.data.type === 'signature-real-preview-height' && typeof e.data.height === 'number') {
         setRealHtmlHeight(Math.ceil(e.data.height))
+        if (typeof e.data.width === 'number' && e.data.width > 0) setRealHtmlWidth(Math.ceil(e.data.width))
       }
     }
     window.addEventListener('message', onMessage)
@@ -466,7 +479,15 @@ export default function EmailSignaturePage() {
               title={<>Your brand, <em>in every email</em></>}
               subtitle="Your branding in your email, on your site, and everywhere you show up - built once, always in sync."
               subtitleClassName="max-w-none lg:whitespace-nowrap"
-              asideClassName="w-full lg:w-auto lg:self-start lg:-mt-5"
+              asideClassName="max-lg:hidden w-full lg:w-auto lg:self-start lg:-mt-5"
+              // Phones / tablets: Install sits at the right end of the "Signature" line, like the
+              // Dash's briefing button - no extra row under the title (user, 10/27).
+              badge={
+                <button onClick={openInstallModal} data-testid="sig-install-compact"
+                  className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-3 py-1 text-[10px] font-black uppercase tracking-wide text-[#111827] shadow-md shadow-[#C9A24D]/30 transition active:scale-95 lg:hidden">
+                  <Download className="h-3 w-3" strokeWidth={3} /> Install
+                </button>
+              }
               tabs={needsRecopy ? (
                 <motion.div
                   initial={{ opacity: 0, y: -4 }}
@@ -521,8 +542,23 @@ export default function EmailSignaturePage() {
                 block's center. Always positioned this way (no responsive hide/show swapping back
                 to a different layout) so there's only one version to reason about. */}
             <div className="mx-auto max-w-3xl">
+              {/* Phones, tablets and smaller laptops: the tabs sit on top in one row - the side rail
+                  hangs off the panel's left edge, which is off the screen there (user, 10/27). */}
+              <div className="mb-2 grid grid-cols-5 gap-1 rounded-2xl border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-800 dark:bg-[#151517] xl:hidden" role="tablist" aria-label="Signature sections">
+                {SECTIONS.map(s => {
+                  const active = activeSection === s.id
+                  return (
+                    <button key={s.id} type="button" role="tab" aria-selected={active} onClick={() => setActiveSection(s.id)}
+                      className={`relative flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10.5px] font-black transition-colors duration-200 sm:flex-row sm:justify-center sm:gap-1.5 sm:text-xs ${active ? 'text-white dark:text-[#111827]' : 'text-gray-500 dark:text-gray-400'}`}>
+                      {active && <motion.span layoutId="signature-tab-active-top" className="absolute inset-0 rounded-xl bg-[#111827] shadow-sm dark:bg-white" transition={{ type: 'spring', stiffness: 420, damping: 32 }} />}
+                      <s.icon className="relative h-4 w-4 shrink-0" strokeWidth={2.4} />
+                      <span className="relative max-w-full truncate">{s.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
               <div className="relative" style={{ minHeight: editorMinH || undefined }}>
-                <nav className="absolute right-full top-0 mr-3 w-36">
+                <nav className="absolute right-full top-0 mr-3 hidden w-36 xl:block">
                   <div className="flex flex-col gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
                     {SECTIONS.map(s => {
                       const active = activeSection === s.id
@@ -563,7 +599,7 @@ export default function EmailSignaturePage() {
                     {activeSection === 'identity' && (
                       <div className="space-y-4">
                         <EditElsewhereNote href="/settings#profile" text="Headshot, name, title, brokerage, team, phone & email come from your Profile in Settings." />
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <div className="grid grid-cols-2 gap-2">
                           <FieldToggle icon={UserIcon} label="Headshot" field={config.fields.headshot} onChange={(u) => updateField('headshot', u)} />
                           <FieldToggle icon={UserIcon} label="Name" field={config.fields.name} onChange={(u) => updateField('name', u)} />
                           <FieldToggle icon={Briefcase} label="Job Title" field={config.fields.title} onChange={(u) => updateField('title', u)} />
@@ -602,7 +638,7 @@ export default function EmailSignaturePage() {
                     {activeSection === 'social' && (
                       <div className="space-y-4">
                         <EditElsewhereNote href="/settings#profile" text="Add or edit your links under Social Links in Settings - toggle here which ones show on the signature. A link with nothing filled in can't be turned on." />
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <div className="grid grid-cols-2 gap-2">
                           {([
                             ['website', 'Website', Globe],
                             ['instagram', 'Instagram', Instagram],
@@ -823,8 +859,8 @@ export default function EmailSignaturePage() {
                               as one unit on the left, Light/Dark and ITS caption as one unit on the
                               right, rather than a single paragraph that used to describe both halves
                               at once from underneath. */}
-                          <div className="flex items-start gap-4">
-                            <div className="flex flex-[0.7] flex-col items-center gap-2 text-center">
+                          <div className="flex flex-wrap items-start gap-x-4 gap-y-3 sm:flex-nowrap">
+                            <div className="flex min-w-[88px] flex-[0.7] flex-col items-center gap-2 text-center">
                               {(hubConfig.profilePhotoUrl || user?.photo_url) && (
                                 <DraggableAvatarPhoto
                                   url={hubConfig.profilePhotoUrl || user?.photo_url}
@@ -839,7 +875,7 @@ export default function EmailSignaturePage() {
                             </div>
                             <span className="mt-2 h-16 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
                             <div className="flex flex-1 flex-col items-center gap-2 text-center">
-                              <div className="flex flex-wrap items-center justify-center gap-2 xl:flex-nowrap">
+                              <div className="flex flex-nowrap items-center justify-center gap-1.5 sm:gap-2">
                                 <ThemeSwatchButton
                                   label="Ivory"
                                   icon={Sun}
@@ -859,14 +895,15 @@ export default function EmailSignaturePage() {
                               </div>
                               <p className="text-[11px] font-semibold text-gray-400">Applies everywhere instantly, nothing to re-paste.</p>
                             </div>
-                            <span className="mt-2 h-16 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-                            {/* OpenHousePal Luxe premade theme - compact, beside Light/Dark. */}
+                            <span className="mt-2 hidden h-16 w-px shrink-0 bg-gray-200 dark:bg-gray-700 sm:block" />
+                            {/* OpenHousePal Luxe premade theme - compact, beside Light/Dark (its own row
+                                under them on a phone, where three across pushed it off the side). */}
                             <button
                               type="button"
                               onClick={() => updateLook(current => ({ ...current, luxe: !current.luxe }))}
                               aria-pressed={config.luxe}
                               title="Gold, serif and the Spotlight's light - ivory or midnight. Turn off to style it yourself."
-                              className={`group relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1.5 self-stretch overflow-hidden rounded-xl border px-2.5 py-2 text-center transition-all duration-300 active:scale-[0.97] ${config.luxe ? 'border-[#C9A24D] shadow-[0_12px_28px_-18px_rgba(201,162,77,.95)]' : 'border-[#C9A24D]/35 hover:border-[#C9A24D]/70'}`}
+                              className={`group relative flex min-w-0 flex-1 basis-full flex-col items-center justify-center gap-1.5 self-stretch overflow-hidden rounded-xl border px-2.5 py-2 sm:basis-0 text-center transition-all duration-300 active:scale-[0.97] ${config.luxe ? 'border-[#C9A24D] shadow-[0_12px_28px_-18px_rgba(201,162,77,.95)]' : 'border-[#C9A24D]/35 hover:border-[#C9A24D]/70'}`}
                               style={{ background: config.luxe ? 'radial-gradient(120% 140% at 100% 0%, rgba(201,162,77,.32), transparent 55%), linear-gradient(135deg,#111827 0%,#1b1a17 55%,#2a2218 100%)' : 'radial-gradient(120% 140% at 100% 0%, rgba(201,162,77,.2), transparent 55%), linear-gradient(135deg,#fffdf8 0%,#fbf6ec 55%,#f4ead7 100%)' }}
                             >
                               <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#e8c97a] to-transparent" />
@@ -1008,16 +1045,23 @@ export default function EmailSignaturePage() {
                       <button onClick={loadRealPreview} className="text-gray-500 underline">Retry</button>
                     </div>
                   )}
-                  {!realHtmlLoading && realHtml && (
-                    <iframe
-                      title="Actual install HTML preview"
-                      srcDoc={realHtml}
-                      onLoad={() => setRealFrameReady(true)}
-                      style={{ height: realFrameReady ? realHtmlHeight : 0, colorScheme: 'light' }}
-                      className={`w-full border-0 bg-transparent transition-[height,opacity] duration-300 ${realFrameReady ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
-                      sandbox="allow-scripts"
-                    />
-                  )}
+                  {!realHtmlLoading && realHtml && (() => {
+                    const natural = Math.max(realHtmlWidth, 320)
+                    const scale = emailBoxW && realHtmlWidth > emailBoxW ? emailBoxW / natural : 1
+                    const frameW = scale < 1 ? natural : undefined
+                    return (
+                      <div ref={emailBoxRef} className="w-full overflow-hidden" style={{ height: realFrameReady ? Math.ceil(realHtmlHeight * scale) : 0 }}>
+                        <iframe
+                          title="Actual install HTML preview"
+                          srcDoc={realHtml}
+                          onLoad={() => setRealFrameReady(true)}
+                          style={{ height: realFrameReady ? realHtmlHeight : 0, width: frameW, transform: scale < 1 ? `scale(${scale})` : undefined, transformOrigin: 'top left', colorScheme: 'light' }}
+                          className={`${frameW ? '' : 'w-full '}border-0 bg-transparent transition-[height,opacity] duration-300 ${realFrameReady ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+                          sandbox="allow-scripts"
+                        />
+                      </div>
+                    )
+                  })()}
                 </>
               )}
             </motion.div>
@@ -1213,13 +1257,13 @@ function FieldToggle({ label, field, onChange, icon: Icon, iconColorClass, disab
   const disabled = Boolean(disabledHint)
   const checked = field.include
   return (
-    <div className={`flex items-center gap-3 rounded-xl border p-3 transition ${disabled ? 'border-gray-100 opacity-60 dark:border-gray-800' : checked ? 'border-[#C9A24D]/50 bg-[#fbfaf7] dark:bg-white/5' : 'border-gray-200 dark:border-gray-700'}`}>
+    <div className={`flex min-w-0 items-center gap-2 rounded-xl border p-2.5 transition sm:gap-3 sm:p-3 ${disabled ? 'border-gray-100 opacity-60 dark:border-gray-800' : checked ? 'border-[#C9A24D]/50 bg-[#fbfaf7] dark:bg-white/5' : 'border-gray-200 dark:border-gray-700'}`}>
       {Icon && (
-        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconColorClass ? 'bg-white dark:bg-gray-800' : checked && !disabled ? 'bg-[#C9A24D]/15 text-[#8b7355]' : 'bg-gray-100 text-gray-400 dark:bg-gray-800'}`}>
+        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg sm:h-8 sm:w-8 ${iconColorClass ? 'bg-white dark:bg-gray-800' : checked && !disabled ? 'bg-[#C9A24D]/15 text-[#8b7355]' : 'bg-gray-100 text-gray-400 dark:bg-gray-800'}`}>
           <Icon className={`h-4 w-4 ${iconColorClass || ''}`} />
         </div>
       )}
-      <span className={`min-w-0 flex-1 text-xs font-bold ${disabled ? 'text-gray-400 dark:text-gray-600' : 'text-gray-700 dark:text-gray-200'}`}>{label}</span>
+      <span className={`min-w-0 flex-1 text-xs font-bold leading-tight ${disabled ? 'text-gray-400 dark:text-gray-600' : 'text-gray-700 dark:text-gray-200'}`}>{label}</span>
       {disabled ? (
         <div className="group relative shrink-0">
           <span className="relative block h-5 w-9 cursor-not-allowed rounded-full bg-gray-200 dark:bg-gray-800">

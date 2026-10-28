@@ -7,7 +7,6 @@ import { fontClass } from './fontClass'
 // property-grid UI), not re-rendering showcase contents inside the website's own block system.
 export default function ShowcaseBlock({ data, theme, basePrefix = '' }: { data: Record<string, any>; theme: SiteTheme; basePrefix?: string }) {
   const shareToken = data.resolved?.share_token as string | undefined
-  const name = data.resolved?.name as string | undefined
   if (!shareToken) return null
 
   return (
@@ -15,7 +14,9 @@ export default function ShowcaseBlock({ data, theme, basePrefix = '' }: { data: 
       <div className="rounded-3xl border-2 px-8 py-14 text-center" style={{ borderColor: `${theme.secondary_color}40`, backgroundColor: `${theme.secondary_color}0a` }}>
         <p className="text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: theme.secondary_color }}>Curated For You</p>
         <h2 className={`mt-2 text-3xl font-black sm:text-4xl ${fontClass(theme.heading_font, 'font-serif')}`} style={{ color: 'var(--site-heading)' }}>
-          {data.headline || name || 'Curated Collection'}
+          {/* Never the Showcase's own name - Showcases are usually made for one client, and their
+              name would show on the public home page (10/27 audit). */}
+          {data.headline || 'Curated Collection'}
         </h2>
         {data.subtext && <p className={`mx-auto mt-3 max-w-xl text-gray-600 ${fontClass(theme.body_font)}`}>{data.subtext}</p>}
         <a

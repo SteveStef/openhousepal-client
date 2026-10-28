@@ -8,6 +8,7 @@ import { formatOpenHouse, formatOpenHouseDay, upcomingOpenHouses } from '@/lib/m
 import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye, Bed, Bath, Square, Home, MapPin, School, Trees, Navigation, Star, FolderInput, Undo2 } from 'lucide-react'
 import { cleanAddress, formatMlsStatus, formatPropertyFeature, isPropertyAvailableStatus, normalizeImageUrl, haversineMiles, googleMapsDirectionsUrl } from '@/lib/utils'
 import { statusNotice, type StatusTone } from '@/lib/showcaseStatus'
+import CardPhotoSwiper from '@/components/property/CardPhotoSwiper'
 
 // "Lower Merion Township School District" -> "Lower Merion": the words that only make the pill
 // longer (Township, School District, Schools, Public...) come off.
@@ -130,6 +131,8 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
   // once it's sold), address and beds / baths / sq ft - plus Like (the client can still tell their
   // agent they loved it) and the chat. No details window, tour, pass or DOM: none of it applies
   // now. Until someone moves it, the bottom button files it into Sold/Removed.
+  // The card's photos to flip through (Showcase homes carry up to 10 as Photos; the first is the cover).
+  const cardPhotos = (((property as any).Photos || property.photos || []) as string[]).filter(Boolean).slice(0, 10).map(u => normalizeImageUrl(u))
   const notice = offMarketNotice ? statusNotice(property) : null
   if (notice) {
     const soldPrice = notice.tone === 'sold' && property.ClosePrice ? property.ClosePrice : null
@@ -268,15 +271,15 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
       )}
       {/* 70% Height - Rectangle Image (Landscape) */}
       <div className="relative bg-gray-100 dark:bg-[#0B0B0B] aspect-video overflow-hidden flex-[7]">
-        {property.ListPictureURL ? (
-          <Image
-            src={normalizeImageUrl(property.ListPictureURL)}
+        {property.ListPictureURL || cardPhotos.length ? (
+          // Flip through the photos right on the card - swipe on a phone, arrows on a computer
+          // (user, 10/27). Tapping still opens the home.
+          <CardPhotoSwiper
+            photos={cardPhotos.length ? cardPhotos : [normalizeImageUrl(property.ListPictureURL!)]}
             alt={property.FullStreetAddress}
-            fill
             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className={`object-cover transition-transform duration-700 ease-out ${cropMlsBadge ? 'origin-top-right scale-[1.13] group-hover:scale-[1.17]' : 'group-hover:scale-[1.04]'}`}
-            loading="lazy"
-            quality={85}
+            imgClassName="duration-700 ease-out group-hover:scale-[1.04]"
+            dotsClassName={shortDistrict(property.SchoolDistrictName) ? 'bottom-11' : 'bottom-3'}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
@@ -325,7 +328,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
         </div>
 
         {/* Interaction Indicators (Bottom Right) */}
-        <div className="absolute bottom-3 right-3 flex gap-1.5">
+        <div className="pointer-events-none absolute bottom-3 right-3 z-10 flex gap-1.5">
           {isViewed && (
             <div className="bg-[#111827]/90 text-white px-2.5 py-1 rounded-lg border border-white/10 flex items-center space-x-1.5 shadow-xl">
               <Eye size={10} className="text-[#C9A24D]" />
@@ -344,7 +347,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
         {/* School District - bottom-center of the photo itself, in a soft rounded pill so it
             stays readable over any photo underneath. */}
         {shortDistrict(property.SchoolDistrictName) && (
-          <div className={`absolute bottom-3 flex items-center gap-1.5 rounded-full border border-white/10 bg-[#111827]/75 px-3 py-1 shadow-lg ${
+          <div className={`pointer-events-none absolute bottom-3 z-10 flex items-center gap-1.5 rounded-full border border-white/10 bg-[#111827]/75 px-3 py-1 shadow-lg ${
             isViewed || interactionCounts.liked > 0 ? 'left-3 max-w-[calc(100%-8rem)]' : 'left-1/2 max-w-[75%] -translate-x-1/2'
           }`}>
             <School size={12} className="shrink-0 text-[#C9A24D]" />

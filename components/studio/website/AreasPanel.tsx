@@ -169,7 +169,8 @@ export default function AreasPanel({ onChange }: { onChange?: (what?: { added?: 
     const [link] = next.splice(index, 1)
     next.splice(index + by, 0, link)
     setAreas(next)
-    api.sites.reorderAreas(next.map(a => a.id)).then(res => { if (!res.success) load() })
+    // the editor preview's town list follows the new order too (it kept the old one - 10/27 audit)
+    api.sites.reorderAreas(next.map(a => a.id)).then(res => { if (!res.success) load(); else onChange?.() })
   }
 
   return (

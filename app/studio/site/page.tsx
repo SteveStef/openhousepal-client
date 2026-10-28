@@ -20,6 +20,7 @@ import { FormsInvitesSwitch, InvitesHeaderStats, InvitesNewChips, PLAYFUL_FORM_C
 import { GoldLastWord } from '@/components/ui/LuxeSurface'
 import FormStatsModal from '@/components/forms/FormStatsModal'
 import FormBuilderModal from '@/components/forms/FormBuilderModal'
+import FormPlacementsNotice from '@/components/forms/FormPlacementsNotice'
 import FormLookPicker from '@/components/forms/FormLookPicker'
 import { AfterSubmitSettings, EffectsSettings, RevertButton, SaveFormButton } from '@/components/forms/FormSettingsBits'
 import { hasAgentHubAccess } from '@/lib/navAccess'
@@ -4248,6 +4249,7 @@ function AgentHubContent() {
               <p className="text-lg font-black tracking-tight text-[#111827] dark:text-white">{themeEditForm.title} Theme</p>
               <p className="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400">Its questions are locked so the automation behind it always works, but you can still change its color and dark mode.</p>
               <div className="mt-4"><ShowcaseFormInfoBlock formType={themeEditForm.form_type} compact /></div>
+              <FormPlacementsNotice formType={themeEditForm.form_type} planTier={user?.plan_tier} className="mt-4" />
 
               <div className="mt-5">
                 <p className="mb-3 text-xs font-black uppercase tracking-widest text-gray-400">Look</p>

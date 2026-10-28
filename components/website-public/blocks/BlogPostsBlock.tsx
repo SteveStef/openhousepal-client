@@ -42,7 +42,7 @@ export default function BlogPostsBlock({ data, theme, basePrefix = '' }: { data:
     return (
       <section className="px-6 py-16 sm:py-24" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
         <div className="mx-auto max-w-7xl">
-          <ClassicSectionHead eyebrow="Journal" title={data.headline || 'Latest Articles'} sub="Market updates, neighborhood guides and honest local advice." href={`${basePrefix}/blog`} linkLabel="All articles" />
+          <ClassicSectionHead font={theme.heading_font} eyebrow="Journal" title={data.headline || 'Latest Articles'} sub="Market updates, neighborhood guides and honest local advice." href={`${basePrefix}/blog`} linkLabel="All articles" />
           <div className={`mt-10 grid gap-6 sm:grid-cols-2 ${shown.length >= 4 ? 'lg:grid-cols-4' : shown.length === 3 ? 'lg:grid-cols-3' : ''}`}>
             {shown.map(post => (
               <a key={post.id} href={`${basePrefix}/blog/${post.slug}`} className="ohp-card group flex flex-col overflow-hidden rounded-2xl border" style={{ borderColor: 'var(--site-line)', backgroundColor: 'var(--site-surface)' }}>

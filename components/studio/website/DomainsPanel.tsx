@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Check, CheckCircle2, Copy, ExternalLink, Globe2, Loader2, Lock, Plus, RefreshCw, ShieldCheck, Star, Trash2 } from 'lucide-react'
+import { ArrowRight, Check, CheckCircle2, Copy, ExternalLink, Globe2, Loader2, Lock, Plus, RefreshCw, ShieldCheck, Star, Trash2 } from 'lucide-react'
 import api from '@/lib/api-service'
 import { SiteDomain } from '@/types'
 import { copyText } from '@/lib/copyText'
@@ -292,17 +292,10 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
     setAdding(false)
   }
 
-  return (
-    <div className={bare ? '' : 'rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#151517]'}>
-      {!bare && (
-        <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-[#8b7355]">
-          <Globe2 className="h-3.5 w-3.5" /> Domain
-        </p>
-      )}
-
-      {/* Always-on OHP subdomain - never removable, keeps working even if a custom domain breaks */}
-      {!hideFree && <div className={`${bare ? '' : 'mt-3 '}relative overflow-hidden rounded-2xl border border-[#C9A24D]/30 bg-gradient-to-br from-[#fffdf8] via-[#fbf6ec] to-[#f4ead7] p-3.5 dark:border-white/10 dark:from-[#0b0f0e] dark:via-[#111827] dark:to-[#1d1810]`}>
-        <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-[#C9A24D]/20 blur-2xl" />
+  // The free OpenHousePal address - never removable, keeps working even if a custom domain breaks.
+  const freeCard = hideFree ? null : (
+    <div className={`${bare && !ownDefaultHost ? '' : ownDefaultHost ? 'mt-5 ' : 'mt-3 '}relative overflow-hidden rounded-2xl border p-3.5 ${ownDefaultHost ? 'border-gray-200 bg-[#FAFAF7] dark:border-white/10 dark:bg-white/[0.03]' : 'border-[#C9A24D]/30 bg-gradient-to-br from-[#fffdf8] via-[#fbf6ec] to-[#f4ead7] dark:border-white/10 dark:from-[#0b0f0e] dark:via-[#111827] dark:to-[#1d1810]'}`}>
+        {!ownDefaultHost && <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-[#C9A24D]/20 blur-2xl" />}
         <div className="relative flex items-center justify-between gap-2">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]">OpenHousePal address</p>
           <div className="flex shrink-0 items-center gap-1.5">
@@ -311,14 +304,20 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
                 <Star className="h-2.5 w-2.5" /> Default
               </span>
             )}
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-500/30">
-              <CheckCircle2 className="h-2.5 w-2.5" /> Active
-            </span>
+            {ownDefaultHost ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-500 dark:bg-white/10 dark:text-white/60">
+                <ArrowRight className="h-2.5 w-2.5" /> Forwards
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-500/30">
+                <CheckCircle2 className="h-2.5 w-2.5" /> Active
+              </span>
+            )}
           </div>
         </div>
         <div className="relative mt-2 flex items-center gap-2 rounded-xl border border-white/80 bg-white/90 py-1.5 pl-3 pr-1.5 shadow-sm dark:border-white/10 dark:bg-black/30">
-          <Lock className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-          <span className="min-w-0 flex-1 break-all font-mono text-[12px] font-bold leading-snug text-[#111827] dark:text-white">{ohpHost}</span>
+          <Lock className={`h-3.5 w-3.5 shrink-0 ${ownDefaultHost ? 'text-gray-400' : 'text-emerald-500'}`} />
+          <span className={`min-w-0 flex-1 break-all font-mono text-[12px] font-bold leading-snug ${ownDefaultHost ? 'text-gray-500 dark:text-white/60' : 'text-[#111827] dark:text-white'}`}>{ohpHost}</span>
           <CopyButton text={ohpHostUrl(ohpHost)} />
           <a href={ohpHostUrl(ohpHost)} target="_blank" rel="noreferrer" title="Open" className="inline-flex shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white p-1.5 text-gray-500 transition-all hover:-translate-y-0.5 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/10 dark:bg-white/[0.04] dark:text-white/60">
             <ExternalLink className="h-3.5 w-3.5" />
@@ -327,10 +326,25 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
         <p className="relative mt-2 text-[11px] font-semibold text-gray-500 dark:text-white/50">{ownDefaultHost
           ? <>Still works - visitors who open it are sent to {ownDefaultHost}.</>
           : 'Always available, even if a custom domain has an issue.'}</p>
-      </div>}
+      </div>
+  )
 
-      <div className={`${hideFree ? '' : 'mt-5 '}flex items-center gap-2`}>
+  return (
+    <div className={bare ? '' : 'rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#151517]'}>
+      {!bare && (
+        <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-[#8b7355]">
+          <Globe2 className="h-3.5 w-3.5" /> Domain
+        </p>
+      )}
+
+      {/* Always-on OHP subdomain - first while it's the address in use; once the agent's own domain
+          is, it sits under it, toned down, marked as forwarding there (user, 10/27: with the own
+          domain on, the green "Active" free address up top read as if it were still the one). */}
+      {!ownDefaultHost && freeCard}
+
+      <div className={`${hideFree || ownDefaultHost ? (bare ? '' : 'mt-3 ') : 'mt-5 '}flex items-center gap-2`}>
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]">Your own domain</p>
+        {ownDefaultHost && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" /> In use</span>}
         <span className="h-px flex-1 bg-gradient-to-r from-[#C9A24D]/40 to-transparent" />
       </div>
       {loading ? (
@@ -344,6 +358,7 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
           ))}
         </div>
       )}
+      {ownDefaultHost && freeCard}
       {purchases.length > 0 && (
         <div className="mt-2.5 space-y-2.5">
           {purchases.map(p => <PurchasedDomainCard key={p.id} p={p} onChanged={refreshAll} />)}

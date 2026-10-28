@@ -39,7 +39,7 @@ export interface SectionDef {
   powered?: string
   /** Where the underlying content is managed - a shortcut, not a second editor. `tab` switches
       this editor's own tab; `href` leaves for another part of OpenHousePal. */
-  manage?: { label: string; href?: string; tab?: 'featured' | 'areas' | 'media' }
+  manage?: { label: string; href?: string; tab?: 'featured' | 'areas' | 'media' | 'reviews' }
 }
 
 export const SECTIONS: Record<SiteBlockType, SectionDef> = {
@@ -83,8 +83,8 @@ export const SECTIONS: Record<SiteBlockType, SectionDef> = {
     defaults: { headline: 'Recently Sold' },
   },
   showcase: {
-    type: 'showcase', label: 'Showcase Collection', icon: LayoutGrid, group: 'homes',
-    blurb: 'A hand-picked set of homes from one of your Showcases, with its own headline.',
+    type: 'showcase', label: 'Showcase Collection', icon: LayoutGrid, group: 'homes', addable: false,
+    blurb: 'A button to one of your Showcases - a hand-picked set of homes - with your own headline.',
     powered: 'Pulls from a Showcase you choose.',
     defaults: {},
     manage: { label: 'Manage Showcases', href: '/showcases' },
@@ -108,7 +108,7 @@ export const SECTIONS: Record<SiteBlockType, SectionDef> = {
     blurb: 'What your clients say - your published reviews, including any imported from Google.',
     powered: 'Shows while the Reviews tab has "Show reviews on my website" on, and you have reviews.',
     defaults: { headline: 'What Clients Say' },
-    manage: { label: 'Manage reviews', href: '/studio/reviews' },
+    manage: { label: 'Manage reviews', tab: 'reviews' },
   },
   form: {
     type: 'form', label: 'Lead Form', icon: ClipboardList, group: 'you',

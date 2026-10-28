@@ -141,6 +141,7 @@ const LABELS: [string, string][] = [
   ['/leads', 'Loading your leads'],
   ['/activity', 'Loading your activity'],
   ['/showcases', 'Loading your Showcases'],
+  ['/open-houses/my-listings', 'Opening your listings'],
   ['/open-houses', 'Loading your open houses'],
   ['/discovery', 'Loading Discovery'],
   ['/settings', 'Loading your settings'],

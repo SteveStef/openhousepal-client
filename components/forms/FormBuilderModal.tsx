@@ -18,6 +18,7 @@ import { hasAgentHubAccess } from '@/lib/navAccess'
 import FormLookPicker from '@/components/forms/FormLookPicker'
 import { resolveFormLook, type FormLook, type FormLookFields } from '@/lib/formLook'
 import { AfterSubmitSettings, EffectsSettings, RevertButton, SaveFormButton, SettingSwitch } from '@/components/forms/FormSettingsBits'
+import FormPlacementsNotice from '@/components/forms/FormPlacementsNotice'
 
 type BlockId = 'welcome' | 'thankyou' | string
 
@@ -173,6 +174,8 @@ export default function FormBuilderModal({
         <div className="flex flex-1 overflow-hidden">
           {/* Left rail: block list */}
           <div className={`${mobilePane === 'edit' ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col overflow-y-auto border-r border-gray-100 bg-[#fbfaf7] p-3 dark:border-gray-800 dark:bg-[#111113] md:w-64`}>
+            {/* Phones open on this list - the notice leads it there (desktop shows it in the editor). */}
+            {form.form_type !== 'custom' && <FormPlacementsNotice formType={form.form_type} planTier={user?.plan_tier} className="mb-3 md:hidden" />}
             <button
               onClick={() => openBlock('welcome')}
               className={`flex items-center gap-2.5 rounded-xl border p-3 text-left transition ${
@@ -349,6 +352,8 @@ export default function FormBuilderModal({
             <button type="button" onClick={() => setMobilePane('list')} className="mb-4 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-600 dark:border-gray-700 dark:bg-[#151517] dark:text-gray-300 md:hidden">
               <ChevronLeft className="h-3.5 w-3.5" /> All questions
             </button>
+            {/* A premade form: everywhere it opens, before any change (user, 10/27). */}
+            {form.form_type !== 'custom' && <FormPlacementsNotice formType={form.form_type} planTier={user?.plan_tier} className="mx-auto mb-5 hidden max-w-lg md:block" />}
             {selectedBlockId === 'welcome' && (
               <div className="mx-auto max-w-lg space-y-5">
                 <h3 className="text-lg font-black text-[#111827] dark:text-white">Welcome Screen</h3>

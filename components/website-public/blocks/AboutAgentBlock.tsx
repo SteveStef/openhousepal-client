@@ -1,6 +1,6 @@
 import { ArrowUpRight, Facebook, Globe, Instagram, Mail, MapPin, MessageSquare, Music2, Phone, Quote, Youtube } from 'lucide-react'
 import { SiteTheme } from '../types'
-import { fontClass } from './fontClass'
+import { fontClass, headingClass } from './fontClass'
 import { sizedImage } from '@/lib/siteImage'
 import { salesAreRecent } from '@/lib/salesWording'
 
@@ -67,7 +67,7 @@ export default function AboutAgentBlock({ data, theme, basePrefix = '' }: { data
           )}
           <div className={photoUrl ? '' : 'lg:col-span-2 lg:mx-auto lg:max-w-3xl lg:text-center'}>
             <p className="text-[12px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--site-accent-text)' }}>Meet your agent</p>
-            {name && <h2 className="ohp-site-heading mt-2 text-[2.4rem] font-extrabold leading-[1.05] tracking-tight sm:text-5xl" style={{ color: 'var(--site-heading)' }}>{name}</h2>}
+            {name && <h2 className={`${headingClass(theme.heading_font)} mt-2 text-[2.4rem] font-extrabold leading-[1.05] tracking-tight sm:text-5xl`} style={{ color: 'var(--site-heading)' }}>{name}</h2>}
             {(title || market) && (
               <p className={`mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[15px] font-semibold ${photoUrl ? '' : 'lg:justify-center'}`} style={{ color: 'var(--site-muted)' }}>
                 {title && <span>{title}</span>}

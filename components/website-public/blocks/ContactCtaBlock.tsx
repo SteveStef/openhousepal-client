@@ -1,6 +1,6 @@
 import { ArrowUpRight, CalendarDays, Mail, MessageSquare, Phone } from 'lucide-react'
 import { SiteTheme } from '../types'
-import { fontClass } from './fontClass'
+import { fontClass, headingClass } from './fontClass'
 
 // The page's closing "let's talk" band - dark, gold-lit, with the same faint grid + sweep as the
 // rest of the luxe language. Real contact methods only (whatever the block resolved).
@@ -22,7 +22,7 @@ export default function ContactCtaBlock({ data, theme, basePrefix = '' }: { data
         <div className="mx-auto flex max-w-6xl flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-xl">
             <p className="text-[12px] font-bold uppercase tracking-[0.2em] opacity-75">Get in touch</p>
-            <h2 className="ohp-site-heading mt-2 text-[2.2rem] font-extrabold leading-[1.08] tracking-tight sm:text-5xl">{headline}</h2>
+            <h2 className={`${headingClass(theme.heading_font)} mt-2 text-[2.2rem] font-extrabold leading-[1.08] tracking-tight sm:text-5xl`}>{headline}</h2>
             {subtext && <p className={`mt-3 text-base opacity-80 ${fontClass(theme.body_font)}`}>{subtext}</p>}
           </div>
           <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap lg:justify-end">

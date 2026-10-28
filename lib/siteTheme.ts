@@ -181,6 +181,11 @@ export function siteThemeVars(rawTheme: Partial<SiteTheme> | null | undefined): 
     // Legacy names the older components still read.
     '--site-gold': accent,
     '--site-gold-soft': `rgba(${accentRgb.join(',')},0.12)`,
+    // The agent's Body font for the page's own text (site-theme.css .ohp-site / .ohp-site-body).
+    // It was always DM Sans, so the Body font picker only reached a few labels (10/27 audit).
+    '--site-text-font': theme?.body_font === 'serif' ? 'var(--font-site-heading), Georgia, serif'
+      : theme?.body_font === 'mono' ? 'ui-monospace, SFMono-Regular, Menlo, monospace'
+        : 'var(--font-site-body), ui-sans-serif, system-ui, sans-serif',
   } as CSSProperties
   return { style, template: siteTemplate(theme), mode: siteMode(theme), accent, accentLight, accentDeep, accentPale, onAccent }
 }

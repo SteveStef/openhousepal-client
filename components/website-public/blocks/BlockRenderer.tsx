@@ -45,11 +45,11 @@ export default function BlockRenderer({ block, theme, siteId, basePrefix = '' }:
     case 'recent_sales':
       return <RecentSalesBlock data={block.data} theme={theme} siteId={siteId} basePrefix={basePrefix} />
     case 'open_houses':
-      return <OpenHousesBlock data={block.data} theme={theme} />
+      return <OpenHousesBlock data={block.data} theme={theme} basePrefix={basePrefix} />
     case 'blog_posts':
       return <BlogPostsBlock data={block.data} theme={theme} basePrefix={basePrefix} />
     case 'form':
-      return <FormBlock data={block.data} theme={theme} siteId={siteId} />
+      return <FormBlock data={block.data} theme={theme} siteId={siteId} basePrefix={basePrefix} />
     case 'showcase':
       return <ShowcaseBlock data={block.data} theme={theme} basePrefix={basePrefix} />
     case 'communities':

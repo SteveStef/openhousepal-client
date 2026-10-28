@@ -527,6 +527,40 @@ export function openLeadForm(tab: 'info' | 'tour', extra?: { date?: string; mess
   document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+// Glide to a section, landing just under the fixed top bar (both looks mark theirs data-spot-nav).
+// Menu links call this as the menu closes - while it's open the page is locked (and on a phone
+// pinned in place), and the unlock puts the page back where it was, which used to cancel the trip
+// (user, 10/27). So it waits for the lock to lift, then glides, then nudges once if photos loading
+// on the way moved the section.
 export function scrollToId(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  if (typeof window === 'undefined') return
+  const html = document.documentElement
+  const body = document.body
+  const locked = () => html.style.overflow === 'hidden' || body.style.overflow === 'hidden' || body.style.position === 'fixed'
+  const smooth = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  const target = () => {
+    const el = document.getElementById(id)
+    if (!el) return null
+    const nav = document.querySelector<HTMLElement>('[data-spot-nav]')
+    const bar = nav ? Math.max(0, nav.getBoundingClientRect().bottom) : 0
+    return Math.max(0, el.getBoundingClientRect().top + window.scrollY - bar - 8)
+  }
+  let frames = 0
+  const go = () => {
+    // A lock still on (or just released this frame): try again next frame, for up to ~1.5s.
+    if (locked() && frames++ < 90) { requestAnimationFrame(go); return }
+    requestAnimationFrame(() => {
+      const top = target()
+      if (top == null) return
+      window.scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' })
+      const settle = () => {
+        const again = target()
+        if (again != null && Math.abs(again - window.scrollY) > 24) window.scrollTo({ top: again, behavior: smooth ? 'smooth' : 'auto' })
+      }
+      if ('onscrollend' in window) window.addEventListener('scrollend', settle, { once: true })
+      else setTimeout(settle, 900)
+    })
+  }
+  // Let a closing menu start its unlock before checking.
+  window.setTimeout(go, 0)
 }

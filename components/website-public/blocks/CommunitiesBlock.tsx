@@ -97,7 +97,7 @@ export default function CommunitiesBlock({ data, theme, basePrefix = '' }: { dat
       <section className="px-6 py-16 sm:py-24" style={{ backgroundColor: 'var(--site-bg)' }}>
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-wrap items-end justify-between gap-6">
-            <ClassicSectionHead eyebrow={eyebrow} title={headline} sub={subtext} />
+            <ClassicSectionHead font={theme.heading_font} eyebrow={eyebrow} title={headline} sub={subtext} />
             <div className="flex items-center gap-2">
               {areas.length > per && (
                 <>
