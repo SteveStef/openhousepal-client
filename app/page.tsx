@@ -851,8 +851,10 @@ function HomePageContent() {
                 muted
                 playsInline
                 controls
+                preload="metadata"
+                poster="/openhousepal-story-poster.jpg"
               >
-                <source src="/Comp_1_R2.mp4" type="video/mp4" />
+                <source src="/openhousepal-story.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
             </div>
