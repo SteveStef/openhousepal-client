@@ -133,11 +133,11 @@ function LoginContent() {
   }
 
   return (
-    <div className="max-md:min-h-screen max-md:supports-[min-height:100dvh]:min-h-[100dvh] md:h-screen flex flex-col lg:flex-row md:overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B]">
-      {/* Phones: the logo + Start free bar on top, and the page scrolls so nothing is cut off. */}
-      <AuthPhoneHeader linkHref="/register" linkLabel="Start free" />
+    <div className="max-md:min-h-screen max-md:supports-[min-height:100dvh]:min-h-[100dvh] md:h-screen md:supports-[height:100dvh]:h-[100dvh] flex flex-col lg:flex-row md:overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B]">
+      {/* Phones: the logo + Start here bar on top, and the page scrolls so nothing is cut off. */}
+      <AuthPhoneHeader linkHref="/register" linkLabel="Start here" />
       {/* Left Section - Login Form (55%) */}
-      <div className="w-full lg:w-[55%] max-md:flex-1 md:h-full relative z-0 flex items-center max-md:items-start justify-center px-6 max-md:px-4 py-4 max-md:pt-6 max-md:pb-[max(1.5rem,env(safe-area-inset-bottom))] overflow-hidden transition-colors duration-300">
+      <div className="w-full lg:w-[55%] max-md:flex-1 md:h-full relative z-0 flex items-start justify-center px-6 max-md:px-4 py-4 max-md:pt-6 max-md:pb-[max(1.5rem,env(safe-area-inset-bottom))] max-md:overflow-hidden md:overflow-y-auto md:overscroll-contain transition-colors duration-300">
         <PageBackgroundGrid />
         <AuthLuxeStyle />
         <ShieldBadge
@@ -145,7 +145,9 @@ function LoginContent() {
           className="ohp-motif-float hidden lg:block absolute top-10 right-10 w-[170px] h-[170px] text-[#C9A24D] opacity-[0.2] dark:opacity-[0.26] -z-10"
         />
 
-        <div className="max-w-[480px] w-full relative z-10 flex flex-col items-center">
+        {/* md+: centred by md:my-auto when it fits, scrolls from the top on a short screen (phone sideways,
+            iPad landscape) instead of being cut off (user, 10/29). */}
+        <div className="max-w-[480px] w-full relative z-10 flex flex-col items-center md:my-auto">
           {/* Mobile Logo */}
           <Link href="/" className="max-md:hidden mb-4 lg:mb-12 flex flex-col items-center group">
             <h1 className="text-[28px] sm:text-[32px] text-[#111827] dark:text-white"><GoldPal animate /></h1>
@@ -319,8 +321,8 @@ function LoginContent() {
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-[#8b7355] rounded-full mix-blend-overlay filter blur-[100px] opacity-40"></div>
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-[#8b7355] rounded-full mix-blend-overlay filter blur-[100px] opacity-40"></div>
 
-        <div className="relative z-10 p-12 lg:p-16 flex flex-col justify-center h-full">
-          <div className="max-w-xl mx-auto lg:mx-0">
+        <div className="relative z-10 p-12 lg:p-16 flex flex-col h-full overflow-y-auto">
+          <div className="max-w-xl mx-auto lg:mx-0 my-auto">
             <h3 className="mb-2 text-4xl font-black uppercase tracking-tight"><GoldPal /></h3>
             <p className="text-gray-300 text-lg mb-6 font-light whitespace-nowrap">The all-in-one platform for modern real estate agents.</p>
             <div className="h-1 w-20 bg-gradient-to-r from-[#e8c97a] to-[#8b7355] rounded-full mb-12"></div>

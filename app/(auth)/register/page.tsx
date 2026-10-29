@@ -375,7 +375,7 @@ export default function RegisterPage() {
             {/* 1 - Which MLS */}
             <section className={phoneStep === 1 ? '' : 'hidden'} aria-hidden={phoneStep !== 1}>
               <div className="mb-5 text-center">
-                <AuthKicker>Start free</AuthKicker>
+                <AuthKicker>Start here</AuthKicker>
                 <h2 className="mb-1 font-serif text-[34px] leading-tight font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Create <em className="ohp-home-em">Account</em></h2>
                 <p className="text-sm font-medium text-[#6B7280] dark:text-gray-400">Start your {TRIAL_PERIOD_DAYS}-day free trial today.</p>
               </div>
@@ -589,7 +589,7 @@ export default function RegisterPage() {
     </div>
 
     {/* ---- Tablet / desktop (md and up): the single-page layout, unchanged ---- */}
-    <div className="hidden md:flex h-screen flex-col lg:flex-row overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B]">
+    <div className="hidden md:flex h-screen supports-[height:100dvh]:h-[100dvh] flex-col lg:flex-row overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B]">
       {/* Left Section - Form (55%) */}
       <div className="w-full lg:w-[55%] h-full relative z-0 flex flex-col overflow-hidden transition-colors duration-300">
         <PageBackgroundGrid />
@@ -600,7 +600,10 @@ export default function RegisterPage() {
         />
 
         {/* Content Container */}
-        <div className="relative z-10 w-full h-full overflow-hidden flex flex-col items-center justify-center px-6 py-4">
+        <div className="relative z-10 w-full h-full overflow-y-auto overscroll-contain flex flex-col items-center px-6 py-4">
+          {/* Centred when it fits; on a short screen (phone sideways, iPad landscape) it scrolls from the
+              top instead of being cut off top and bottom (user, 10/29) - my-auto, not justify-center. */}
+          <div className="my-auto flex w-full flex-col items-center">
           {/* Logo - Compact for no-scroll mobile layout */}
           <Link href="/" className="mb-4 lg:mb-12 flex flex-col items-center group">
             <h1 className="text-[28px] sm:text-[32px] text-[#111827] dark:text-white"><GoldPal animate /></h1>
@@ -656,7 +659,7 @@ export default function RegisterPage() {
         <div className="max-w-[640px] w-full">
           {/* Header */}
           <div className="mb-4 text-center">
-            <AuthKicker>Start free</AuthKicker>
+            <AuthKicker>Start here</AuthKicker>
             <h2 className="mb-2 font-serif text-4xl font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Create <em className="ohp-home-em">Account</em></h2>
             <p className="text-[#6B7280] dark:text-gray-400 text-sm font-medium">Start your {TRIAL_PERIOD_DAYS}-day free trial today.</p>
           </div>
@@ -1045,6 +1048,7 @@ export default function RegisterPage() {
           </div>
         </div>
       )}
+          </div>
         </div>
       </div>
 
@@ -1061,8 +1065,8 @@ export default function RegisterPage() {
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-[#8b7355] rounded-full mix-blend-overlay filter blur-[100px] opacity-40"></div>
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-[#8b7355] rounded-full mix-blend-overlay filter blur-[100px] opacity-40"></div>
 
-        <div className="relative z-10 p-12 lg:p-16 flex flex-col justify-center h-full">
-          <div className="max-w-xl mx-auto lg:mx-0">
+        <div className="relative z-10 p-12 lg:p-16 flex flex-col h-full overflow-y-auto">
+          <div className="max-w-xl mx-auto lg:mx-0 my-auto">
             <h3 className="mb-2 text-4xl font-black uppercase tracking-tight"><GoldPal /></h3>
             <p className="text-gray-300 text-lg mb-6 font-light whitespace-nowrap">The all-in-one platform for modern real estate agents.</p>
             <div className="h-1 w-20 bg-gradient-to-r from-[#e8c97a] to-[#8b7355] rounded-full mb-12"></div>

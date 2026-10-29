@@ -131,15 +131,18 @@ export default function Header({ mode = 'app' }: HeaderProps) {
   // Thin gold fill along the header's own bottom edge that grows as you scroll down the homepage -
   // lives in the header (not a separate fixed strip above it) so "there's more below" reads as
   // part of the persistent chrome instead of a one-off overlay. rAF-throttled and applied as a
-  // scaleX transform so it never triggers layout while scrolling.
-  const [scrollProgress, setScrollProgress] = useState(0)
+  // scaleX transform so it never triggers layout while scrolling. Written straight onto the bar,
+  // not through React state: a state update re-rendered this whole header every frame, which made
+  // the line stutter while scrolling (user, 10/29: "not very flowy").
+  const progressRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (mode !== 'landing' || isAuthenticated) return
     let raf = 0
     const update = () => {
       raf = 0
       const max = document.documentElement.scrollHeight - window.innerHeight
-      setScrollProgress(max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0)
+      const p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0
+      if (progressRef.current) progressRef.current.style.transform = `scaleX(${p})`
     }
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(update) }
     update()
@@ -812,8 +815,9 @@ export default function Header({ mode = 'app' }: HeaderProps) {
       {mode === 'landing' && !isAuthenticated && (
         <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-transparent pointer-events-none overflow-hidden">
           <div
-            className="h-full w-full origin-left bg-gradient-to-r from-[#C9A24D] to-[#b38e3e]"
-            style={{ transform: `scaleX(${scrollProgress})` }}
+            ref={progressRef}
+            className="h-full w-full origin-left bg-gradient-to-r from-[#C9A24D] to-[#b38e3e] will-change-transform"
+            style={{ transform: 'scaleX(0)' }}
           />
         </div>
       )}

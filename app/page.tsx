@@ -295,7 +295,23 @@ function HomePageContent() {
       { threshold: [0, 0.5, 1] }
     )
     elements.forEach(([, el]) => observer.observe(el))
-    return () => observer.disconnect()
+    // Backup for a fast flick (user, 10/29: plans "don't load in all the way" when quick scrolling):
+    // the observer can miss a section the page shot past, leaving it invisible. Any section whose
+    // top has reached the screen counts as seen.
+    let raf = 0
+    const markReached = () => {
+      raf = 0
+      const reached = elements.filter(([, el]) => el.getBoundingClientRect().top < window.innerHeight).map(([id]) => id)
+      setSeenSections(prev => (reached.every(id => prev.has(id)) ? prev : new Set([...prev, ...reached])))
+    }
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(markReached) }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    markReached()
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('scroll', onScroll)
+      if (raf) cancelAnimationFrame(raf)
+    }
   }, [isCheckingAuth])
 
   // Eased scroll to a section - used by the section dot nav and the floating "keep scrolling" cue.

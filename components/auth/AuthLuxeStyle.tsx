@@ -28,7 +28,7 @@ export function GoldPal({ animate = false }: { animate?: boolean }) {
 }
 
 // The top bar on phones (under md) for the sign-in pages: the logo (links home) plus one action
-// link (Sign in / Start free). Desktop keeps the split-screen layout with no bar. No backdrop blur
+// link (Sign in / Start here). Desktop keeps the split-screen layout with no bar. No backdrop blur
 // (big blur layers lag on phones).
 export function AuthPhoneHeader({ linkHref, linkLabel, prompt }: { linkHref: string; linkLabel: string; prompt?: string }) {
   return (
