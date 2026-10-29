@@ -10,13 +10,15 @@ import { weekendSummary } from '@/components/open-house-manager/WeekendCalendarC
 // The listing-agent side of open houses, its own Dash card now (was a tab inside a shared
 // "Open House Manager" card next to Discovery - split out so each gets the full column width).
 export default function DashManagerCard({
-  myListings, hostRequests, discoveryListings, actionCount, hasSearchPreferences,
+  myListings, hostRequests, discoveryListings, actionCount, hasSearchPreferences, onChanged,
 }: {
   myListings: MyListingsResponse | null
   hostRequests: HostRequest[]
   discoveryListings: DiscoveryListing[]
   actionCount: number
   hasSearchPreferences: boolean
+  /** Reload the Dash after something changed in the hosts window. */
+  onChanged?: () => void
 }) {
   // Counted from the same boxes shown below (the next 4 open-house days of every listing), so the
   // numbers always match what you see: "1 covered · 3 need a host".
@@ -42,7 +44,7 @@ export default function DashManagerCard({
       )}
 
       <div className="mt-4 min-w-0">
-        <DashOpensPanel listings={myListings?.listings || []} hostRequests={hostRequests} discoveryListings={discoveryListings} hasSearchPreferences={hasSearchPreferences} />
+        <DashOpensPanel listings={myListings?.listings || []} hostRequests={hostRequests} discoveryListings={discoveryListings} hasSearchPreferences={hasSearchPreferences} onChanged={onChanged} />
       </div>
     </div>
   )

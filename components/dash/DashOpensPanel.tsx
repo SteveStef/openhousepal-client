@@ -1,11 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowRight, Bath, Bed, CalendarCheck, Hammer, Home, Inbox, Maximize, Search, Users } from 'lucide-react'
 import { HostRequest, MyListingItem } from '@/types'
 import WeekendCalendarCards, { hostingNote } from '@/components/open-house-manager/WeekendCalendarCards'
+import ManageHostsModal from '@/components/open-house-manager/ManageHostsModal'
 import ScrollableSection from './ScrollableSection'
 import { CoverageMeter, ListingCover, Pill, SectionLabel, compactPrice, niceAddress, whenText } from './openHouseBits'
 
@@ -29,7 +30,7 @@ export interface DiscoveryListing {
 // Pending requests need a response fast (the other agent is waiting), so this sits at the very
 // top of the panel and glows - the same "needs your attention right now" treatment the
 // page-level headliner uses. Each row says who wants which date, with a Review button.
-function RequestsSection({ hostRequests }: { hostRequests: HostRequest[] }) {
+function RequestsSection({ hostRequests, onReview }: { hostRequests: HostRequest[]; onReview: (listingKey: string) => void }) {
   if (hostRequests.length === 0) return null
   return (
     <div className="animate-pulse-glow rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-amber-50/60 p-3 shadow-[0_0_22px_rgba(245,158,11,0.28)] dark:border-amber-500/50 dark:from-amber-500/10 dark:via-transparent dark:to-amber-500/5">
@@ -39,10 +40,11 @@ function RequestsSection({ hostRequests }: { hostRequests: HostRequest[] }) {
       </p>
       <ScrollableSection maxHeightClass="max-h-[210px]" viewHref="/open-houses/my-listings?panel=host-requests" viewLabel="View all requests">
         {hostRequests.slice(0, 9).map(hr => (
-          <Link
+          <button
+            type="button"
             key={hr.id}
-            href={`/open-houses/my-listings?listingKey=${encodeURIComponent(hr.listing_key)}`}
-            className="group flex min-w-0 items-center gap-2.5 rounded-xl border border-amber-200 bg-white p-2 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-400 dark:border-amber-500/25 dark:bg-[#151517]"
+            onClick={() => onReview(hr.listing_key)}
+            className="group flex w-full min-w-0 items-center gap-2.5 rounded-xl border border-amber-200 bg-white p-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-400 dark:border-amber-500/25 dark:bg-[#151517]"
           >
             <ListingCover src={hr.property_image} className="h-10 w-12" />
             <div className="min-w-0 flex-1">
@@ -52,7 +54,7 @@ function RequestsSection({ hostRequests }: { hostRequests: HostRequest[] }) {
               </p>
             </div>
             <span className="shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-black text-white shadow-sm transition group-hover:bg-amber-600">Review</span>
-          </Link>
+          </button>
         ))}
       </ScrollableSection>
     </div>
@@ -63,16 +65,22 @@ function RequestsSection({ hostRequests }: { hostRequests: HostRequest[] }) {
 // which one has more content - a fixed floor, not an attempt to measure/match at render time.
 export const DASH_OPENS_MIN_HEIGHT_CLASS = 'min-h-[360px]'
 
-export default function DashOpensPanel({ listings, hostRequests, discoveryListings, hasSearchPreferences }: {
+export default function DashOpensPanel({ listings, hostRequests, discoveryListings, hasSearchPreferences, onChanged }: {
   listings: MyListingItem[]
   hostRequests: HostRequest[]
   discoveryListings: DiscoveryListing[]
+  /** Reload the Dash's open house numbers after something changed in the hosts window. */
+  onChanged?: () => void
   // Whether the agent has ever saved Discovery search preferences (landmark/radius, etc.) - lets
   // the empty state tell "you haven't set up a search yet" apart from "your search just has no
   // nearby matches right now", which need different next steps (set up vs. widen/wait).
   hasSearchPreferences: boolean
 }) {
-  const router = useRouter()
+  // The hosts window opens right here on the Dash - the same Find a Host / Open House Hosts windows
+  // as My Listings, no trip there (user, 10/29). Same rules as its calendar: a day that needs a host
+  // opens only Find a Host for that day; a booked day opens Host Notes; the listing itself, all of it.
+  const [hosts, setHosts] = useState<{ key: string; date: string | null; notes: boolean; findOnly: boolean } | null>(null)
+  const openHosts = (key: string) => setHosts({ key, date: null, notes: false, findOnly: false })
 
   if (listings.length === 0) {
     const topMatches = [...discoveryListings]
@@ -133,7 +141,7 @@ export default function DashOpensPanel({ listings, hostRequests, discoveryListin
 
   return (
     <div className={`min-w-0 space-y-4 ${DASH_OPENS_MIN_HEIGHT_CLASS}`}>
-      <RequestsSection hostRequests={hostRequests} />
+      <RequestsSection hostRequests={hostRequests} onReview={openHosts} />
 
       <div>
         <SectionLabel right={<span className="text-[10px] font-bold text-gray-400">Next 4 open-house days</span>}>Your listings</SectionLabel>
@@ -143,7 +151,7 @@ export default function DashOpensPanel({ listings, hostRequests, discoveryListin
             const kitsToBuild = (listing.confirmed_pending_kit || []).length
             // Under contract / Coming Soon before it goes live - says why, instead of "Hosts needed".
             const cantHost = hostingNote(listing)
-            const openListing = () => router.push(`/open-houses/my-listings?listingKey=${encodeURIComponent(listing.listing_key)}`)
+            const openListing = () => openHosts(listing.listing_key)
             return (
               <motion.div
                 key={listing.listing_key}
@@ -189,7 +197,9 @@ export default function DashOpensPanel({ listings, hostRequests, discoveryListin
                 <div className="mt-2">
                   <WeekendCalendarCards
                     opens={listing.scheduled_opens}
-                    onCellClick={openListing}
+                    onCellClick={(cell, open) => setHosts(open
+                      ? { key: listing.listing_key, date: null, notes: true, findOnly: false }
+                      : { key: listing.listing_key, date: cell.date, notes: false, findOnly: true })}
                     size={stacked ? 'md' : 'sm'}
                     emptyCellTitle="Click to find a host for this date"
                     filledCellTitle="Click to view/edit host notes for this open"
@@ -212,6 +222,16 @@ export default function DashOpensPanel({ listings, hostRequests, discoveryListin
       <Link href="/open-houses/my-listings" className="group flex items-center justify-center gap-1.5 rounded-xl border border-[#C9A24D]/25 bg-[#C9A24D]/[0.05] py-2 text-[10.5px] font-black uppercase tracking-wide text-[#8b7355] transition hover:border-[#C9A24D] hover:bg-[#C9A24D] hover:text-white dark:text-[#d7b974] dark:hover:text-[#111827]">
         <Home className="h-3 w-3" /> All my listings{listings.length > calendarListings.length ? ` (${listings.length})` : ''} <ArrowRight className="h-3 w-3 transition group-hover:translate-x-0.5" />
       </Link>
+
+      <ManageHostsModal
+        listingKey={hosts?.key ?? null}
+        onClose={() => setHosts(null)}
+        onActionComplete={() => onChanged?.()}
+        prefillDirectDate={hosts?.date ?? null}
+        focusHostNotes={hosts?.notes ?? false}
+        findOnly={hosts?.findOnly ?? false}
+        hostingWindow={listings.find(l => l.listing_key === hosts?.key)}
+      />
     </div>
   )
 }

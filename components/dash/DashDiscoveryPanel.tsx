@@ -1,12 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowRight, Bath, Bed, CalendarCheck, CalendarPlus, Clock, Hand, Maximize, MessageSquareReply, Search, XCircle } from 'lucide-react'
 import api from '@/lib/api-service'
 import RequestToHostModal from '@/components/open-house-manager/RequestToHostModal'
+import EmailHostFlow from '@/components/open-house-manager/EmailHostFlow'
+import MyRequestsPanel from '@/components/open-house-manager/MyRequestsPanel'
+import PropertyQuickViewModal from '@/components/PropertyQuickViewModal'
 import { refreshOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
 import WeekendCalendarCards, { WeekendCalendarOpen, dayIsHostable, getUpcomingWeekendCells, hostingNote } from '@/components/open-house-manager/WeekendCalendarCards'
 import { useAuth } from '@/contexts/AuthContext'
@@ -42,8 +44,8 @@ function requestState(r: HostRequest): { tone: PillTone; label: string; icon: Re
 // A quick shortcut to Discovery, not a replacement for it: first what's going on with homes you
 // asked to host (a counter to answer, dates you're confirmed for, asks still waiting), then a
 // handful of nearby listings with the same 4-day calendar Manager uses - so "does this one still
-// need a host this weekend" is visible without leaving Dash. Clicking an open date jumps straight
-// to Discovery to request hosting there.
+// need a host this weekend" is visible without leaving Dash. Asking to host, the home itself and My
+// Requests all open in windows right here.
 export default function DashDiscoveryPanel({ listings, statuses, hasSearchPreferences, myRequests = [], incomingAsks = 0 }: {
   listings: DiscoveryListing[]
   statuses: Record<string, DiscoveryListingStatus>
@@ -55,17 +57,20 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
   /** Listing agents asking THIS agent to host (team broadcasts / direct asks) not yet answered. */
   incomingAsks?: number
 }) {
-  const router = useRouter()
   const { user } = useAuth()
   const today = todayIso()
   // Request to Host opens right here (the same step-by-step window as Discovery) - no trip to
   // Discovery just to ask (user, 10/22). Days asked for here read "Requested" straight away.
   const [asking, setAsking] = useState<{ listing: DiscoveryListing; date?: string } | null>(null)
   const [justAsked, setJustAsked] = useState<Record<string, string[]>>({})
+  // Everything else opens right here too (user, 10/29: "it shouldn't take you to the discovery page"):
+  // the email window for a listing agent not on OpenHousePal, the home's quick view, and My Requests.
+  const [emailing, setEmailing] = useState<DiscoveryListing | null>(null)
+  const [viewing, setViewing] = useState<string | null>(null)
+  const [requests, setRequests] = useState<{ focus: string | null } | null>(null)
   const ask = (listing: DiscoveryListing, date?: string) => {
-    // A listing agent who isn't on OpenHousePal gets the email template - that lives on Discovery.
     if ((listing as { AgentOnPlatform?: boolean }).AgentOnPlatform === false) {
-      router.push(`/discovery?listingKey=${encodeURIComponent(listing.ListingKey)}`)
+      setEmailing(listing)
       return
     }
     setAsking({ listing, date })
@@ -85,8 +90,8 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
     .slice(0, 3)
 
   const asksBanner = incomingAsks > 0 && (
-    <Link href="/discovery?myRequests=1"
-      className="group relative flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-[#111827] via-[#1f2937] to-[#3a2e18] p-3 text-white shadow-[0_16px_34px_-22px_rgba(17,24,39,.9)] ring-1 ring-[#C9A24D]/40 transition hover:-translate-y-0.5">
+    <button type="button" onClick={() => setRequests({ focus: null })}
+      className="group relative flex w-full items-center text-left gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-[#111827] via-[#1f2937] to-[#3a2e18] p-3 text-white shadow-[0_16px_34px_-22px_rgba(17,24,39,.9)] ring-1 ring-[#C9A24D]/40 transition hover:-translate-y-0.5">
       <span aria-hidden className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(232,201,122,.35),transparent_65%)]" />
       <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#e8c97a] to-[#C9A24D] text-[#111827] shadow-md"><Hand className="h-4 w-4" /></span>
       <span className="relative min-w-0 flex-1">
@@ -94,17 +99,19 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
         <span className="block truncate text-[11px] font-semibold text-white/60">Say yes or offer another time</span>
       </span>
       <span className="relative inline-flex shrink-0 items-center gap-1 rounded-full bg-[#e8c97a] px-3 py-1 text-[11px] font-black text-[#111827] transition group-hover:bg-white">Respond <ArrowRight className="h-3 w-3" /></span>
-    </Link>
+    </button>
   )
 
   const hostingList = mine.length > 0 && (
     <div>
-      <SectionLabel right={<Link href="/discovery?myRequests=1" className="text-[10px] font-black text-[#8b7355] hover:underline dark:text-[#d7b974]">All my requests</Link>}>Your hosting</SectionLabel>
+      <SectionLabel right={<button type="button" onClick={() => setRequests({ focus: null })} className="text-[10px] font-black text-[#8b7355] hover:underline dark:text-[#d7b974]">All my requests</button>}>Your hosting</SectionLabel>
       <div className="space-y-1.5">
         {mine.slice(0, 3).map(r => {
           const st = requestState(r)
           return (
             <Link key={r.id} href={st.href}
+              // My Requests opens right here; "You're hosting" still goes to building the kit.
+              onClick={e => { if (r.status !== 'approved') { e.preventDefault(); setRequests({ focus: r.id }) } }}
               className={`group/oh flex min-w-0 items-center gap-2.5 rounded-xl border bg-white p-2 shadow-sm transition hover:-translate-y-0.5 dark:bg-[#151517] ${
                 st.tone === 'red' ? 'border-red-200 hover:border-red-300 dark:border-red-500/30'
                   : st.tone === 'green' ? 'border-emerald-200 hover:border-emerald-300 dark:border-emerald-500/25'
@@ -130,6 +137,7 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
       <div className={`min-w-0 space-y-4 ${DASH_OPENS_MIN_HEIGHT_CLASS}`}>
         {asksBanner}
         {hostingList}
+        <MyRequestsPanel isOpen={!!requests} onClose={() => setRequests(null)} onActionComplete={refreshOpenHouseActionCounts} focusRequestId={requests?.focus} />
         <div className="flex min-h-[260px] min-w-0 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[#C9A24D]/35 bg-[radial-gradient(120%_120%_at_50%_0%,rgba(201,162,77,.08),transparent_60%)] p-6 text-center">
           <span className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-md"><Search className="h-5 w-5" /></span>
           {hasSearchPreferences ? (
@@ -177,7 +185,7 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
             const openDays = getUpcomingWeekendCells(taken).filter(c => !taken.has(c.date) && !pendingDates.includes(c.date) && dayIsHostable(window, c.date)).length
             const notYet = hostingNote(window)
             const hostingDate = hostingMine ? ('scheduled_date' in hostingMine ? hostingMine.scheduled_date : (hostingMine as HostRequest).requested_date) : null
-            const go = () => router.push(`/discovery?listingKey=${encodeURIComponent(listing.ListingKey)}`)
+            const go = () => setViewing(listing.ListingKey)
             return (
               <motion.div
                 key={listing.ListingKey}
@@ -267,9 +275,12 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
               if (success && data) setJustAsked(cur => ({ ...cur, [key]: data.filter(r => r.listing_key === key && r.status === 'pending').map(r => String(r.requested_date)) }))
             })
           }}
-          onFallbackToEmail={() => router.push(`/discovery?listingKey=${encodeURIComponent(asking.listing.ListingKey)}`)}
+          onFallbackToEmail={() => { const l = asking.listing; setAsking(null); setEmailing(l) }}
         />
       )}
+      {emailing && <EmailHostFlow key={emailing.ListingKey} property={emailing} user={user} onClose={() => setEmailing(null)} />}
+      <PropertyQuickViewModal listingKey={viewing} agentId={user?.id || ''} onClose={() => setViewing(null)} />
+      <MyRequestsPanel isOpen={!!requests} onClose={() => setRequests(null)} onActionComplete={refreshOpenHouseActionCounts} focusRequestId={requests?.focus} />
     </div>
   )
 }

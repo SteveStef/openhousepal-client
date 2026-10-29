@@ -19,7 +19,7 @@ import SetupChecklistCard from '@/components/dash/SetupChecklistCard'
 import DomainHealthBanner from '@/components/DomainHealthBanner'
 import EmailHealthBanner from '@/components/EmailHealthBanner'
 import StatCard from '@/components/stats/StatCard'
-import { useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
+import { refreshOpenHouseActionCounts, useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
 import DashLeadCard from '@/components/dash/DashLeadCard'
 import LeadDetailModal from '@/components/leads/LeadDetailModal'
 import DashActivityFeed from '@/components/dash/DashActivityFeed'
@@ -375,6 +375,7 @@ export default function DashPage() {
           discoveryListings={discoveryListings}
           actionCount={openHouseActionCount}
           hasSearchPreferences={hasDiscoveryPreferences}
+          onChanged={() => { loadDashData(); refreshOpenHouseActionCounts() }}
         />
       ),
     } : {}),
