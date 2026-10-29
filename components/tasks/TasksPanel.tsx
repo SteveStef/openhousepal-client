@@ -9,6 +9,7 @@ import {
   CheckCircle2, Sparkles,
 } from 'lucide-react'
 import api from '@/lib/api-service'
+import { useAuth } from '@/contexts/AuthContext'
 import type { AgentTask, LeadEvent, TaskBucket, TaskKind } from '@/types'
 import LeadDetailModal from '@/components/leads/LeadDetailModal'
 import OhpLoader from '@/components/brand/OhpLoader'
@@ -172,6 +173,7 @@ export default function TasksPanel({
   /** The lead's activity (their own page) - suggests a follow-up from the latest thing they did. */
   events?: LeadEvent[]
 }) {
+  const { user } = useAuth()
   const changedRef = useRef(onChanged)
   changedRef.current = onChanged
   const [tasks, setTasks] = useState<AgentTask[]>([])
@@ -308,7 +310,7 @@ export default function TasksPanel({
     <div className={className}>
       {!compact && leadId && events && !loading && (
         <SuggestedFollowups leadId={leadId} onAdded={() => { load(); changedRef.current?.() }}
-          items={suggestFollowups(events, leadName, tasks.filter(t => !t.completed_at).map(t => t.title), likesCoveredUntil(tasks))} />
+          items={suggestFollowups(events, leadName, tasks.filter(t => !t.completed_at).map(t => t.title), likesCoveredUntil(tasks), tasks, (user?.first_name || '').trim())} />
       )}
       {!compact && (composerOpen === undefined
         ? <QuickAdd leadId={leadId} leadName={leadName} onAdded={() => { load(); changedRef.current?.() }} />
@@ -666,25 +668,67 @@ function ComposerWindow({ onClose, leadName, children }: { onClose: () => void; 
 // tomorrow's calendar, based on the latest thing they did. The calendar event already carries
 // their name, phone, email and a save-to-contacts link (calendar_sync_service), so the follow-up
 // itself just says what happened.
-type Suggestion = { key: string; kind: TaskKind; title: string; why: string; note: string }
+type Suggestion = { key: string; kind: TaskKind; title: string; why: string; note: string; message?: string }
 
-const SUGGEST: Partial<Record<LeadEvent['source_type'], { key: string; kind: TaskKind; title: (first: string, street: string) => string }>> = {
-  open_house_visitor: { key: 'visit', kind: 'call', title: (f, s) => `Call ${f} - thanks for coming to ${s || 'the open house'}` },
-  open_house_second_visit: { key: 'visit', kind: 'call', title: (f, s) => `Call ${f} - came back to ${s || 'the open house'}` },
-  open_house_disclosure: { key: 'disclosure', kind: 'call', title: (f, s) => `Call ${f} about the disclosures${s ? ` for ${s}` : ''}` },
-  property_tour: { key: 'tour', kind: 'call', title: (f, s) => `Set up ${f}'s showing${s ? ` of ${s}` : ''}` },
-  property_page_tour_request: { key: 'tour', kind: 'call', title: (f, s) => `Set up ${f}'s showing${s ? ` of ${s}` : ''}` },
-  property_website_tour_request: { key: 'tour', kind: 'call', title: (f, s) => `Set up ${f}'s showing${s ? ` of ${s}` : ''}` },
-  form_submission: { key: 'reply', kind: 'call', title: f => `Get back to ${f} about their form` },
-  property_website_inquiry: { key: 'reply', kind: 'call', title: (f, s) => `Answer ${f}'s question${s ? ` about ${s}` : ''}` },
-  property_page_inquiry: { key: 'reply', kind: 'call', title: (f, s) => `Answer ${f}'s question${s ? ` about ${s}` : ''}` },
-  blog_inquiry: { key: 'reply', kind: 'call', title: f => `Answer ${f}'s question` },
-  portal_lead: { key: 'reply', kind: 'call', title: f => `Call ${f} - new lead` },
-  property_comment: { key: 'comment', kind: 'text', title: (f, s) => `Answer ${f}'s comment${s ? ` on ${s}` : ''}` },
-  showcase_refine: { key: 'search', kind: 'text', title: f => `Check in with ${f} about their search` },
-  showcase_search_changed: { key: 'search', kind: 'text', title: f => `Check in with ${f} about their new search` },
-  // email_clicked, showcase_view, showcase_like (+ showcase_dislike): see browseSuggestion below.
-  invite_rsvp: { key: 'rsvp', kind: 'text', title: f => `Thank ${f} for the RSVP` },
+// Each suggestion's ready-to-send text (owner, 10/29), in the agent's voice and signed with their
+// footer (the server adds it - `signed`). {showcase} = their Showcase link, put last. A home is
+// named only when they brought it up themselves (visited, asked, commented) - never what they
+// browsed. `covers`: the automatic follow-ups that already handle this situation with the agent's
+// own message (tasks_service AUTO_FOLLOWUP_RULES) - when one exists, no second suggestion.
+const hi = (f: string, me: string) => (me ? `Hi ${f}, it's ${me}!` : `Hi ${f}!`)
+const ANSWER = '[ANSWER THEIR QUESTION]'  // tasks_service.FILL_IN_ANSWER - the card says to fill it in
+type SuggestRule = {
+  key: string; kind: TaskKind; title: (first: string, street: string) => string
+  message?: (first: string, me: string, street: string) => string
+  covers?: string[]
+}
+const SUGGEST: Partial<Record<LeadEvent['source_type'], SuggestRule>> = {
+  // Its automatic follow-up (open house sign-in) has the agent's own message + Showcase - none here.
+  open_house_visitor: { key: 'visit', kind: 'call', title: (f, s) => `Call ${f} - thanks for coming to ${s || 'the open house'}`,
+    covers: ['open_house_signin', 'similar_homes_qr', 'open_house_noted'] },
+  // A second visit REQUEST (they want another look), not a second sign-in.
+  open_house_second_visit: { key: 'visit', kind: 'call', title: (f, s) => `Call ${f} - wants another look at ${s || 'the home'}`,
+    message: (f, me, s) => `${hi(f, me)} Thanks for wanting another look at ${s || 'the home'}. Let me know if you have any questions or would like to set up a private tour.`,
+    covers: ['second_visit_request', 'open_house_signin'] },
+  open_house_disclosure: { key: 'disclosure', kind: 'call', title: (f, s) => `Call ${f} about the disclosures${s ? ` for ${s}` : ''}`,
+    message: (f, me, s) => `${hi(f, me)} I just emailed you the seller disclosures for ${s || 'the home'}. Let me know if you have any questions once you've had a look.`,
+    covers: ['disclosure_request', 'open_house_signin'] },
+  property_tour: { key: 'tour', kind: 'call', title: (f, s) => `Set up ${f}'s showing${s ? ` of ${s}` : ''}`,
+    message: (f, me, s) => `${hi(f, me)} Got your request to see ${s || 'the home'} - what day and time work best for you? I'll get it set up.`,
+    covers: ['showing_request'] },
+  property_page_tour_request: { key: 'tour', kind: 'call', title: (f, s) => `Set up ${f}'s showing${s ? ` of ${s}` : ''}`,
+    message: (f, me, s) => `${hi(f, me)} Got your request to see ${s || 'the home'} - what day and time work best for you? I'll get it set up.`,
+    covers: ['showing_request'] },
+  property_website_tour_request: { key: 'tour', kind: 'call', title: (f, s) => `Set up ${f}'s showing${s ? ` of ${s}` : ''}`,
+    message: (f, me, s) => `${hi(f, me)} Got your request to see ${s || 'the home'} - what day and time work best for you? I'll get it set up.`,
+    covers: ['showing_request'] },
+  form_submission: { key: 'reply', kind: 'call', title: f => `Get back to ${f} about their form`,
+    message: (f, me) => `${hi(f, me)} Thanks for filling out my form - I got your answers. When's a good time for a quick call to talk through what you're looking for?`,
+    covers: ['form_submission', 'buyer_form', 'how_can_we_help', 'showcase_setup'] },
+  property_website_inquiry: { key: 'reply', kind: 'call', title: (f, s) => `Answer ${f}'s question${s ? ` about ${s}` : ''}`,
+    message: (f, me, s) => `${hi(f, me)} Thanks for reaching out about ${s || 'the home'}. ${ANSWER} Happy to set up a time for you to see it, too.`,
+    covers: ['listing_inquiry'] },
+  property_page_inquiry: { key: 'reply', kind: 'call', title: (f, s) => `Answer ${f}'s question${s ? ` about ${s}` : ''}`,
+    message: (f, me, s) => `${hi(f, me)} Thanks for reaching out about ${s || 'the home'}. ${ANSWER} Happy to set up a time for you to see it, too.`,
+    covers: ['listing_inquiry'] },
+  blog_inquiry: { key: 'reply', kind: 'call', title: f => `Answer ${f}'s question`,
+    message: (f, me) => `${hi(f, me)} Thanks for your question on my blog. ${ANSWER} Let me know if there's anything else I can help with.` },
+  portal_lead: { key: 'reply', kind: 'call', title: f => `Call ${f} - new lead`,
+    message: (f, me) => `${hi(f, me)} Thanks for reaching out - I'd love to help with your home search. When's a good time for a quick call?`,
+    covers: ['listing_inquiry'] },
+  property_comment: { key: 'comment', kind: 'text', title: (f, s) => `Answer ${f}'s comment${s ? ` on ${s}` : ''}`,
+    message: (f, me, s) => `${hi(f, me)} Thanks for your note on ${s || 'that home'}. ${ANSWER}`,
+    covers: ['showcase_comment'] },
+  showcase_refine: { key: 'search', kind: 'text', title: f => `Check in with ${f} about their search`,
+    message: (f, me) => `${hi(f, me)} Got your note about your search - I've updated your Showcase, so the new homes should be a better fit. Take a look and let me know what you think!\n\n{showcase}`,
+    covers: ['showcase_search_request'] },
+  showcase_search_changed: { key: 'search', kind: 'text', title: f => `Check in with ${f} about their new search`,
+    message: (f, me) => `${hi(f, me)} Just checking in on your home search - let me know if you'd like me to fine-tune anything or set up some tours.\n\n{showcase}` },
+  // email_clicked, showcase_view, showcase_like (+ showcase_dislike): see browseSuggestion below -
+  // no message of their own; the server's check-in (tasks_service.checkin_message) is used.
+  invite_rsvp: { key: 'rsvp', kind: 'text', title: f => `Thank ${f} for the RSVP`,
+    message: (f, me) => `${hi(f, me)} Thanks for the RSVP - I really appreciate you letting me know. Reach out anytime if you have any questions.`,
+    covers: ['invite_rsvp'] },
 }
 
 // "239 WINDHAM DR, WAYNE" (some listings come in all caps) -> "239 Windham Dr, Wayne"
@@ -772,7 +816,8 @@ function likesCoveredUntil(tasks: AgentTask[]): number {
   return Math.max(0, ...cards.map(t => Date.parse(t.completed_at || '') || 0))
 }
 
-export function suggestFollowups(events: LeadEvent[], name: string | null | undefined, openTitles: string[], likesCovered = 0): Suggestion[] {
+export function suggestFollowups(events: LeadEvent[], name: string | null | undefined, openTitles: string[], likesCovered = 0,
+  tasks: AgentTask[] = [], me = ''): Suggestion[] {
   const first = (name || '').trim().split(/\s+/)[0] || 'them'
   const byNewest = [...events].sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))
   const recent = byNewest.filter(e => Date.now() - Date.parse(e.occurred_at) < 7 * 864e5)
@@ -829,8 +874,13 @@ export function suggestFollowups(events: LeadEvent[], name: string | null | unde
     const street = streetOf(tidyAddress((e.property_address || '').trim()))
     const title = rule.title(first, street)
     if (openTitles.includes(title)) continue
+    // Its automatic follow-up is already there (still open, or made for this) - no second copy.
+    const at = Date.parse(e.occurred_at)
+    if (rule.covers?.some(src => tasks.some(t => t.auto_source === src && (!t.completed_at || Date.parse(t.created_at) >= at - 10 * 60e3)))) continue
     const why = `${e.summary} · ${happenedWhen(e.occurred_at)}`
-    out.push({ key: rule.key, kind: rule.kind, title, why, note: `What happened: ${why}` })
+    // Their first name as the server writes it (tasks_service._guest_first): "JOHN" reads John.
+    const guest = first === 'them' ? '' : first === first.toUpperCase() ? first.charAt(0) + first.slice(1).toLowerCase() : first
+    out.push({ key: rule.key, kind: rule.kind, title, why, note: `What happened: ${why}`, message: guest ? rule.message?.(guest, me, street) : undefined })
     if (out.length === 2) break
   }
   return out
@@ -845,7 +895,7 @@ function SuggestedFollowups({ leadId, items, onAdded }: { leadId: string; items:
     // Tomorrow, any time (all-day) - the phone buzzes at 9 AM.
     const day = new Date(); day.setHours(0, 0, 0, 0); day.setDate(day.getDate() + 1)
     const at = (h: number) => { const d = new Date(day); d.setHours(h, 0, 0, 0); return d.toISOString() }
-    const res = await api.tasks.create({ title: s.title, kind: s.kind, priority: 'normal', due_at: at(12), remind_at: at(9), all_day: true, lead_id: leadId, notes: s.note })
+    const res = await api.tasks.create({ title: s.title, kind: s.kind, priority: 'normal', due_at: at(12), remind_at: at(9), all_day: true, lead_id: leadId, notes: s.note, ...(s.message ? { suggested_message: s.message, signed: true } : {}) })
     setBusy(null)
     if (res.success) { setAdded(a => [...a, s.key]); onAdded() }
   }

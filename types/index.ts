@@ -2601,6 +2601,8 @@ export interface TaskCreateInput {
   remind_at?: string | null;
   lead_id?: string | null;
   suggested_message?: string | null;
+  /** The message is OpenHousePal's (a suggested follow-up): the server signs it with the agent's footer. */
+  signed?: boolean;
 }
 
 export interface TaskUpdateInput {
