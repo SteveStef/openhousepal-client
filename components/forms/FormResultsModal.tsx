@@ -11,6 +11,7 @@ import { useEscapeToClose } from '@/components/ui/windowMotion'
 import { AnimatePresence, motion } from 'framer-motion'
 import { WhenDoneMoment, WhenSheet, clockText, dayText, parseYmd, whenText, ymd } from '@/components/ui/WhenPicker'
 import { useAuth } from '@/contexts/AuthContext'
+import OpenShowcaseButton from '@/components/OpenShowcaseButton'
 
 interface FormResultsModalProps {
   isOpen: boolean
@@ -573,6 +574,13 @@ export function SubmissionDetail({ submission: selected, onToggleReviewed, onDel
   const otherAnswers = selected.answers.filter(answer => !contactEntryIds.has(answer.questionId))
   return (
               <div className={framed ? 'rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6' : ''}>
+                {/* This answer built them a Showcase - one tap to it (user, 10/28). */}
+                {selected.showcase_id && (
+                  <div className="mb-5 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2.5 dark:border-emerald-500/20 dark:bg-emerald-500/[0.08]">
+                    <p className="min-w-0 flex-1 text-xs font-bold leading-snug text-emerald-800 dark:text-emerald-200">This answer built {selected.contact_name?.split(' ')[0] || 'them'} a Showcase</p>
+                    <OpenShowcaseButton showcaseId={selected.showcase_id} />
+                  </div>
+                )}
                 {selected.form_type === 'showing' && (showingSaved || selected.showing) && (
                   <ShowingConfirmSection
                     submission={selected}

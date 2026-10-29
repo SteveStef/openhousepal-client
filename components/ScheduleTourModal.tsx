@@ -444,7 +444,7 @@ function ScheduleTourWindow({
           </div>
 
           {step !== 'done' && (
-            <div className="flex items-center gap-2 border-t border-gray-100 px-5 py-4 dark:border-white/[0.07] sm:px-8" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+            <div className="flex items-center gap-2 border-t border-gray-100 px-5 py-4 dark:border-white/[0.07] sm:px-8" style={{ paddingBottom: 'max(1rem, var(--ohp-sab,env(safe-area-inset-bottom)))' }}>
               {step === 'you' && (
                 <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={() => go('when')} disabled={sending}
                   className="inline-flex h-12 items-center gap-1.5 rounded-2xl px-4 text-[11px] font-black uppercase tracking-widest text-gray-500 transition hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10">

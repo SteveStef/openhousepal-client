@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import AnimatedNumber from '@/components/ui/AnimatedNumber'
 import OhpLoader from '@/components/brand/OhpLoader'
 import { getNotificationMeta } from '@/lib/notificationDisplay'
+import OpenShowcaseButton from '@/components/OpenShowcaseButton'
 import { backdropMotion, useEscapeToClose, useIsPhone, usePagePin, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 
 // Today's Rundown (user, 10/24): the daily briefing email, inside the app and in more detail -
@@ -41,7 +42,7 @@ type Home = {
   street_address: string; city: string; state: string; image: string; beds: string; baths: string; sqft: string; price: string
   is_price_drop: boolean; old_price?: string; new_price?: string; savings?: string; clients: Client[]; clients_more: string; clients_label: string
 }
-type Happening = { id: string; type: string; title: string; message: string; address?: string | null; link: string; is_read: boolean; at: string }
+type Happening = { id: string; type: string; title: string; message: string; address?: string | null; link: string; showcase_link?: string | null; is_read: boolean; at: string }
 export type Rundown = {
   date: string; date_label: string; generated_at: string; first_name: string; headline: string
   briefing: { time_label: string; sent: boolean; sent_at: string | null; ran_today: boolean; upcoming: boolean; notification_id: string | null }
@@ -440,8 +441,8 @@ function RundownBody({ data, phone, short = false, go, settled = true }: { data:
                     <ShowMore initial={3} divided items={g.items.map(n => {
                       const { icon: Icon, className } = getNotificationMeta(n.type, n.message, n.title)
                       return (
-                        <button key={n.id} type="button" onClick={() => go(n.link)} data-testid="rundown-happening"
-                          className="flex w-full min-w-0 items-start gap-3 px-3.5 py-3 text-left transition hover:bg-[#faf9f7] active:bg-[#f4efe4] dark:hover:bg-white/[0.03] dark:active:bg-white/[0.05]">
+                        <div key={n.id} role="button" tabIndex={0} onClick={() => go(n.link)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(n.link) } }} data-testid="rundown-happening"
+                          className="flex w-full min-w-0 cursor-pointer items-start gap-3 px-3.5 py-3 text-left transition hover:bg-[#faf9f7] active:bg-[#f4efe4] dark:hover:bg-white/[0.03] dark:active:bg-white/[0.05]">
                           <span className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full border ${className}`}><Icon className="h-4 w-4" /></span>
                           <span className="min-w-0 flex-1">
                             <span className="flex items-start gap-2">
@@ -449,11 +450,12 @@ function RundownBody({ data, phone, short = false, go, settled = true }: { data:
                               <span className="shrink-0 pt-0.5 text-[10.5px] font-bold tabular-nums text-gray-400">{clock(n.at)}</span>
                             </span>
                             {(n.message || n.address) && <span className="mt-0.5 line-clamp-2 block text-xs leading-relaxed text-gray-500 dark:text-gray-400">{n.message || n.address}</span>}
+                            {n.showcase_link && <OpenShowcaseButton small href={n.showcase_link} onGo={go} className="mt-1.5" />}
                           </span>
                           <AnimatePresence initial={false}>
                             {!n.is_read && <motion.span exit={{ scale: 0, opacity: 0 }} className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#C9A24D]" aria-label="Unread" />}
                           </AnimatePresence>
-                        </button>
+                        </div>
                       )
                     })} />
                   </div>
@@ -601,8 +603,9 @@ export function RundownDashCard({ className = '' }: { className?: string }) {
       </div>
     )
   }
-  // Looked at already today - it lives in the header now ("Oct 26 Briefing", BriefingButton).
-  if (data.seen?.seen) return null
+  // Looked at already today and nothing new since - it lives in the header now ("Oct 26 Briefing",
+  // BriefingButton). Anything new after they looked brings the big card back (owner, 10/28).
+  if (data.seen?.seen && !data.seen.new_since) return null
   const status = briefingStatus(data)
   const top = data.stats.filter(s => s.value > 0).slice(0, 3)
   const fresh = data.briefing.sent && data.unread_today > 0

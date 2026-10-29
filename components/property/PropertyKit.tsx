@@ -544,7 +544,9 @@ function PhoneStrip({ home, photos, extraBadges, onOpen, className = '' }: {
         {photos.map((src, k) => (
           <button key={`${k}-${src}`} type="button" onClick={() => onOpen(k)} aria-label={`Open photo ${k + 1} full screen`}
             className="relative h-full w-full shrink-0 snap-center snap-always">
-            <img src={sizedImage(src, 1200)} alt={k === 0 ? home.fullAddress : `${home.street} - photo ${k + 1}`} loading={k < 2 ? 'eager' : 'lazy'} draggable={false}
+            {/* Always two photos ahead of the one showing (user, 10/28: past the second photo each
+                one only started as it slid in, so it drew in while you watched). */}
+            <img src={sizedImage(src, 1200)} alt={k === 0 ? home.fullAddress : `${home.street} - photo ${k + 1}`} loading={k <= at + 2 ? 'eager' : 'lazy'} draggable={false}
               className="h-full w-full select-none object-cover object-left-bottom" />
           </button>
         ))}
@@ -640,7 +642,7 @@ export function PhotoViewer({ photos, title, index, onChange }: { photos: string
             const next = Array.from({ length: shown }, (_, k) => (n <= fit ? k : (index + k) % n))
             const nav = 'grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/25 active:scale-95'
             return (
-              <div className="flex items-center gap-2 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-5">
+              <div className="flex items-center gap-2 px-3 pb-[max(1rem,var(--ohp-sab,env(safe-area-inset-bottom)))] pt-3 sm:px-5">
                 <button type="button" onClick={() => go(-1)} aria-label="Previous photo" className={nav}><ChevronLeft className="h-5 w-5" /></button>
                 <div ref={measure} className="grid min-w-0 flex-1 gap-2" style={{ gridTemplateColumns: `repeat(${fit}, minmax(0, 1fr))` }}>
                   <AnimatePresence initial={false} mode="popLayout">
@@ -1394,7 +1396,7 @@ export function PhoneBar({ photo, children }: { photo?: string | null; children:
           initial={reduce ? { opacity: 0 } : { y: '110%' }} animate={reduce ? { opacity: 1 } : { y: 0 }} exit={reduce ? { opacity: 0 } : { y: '110%' }}
           transition={{ type: 'spring', stiffness: 420, damping: 38 }}
           className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 rounded-t-[22px] bg-[var(--pp-ink)] px-3 pt-2.5 shadow-[0_-16px_40px_-18px_rgba(0,0,0,.6)] ring-1 ring-white/10 lg:hidden"
-          style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom))' }}>
+          style={{ paddingBottom: 'max(0.625rem, var(--ohp-sab,env(safe-area-inset-bottom)))' }}>
           {photo && <img src={photo} alt="" className="h-10 w-10 shrink-0 rounded-full max-[379px]:hidden object-cover ring-2 ring-[color:var(--pp-gold)]" />}
           {children}
         </motion.div>

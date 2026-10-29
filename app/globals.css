@@ -1950,10 +1950,13 @@ div[role="button"]:active {
 
 /* Listing photos on cards: Bright MLS stamps its badge in the bottom-left corner of every photo.
    Anchored to the top and zoomed a touch (the `scale` property, so it stacks with any hover zoom
-   on `transform`), the bottom ~12% falls outside the card - the badge with it. Images and
-   background-photo layers alike; the parent must clip (overflow-hidden). */
+   on `transform`), the bottom ~6.5% falls outside the card - the badge with it. Images and
+   background-photo layers alike; the parent must clip (overflow-hidden).
+   1.07, not 1.14 (user, 10/28: "show the entire photo"): measured on Bright's 2048px photos the
+   badge is 73px of 1365 (5.4% of the height), so 1.07 clears it with room to spare - 1.14 was
+   throwing away the bottom 12% of every house. */
 .ohp-mls-crop {
-  scale: 1.14;
+  scale: 1.07;
   transform-origin: 50% 0 !important;
   object-position: 50% 0 !important;
   background-position: 50% 0 !important;

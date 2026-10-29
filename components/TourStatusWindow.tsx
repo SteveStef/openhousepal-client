@@ -101,7 +101,7 @@ export default function TourStatusWindow({ tour, address, agentName, onClose, on
               )}
             </div>
 
-            <div className="space-y-4 px-6 py-5" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
+            <div className="space-y-4 px-6 py-5" style={{ paddingBottom: 'max(1.25rem, var(--ohp-sab,env(safe-area-inset-bottom)))' }}>
               {home && (
                 <div className="flex items-center gap-3 rounded-2xl border border-gray-100 p-2 dark:border-white/[0.07]">
                   <span className="h-14 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-white/[0.06]">

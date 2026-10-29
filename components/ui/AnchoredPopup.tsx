@@ -8,7 +8,7 @@
 // side of a phone. Owner, 10/26: "Polish with AI" in Setup lost its button that way - see
 // components/ai/AiWriteButton.tsx for the first fix. This file is the same idea, shared:
 //
-// - `useAnchoredStyle` - a `position: fixed` box measured from the field/button it belongs to:
+// - `useAnchoredStyle` - a box on the page (`absolute` in <body>) measured from the field/button it belongs to:
 //   under it when there's room, flipped above when there isn't, kept on screen sideways, capped to
 //   the visible height (the iPhone keyboard shrinks that - visualViewport), and following on
 //   scroll/resize.
@@ -49,7 +49,7 @@ type Place = {
 
 const HIDDEN: CSSProperties = { position: 'fixed', top: 0, left: 0, visibility: 'hidden', zIndex: POPUP_Z }
 
-/** Style for a `position: fixed` pop-up tied to `anchorRef`. Put `panelRef` on the pop-up itself. */
+/** Style for a pop-up (rendered in <body> via PopupPortal) tied to `anchorRef`. Put `panelRef` on the pop-up itself. */
 export function useAnchoredStyle(
   anchorRef: RefObject<HTMLElement | null>,
   panelRef: RefObject<HTMLElement | null>,
@@ -65,8 +65,19 @@ export function useAnchoredStyle(
       if (!a) return
       const r = a.getBoundingClientRect()
       const vv = window.visualViewport
-      const viewTop = vv ? vv.offsetTop : 0
-      const viewBottom = vv ? vv.offsetTop + vv.height : window.innerHeight
+      // What the box's rect is measured against. Page-pinned (body static): the page itself;
+      // a pop-up's scroll lock pins <body> (ScrollLockWatcher), and then it's <body>.
+      const body = document.body
+      const base = (getComputedStyle(body).position === 'static' ? document.documentElement : body).getBoundingClientRect()
+      // iPhone Safari with the keyboard up (user, 10/28: a school district list floated far above
+      // its box): it can measure rects against the visible area while `fixed` boxes sit on the
+      // full page, so a `fixed` list landed one keyboard-pan too high. The list now sits on the
+      // page (`absolute`, placed by the gap between the box and the page above), which comes out
+      // right whichever way the phone measures. Here: is the visible area already rect zero?
+      const scrolledTop = Math.round(base.top + window.scrollY)
+      const visibleIsZero = !!vv && vv.offsetTop > 2 && body.style.position !== 'fixed' && Math.abs(scrolledTop + vv.offsetTop) <= 2
+      const viewTop = vv && !visibleIsZero ? vv.offsetTop : 0
+      const viewBottom = vv ? viewTop + vv.height : window.innerHeight
       const vw = document.documentElement.clientWidth || window.innerWidth
       const w = Math.min(Math.max(width === 'anchor' ? r.width : width, minWidth), vw - MARGIN * 2)
       const left = Math.min(Math.max(MARGIN, align === 'right' ? r.right - w : r.left), vw - w - MARGIN)
@@ -77,8 +88,8 @@ export function useAnchoredStyle(
       const room = Math.max(96, Math.floor(flip ? above : below))
       const h = Math.min(need, room)
       const next: CSSProperties = {
-        position: 'fixed', zIndex: POPUP_Z, left: Math.round(left), width: Math.round(w),
-        top: Math.round(flip ? r.top - gap - h : r.bottom + gap), maxHeight: Math.min(maxHeight, room),
+        position: 'absolute', zIndex: POPUP_Z, left: Math.round(left - base.left), width: Math.round(w),
+        top: Math.round((flip ? r.top - gap - h : r.bottom + gap) - base.top), maxHeight: Math.min(maxHeight, room),
       }
       setStyle(prev => (prev.top === next.top && prev.left === next.left && prev.width === next.width && prev.maxHeight === next.maxHeight && prev.visibility !== 'hidden' ? prev : next))
     }
@@ -131,7 +142,7 @@ export function PopupSheet({ open, onClose, title, children, panelRef }: {
     <PopupPortal>
       <div className="fixed inset-0 bg-black/45" style={{ zIndex: POPUP_Z - 1 }} onClick={onClose} />
       <div ref={panelRef} role="dialog" aria-modal="true"
-        className="fixed inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-3xl border-t border-gray-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_-8px_rgba(0,0,0,0.35)] dark:border-gray-700 dark:bg-[#1A1A1C]"
+        className="fixed inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-3xl border-t border-gray-200 bg-white p-4 pb-[max(1rem,var(--ohp-sab,env(safe-area-inset-bottom)))] shadow-[0_-12px_40px_-8px_rgba(0,0,0,0.35)] dark:border-gray-700 dark:bg-[#1A1A1C]"
         style={{ zIndex: POPUP_Z }}>
         <div className="mb-2 flex items-center justify-between gap-3">
           <span className="text-[11px] font-black uppercase tracking-widest text-gray-400">{title}</span>

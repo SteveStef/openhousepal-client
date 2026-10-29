@@ -77,9 +77,10 @@ export function ShowcaseFormBadge({ formType }: { formType?: string | null }) {
 export function ShowcaseFormInfoBlock({ formType, compact = false }: { formType?: string | null; compact?: boolean }) {
   const info = formType ? SHOWCASE_FORMS[formType] : undefined
   // Collapsed once = stays collapsed (per form type, this browser) - it's a one-time explainer.
+  // Closed it's one slim line (just the title); phones start closed (user, 10/28).
   const memoryKey = `ohp:showcaseInfoCollapsed:${formType}`
   const [open, setOpenState] = useState(() => {
-    try { return typeof window === 'undefined' || window.localStorage.getItem(memoryKey) !== '1' } catch { return true }
+    try { return window.localStorage.getItem(memoryKey) !== '1' && window.matchMedia('(min-width: 640px)').matches } catch { return true }
   })
   const setOpen = (next: (o: boolean) => boolean) => setOpenState(o => {
     const v = next(o)
@@ -89,21 +90,21 @@ export function ShowcaseFormInfoBlock({ formType, compact = false }: { formType?
   const blockPlanTier = useOptionalAuth()?.user?.plan_tier
   if (!info || (blockPlanTier && !hasMlsAccess(blockPlanTier))) return null
   return (
-    <div className={`${compact ? 'rounded-xl border' : 'border-b'} border-emerald-100 bg-gradient-to-br from-emerald-50/80 via-white to-[#fbf7ee] px-5 py-4 dark:border-emerald-500/10 dark:from-emerald-500/[0.07] dark:via-[#0B0B0B] dark:to-[#1c1a14]`}>
-      <button type="button" onClick={() => setOpen(o => !o)} className="flex w-full items-start gap-3 text-left" aria-expanded={open}>
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
-          <Home className="h-4 w-4" />
+    <div className={`${compact ? 'rounded-xl border px-3' : 'border-b px-5'} border-emerald-100 bg-gradient-to-br from-emerald-50/80 via-white to-[#fbf7ee] dark:border-emerald-500/10 dark:from-emerald-500/[0.07] dark:via-[#0B0B0B] dark:to-[#1c1a14]`}>
+      <button type="button" onClick={() => setOpen(o => !o)} className="flex w-full items-center gap-2.5 py-2 text-left" aria-expanded={open}>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm">
+          <Home className="h-3.5 w-3.5" />
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-black text-[#111827] dark:text-white">{info.title}</span>
-          <span className="mt-0.5 block text-xs font-medium leading-relaxed text-gray-600 dark:text-gray-300">{info.lead}</span>
+        <span className="min-w-0 flex-1 text-[13px] font-black leading-tight text-[#111827] dark:text-white">{info.title}</span>
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
         </span>
-        <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       <AnimatePresence initial={false}>
         {open && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.22 }} className="overflow-hidden">
-            <div className={`mt-3 grid gap-2 ${compact ? '' : 'pl-12 sm:grid-cols-2'}`}>
+            <p className={`text-xs font-medium leading-relaxed text-gray-600 dark:text-gray-300 ${compact ? '' : 'sm:pl-[38px]'}`}>{info.lead}</p>
+            <div className={`mt-2.5 grid gap-2 ${compact ? '' : 'sm:grid-cols-2 sm:pl-[38px]'}`}>
               <div className="rounded-xl border border-emerald-200/70 bg-white/80 p-3 dark:border-emerald-500/20 dark:bg-white/[0.03]">
                 <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Built when</p>
                 <ul className="mt-1.5 space-y-1.5">
@@ -125,7 +126,7 @@ export function ShowcaseFormInfoBlock({ formType, compact = false }: { formType?
                 </ul>
               </div>
             </div>
-            <p className={`mt-2 text-[10px] font-semibold text-gray-400 ${compact ? '' : 'pl-12'}`}>Showcases are part of the Premium and IDX plans.</p>
+            <p className={`mb-3 mt-2 text-[10px] font-semibold text-gray-400 ${compact ? '' : 'sm:pl-[38px]'}`}>Showcases are part of the Premium and IDX plans.</p>
           </motion.div>
         )}
       </AnimatePresence>

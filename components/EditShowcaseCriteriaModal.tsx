@@ -542,7 +542,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
   const saveBar = (label: string, extra?: ReactNode) => (
     <div className="shrink-0">
     {preview && !saved && <ShowcaseLimitNote show={liveFull} audience={audience} className="px-5 sm:px-7" />}
-    <div className="flex shrink-0 items-center gap-3 border-t border-gray-100 bg-white/95 px-5 py-4 dark:border-white/[0.07] dark:bg-[#141416]/95 sm:px-7" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+    <div className="flex shrink-0 items-center gap-3 border-t border-gray-100 bg-white/95 px-5 py-4 dark:border-white/[0.07] dark:bg-[#141416]/95 sm:px-7" style={{ paddingBottom: 'max(1rem, var(--ohp-sab,env(safe-area-inset-bottom)))' }}>
       <motion.button type="button" onClick={onClose} whileHover={{ y: -1 }} whileTap={{ scale: 0.96 }}
         className="h-12 rounded-2xl border-2 border-gray-300 bg-white px-5 text-[11px] font-black uppercase tracking-widest text-[#111827] transition-colors hover:border-[#111827] dark:border-white/25 dark:bg-transparent dark:text-white dark:hover:border-white">Cancel</motion.button>
       {/* The live "● 2 homes" count sits right beside Cancel; Undo + Save are on the right. */}
@@ -797,7 +797,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
           )}
         </div>
         {/* No footer bar: the content itself keeps clear of the iPhone home indicator. */}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" style={opts.footer ? undefined : { paddingBottom: 'env(safe-area-inset-bottom)' }}>{opts.children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" style={opts.footer ? undefined : { paddingBottom: 'var(--ohp-sab,env(safe-area-inset-bottom))' }}>{opts.children}</div>
         {opts.footer}
       </motion.div>
     </motion.div>
@@ -926,7 +926,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
   ) : null
 
   const doneBar = (
-    <div className="flex shrink-0 border-t border-gray-100 bg-white/95 px-5 py-4 dark:border-white/[0.07] dark:bg-[#141416]/95 sm:px-7" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+    <div className="flex shrink-0 border-t border-gray-100 bg-white/95 px-5 py-4 dark:border-white/[0.07] dark:bg-[#141416]/95 sm:px-7" style={{ paddingBottom: 'max(1rem, var(--ohp-sab,env(safe-area-inset-bottom)))' }}>
       <motion.button type="button" onClick={onClose} whileHover={{ y: -1 }} whileTap={{ scale: 0.97 }}
         className="h-12 w-full rounded-2xl bg-[#111827] text-xs font-black uppercase tracking-widest text-white dark:bg-white dark:text-[#111827]">Got it</motion.button>
     </div>

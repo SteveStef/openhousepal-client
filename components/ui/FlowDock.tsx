@@ -107,7 +107,7 @@ export default function FlowDock({ step, total, onBack, onContinue, continueLabe
 
   if (inline) {
     const bar = (
-      <div data-flow-dock className="shrink-0 border-t border-[#C9A24D]/20 bg-[#fbf8f2] pb-[env(safe-area-inset-bottom)] dark:border-white/[0.07] dark:bg-[#0c0c0d] sm:hidden">
+      <div data-flow-dock className="shrink-0 border-t border-[#C9A24D]/20 bg-[#fbf8f2] pb-[var(--ohp-sab,env(safe-area-inset-bottom))] dark:border-white/[0.07] dark:bg-[#0c0c0d] sm:hidden">
         {row}
       </div>
     )
@@ -117,7 +117,7 @@ export default function FlowDock({ step, total, onBack, onContinue, continueLabe
   if (!host) return null
   return createPortal(
     <motion.div initial={{ y: 80 }} animate={{ y: 0 }} transition={{ type: 'spring', stiffness: 380, damping: 36 }} data-flow-dock
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-[#C9A24D]/20 bg-[#fbf8f2]/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-14px_30px_-20px_rgba(0,0,0,0.3)] dark:border-white/[0.07] dark:bg-[#0c0c0d]/95 sm:hidden">
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-[#C9A24D]/20 bg-[#fbf8f2]/95 pb-[var(--ohp-sab,env(safe-area-inset-bottom))] shadow-[0_-14px_30px_-20px_rgba(0,0,0,0.3)] dark:border-white/[0.07] dark:bg-[#0c0c0d]/95 sm:hidden">
       {row}
     </motion.div>,
     host,

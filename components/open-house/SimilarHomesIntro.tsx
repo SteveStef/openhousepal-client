@@ -47,7 +47,7 @@ export default function SimilarHomesIntro({ property, onStart }: { property: Pro
             </motion.div>
           ))}
           <div className="absolute inset-0 overflow-hidden rounded-2xl border-[3px] border-white shadow-[0_18px_40px_-16px_rgba(17,24,39,.55)] dark:border-[#151517]">
-            {photo ? <img src={photo} alt={street} className="h-full w-full origin-top-right scale-[1.14] object-cover" /> : <div className="h-full w-full bg-gray-200 dark:bg-gray-700" />}
+            {photo ? <img src={photo} alt={street} className="ohp-mls-crop h-full w-full object-cover" /> : <div className="h-full w-full bg-gray-200 dark:bg-gray-700" />}
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-2 pt-8">
               <p className="truncate text-[12px] font-black text-white">{street || 'This home'}</p>
               <p className="text-[9px] font-black uppercase tracking-widest text-[#e8c97a]">The home you toured</p>

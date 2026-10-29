@@ -121,6 +121,21 @@ function ShowcaseContent() {
     try { window.parent.postMessage({ type: 'ohp:path', path: pathname }, '*') } catch { /* no parent */ }
   }, [pathname])
 
+  // ...and the site tells us how much of the phone's bottom edge is covered (home bar / Safari's
+  // bottom bar). Inside a frame env(safe-area-inset-bottom) is always 0, so the bottom bars read
+  // --ohp-sab instead (FramePathSync sends it; the frame now runs to the very bottom, user 10/28).
+  useEffect(() => {
+    if (window.parent === window) return
+    const onMessage = (e: MessageEvent) => {
+      if (e.source !== window.parent || e.data?.type !== 'ohp:safe-area') return
+      const px = Math.max(0, Math.min(140, Number(e.data.bottom) || 0))
+      document.documentElement.style.setProperty('--ohp-sab', `${px}px`)
+    }
+    window.addEventListener('message', onMessage)
+    try { window.parent.postMessage({ type: 'ohp:safe-area?' }, '*') } catch { /* no parent */ }
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
+
   // This Showcase's own agent opened the client link while signed in (e.g. from a calendar
   // follow-up): nothing they do here may count as the client's activity - no view tracking, and
   // likes / comments go out signed so the server files them as the agent's. A slim bar says so and
@@ -1093,7 +1108,7 @@ function ShowcaseContent() {
   const visitorFullName = [visitorFirstName, visitorLastName].filter(Boolean).join(' ')
 
   return (
-    <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col transition-colors" style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}>
+    <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col transition-colors" style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)', paddingBottom: 'var(--ohp-sab, 0px)' }}>
       {/* iPhones zoom the whole page in when you tap a text box smaller than 16px (and stay zoomed
           after) - every box in the Showcase and its windows is 16px on a phone so typing never zooms. */}
       <style>{`@media (max-width: 639px){input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=button]):not([type=submit]),textarea,select{font-size:16px!important}}`}</style>

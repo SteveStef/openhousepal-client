@@ -586,7 +586,7 @@ export default function PropertyDetailsModal({
                   animate={reduce ? { opacity: 1 } : { y: 0, transition: SPRING }}
                   exit={reduce ? { opacity: 0 } : { y: '105%', transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }}
                   className="absolute inset-x-0 bottom-0 z-30 rounded-t-[22px] bg-[var(--pp-ink)] px-3 pt-2.5 shadow-[0_-16px_40px_-18px_rgba(0,0,0,.6)] ring-1 ring-white/10 sm:bottom-4 sm:mx-auto sm:w-[460px] sm:rounded-[22px]"
-                  style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom))' }}
+                  style={{ paddingBottom: 'max(0.625rem, var(--ohp-sab,env(safe-area-inset-bottom)))' }}
                 >
                   <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                     <motion.button type="button" whileTap={{ scale: 0.88 }} onClick={onClose} aria-label="Close"
@@ -614,7 +614,7 @@ export default function PropertyDetailsModal({
                   animate={reduce ? { opacity: 1 } : { y: 0, transition: SPRING }}
                   exit={reduce ? { opacity: 0 } : { y: '105%', transition: { duration: 0.2, ease: [0.4, 0, 1, 1] } }}
                   className="absolute inset-x-0 bottom-0 z-30 rounded-t-[22px] bg-[var(--pp-ink)] px-2 pt-2 shadow-[0_-16px_40px_-18px_rgba(0,0,0,.6)] ring-1 ring-white/10 lg:hidden"
-                  style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+                  style={{ paddingBottom: 'max(0.5rem, var(--ohp-sab,env(safe-area-inset-bottom)))' }}
                 >
                   <div className="flex items-center gap-1.5">
                     {hasNav && <NavButton dir={-1} onClick={nav!.onPrev} dark />}

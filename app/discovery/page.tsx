@@ -519,9 +519,11 @@ export default function OpenHouseDiscovery() {
   // the listing agents already present in the current discovery results instead.
   const [showAgentDropdown, setShowAgentDropdown] = useState(false)
   const [agentSearch, setAgentSearch] = useState('')
-  // Agents who have listed homes in this agent's areas (Areas towns + the Discovery search area) -
-  // still there after one is picked, unlike agents pulled from the current results.
-  const [areaAgents, setAreaAgents] = useState<{ name: string; office?: string | null; listings: number }[] | null>(null)
+  // Every listing agent these results have shown (name -> most homes they had at once), kept as
+  // agents are picked - "Only show" one agent leaves just their homes, and the list must not
+  // shrink to them (user, 10/28: the slower "most listings in your areas" lookup with office +
+  // listing counts was too much - this quick list is the whole picker).
+  const [agentPool, setAgentPool] = useState<Record<string, number>>({})
 
   const [showCityDropdown, setShowCityDropdown] = useState(false)
   const [citySearch, setCitySearch] = useState('')
@@ -822,19 +824,26 @@ export default function OpenHouseDiscovery() {
     setSelectedTeamOwnerIds(prev => prev.includes(ownerId) ? prev.filter(id => id !== ownerId) : [...prev, ownerId]);
   };
 
-  // Agent picker options - deduped listing agents seen in the current discovery results, since
-  // there's no dedicated "all agents" table to search against.
-  const knownAgents = Array.from(new Set(
-    listings.map((p: any) => p.ListAgentFullName).filter((name: string) => name && name !== 'Unknown')
-  )) as string[]
-  const searchedAgents = agentSearch
-    ? knownAgents.filter(name => name.toLowerCase().includes(agentSearch.toLowerCase()))
-    : knownAgents
-  // The suggestion list: agents active in this agent's areas when we have them, else the agents in
-  // the current results. Picked agents are listed above it, so they're left out here.
-  const agentSuggestions: { name: string; office?: string | null; listings?: number }[] = (
-    areaAgents && areaAgents.length ? areaAgents : searchedAgents.map(name => ({ name }))
-  ).filter(a => !preferences?.excluded_agents?.includes(a.name))
+  // Agent picker options - the listing agents these results have shown (agentPool), most homes
+  // first. Picked agents are listed above it, so they're left out here.
+  useEffect(() => {
+    const counts: Record<string, number> = {}
+    for (const p of listings as any[]) {
+      const name = p.ListAgentFullName
+      if (name && name !== 'Unknown') counts[name] = (counts[name] || 0) + 1
+    }
+    setAgentPool(prev => {
+      let changed = false
+      const next = { ...prev }
+      for (const [name, n] of Object.entries(counts)) if (!(next[name] >= n)) { next[name] = n; changed = true }
+      return changed ? next : prev
+    })
+  }, [listings])
+  const agentSuggestions: { name: string }[] = Object.entries(agentPool)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([name]) => ({ name }))
+    .filter(a => !preferences?.excluded_agents?.includes(a.name))
+    .filter(a => !agentSearch || a.name.toLowerCase().includes(agentSearch.toLowerCase()))
   const isAgentIncludeMode = preferences?.agent_filter_mode === 'include'
   const agentAccent = isAgentIncludeMode
     ? { border: 'border-emerald-400', pillActive: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', hoverBorder: 'hover:border-emerald-300', ring: 'focus:ring-emerald-300', selected: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500 border-emerald-500', badge: 'bg-emerald-500' }
@@ -951,17 +960,6 @@ export default function OpenHouseDiscovery() {
   }, [searchParams, listings]);
 
   // Debounced Searches
-  useEffect(() => {
-    if (!showAgentDropdown) return
-    const t = setTimeout(async () => {
-      try {
-        const { success, data } = await api.discovery.agents(agentSearch.trim() || undefined)
-        setAreaAgents(success && data?.data ? data.data : [])
-      } catch { setAreaAgents([]) }
-    }, agentSearch ? 250 : 0)
-    return () => clearTimeout(t)
-  }, [showAgentDropdown, agentSearch])
-
   useEffect(() => {
     const searchTimer = setTimeout(async () => {
       if (!brokerageSearch) { setSearchedBrokerages([]); return; }
@@ -1428,7 +1426,7 @@ export default function OpenHouseDiscovery() {
                             {agentSuggestions.length > 0 ? (
                               <>
                                 <p className="px-3 pb-1 pt-1.5 text-[9px] font-black uppercase tracking-widest text-gray-400">
-                                  {areaAgents && areaAgents.length ? (agentSearch ? 'Agents in your areas' : 'Suggested - most listings in your areas') : 'Agents in these results'}
+                                  Agents in these results
                                 </p>
                                 {agentSuggestions.map((agent) => (
                                   <button
@@ -1437,18 +1435,14 @@ export default function OpenHouseDiscovery() {
                                     className="w-full text-left px-3 py-2 rounded-xl flex items-center transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5"
                                   >
                                     <div className="w-4 h-4 shrink-0 rounded border mr-3 flex items-center justify-center transition-all border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0B0B0B]" />
-                                    <span className="min-w-0 flex-1">
-                                      <span className="block truncate text-[10px] font-black uppercase tracking-widest">{agent.name}</span>
-                                      {agent.office && <span className="block truncate text-[10px] font-semibold normal-case tracking-normal text-gray-400">{agent.office}</span>}
-                                    </span>
-                                    {agent.listings ? <span className="ml-2 shrink-0 rounded-md bg-gray-100 px-1.5 py-0.5 text-[9px] font-black text-gray-500 dark:bg-white/5 dark:text-gray-400">{agent.listings} {agent.listings === 1 ? 'listing' : 'listings'}</span> : null}
+                                    <span className="min-w-0 flex-1 truncate text-[10px] font-black uppercase tracking-widest">{agent.name}</span>
                                   </button>
                                 ))}
                               </>
                             ) : (
                               <div className="px-3 py-6 text-center">
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                                  {agentSearch ? 'No matches found' : areaAgents === null ? 'Loading agents...' : 'Start typing to search'}
+                                  {agentSearch ? 'No matches found' : 'No agents in these results'}
                                 </p>
                               </div>
                             )}

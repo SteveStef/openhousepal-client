@@ -5,16 +5,19 @@ import { getNotificationMeta } from '@/lib/notificationDisplay'
 import { formatDateTime } from '@/lib/relativeDays'
 import api from '@/lib/api-service'
 import { isRundownNotification, openTodaysRundown } from '@/components/rundown/TodaysRundown'
+import OpenShowcaseButton from '@/components/OpenShowcaseButton'
 
 // Mirrors the notification bell's own feed (same endpoint/window), not a leads query - this
 // panel is meant to answer "what actually happened recently," same as the bell.
 export default function DashActivityFeed({ notifications, onRead }: { notifications: Notification[]; onRead?: (id: string) => void }) {
+  const markRead = (notification: Notification) => {
+    if (notification.isRead) return
+    // Read right away here (dot + "N new"), and the bell / Activity page catch up straight after.
+    onRead?.(notification.id)
+    api.notifications.markAsRead(notification.id).then(() => window.dispatchEvent(new Event('leads-notification-count:refresh')))
+  }
   const handleClick = (notification: Notification) => {
-    if (!notification.isRead) {
-      // Read right away here (dot + "N new"), and the bell / Activity page catch up straight after.
-      onRead?.(notification.id)
-      api.notifications.markAsRead(notification.id).then(() => window.dispatchEvent(new Event('leads-notification-count:refresh')))
-    }
+    markRead(notification)
     // Today's Rundown (old ones say "Today's Showcase update") opens its window right here.
     if (isRundownNotification(notification)) { openTodaysRundown(); return }
     // Opens in a new tab, same as the bell dropdown and the Activity page - clicking one shouldn't
@@ -27,10 +30,13 @@ export default function DashActivityFeed({ notifications, onRead }: { notificati
       {notifications.map(notification => {
         const { icon: Icon, className } = getNotificationMeta(notification.type, notification.message, notification.title)
         return (
-          <button
+          <div
             key={notification.id}
+            role="button"
+            tabIndex={0}
             onClick={() => handleClick(notification)}
-            className={`flex w-full min-w-0 items-center gap-2.5 rounded-xl border border-gray-200 bg-white p-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#C9A24D]/40 dark:border-gray-800 dark:bg-[#151517] ${notification.isRead ? 'opacity-70' : ''}`}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(notification) } }}
+            className={`flex w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-xl border border-gray-200 bg-white p-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#C9A24D]/40 dark:border-gray-800 dark:bg-[#151517] ${notification.isRead ? 'opacity-70' : ''}`}
           >
             <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${className}`}>
               <Icon className="h-3.5 w-3.5" />
@@ -40,12 +46,17 @@ export default function DashActivityFeed({ notifications, onRead }: { notificati
               {(notification.propertyAddress || notification.message) && (
                 <p className="truncate text-[10px] font-semibold text-gray-400">{notification.propertyAddress || notification.message}</p>
               )}
+              {/* This form answer built them a Showcase - straight there (user, 10/28). */}
+              {notification.showcaseLink && (
+                <OpenShowcaseButton small href={notification.showcaseLink} className="mt-1"
+                  onGo={href => { markRead(notification); window.open(href, '_blank', 'noopener,noreferrer') }} />
+              )}
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1">
               <span className="whitespace-nowrap text-[10px] font-bold text-gray-300 dark:text-gray-600">{formatDateTime(notification.timestamp)}</span>
               {!notification.isRead && <span className="h-2 w-2 rounded-full bg-blue-500" />}
             </div>
-          </button>
+          </div>
         )
       })}
     </div>

@@ -231,6 +231,55 @@ const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GoogleP
     }
   }, []) // Empty dependency array ensures this only runs once
 
+  // Google's suggestion list (.pac-container) sits `absolute` in <body> at the box's screen spot +
+  // page scroll. When a window's scroll lock pins <body> on phones (ScrollLockWatcher, body top =
+  // -scroll), that puts it one page-scroll too high - off the top of the screen (10/29: agent
+  // Showcase editor scrolled 600px, list at -105). While the box has focus, place it from the box
+  // against whatever <body>/<html> really is, like components/ui/AnchoredPopup. Mutation callbacks
+  // run before paint, so Google's own spot never shows.
+  useEffect(() => {
+    const input = inputRef.current
+    if (!input) return
+    let mo: MutationObserver | null = null
+    let raf = 0
+    const place = () => {
+      const r = input.getBoundingClientRect()
+      const body = document.body
+      const base = (getComputedStyle(body).position === 'static' ? document.documentElement : body).getBoundingClientRect()
+      const top = `${Math.round(r.bottom - base.top)}px`
+      const left = `${Math.round(r.left - base.left)}px`
+      document.querySelectorAll<HTMLElement>('.pac-container').forEach(p => {
+        mo?.observe(p, { attributes: true, attributeFilter: ['style'] })
+        if (p.style.display === 'none') return
+        if (p.style.top !== top) p.style.top = top
+        if (p.style.left !== left) p.style.left = left
+      })
+    }
+    const later = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(place) }
+    const stop = () => {
+      mo?.disconnect(); mo = null
+      cancelAnimationFrame(raf)
+      window.removeEventListener('scroll', later, true)
+      window.removeEventListener('resize', later)
+      window.visualViewport?.removeEventListener('resize', later)
+      window.visualViewport?.removeEventListener('scroll', later)
+    }
+    const start = () => {
+      stop()
+      mo = new MutationObserver(place)
+      mo.observe(document.body, { childList: true })
+      place()
+      window.addEventListener('scroll', later, true)
+      window.addEventListener('resize', later)
+      window.visualViewport?.addEventListener('resize', later)
+      window.visualViewport?.addEventListener('scroll', later)
+    }
+    input.addEventListener('focus', start)
+    input.addEventListener('blur', stop)
+    if (document.activeElement === input) start()
+    return () => { stop(); input.removeEventListener('focus', start); input.removeEventListener('blur', stop) }
+  }, [])
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value
     setDisplayValue(newValue)

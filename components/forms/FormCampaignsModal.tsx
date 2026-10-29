@@ -464,10 +464,13 @@ export default function FormCampaignsModal({
             </button>
           </div>
         </div>
-        {/* When this form builds the person their own Showcase (only the 3 premade ones that do). */}
-        <ShowcaseFormInfoBlock formType={form.form_type} />
-        {/* A premade form: everywhere it opens (user, 10/27) - a line here, the full list in the editor. */}
-        {form.form_type !== 'custom' && <div className="max-h-[40vh] shrink-0 overflow-y-auto"><FormPlacementsNotice formType={form.form_type} planTier={user?.plan_tier} compact /></div>}
+        {/* When this form builds the person their own Showcase (only the 3 premade ones that do), and
+            for a premade form everywhere it opens (user, 10/27) - two slim lines that open like
+            dropdowns, sharing a capped height so they never push the tabs off a phone. */}
+        <div className="max-h-[45vh] shrink-0 overflow-y-auto">
+          <ShowcaseFormInfoBlock formType={form.form_type} />
+          {form.form_type !== 'custom' && <FormPlacementsNotice formType={form.form_type} planTier={user?.plan_tier} compact />}
+        </div>
 
         <div className="flex shrink-0 gap-1 border-b border-gray-100 bg-white px-5 pt-2 dark:border-gray-800 dark:bg-[#0B0B0B]">
           {([

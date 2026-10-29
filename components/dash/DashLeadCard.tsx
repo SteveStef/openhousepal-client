@@ -20,6 +20,7 @@ const SOURCE_META: Record<LeadSourceFilter, { label: string; icon: React.Compone
 
 // Where they came in, when it's more specific than the broad source above (a Zillow lead isn't "Website").
 const ORIGIN_TILE: Partial<Record<LeadOriginGroup, { label: string; icon: React.ComponentType<{ className?: string }> }>> = {
+  forms: { label: 'Form', icon: ClipboardList },
   portal: { label: 'Portal', icon: Inbox },
   listings: { label: 'Spotlight', icon: Globe2 },
   review: { label: 'Review', icon: Star },
@@ -244,7 +245,14 @@ export default function DashLeadCard({ lead, onOpenLead }: { lead: Lead; onOpenL
           {lead.phone && <CopyIconButton icon={Phone} title="Click to copy phone number" onClick={event => copy(event, lead.phone!, 'Phone number')} />}
         </div>
 
-        {lead.last_event_source_type && (
+        {/* Why they're here - how they came in, same as the Leads page's "Came in" line (user,
+            10/28: a How Can We Help buyer read "Looked at a Home"). Their latest move is the
+            "Active ..." time below. Older leads without an origin keep the latest-activity label. */}
+        {lead.origin ? (
+          <p title={lead.origin.label} className="truncate text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+            <span className="font-black text-[#8b7355] dark:text-[#e8c97a]">{lead.origin.label}</span>
+          </p>
+        ) : lead.last_event_source_type && (
           <p className="truncate text-[11px] font-semibold text-gray-500 dark:text-gray-400">
             <span className="font-black text-[#8b7355] dark:text-[#e8c97a]">{ACTIVITY_LABELS[lead.last_event_source_type]}</span>
             {activityAddress && <span className="text-gray-400"> · {activityAddress}</span>}

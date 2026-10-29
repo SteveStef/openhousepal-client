@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 // A listing card's photo you can flip through without opening the home (user, 10/27) - Discovery
@@ -20,6 +20,35 @@ export default function CardPhotoSwiper({ photos, alt, sizes, priority = false, 
   const [at, setAt] = useState(0)
   const [reach, setReach] = useState(1)
   const n = photos.length
+
+  // Start the cover photo about two phone screens before the card scrolls into view (user, 10/28:
+  // on an iPhone the photos only started as they came on screen, so each one drew in while you
+  // watched). The browser's own lazy loading waits far too long, and each MLS photo is shrunk
+  // from 2048px on its first request, so it needs the head start.
+  const [near, setNear] = useState(priority)
+  useEffect(() => {
+    const el = track.current
+    if (near || !el) return
+    if (typeof IntersectionObserver === 'undefined') { setNear(true); return }
+    const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) setNear(true) }, { rootMargin: '1600px 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [near])
+  // Each photo shows once it has fully arrived (a soft fade over the grey box) instead of
+  // painting top-down and leaving a blank band under the half-drawn part.
+  const [shown, setShown] = useState<Record<number, true>>({})
+  // Backup: a photo that finished before the page woke up (cached, or loaded from the server's
+  // first paint) may never report it, and must not stay hidden.
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const done: Record<number, true> = {}
+      track.current?.querySelectorAll<HTMLImageElement>('img[data-k]').forEach(img => {
+        if (img.complete && img.naturalWidth) done[Number(img.dataset.k)] = true
+      })
+      if (Object.keys(done).length) setShown(s => ({ ...s, ...done }))
+    }, 1200)
+    return () => window.clearTimeout(t)
+  }, [near, reach])
 
   // Where a swipe was heading (-1 back, 1 forward, 0 none) - so a slow drag that stops between two
   // photos settles on the one it was going toward.
@@ -99,9 +128,12 @@ export default function CardPhotoSwiper({ photos, alt, sizes, priority = false, 
                 alt={k ? `${alt} - photo ${k + 1}` : alt}
                 fill
                 draggable={false}
-                className={`ohp-mls-crop object-cover transition-transform duration-500 ${imgClassName || 'group-hover:scale-105'}`}
+                data-k={k}
+                onLoad={() => setShown(s => (s[k] ? s : { ...s, [k]: true }))}
+                className={`ohp-mls-crop object-cover transition-[transform,opacity] duration-500 ${shown[k] ? 'opacity-100' : 'opacity-0'} ${imgClassName || 'group-hover:scale-105'}`}
                 sizes={sizes}
                 priority={priority && k === 0}
+                loading={k === 0 && near ? 'eager' : 'lazy'}
               />
             )}
           </div>

@@ -100,7 +100,9 @@ export default function MapPopup({ map, position, anchor = { above: 14, below: 1
       y = side === 'below' ? pt.y + a.below + gap : clamp(pt.y - a.above - gap - h, m, H - m - h)
     }
     el.style.transform = `translate(${Math.round(mr.left - pr.left + x)}px, ${Math.round(mr.top - pr.top + y)}px)`
-    el.style.visibility = 'visible'
+    // Shown by dropping the inline "hidden" - not by forcing "visible", which outranked a hidden map
+    // (a phone's Criteria tab) and left the card floating over the next tab (user, 10/28).
+    el.style.visibility = ''
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, key, margin, anchor.above, anchor.below, anchor.side])
   const placeRef = useRef(place)
@@ -139,7 +141,9 @@ export default function MapPopup({ map, position, anchor = { above: 14, below: 1
 
   if (!map || !position) return null
   return (
-    <div ref={boxRef} className={`absolute left-0 top-0 max-w-[calc(100%-20px)] ${className}`} style={{ visibility: 'hidden' }}>
+    // touch-action none: a pinch that starts on the card can't zoom the whole phone page (it blew
+    // the card and the map's labels up to twice their size - user, 10/28). Taps still work.
+    <div ref={boxRef} className={`absolute left-0 top-0 max-w-[calc(100%-20px)] ${className}`} style={{ visibility: 'hidden', touchAction: 'none' }}>
       <motion.div key={key} initial={{ opacity: 0, scale: 0.96, y: 4 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}>
         {typeof children === 'function' ? children(space) : children}
       </motion.div>

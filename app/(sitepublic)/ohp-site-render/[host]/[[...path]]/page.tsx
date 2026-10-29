@@ -1,4 +1,4 @@
-import { Metadata } from 'next'
+import { Metadata, Viewport } from 'next'
 import {
   OpenHouseFrame, PropertyGallery, FeaturedPageClient, PropertyMapSearch, PropertyLocationMap, ExploreNearby, NeighborhoodCompareLauncher, WebsitePublicFormPage, ContactPageView, NeighborhoodsExplorer, MediaHub, SiteBlogArticle, IdxPropertyPage, MyShowcase, ShowcaseBuilder, CinematicLuxuryTemplate, EditorialEstateTemplate, SpotlightFactSheet,
 } from '@/components/website-public/LazySiteParts'
@@ -357,6 +357,13 @@ async function baseMetadata({
     }
   }
   return {}
+}
+
+// A client's Showcase (a full-screen frame, ShowcaseAliasPage) draws to the very bottom edge of an
+// iPhone, like the Showcase does on openhousepal.com. Merged with the root layout's viewport.
+export async function generateViewport({ params }: { params: Promise<{ host: string; path?: string[] }> }): Promise<Viewport> {
+  const { path } = await params
+  return (path?.[0] === 'showcase' || path?.[0] === 'showcases') && path[1] ? { width: 'device-width', initialScale: 1, viewportFit: 'cover' } : {}
 }
 
 export async function generateMetadata(args: {
@@ -1145,8 +1152,11 @@ async function ShowcaseAliasPage({ siteId, shareToken, home, basePrefix, accent 
   const rest = `/showcase/${encodeURIComponent(shareToken)}${home ? `/${encodeURIComponent(home)}` : ''}${accent ? `?accent=${encodeURIComponent(accent.replace('#', ''))}` : ''}`
   const src = basePrefix.startsWith('/ohp-site-render/') ? rest : `https://${OHP_BASE_DOMAIN}${rest}`
   const mine = await fetchFreshJson(`${INTERNAL_API_URL}/public/sites/${siteId}/my-showcase/${encodeURIComponent(shareToken)}`)
+  // The whole screen, to the very bottom edge (viewport-fit=cover, generateViewport below) - a
+  // 100dvh box stopped short of iPhone Safari's floating bottom bar and left an empty band above it
+  // (user, 10/28). The top and sides stay clear of the notch; the frame is told the bottom edge.
   return (
-    <main className="h-[100dvh] w-full overflow-hidden bg-[#f7f5f1]">
+    <main className="fixed inset-0 overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B]" style={{ paddingTop: 'env(safe-area-inset-top)', paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}>
       {mine?.code && <RememberShowcase code={mine.code} name={mine.name} />}
       <FramePathSync src={src} basePrefix={basePrefix.startsWith('/ohp-site-render/') ? basePrefix : ''} prefix={`/showcase/${encodeURIComponent(shareToken)}`} />
       <iframe src={src} title="Showcase" className="h-full w-full border-0" />

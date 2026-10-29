@@ -176,6 +176,7 @@ class ApiService {
       collectionName: backend.collection_name || undefined,
       propertyId: backend.property_id || undefined,
       link: backend.link || undefined,
+      showcaseLink: backend.showcase_link || undefined,
       isRead: backend.is_read,
       readAt: backend.read_at || undefined,
       timestamp: backend.created_at,

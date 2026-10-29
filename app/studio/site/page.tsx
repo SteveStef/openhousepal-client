@@ -1394,6 +1394,7 @@ function AgentHubContent() {
   const [editingSlugFormId, setEditingSlugFormId] = useState('')
   const initializedFormsRef = useRef(false)
   const autoCreateFormRef = useRef(false)
+  const scrolledTabRef = useRef<string | null>(null)
 
   useEffect(() => {
     const formsTab = formsTabFromParam(searchParams.get('tab'))
@@ -1403,7 +1404,9 @@ function AgentHubContent() {
     // The Forms sections all render on one page now (no tab switcher) - a ?tab= link (e.g. from
     // a notification, or Studio hub's "View Results") still needs to land the agent on the right
     // one, so scroll to it instead of swapping content. Share now lives inside My Forms.
-    if (formsTab && isFormsRoute) {
+    // Once per link - not again on every later address change (a Forms/Invites switch rewrites it).
+    if (formsTab && isFormsRoute && scrolledTabRef.current !== searchParams.get('tab')) {
+      scrolledTabRef.current = searchParams.get('tab')
       const sectionId = formsTab === 'Forms Results' ? 'forms-results' : 'my-forms'
       requestAnimationFrame(() => {
         document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -1796,6 +1799,33 @@ function AgentHubContent() {
     loadAgentForms()
   }, [user])
 
+  // A response that comes in while this page is open gets its red count on its form card too - the
+  // page used to load responses once and never look again, so a new one stayed hidden until a full
+  // reload (user, 10/28). One cheap count every minute / on coming back to the tab / when the bell
+  // refreshes; only when it differs from what's shown does each form's list reload.
+  const unreviewedShownRef = useRef(0)
+  unreviewedShownRef.current = Object.values(formSubmissionsByFormId).reduce((n, subs) => n + subs.filter(s => !s.is_reviewed).length, 0)
+  const agentFormIdsRef = useRef<string[]>([])
+  agentFormIdsRef.current = agentForms.map(form => form.id)
+  useEffect(() => {
+    if (!user) return
+    const check = async () => {
+      if (document.hidden || !agentFormIdsRef.current.length) return
+      const r = await api.forms.getUnreadSubmissionsCount()
+      if (r.success && r.data && r.data.count !== unreviewedShownRef.current) agentFormIdsRef.current.forEach(id => refreshFormSubmissions(id))
+    }
+    const t = window.setInterval(check, 60000)
+    const onVisible = () => { if (!document.hidden) check() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', check)
+    window.addEventListener('leads-notification-count:refresh', check)
+    return () => {
+      window.clearInterval(t); document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', check); window.removeEventListener('leads-notification-count:refresh', check)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+
   useEffect(() => {
     if (!user) return
     Promise.all([api.sites.getMine(), api.sites.getDomains()])
@@ -1894,6 +1924,16 @@ function AgentHubContent() {
   // once - left in the address it re-opened that result on every tab switch (user, 10/24).
   const clearOpenedResult = (q: URLSearchParams) => { q.delete('formId'); q.delete('submission'); if (q.get('view') === 'unfinished') q.delete('view') }
   const switchFormsView = (next: 'forms' | 'invites') => {
+    // The page never moves on a switch - the new half is just there under the switch (user, 10/28:
+    // it used to land you at the bottom). Hold the switch where it was on screen (or just under the
+    // header if you'd scrolled past it) while the halves swap and the new one loads.
+    const sw = () => document.getElementById('forms-invites-switch')
+    const at = Math.max(sw()?.getBoundingClientRect().top ?? 0, 72)
+    const pin = () => {
+      const d = (sw()?.getBoundingClientRect().top ?? at) - at
+      if (Math.abs(d) > 1) window.scrollTo({ top: window.scrollY + d, behavior: 'instant' })
+    }
+    requestAnimationFrame(pin); [80, 200, 400].forEach(ms => window.setTimeout(pin, ms))
     setFormsView(next)
     const q = new URLSearchParams(window.location.search)
     clearOpenedResult(q)
@@ -3193,7 +3233,7 @@ function AgentHubContent() {
               />
             </motion.div>
 
-            <FormsInvitesSwitch view={formsView} onChange={switchFormsView} formBadge={newResultPeople.length + openHouseRequestActionCount} />
+            <div id="forms-invites-switch"><FormsInvitesSwitch view={formsView} onChange={switchFormsView} formBadge={newResultPeople.length + openHouseRequestActionCount} /></div>
 
             <AnimatePresence mode="popLayout">
             {formsView === 'invites' ? (

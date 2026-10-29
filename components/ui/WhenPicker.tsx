@@ -743,7 +743,7 @@ function SheetWindow({ onClose, value, onDone, title, kicker = 'Pick a time', in
           <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 pb-4 pt-3 [scrollbar-width:none] sm:px-8">
             <WhenPicker {...picker} showSummary={isPhone && picker.showSummary !== false} value={draft} onChange={setDraft} />
           </div>
-          <div className="flex items-center gap-2 border-t border-gray-100 px-5 py-4 dark:border-white/[0.07] sm:px-8" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+          <div className="flex items-center gap-2 border-t border-gray-100 px-5 py-4 dark:border-white/[0.07] sm:px-8" style={{ paddingBottom: 'max(1rem, var(--ohp-sab,env(safe-area-inset-bottom)))' }}>
             <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={onClose}
               className="inline-flex h-12 items-center rounded-2xl px-4 text-[11px] font-black uppercase tracking-widest text-gray-500 transition hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10">
               Cancel

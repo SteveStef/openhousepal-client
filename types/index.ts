@@ -909,6 +909,7 @@ export interface NotificationResponse {
   property_address?: string | null;
   visitor_name?: string | null;
   link?: string | null;
+  showcase_link?: string | null;
   is_read: boolean;
   read_at?: string | null;
   created_at: string;
@@ -943,6 +944,8 @@ export interface Notification {
   collectionName?: string;
   propertyId?: string;
   link?: string;
+  /** A form answer that built a Showcase: that Showcase. */
+  showcaseLink?: string;
   isRead: boolean;
   readAt?: string;
   timestamp: string; // Maps to created_at
@@ -1246,6 +1249,8 @@ export interface FormSubmissionListItem {
     confirmed_date?: string | null;
     confirmed_time?: string | null;
   } | null;
+  // The Showcase this answer built (or last refreshed) - its "Open Showcase" button.
+  showcase_id?: string | null;
   created_at: string;
 }
 

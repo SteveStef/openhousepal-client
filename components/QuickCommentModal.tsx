@@ -112,7 +112,7 @@ function QuickCommentWindow({ property, isOpen, onClose, onAddComment, isLoading
         </div>
 
         {/* Composer */}
-        <form onSubmit={handleSubmit} style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }} className="p-3 border-t border-gray-100 dark:border-gray-800 flex items-end gap-2 flex-shrink-0">
+        <form onSubmit={handleSubmit} style={{ paddingBottom: 'max(0.75rem, var(--ohp-sab,env(safe-area-inset-bottom)))' }} className="p-3 border-t border-gray-100 dark:border-gray-800 flex items-end gap-2 flex-shrink-0">
           <textarea
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}

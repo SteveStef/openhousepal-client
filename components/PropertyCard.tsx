@@ -139,14 +139,14 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
     const filed = !!property.soldFiled
     return (
       <div data-status-notice={notice.label} className="flex h-full flex-col overflow-hidden rounded-2xl border-2 border-gray-200 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.02)] dark:border-gray-800 dark:bg-[#151517]">
-        <div className="relative aspect-video overflow-hidden bg-gray-100 dark:bg-[#0B0B0B]">
+        <div className="relative aspect-[3/2] overflow-hidden bg-gray-100 dark:bg-[#0B0B0B]">
           {property.ListPictureURL ? (
             <Image
               src={normalizeImageUrl(property.ListPictureURL)}
               alt={property.FullStreetAddress}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className={`object-cover grayscale-[45%] ${cropMlsBadge ? 'origin-top-right scale-[1.13]' : ''}`}
+              className={`object-cover grayscale-[45%] ${cropMlsBadge ? 'ohp-mls-crop' : ''}`}
               loading="lazy"
               quality={85}
             />
@@ -269,8 +269,9 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
           {recommendedBy ? `${recommendedBy} recommends this home` : 'Your agent recommends this home'}
         </div>
       )}
-      {/* 70% Height - Rectangle Image (Landscape) */}
-      <div className="relative bg-gray-100 dark:bg-[#0B0B0B] aspect-video overflow-hidden flex-[7]">
+      {/* The photo's own 3:2 shape (MLS photos are 3:2) - the old wide 16:9 box plus the MLS-badge
+          trim cut off the bottom quarter of every house (user, 10/28). Now only the badge strip goes. */}
+      <div className="relative bg-gray-100 dark:bg-[#0B0B0B] aspect-[3/2] overflow-hidden flex-[7]">
         {property.ListPictureURL || cardPhotos.length ? (
           // Flip through the photos right on the card - swipe on a phone, arrows on a computer
           // (user, 10/27). Tapping still opens the home.
