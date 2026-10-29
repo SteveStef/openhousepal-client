@@ -571,20 +571,23 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
               <div>
                 <div className="flex gap-1.5">
                   {lead.phone && <CopyButton icon={Phone} label="Phone" value={lead.phone} title={`Copy ${first}'s number - ${lead.phone}`} />}
+                  {/* Phones: Text sits right next to Phone on every follow-up for someone with a number
+                      (user, 10/29) - Messages opens with the message written, or a "Hi {first}, " start
+                      when the follow-up has none (e.g. one added from "Suggested from what they just did"). */}
+                  {onPhone && lead.phone && (
+                    <a href={smsHref(lead.phone, t.suggested_message || `Hi ${first}, `)} title={`Text ${first} - opens Messages${t.suggested_message ? ' with the text written' : ''}, and checks this off`}
+                      onClick={e => { e.stopPropagation(); if (!done) onToggleDone() }}
+                      className="relative flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 overflow-hidden rounded-[10px] bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-2 text-[11.5px] font-bold text-[#111827] shadow-sm shadow-[#C9A24D]/30 transition active:scale-[0.97]">
+                      <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">Text</span>
+                    </a>
+                  )}
                   {lead.email && (src === 'disclosure_request'
                     ? <CopyButton icon={Mail} label="Copy email" value={lead.email} primary title={`Copy ${lead.email} - send them the seller disclosure`} />
                     : <EmailPill email={lead.email} first={first} href={mailHref(lead.email, street ? `Following up - ${street}` : 'Following up', t.suggested_message)} />
                   )}
                   {t.suggested_message && (
-                    <CopyButton icon={Copy} label="Message" value={t.suggested_message} primary={!(onPhone && lead.phone)} title="Copy the ready-to-send message" />
-                  )}
-                  {onPhone && lead.phone && t.suggested_message && (
-                    <a href={smsHref(lead.phone, t.suggested_message)} title={`Text ${first} - opens Messages with the text written, and checks this off`}
-                      onClick={e => { e.stopPropagation(); if (!done) onToggleDone() }}
-                      className="relative flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 overflow-hidden rounded-[10px] bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-2 text-[11.5px] font-bold text-[#111827] shadow-sm shadow-[#C9A24D]/30 transition active:scale-[0.97]">
-                      <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">Text {first}</span>
-                    </a>
+                    <CopyButton icon={Copy} label={onPhone && lead.phone ? 'Copy' : 'Message'} value={t.suggested_message} primary={!(onPhone && lead.phone)} title="Copy the ready-to-send message" />
                   )}
                 </div>
                 {/* What's left to do after copying. */}

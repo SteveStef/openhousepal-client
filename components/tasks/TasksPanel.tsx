@@ -666,7 +666,7 @@ function ComposerWindow({ onClose, leadName, children }: { onClose: () => void; 
 // tomorrow's calendar, based on the latest thing they did. The calendar event already carries
 // their name, phone, email and a save-to-contacts link (calendar_sync_service), so the follow-up
 // itself just says what happened.
-type Suggestion = { key: string; kind: TaskKind; title: string; why: string; note: string }
+type Suggestion = { key: string; kind: TaskKind; title: string; why: string; note: string; message?: string }
 
 const SUGGEST: Partial<Record<LeadEvent['source_type'], { key: string; kind: TaskKind; title: (first: string, street: string) => string }>> = {
   open_house_visitor: { key: 'visit', kind: 'call', title: (f, s) => `Call ${f} - thanks for coming to ${s || 'the open house'}` },
@@ -707,7 +707,7 @@ const homeKey = (address: string) => streetOf(address).toLowerCase()
 const joinList = (items: string[]) => items.length <= 1 ? (items[0] || '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
 const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1)
 
-type BrowsePick = { key: string; kind: TaskKind; title: string; did: string; homes: string[] }
+type BrowsePick = { key: string; kind: TaskKind; title: string; did: string; homes: string[]; message: string }
 
 function browseSuggestion(sitting: LeadEvent[], first: string, passedOn: Set<string>, named: Set<string>): BrowsePick | null {
   // Newest first; each home once.
@@ -728,8 +728,11 @@ function browseSuggestion(sitting: LeadEvent[], first: string, passedOn: Set<str
   if (!liked.length && !lookedOnly.length) {
     // Every home in it was passed on or already suggested - nothing new to text about.
     if (!click || hadHomes) return null
-    return { key: 'email', kind: 'text', title: `Check in with ${first} - they clicked your email`, did: click.summary, homes: [] }
+    return { key: 'email', kind: 'text', title: `Check in with ${first} - they clicked your email`, did: click.summary, homes: [],
+      message: `Hi ${first}! Just checking in - did anything in your Showcase catch your eye? Happy to set up showings whenever you're ready.` }
   }
+  // The ready-to-send text (user, 10/29: the card's Text button opens Messages with it written).
+  const about = (homes: string[]) => homes.length <= 3 ? joinList(homes.map(streetOf)) : 'a few homes in your Showcase'
   // "Clicked through" only when the click came first and a home was opened after it.
   const through = !!click && Date.parse(click.occurred_at) <= lastHomeAt
   const lead = through ? `${click!.summary}, then ` : ''
@@ -743,13 +746,19 @@ function browseSuggestion(sitting: LeadEvent[], first: string, passedOn: Set<str
         : `Text ${first} about the ${liked.length} homes they liked`
     const also = lookedOnly.length ? `; also looked at ${list(lookedOnly)}` : ''
     const did = `${lead}${lead ? 'liked' : 'Liked'} ${list(liked)}${lead ? '' : ' in their Showcase'}${also}${tail}`
-    return { key: 'likes', kind: 'text', title, did, homes: [...liked, ...lookedOnly] }
+    const message = liked.length === 1
+      ? `Hi ${first}! I saw you liked ${streets[0]} - want to go see it in person? I'm happy to set up a showing.`
+      : `Hi ${first}! I saw you liked ${about(liked)} - want to go see ${liked.length === 2 ? 'them' : 'any of them'} in person? I'm happy to set up showings.`
+    return { key: 'likes', kind: 'text', title, did, homes: [...liked, ...lookedOnly], message }
   }
   const title = lookedOnly.length === 1
     ? `Text ${first} about ${streetOf(lookedOnly[0])} - ${through ? 'they clicked through to look at it' : 'they looked at it in their Showcase'}`
     : `Text ${first} about the ${lookedOnly.length} homes they looked at`
   const did = `${lead}${lead ? 'looked at' : 'Looked at'} ${list(lookedOnly)}${lead ? '' : ' in their Showcase'}${tail}`
-  return { key: 'email', kind: 'text', title, did, homes: lookedOnly }
+  const message = lookedOnly.length === 1
+    ? `Hi ${first}! I saw you were looking at ${streetOf(lookedOnly[0])} - any questions about it, or want to go see it in person?`
+    : `Hi ${first}! I saw you were checking out ${about(lookedOnly)} - want to go see any of them in person? Happy to set up showings.`
+  return { key: 'email', kind: 'text', title, did, homes: lookedOnly, message }
 }
 
 function happenedWhen(iso: string): string {
@@ -816,7 +825,7 @@ export function suggestFollowups(events: LeadEvent[], name: string | null | unde
       s.homes.forEach(h => named.add(homeKey(h)))
       if (openTitles.includes(s.title)) continue
       const why = `${s.did} · ${happenedWhen(e.occurred_at)}`
-      out.push({ key: s.key, kind: s.kind, title: s.title, why, note: `What happened: ${why}` })
+      out.push({ key: s.key, kind: s.kind, title: s.title, why, note: `What happened: ${why}`, message: s.message })
       if (out.length === 2) break
       continue
     }
@@ -842,7 +851,7 @@ function SuggestedFollowups({ leadId, items, onAdded }: { leadId: string; items:
     // Tomorrow, any time (all-day) - the phone buzzes at 9 AM.
     const day = new Date(); day.setHours(0, 0, 0, 0); day.setDate(day.getDate() + 1)
     const at = (h: number) => { const d = new Date(day); d.setHours(h, 0, 0, 0); return d.toISOString() }
-    const res = await api.tasks.create({ title: s.title, kind: s.kind, priority: 'normal', due_at: at(12), remind_at: at(9), all_day: true, lead_id: leadId, notes: s.note })
+    const res = await api.tasks.create({ title: s.title, kind: s.kind, priority: 'normal', due_at: at(12), remind_at: at(9), all_day: true, lead_id: leadId, notes: s.note, suggested_message: s.message || null })
     setBusy(null)
     if (res.success) { setAdded(a => [...a, s.key]); onAdded() }
   }

@@ -302,7 +302,7 @@ function HomePageContent() {
     const markReached = () => {
       raf = 0
       const reached = elements.filter(([, el]) => el.getBoundingClientRect().top < window.innerHeight).map(([id]) => id)
-      setSeenSections(prev => (reached.every(id => prev.has(id)) ? prev : new Set([...prev, ...reached])))
+      setSeenSections(prev => (reached.every(id => prev.has(id)) ? prev : new Set([...Array.from(prev), ...reached])))
     }
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(markReached) }
     window.addEventListener('scroll', onScroll, { passive: true })
