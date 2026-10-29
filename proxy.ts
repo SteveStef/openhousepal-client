@@ -37,6 +37,14 @@ const RESERVED_APP_SEGMENTS = new Set([
   'upgrade-required', 'forgot-password', 'login', 'register', 'reset-password',
 ])
 
+// openhousepal.com is for agents (we sell them subscriptions), so these are the only pages on the
+// app's own hostname Google may list. Everything else there - each agent's Hub and forms
+// (/<slug>, /<slug>/<form>), invites, follow-ups, home pages - gets `X-Robots-Tag: noindex`
+// (user, 10/29: googling OpenHousePal showed "Lori D'Onofrio", "Setup My Own Showcase" under our
+// own result). Agents' own sites (<slug>.openhousepal.com, own domains) aren't touched.
+// Not robots.txt: a blocked page can still be listed from links, and Google can't see the noindex.
+const INDEXABLE_APP_PATHS = new Set(['/', '/register', '/login', '/privacy', '/terms'])
+
 // Next.js 16 renamed Middleware to Proxy (filename proxy.ts, same functionality/API) - this
 // used to be middleware.ts/export function middleware.
 export async function proxy(request: NextRequest) {
@@ -44,33 +52,43 @@ export async function proxy(request: NextRequest) {
   const hostWithoutPort = rawHost.split(':')[0]
 
   if (!rawHost || APP_HOSTNAMES.has(rawHost) || APP_HOSTNAMES.has(hostWithoutPort)) {
-    // The admin's town page preview (app/admin/town-preview) draws an IDX page, so it gets the same
-    // "no dashboard chrome" signal as a public site page. Only the look - the data is admin-only.
-    if (request.nextUrl.pathname.startsWith('/admin/town-preview/')) {
-      const previewHeaders = new Headers(request.headers)
-      previewHeaders.set('x-ohp-public-site', '1')
-      return NextResponse.next({ request: { headers: previewHeaders } })
-    }
-    const firstSegment = request.nextUrl.pathname.split('/').filter(Boolean)[0]?.toLowerCase()
-    if (firstSegment && !RESERVED_APP_SEGMENTS.has(firstSegment)) {
-      // openhousepal.com/<slug>/... -> the agent's own connected domain, only while it fully works
-      // (lib/hubOwnDomainRedirect - never for frames/previews; any doubt = no redirect). 307 + no-store:
-      // switching the domain off stops it within a minute, nothing sticks in browsers.
-      const ownDomainUrl = await hubOwnDomainTarget(request)
-      if (ownDomainUrl) {
-        const res = NextResponse.redirect(ownDomainUrl, 307)
-        res.headers.set('Cache-Control', 'no-store')
-        return res
-      }
-      // A /[slug]/... Agent Hub request on the app's own hostname - same "hide dashboard
-      // chrome" signal as the custom-domain rewrite below, just without a URL rewrite.
-      const requestHeaders = new Headers(request.headers)
-      requestHeaders.set('x-ohp-public-site', '1')
-      return NextResponse.next({ request: { headers: requestHeaders } })
-    }
-    return NextResponse.next()
+    const res = await appHostResponse(request)
+    const path = request.nextUrl.pathname.replace(/\/+$/, '') || '/'
+    if (!INDEXABLE_APP_PATHS.has(path)) res.headers.set('X-Robots-Tag', 'noindex')
+    return res
   }
+  return siteHostResponse(request, rawHost, hostWithoutPort)
+}
 
+async function appHostResponse(request: NextRequest): Promise<NextResponse> {
+  // The admin's town page preview (app/admin/town-preview) draws an IDX page, so it gets the same
+  // "no dashboard chrome" signal as a public site page. Only the look - the data is admin-only.
+  if (request.nextUrl.pathname.startsWith('/admin/town-preview/')) {
+    const previewHeaders = new Headers(request.headers)
+    previewHeaders.set('x-ohp-public-site', '1')
+    return NextResponse.next({ request: { headers: previewHeaders } })
+  }
+  const firstSegment = request.nextUrl.pathname.split('/').filter(Boolean)[0]?.toLowerCase()
+  if (firstSegment && !RESERVED_APP_SEGMENTS.has(firstSegment)) {
+    // openhousepal.com/<slug>/... -> the agent's own connected domain, only while it fully works
+    // (lib/hubOwnDomainRedirect - never for frames/previews; any doubt = no redirect). 307 + no-store:
+    // switching the domain off stops it within a minute, nothing sticks in browsers.
+    const ownDomainUrl = await hubOwnDomainTarget(request)
+    if (ownDomainUrl) {
+      const res = NextResponse.redirect(ownDomainUrl, 307)
+      res.headers.set('Cache-Control', 'no-store')
+      return res
+    }
+    // A /[slug]/... Agent Hub request on the app's own hostname - same "hide dashboard
+    // chrome" signal as the custom-domain rewrite below, just without a URL rewrite.
+    const requestHeaders = new Headers(request.headers)
+    requestHeaders.set('x-ohp-public-site', '1')
+    return NextResponse.next({ request: { headers: requestHeaders } })
+  }
+  return NextResponse.next()
+}
+
+async function siteHostResponse(request: NextRequest, rawHost: string, hostWithoutPort: string): Promise<NextResponse> {
   // The app's own API routes (Explore Nearby's /api/website-nearby, link-preview images...) answer
   // the same on every host - rewriting them into the site page returned HTML, which is why Explore
   // Nearby never loaded on IDX sites or Spotlights (user, 10/18).
