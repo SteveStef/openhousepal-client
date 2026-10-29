@@ -704,8 +704,9 @@ function PublicPreview({
             <h3 className="border-l-4 border-[#d2b16f] pl-2 font-serif text-[22px] font-black text-[#111827] dark:text-white">{salesWords('My Recent Sales', salesRecent)}</h3>
             <span className="text-[11px] font-black uppercase text-[#caa65e] dark:text-[#d7b974]">View All &rsaquo;</span>
           </div>
+          {/* Full size, not `compact` (160px): same 240px card as My Listings and the live hub (user, 10/29). */}
           {salesCarousel && size === 'mobile' ? (
-            <RecentSalesCarousel sales={applySalesDisplay(getEligibleSales(recentSales).filter(sale => sale.visible), salesMinPrice, salesSort).slice(0, 8)} compact luxe={luxe} />
+            <RecentSalesCarousel sales={applySalesDisplay(getEligibleSales(recentSales).filter(sale => sale.visible), salesMinPrice, salesSort).slice(0, 8)} luxe={luxe} />
           ) : (
             <CarouselRow step={170} showArrows={size === 'desktop'} shellClass={compact ? 'relative' : size === 'desktop' ? 'agent-hub-shelf-window relative px-5 lg:px-10' : 'relative px-5'} rowClassName={size === 'desktop' ? 'agent-hub-desktop-trio' : ''} scrollPulse={autoScrollStep?.id === id ? autoScrollStep.nonce : 0}>
               {applySalesDisplay(getEligibleSales(recentSales).filter(sale => sale.visible), salesMinPrice, salesSort).slice(0, 6).map((sale) => luxe ? (
