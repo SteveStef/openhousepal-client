@@ -10,6 +10,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { DEFAULT_SITE_THEME } from '@/components/website-public/types'
 import { CLASSIC_DEFAULT_ACCENT, normalizeSiteTheme, siteLuxeMetal, siteMode, siteTemplate } from '@/lib/siteTheme'
+import { homeSlug } from '@/lib/showcaseLink'
 
 export const OG_SIZE = { width: 1200, height: 630 }
 export const OG_CONTENT_TYPE = 'image/png'
@@ -168,6 +169,34 @@ export function showcaseShareText(data: any): { title: string; description: stri
     : 'Homes hand-picked for you - updated the moment new ones list. Tap a home to save it, comment or book a tour.'
   const newest = homes.reduce((m, h) => Math.max(m, Date.parse(h?.AddedAt || '') || 0), 0)
   return { title, description, v: `c3-${count}-${Math.floor(newest / 60000) || 0}` }
+}
+
+/** The home a one-home Showcase link points at: its slug (/showcase/dana-k7q2/732-buck-ln, see
+ *  lib/showcaseLink homeSlug) or its id (a home with no street). */
+export function findShowcaseHome(data: any, home: string): any | null {
+  const all: any[] = Array.isArray(data?.matchedProperties) ? data.matchedProperties : []
+  const want = String(home || '').toLowerCase()
+  if (!want) return null
+  return all.find(p => String(p?.id) === home) || all.find(p => homeSlug(p?.FullStreetAddress) === want) || null
+}
+
+/** A one-home link's preview text: "732 Buck Ln, Malvern" over "$725,000 · 4 bd · 3 ba - picked for
+ *  Dana by Peter Smith". `v` changes with the price / photo, so a resend shows the new card. */
+export function showcaseHomeShareText(data: any, home: string): { title: string; description: string; v: string } | null {
+  const p = findShowcaseHome(data, home)
+  if (!p) return null
+  const cap = (s: any) => { const t = String(s || '').trim(); return t && t === t.toUpperCase() ? t.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : t }
+  const street = cap(String(p.FullStreetAddress || '').split(',')[0])
+  const raw = firstName(data?.customer?.firstName)
+  const forName = raw && raw === raw.toUpperCase() ? raw.charAt(0) + raw.slice(1).toLowerCase() : raw
+  const agent = data?.agentFullName || data?.agentName
+  const facts = [money(Number(p.ListPrice) || null), p.BedroomsTotal ? `${p.BedroomsTotal} bd` : '', p.BathroomsTotal ? `${p.BathroomsTotal} ba` : ''].filter(Boolean).join(' · ')
+  const who = [forName ? `for ${forName}` : '', agent ? `by ${agent}` : ''].filter(Boolean).join(' ')
+  return {
+    title: [street || 'A home for you', cap(p.City)].filter(Boolean).join(', '),
+    description: [facts, who ? `Picked ${who}` : ''].filter(Boolean).join(' - '),
+    v: cardVersion('h1', p.id, p.ListPrice, p.ListPictureURL, p.MlsStatus),
+  }
 }
 
 export function money(n?: number | null): string {

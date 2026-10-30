@@ -30,8 +30,8 @@ export default function ShowcasesOffSheet({ openHouse, onClose, onSave }: {
     setSimilar(openHouse.similarHomes !== false)
     setShowcase(!!openHouse.passShowcase)
   }, [openHouse])
-  // Similar homes only exist for an MLS-linked home on a Guest Pass plan.
-  const similarAvailable = !!(oh?.guestPassAvailable && oh?.listingKey)
+  // Similar homes only exist for an MLS-linked home on a Guest Pass plan, with homes picked.
+  const similarAvailable = !!(oh?.guestPassAvailable && oh?.listingKey && (oh?.similarPropertiesSnapshot || []).length)
   const street = toTitleCase((oh?.address || '').split(',')[0])
 
   const row = (on: boolean, set: (v: boolean) => void, icon: React.ReactNode, title: string, body: string) => (

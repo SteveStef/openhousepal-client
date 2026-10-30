@@ -63,12 +63,18 @@ interface PropertyGridProps {
   offMarketNotice?: boolean
   /** Showcase: the notice card's "Move to Sold/Removed" (and "Move back") button. */
   onMoveToSold?: (property: Property, filed: boolean) => void
+  /** Agent's Showcase: the "Send" button on each card. */
+  onSend?: (property: Property) => void
+  /** Agent's Showcase select mode: tapping a card picks it instead of opening it. */
+  selectMode?: boolean
+  selectedIds?: ReadonlySet<string>
+  onToggleSelect?: (property: Property) => void
 }
 
 /** The Showcase's tabs in their on-screen order (buyer view and the agent's view). */
 export const SHOWCASE_TABS = ['all', 'liked', 'disliked', 'sold_removed'] as const
 
-export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, sortControl, headerAction, alignHeaderLeftOnMobile = false, compareInfo, destination, compareProperty, tourButtonVariant, cropMlsBadge = false, highlightFirst = false, animationKey, animationOrder, emptyState, compactHeader = false, phoneCompact = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold }: PropertyGridProps) {
+export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, sortControl, headerAction, alignHeaderLeftOnMobile = false, compareInfo, destination, compareProperty, tourButtonVariant, cropMlsBadge = false, highlightFirst = false, animationKey, animationOrder, emptyState, compactHeader = false, phoneCompact = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold, onSend, selectMode = false, selectedIds, onToggleSelect }: PropertyGridProps) {
   const firstCardRef = useRef<HTMLDivElement>(null)
   const [isHighlighting, setIsHighlighting] = useState(false)
   const hasFiredRef = useRef(false)
@@ -197,8 +203,29 @@ export default function PropertyGrid({ properties, title = "Properties", onLike,
           {...cardMotion(index)}
           exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.2 } }}
           ref={index === 0 ? firstCardRef : undefined}
-          className={index === 0 && isHighlighting ? 'rounded-2xl ring-4 ring-[#C9A24D] ring-offset-2 dark:ring-offset-[#0B0B0B] transition-shadow duration-500' : 'rounded-2xl'}
+          className={`relative ${index === 0 && isHighlighting ? 'rounded-2xl ring-4 ring-[#C9A24D] ring-offset-2 dark:ring-offset-[#0B0B0B] transition-shadow duration-500' : 'rounded-2xl'}`}
         >
+          {/* Select mode: a layer over the card - a tap picks the home (gold ring here; the card
+              draws the check in the middle of its photo - see PropertyCard PickMark). */}
+          <AnimatePresence>
+            {selectMode && (() => {
+              const on = !!selectedIds?.has(String(property.id))
+              return (
+                <motion.button
+                  key="pick"
+                  type="button"
+                  aria-pressed={on}
+                  aria-label={on ? 'Selected' : 'Select this home'}
+                  data-select-home={property.id}
+                  onClick={() => onToggleSelect?.(property)}
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                  className={`absolute inset-0 z-30 rounded-2xl transition-[box-shadow,background-color] duration-200 ${on
+                    ? 'shadow-[inset_0_0_0_3px_#C9A24D,0_18px_40px_-18px_rgba(201,162,77,.9)]'
+                    : 'shadow-[inset_0_0_0_2px_rgba(201,162,77,.0)] hover:shadow-[inset_0_0_0_2px_rgba(201,162,77,.5)]'}`}
+                />
+              )
+            })()}
+          </AnimatePresence>
           <PropertyCard
             property={property}
             onLike={onLike}
@@ -216,6 +243,8 @@ export default function PropertyGrid({ properties, title = "Properties", onLike,
             recommendedBy={recommendedBy}
             offMarketNotice={offMarketNotice}
             onMoveToSold={onMoveToSold}
+            onSend={onSend}
+            selected={selectMode ? !!selectedIds?.has(String(property.id)) : undefined}
           />
         </motion.div>
       ))}
@@ -258,7 +287,8 @@ export default function PropertyGrid({ properties, title = "Properties", onLike,
       <div className="space-y-5">
         <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:gap-4">
           {compareInfo && <div className="min-w-0 flex-1">{compareInfo}</div>}
-          <div className={`flex items-center gap-2 ${compareInfo ? '' : 'lg:ml-auto'}`}>{sortControl}<span className="ml-auto lg:ml-0">{countPill}</span></div>
+          {/* (with the agent's Select button in the row, a phone shows just the number) */}
+          <div className={`flex items-center gap-2 ${compareInfo ? '' : 'lg:ml-auto'}`}>{sortControl}<span className={`ml-auto lg:ml-0 ${onSend ? '[&>span>span:last-child]:hidden sm:[&>span>span:last-child]:inline' : ''}`}>{countPill}</span></div>
         </div>
         {tabStage}
       </div>

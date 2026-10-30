@@ -22,7 +22,7 @@ import HomeCard from '@/components/website-public/HomeCard'
 import SiteFormLauncher from '@/components/website-public/SiteFormLauncher'
 import SiteNavProgress from '@/components/website-public/SiteNavProgress'
 import { normalizeSiteTheme } from '@/lib/siteTheme'
-import { cardVersion, ogFetch, showcaseShareText, siteLookParam } from '@/lib/og/shared'
+import { cardVersion, ogFetch, showcaseHomeShareText, showcaseShareText, siteLookParam } from '@/lib/og/shared'
 import { toTitleCase } from '@/lib/cheatSheetContent'
 import { fontClass } from '@/components/website-public/blocks/fontClass'
 import BlogCoverArt from '@/components/BlogCoverArt'
@@ -280,14 +280,19 @@ async function baseMetadata({
     // Named for the guest it was made for ("Lori's personal Showcase") - the same text as the
     // openhousepal.com link; applySiteSeo leaves the site name off private client links.
     const data = path[1] ? await ogFetch<any>(`/collections/shared/${encodeURIComponent(path[1])}`, 120) : null
-    const share = showcaseShareText(data)
+    // /showcase/dana-k7q2/732-buck-ln - one home in it (the agent's Send): that home's own card.
+    const one = path[1] && path[2] ? showcaseHomeShareText(data, decodeURIComponent(path[2])) : null
+    const share = one || showcaseShareText(data)
+    const accent = normalizeSiteTheme({ ...DEFAULT_SITE_THEME, ...(resolved.published_snapshot?.theme || {}) }).secondary_color?.replace('#', '')
     return publicAliasMetadata(
       share.title,
-      path[1] ? `https://${OHP_BASE_DOMAIN}/showcase/${encodeURIComponent(path[1])}` : undefined,
+      path[1] ? `https://${OHP_BASE_DOMAIN}/showcase/${encodeURIComponent(path[1])}${one ? `/${encodeURIComponent(path[2])}` : ''}` : undefined,
       // in the site's own colour, like the Showcase itself on this domain
       {
         description: share.description,
-        ogImage: path[1] ? ogCard('showcase', { token: path[1], accent: normalizeSiteTheme({ ...DEFAULT_SITE_THEME, ...(resolved.published_snapshot?.theme || {}) }).secondary_color?.replace('#', ''), v: share.v }) : undefined,
+        ogImage: !path[1] ? undefined : one
+          ? ogCard('showcasehome', { token: path[1], home: path[2], accent, v: share.v })
+          : ogCard('showcase', { token: path[1], accent, v: share.v }),
       },
     )
   }

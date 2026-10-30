@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { Property } from '@/types'
 import { formatOpenHouse, formatOpenHouseDay, upcomingOpenHouses } from '@/lib/mlsOpenHouses'
-import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye, Bed, Bath, Square, Home, MapPin, School, Trees, Navigation, Star, FolderInput, Undo2 } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye, Bed, Bath, Square, Home, MapPin, School, Trees, Navigation, Star, FolderInput, Undo2, Send } from 'lucide-react'
 import { cleanAddress, formatMlsStatus, formatPropertyFeature, isPropertyAvailableStatus, normalizeImageUrl, haversineMiles, googleMapsDirectionsUrl } from '@/lib/utils'
 import { statusNotice, type StatusTone } from '@/lib/showcaseStatus'
 import CardPhotoSwiper from '@/components/property/CardPhotoSwiper'
@@ -51,6 +51,58 @@ interface PropertyCardProps {
   offMarketNotice?: boolean
   /** Its "Move to Sold/Removed" button (filed=false: "Move back" from inside the folder). */
   onMoveToSold?: (property: Property, filed: boolean) => void
+  /** Agent's Showcase view: "Send" this home to the client by text / email (SendHomesSheet). */
+  onSend?: (property: Property) => void
+  /** Agent's Showcase select mode: picked (true) / not picked (false); undefined = not selecting. */
+  selected?: boolean
+}
+
+// The card's icons always wear their own colour (owner, 10/30): outlined in the colour they turn
+// when tapped, filled once on - Love green, Pass red, the agent's star gold, Messages iMessage blue.
+// Messages shows how many there are on the home in a blue badge, and fills while one is unread.
+const CHAT_BLUE = '#0A84FF'
+function ChatButton({ property, onClick }: { property: Property; onClick: () => void }) {
+  const unread = property.unreadCommentCount || 0
+  const count = Math.max(property.comments?.length || 0, unread)
+  return (
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.82 }}
+      whileHover={{ y: -1 }}
+      aria-label={count ? `Messages (${count})` : 'Messages'}
+      data-chat-count={count}
+      onClick={(e) => { e.stopPropagation(); onClick() }}
+      style={{ color: CHAT_BLUE }}
+      className={`relative rounded-lg p-1.5 transition-colors before:absolute before:-inset-1.5 before:content-[''] ${unread ? 'bg-[#0A84FF]/12' : 'hover:bg-[#0A84FF]/10'}`}
+    >
+      <MessageCircle size={18} fill={unread ? 'currentColor' : 'none'} />
+      {count > 0 && (
+        <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full border-2 border-white px-0.5 text-[9px] font-black text-white dark:border-[#151517]" style={{ backgroundColor: CHAT_BLUE }}>
+          {count > 9 ? '9+' : count}
+        </span>
+      )}
+    </motion.button>
+  )
+}
+
+/** Select mode: a soft gold wash over the photo and a check in its middle - clear of the Match %,
+ *  DOM, open house, town and views badges round the edges. `corner`: top-left (the status-notice card). */
+function PickMark({ on, corner = false }: { on: boolean; corner?: boolean }) {
+  return (
+    <div className={`pointer-events-none absolute inset-0 z-[5] flex ${corner ? 'items-start justify-start p-3' : 'items-center justify-center'} transition-colors duration-200 ${on ? 'bg-[#C9A24D]/30' : 'bg-black/0'}`}>
+      <motion.span
+        initial={false}
+        data-pick-mark={on ? 'on' : 'off'}
+        animate={{ scale: on ? 1 : 0.86 }}
+        transition={{ type: 'spring', stiffness: 600, damping: 22 }}
+        className={`grid ${corner ? 'h-9 w-9' : 'h-14 w-14'} place-items-center rounded-full border-[3px] shadow-[0_10px_30px_-8px_rgba(0,0,0,.55)] transition-colors ${on ? 'border-white bg-[#C9A24D] text-[#16130e]' : 'border-white/90 bg-black/25 text-transparent'}`}
+      >
+        <svg viewBox="0 0 24 24" className={corner ? 'h-5 w-5' : 'h-7 w-7'} fill="none" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round">
+          <motion.path d="M5 12.5l4.5 4.5L19 7.5" initial={false} animate={{ pathLength: on ? 1 : 0 }} transition={{ duration: 0.22 }} />
+        </svg>
+      </motion.span>
+    </div>
+  )
 }
 
 const NOTICE_TONE: Record<StatusTone, string> = {
@@ -59,7 +111,7 @@ const NOTICE_TONE: Record<StatusTone, string> = {
   off: 'bg-[#111827] text-white',
 }
 
-const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, destination, matchScore, tourButtonVariant = 'schedule', cropMlsBadge = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold }: PropertyCardProps) {
+const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, destination, matchScore, tourButtonVariant = 'schedule', cropMlsBadge = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold, onSend, selected }: PropertyCardProps) {
   // The agent's pick (user, 10/18) - impossible to miss on both sides; gone once the client passes on it.
   const recommended = !!property.agentRecommended && !property.disliked
   // Memoize visitor interaction counts to avoid redundant filtering on every render
@@ -155,6 +207,8 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
               <Home className="h-12 w-12 text-gray-300 dark:text-gray-800" />
             </div>
           )}
+          {/* the notice fills the middle here, so the pick mark sits in the top corner */}
+          {selected !== undefined && <PickMark on={selected} corner />}
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-t from-black/80 via-black/55 to-black/35 px-5 text-center">
             <span className={`rounded-xl px-5 py-2 text-[22px] font-black uppercase leading-none tracking-[0.12em] shadow-2xl ring-2 ring-white/40 sm:text-[26px] ${NOTICE_TONE[notice.tone]}`}>
               {notice.label}
@@ -178,25 +232,13 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
                 )}
               </div>
               <div className="flex shrink-0 items-center space-x-1.5">
-                <motion.button
-                  whileTap={{ scale: 0.82 }}
-                  aria-label="Messages"
-                  onClick={(e) => { e.stopPropagation(); onCommentClick?.(property) }}
-                  className={`relative rounded-lg p-1.5 transition-colors before:absolute before:-inset-1.5 before:content-[''] ${property.unreadCommentCount ? 'bg-[#C9A24D]/10 text-[#C9A24D]' : 'text-gray-300 hover:text-[#C9A24D]'}`}
-                >
-                  <MessageCircle size={18} fill={property.unreadCommentCount ? 'currentColor' : 'none'} />
-                  {!!property.unreadCommentCount && (
-                    <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full border-2 border-white bg-[#C9A24D] px-0.5 text-[9px] font-black text-white dark:border-[#151517]">
-                      {property.unreadCommentCount}
-                    </span>
-                  )}
-                </motion.button>
+                <ChatButton property={property} onClick={() => onCommentClick?.(property)} />
                 <motion.button
                   whileTap={{ scale: 0.78 }}
                   aria-label={property.liked ? 'Loved' : 'Love it'}
                   aria-pressed={!!property.liked}
                   onClick={(e) => { e.stopPropagation(); if (property.id !== undefined) onLike?.(property.id, !property.liked) }}
-                  className={`relative rounded-lg p-1.5 transition-colors before:absolute before:-inset-1.5 before:content-[''] ${property.liked ? 'bg-green-500/10 text-green-500' : 'text-gray-300 hover:text-green-500'}`}
+                  className={`relative rounded-lg p-1.5 transition-colors before:absolute before:-inset-1.5 before:content-[''] ${property.liked ? 'bg-green-500/10 text-green-500' : 'text-green-500 hover:bg-green-500/10'}`}
                 >
                   <motion.span key={property.liked ? 'on' : 'off'} initial={property.liked ? { scale: 0.3, rotate: -20 } : false} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 700, damping: 12 }} className="block">
                     <ThumbsUp size={18} fill={property.liked ? 'currentColor' : 'none'} />
@@ -272,6 +314,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
       {/* The photo's own 3:2 shape (MLS photos are 3:2) - the old wide 16:9 box plus the MLS-badge
           trim cut off the bottom quarter of every house (user, 10/28). Now only the badge strip goes. */}
       <div className="relative bg-gray-100 dark:bg-[#0B0B0B] aspect-[3/2] overflow-hidden flex-[7]">
+        {selected !== undefined && <PickMark on={selected} />}
         {property.ListPictureURL || cardPhotos.length ? (
           // Flip through the photos right on the card - swipe on a phone, arrows on a computer
           // (user, 10/27). Tapping still opens the home.
@@ -395,36 +438,15 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
                   aria-label={recommended ? 'Recommended' : 'Recommend this home'}
                   aria-pressed={recommended}
                   onClick={(e) => { e.stopPropagation(); onRecommend(property) }}
-                  className={`relative p-1.5 rounded-lg transition-colors before:absolute before:-inset-1.5 before:content-[''] ${recommended ? 'text-[#C9A24D] bg-[#C9A24D]/15' : 'text-gray-300 hover:text-[#C9A24D]'}`}
+                  className={`relative p-1.5 rounded-lg transition-colors before:absolute before:-inset-1.5 before:content-[''] ${recommended ? 'text-[#C9A24D] bg-[#C9A24D]/15' : 'text-[#C9A24D] hover:bg-[#C9A24D]/10'}`}
                 >
                   <motion.span key={recommended ? 'on' : 'off'} initial={recommended ? { scale: 0.3, rotate: -30 } : false} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 700, damping: 12 }} className="block">
                     <Star size={18} fill={recommended ? 'currentColor' : 'none'} />
                   </motion.span>
                 </motion.button>
               )}
-              {/* Message button - always visible; only highlighted while there's an unread
-                  reply from the other side, and dims back down once it's actually been read */}
-              <motion.button
-                whileTap={{ scale: 0.82 }}
-                whileHover={{ y: -1 }}
-                aria-label="Messages"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCommentClick?.(property);
-                }}
-                className={`relative p-1.5 rounded-lg transition-colors before:absolute before:-inset-1.5 before:content-[''] ${
-                  property.unreadCommentCount && property.unreadCommentCount > 0
-                    ? 'text-[#C9A24D] bg-[#C9A24D]/10'
-                    : 'text-gray-300 hover:text-[#C9A24D]'
-                }`}
-              >
-                <MessageCircle size={18} fill={property.unreadCommentCount && property.unreadCommentCount > 0 ? 'currentColor' : 'none'} />
-                {property.unreadCommentCount !== undefined && property.unreadCommentCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 flex items-center justify-center bg-[#C9A24D] text-white text-[9px] font-black rounded-full border-2 border-white dark:border-[#151517]">
-                    {property.unreadCommentCount}
-                  </span>
-                )}
-              </motion.button>
+              {/* Messages - always visible (see ChatButton) */}
+              <ChatButton property={property} onClick={() => onCommentClick?.(property)} />
 
               <div className="w-px h-4 bg-gray-200 dark:bg-gray-800" />
 
@@ -442,7 +464,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
                 className={`relative p-1.5 rounded-lg transition-colors before:absolute before:-inset-1.5 before:content-[''] ${
                   property.liked
                     ? 'text-green-500 bg-green-500/10'
-                    : 'text-gray-300 hover:text-green-500'
+                    : 'text-green-500 hover:bg-green-500/10'
                 }`}
               >
                 <motion.span key={property.liked ? 'on' : 'off'} initial={property.liked ? { scale: 0.3, rotate: -20 } : false} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 700, damping: 12 }} className="block">
@@ -463,7 +485,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
                 className={`relative p-1.5 rounded-lg transition-colors before:absolute before:-inset-1.5 before:content-[''] ${
                   property.disliked
                     ? 'text-red-500 bg-red-500/10'
-                    : 'text-gray-300 hover:text-red-500'
+                    : 'text-red-500 hover:bg-red-500/10'
                 }`}
               >
                 <motion.span key={property.disliked ? 'on' : 'off'} initial={property.disliked ? { scale: 0.3, rotate: 20 } : false} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 700, damping: 12 }} className="block">
@@ -543,13 +565,25 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
                   : 'bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8cf8a] hover:bg-[#C9A24D] hover:text-white hover:shadow-lg'
               }`}
             >
-              {tourButtonVariant === 'requests' ? 'Tour Requests' : property.tourStatus === 'confirmed' ? 'Confirmed' : property.tourStatus === 'done' ? 'Toured' : property.hasTourScheduled ? 'Pending' : 'Tour'}
+              {tourButtonVariant === 'requests' ? <><span className="sm:hidden">Tours</span><span className="hidden sm:inline">Tour Requests</span></> : property.tourStatus === 'confirmed' ? 'Confirmed' : property.tourStatus === 'done' ? 'Toured' : property.hasTourScheduled ? 'Pending' : 'Tour'}
               {tourButtonVariant === 'requests' && !!property.tourCount && (
                 <span className="absolute -top-2 -right-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white border-2 border-white dark:border-[#151517]">
                   {property.tourCount > 9 ? '9+' : property.tourCount}
                 </span>
               )}
             </button>
+          )}
+          {/* Agent: text / email this home to the client - a link to it inside their Showcase. */}
+          {onSend && (
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.95 }}
+              data-send-home={property.id}
+              onClick={(e) => { e.stopPropagation(); onSend(property) }}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#C9A24D]/45 py-3 text-[10px] font-black uppercase tracking-widest text-[#8b7355] transition-[background-color,color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:bg-[#C9A24D] hover:text-[#16130e] hover:shadow-lg dark:text-[#e8c97a]"
+            >
+              <Send size={13} /> Send
+            </motion.button>
           )}
         </div>
       </div>

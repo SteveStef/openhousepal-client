@@ -1,11 +1,11 @@
 'use client'
 
-import { homeSlug, showcaseLinkPath } from '@/lib/showcaseLink'
-import { memo, useState } from 'react'
+import { homeSlug, showcaseHomeCount, showcaseLinkPath } from '@/lib/showcaseLink'
+import { memo, useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import api, { resolveMediaUrl } from '@/lib/api-service'
-import { Calendar, Copy, Check, ArrowUpDown, Mail, MapPin, MessageSquareText, Phone, Share2, User, SlidersHorizontal, X } from 'lucide-react'
+import { Calendar, CheckSquare, Copy, Check, ArrowUpDown, Mail, MapPin, MessageSquareText, Phone, Share2, User, SlidersHorizontal, X } from 'lucide-react'
 import PropertyGrid, { SHOWCASE_TABS } from '@/components/PropertyGrid'
 import ShowcaseRadiusContextLine from '@/components/ShowcaseRadiusContextLine'
 import PropertyDetailsModal, { type HomeMove } from '@/components/PropertyDetailsModal'
@@ -20,6 +20,9 @@ import { copyText } from '@/lib/copyText'
 import LuxeSelect from '@/components/ui/LuxeSelect'
 import { SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
 import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
+import SendHomesSheet from '@/components/showcases/SendHomesSheet'
+import ShowcaseSelectBar, { type BulkAction } from '@/components/showcases/ShowcaseSelectBar'
+import { useLastValue } from '@/components/ui/windowMotion'
 
 interface DetailViewProps {
   selectedCollection: Collection;
@@ -48,6 +51,8 @@ interface DetailViewProps {
   onRecommend?: (property: Property) => void;
   /** An off-the-market home's "Move to Sold/Removed" (filed=false: back out of the folder). */
   onMoveToSold?: (property: Property, filed: boolean) => void;
+  /** Select mode: one action on many homes (see ShowcaseSelectBar). */
+  onBulkAction?: (action: BulkAction, propertyIds: string[]) => Promise<void>;
   onPropertyClick: (property: Property) => void;
   onAddComment: (id: string | number, comment: string) => void;
   // Modal States
@@ -96,6 +101,7 @@ export const DetailView = memo(function DetailView({
   onPropertyDislike,
   onRecommend,
   onMoveToSold,
+  onBulkAction,
   onPropertyClick,
   onAddComment,
   selectedProperty,
@@ -224,6 +230,30 @@ export const DetailView = memo(function DetailView({
   const detailsNav = isModalOpen && navIndex >= 0 && navList.length > 1
     ? { index: navIndex, total: navList.length, onPrev: stepTo(navIndex - 1, -1), onNext: stepTo(navIndex + 1, 1) }
     : null
+
+  // Send (user, 10/30): one home from its card, or the homes picked in select mode.
+  const [sendHomes, setSendHomes] = useState<Property[] | null>(null)
+  const sendOpen = !!sendHomes
+  const lastSendHomes = useLastValue(sendHomes)
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const toggleSelect = useCallback((p: Property) => setSelectedIds(prev => {
+    const next = new Set(prev)
+    const id = String(p.id)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  }), [])
+  const endSelect = () => { setSelectMode(false); setSelectedIds(new Set()) }
+  // A new tab starts a fresh pick; homes that left this tab (passed, removed...) drop out of it.
+  useEffect(() => { setSelectedIds(new Set()) }, [activeTab])
+  const visibleKey = filteredProperties.map(p => p.id).join('|')
+  useEffect(() => {
+    const visible = new Set(filteredProperties.map(p => String(p.id)))
+    setSelectedIds(prev => (Array.from(prev).every(id => visible.has(id)) ? prev : new Set(Array.from(prev).filter(id => visible.has(id)))))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleKey])
+  const selectedHomes = filteredProperties.filter(p => selectedIds.has(String(p.id)))
+  const sendableUrl = shareUrl && selectedCollection.isPublic ? shareUrl : null
 
   const formatAddressForTitle = (property: Property) => {
     // Street address + city only - no state/zip.
@@ -614,12 +644,32 @@ export const DetailView = memo(function DetailView({
           recommendedBy={user?.first_name || null}
           offMarketNotice
           onMoveToSold={onMoveToSold}
+          onSend={(p) => setSendHomes([p])}
+          selectMode={selectMode}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
           sortControl={
             <div className="flex items-center gap-2">
+              {/* Select mode: pick several homes, then send / recommend / love / pass / remove them at once. */}
+              {onBulkAction && (
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.94 }}
+                  onClick={() => (selectMode ? endSelect() : setSelectMode(true))}
+                  aria-pressed={selectMode}
+                  data-select-toggle
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-[11px] font-black uppercase tracking-widest shadow-sm transition-colors ${selectMode
+                    ? 'border-[#C9A24D] bg-[#C9A24D] text-[#16130e]'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-[#C9A24D]/50 hover:text-[#8b7355] dark:border-gray-800 dark:bg-[#151517] dark:text-gray-300'}`}
+                >
+                  {selectMode ? <Check size={13} /> : <CheckSquare size={13} />}
+                  {selectMode ? 'Done' : 'Select'}
+                </motion.button>
+              )}
               {/* The app's own menu (a pull-up sheet on phones that drags down to close - user,
                   10/24) instead of the browser's native picker. */}
               <LuxeSelect
-                className="w-44 [&>button]:rounded-full [&>button]:py-2 [&>button]:shadow-sm"
+                className={`${onBulkAction ? 'w-[9rem] sm:w-44' : 'w-44'} [&>button]:rounded-full [&>button]:py-2 [&>button]:shadow-sm`}
                 ariaLabel="Sort homes"
                 sheetOnPhone
                 sheetTitle="Sort the homes"
@@ -706,6 +756,32 @@ export const DetailView = memo(function DetailView({
           onAddComment={onAddComment}
           isLoading={isLoadingQuickComments}
         />
+
+        <SendHomesSheet
+          open={sendOpen}
+          onClose={() => setSendHomes(null)}
+          homes={sendHomes || lastSendHomes || []}
+          collection={selectedCollection}
+          showcaseUrl={sendableUrl}
+          agentFirst={user?.first_name || ''}
+          homeCount={showcaseHomeCount(matchedProperties)}
+          onTurnOnLink={onShare}
+          onSent={() => { if (selectMode) endSelect() }}
+        />
+
+        {onBulkAction && (
+          <ShowcaseSelectBar
+            open={selectMode && !sendOpen}
+            selected={selectedHomes}
+            clientName={selectedCollection.customer.firstName || ''}
+            onClear={() => setSelectedIds(new Set())}
+            onDone={endSelect}
+            onSend={() => selectedHomes.length && setSendHomes(selectedHomes)}
+            onAction={(action) => onBulkAction(action, selectedHomes.map(p => String(p.id)))}
+          />
+        )}
+        {/* room under the last row so the select bar never covers it */}
+        {selectMode && <div aria-hidden className="h-40 sm:h-32" />}
       </div>
     </div>
   )

@@ -7,9 +7,10 @@
 import { ImageResponse } from 'next/og'
 import {
   OG_SIZE, ogFonts, ogFetch, imgToDataUri, imgSize, firstName, money, C,
-  PhotoCard,
+  PhotoCard, findShowcaseHome,
 } from './shared'
 import { computeMatchScore } from '@/lib/matchScore'
+import { showcaseHomeCount, showcaseHomesLabel, showcaseMoreLabel } from '@/lib/showcaseLink'
 import { hubAccentOf } from '@/components/agent-hub/HubClassicTheme'
 import { isPropertyAvailableStatus } from '@/lib/utils'
 import { usableAccent } from '@/components/property-sites/spotlight/tone'
@@ -340,6 +341,183 @@ export async function renderShowcaseCard(shareToken: string, fonts: Fonts, accen
     )
   } catch {
     return IR(<ShowcaseCard count={0} forName="" agentName="Your agent" agentBrokerage={null} agentPhoto={null} homes={[]} accent={accent} />, fonts)
+  }
+}
+
+// --- One home inside a Showcase ---------------------------------------------------------------
+// The preview of a link the agent sends from the client's Showcase (Send on a home). It has to read
+// as a small iMessage / Gmail thumbnail (owner, 10/30): the home's photo does the work, plus a few
+// big words - the price, the street, "Picked for Dana" - and the agent small but crisp. Three looks
+// (?style= on /api/og/showcasehome, local review only); 'frame' is the one links use:
+//   frame - the Showcase card's own header ("Dana's Showcase" + the agent pill) over a big photo
+//   bleed - the photo edge to edge, the words on a dark fade at the bottom
+//   split - a wide photo with a cream panel of big words beside it
+
+export type ShowcaseHomeStyle = 'frame' | 'bleed' | 'split'
+export const SHOWCASE_HOME_STYLES: ShowcaseHomeStyle[] = ['frame', 'bleed', 'split']
+
+type HomeCardProps = {
+  home: OgHome
+  forName: string
+  agentName: string
+  agentPhoto: string | null
+  accent?: string
+  look?: ShowcaseHomeStyle
+  /** "12 homes" / "20+ homes" - how many the client's Showcase holds (frame look, beside the title) */
+  homesLabel?: string
+  /** "+2 More Inside" - the frame look's photo pill (in place of "Picked for Dana"); none = no pill */
+  moreLabel?: string
+}
+
+function AgentFace({ photo, name, size, accent, light }: { photo: string | null; name: string; size: number; accent: string; light: string }) {
+  return photo
+    ? <img src={photo} width={size} height={size} style={{ width: size, height: size, borderRadius: 999, objectFit: 'cover', border: `3px solid ${accent}` }} />
+    : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: size, height: size, borderRadius: 999, backgroundColor: '#111827', color: light, fontSize: Math.round(size * 0.36), fontWeight: 900, border: `3px solid ${accent}` }}>{initialsOf(name)}</div>
+}
+
+const shortFacts = (h: OgHome) => h.facts.split('  ·  ').filter(f => !f.includes('sq ft')).join(' · ')
+
+export function ShowcaseHomeCard({ home, forName, agentName, agentPhoto, accent = C.gold, look = 'frame', homesLabel, moreLabel }: HomeCardProps) {
+  const deep = mixHex(accent, '#111111', 0.35)
+  const light = mixHex(accent, '#ffffff', 0.4)
+  const rgb = [1, 3, 5].map(i => parseInt(accent.slice(i, i + 2), 16)).join(',')
+  const street = home.street || 'A home for you'
+  const price = home.price || 'Price on request'
+  const facts = shortFacts(home)
+  const picked = forName ? `Picked for ${forName}` : 'Picked for you'
+
+  if (look === 'bleed') {
+    return (
+      <div style={{ display: 'flex', position: 'relative', width: '100%', height: '100%', fontFamily: 'Manrope', backgroundColor: '#111827' }}>
+        <MlsSafePhoto src={home.photo} w={1200} h={630} />
+        <div style={{ display: 'flex', position: 'absolute', top: 0, left: 0, width: 1200, height: 630, backgroundImage: 'linear-gradient(0deg, rgba(12,10,6,0.94) 0%, rgba(12,10,6,0.62) 34%, rgba(12,10,6,0) 60%)' }} />
+        {/* who it's for */}
+        <div style={{ display: 'flex', position: 'absolute', top: 34, left: 40, alignItems: 'center', gap: 12, padding: '12px 24px 12px 18px', borderRadius: 999, backgroundColor: '#FAF8F3', boxShadow: '0 12px 30px -10px rgba(0,0,0,0.55)' }}>
+          <svg width={26} height={26} viewBox="0 0 24 24" fill={accent}><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.5L12 17.3 6.1 20.5l1.3-6.5L2.5 9.4l6.6-.8z" /></svg>
+          <div style={{ display: 'flex', fontSize: 28, fontWeight: 900, color: '#111827' }}>{picked}</div>
+        </div>
+        {/* price + street */}
+        <div style={{ display: 'flex', flexDirection: 'column', position: 'absolute', left: 44, bottom: 40, maxWidth: 760 }}>
+          <div style={{ display: 'flex', fontSize: 96, fontWeight: 900, color: '#ffffff', letterSpacing: -3, lineHeight: 1 }}>{price}</div>
+          <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: fitSize(street, 740, 0.53, 52, 30), color: '#ffffff', marginTop: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 740 }}>{street}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, fontSize: 25, fontWeight: 900, color: light }}>
+            <div style={{ display: 'flex', width: 28, height: 3, backgroundColor: accent }} />
+            {[home.city, facts].filter(Boolean).join(' · ')}
+          </div>
+        </div>
+        {/* the agent, small */}
+        <div style={{ display: 'flex', position: 'absolute', right: 40, bottom: 40, alignItems: 'center', gap: 14, padding: '8px 24px 8px 8px', borderRadius: 999, backgroundColor: 'rgba(250,248,243,0.96)' }}>
+          <AgentFace photo={agentPhoto} name={agentName} size={60} accent={accent} light={light} />
+          <div style={{ display: 'flex', fontSize: agentName.length > 18 ? 21 : 25, fontWeight: 900, color: '#111827' }}>{agentName}</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (look === 'split') {
+    return (
+      <div style={{ display: 'flex', width: '100%', height: '100%', fontFamily: 'Manrope', color: '#111827', backgroundColor: '#FAF8F3',
+        backgroundImage: `radial-gradient(520px 360px at 100% 0%, rgba(${rgb},0.30) 0%, rgba(${rgb},0) 70%)` }}>
+        <MlsSafePhoto src={home.photo} w={760} h={630} />
+        <div style={{ display: 'flex', flexDirection: 'column', width: 440, padding: '52px 44px 44px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 22, fontWeight: 900, letterSpacing: 3, textTransform: 'uppercase', color: deep }}>
+            <div style={{ display: 'flex', width: 30, height: 3, backgroundColor: accent }} />
+            {picked}
+          </div>
+          <div style={{ display: 'flex', fontSize: fitSize(price, 352, 0.62, 76, 48), fontWeight: 900, letterSpacing: -2, lineHeight: 1, marginTop: 26 }}>{price}</div>
+          <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: fitSize(street, 352, 0.53, 44, 26), lineHeight: 1.1, marginTop: 18, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 352 }}>{street}</div>
+          {home.city ? <div style={{ display: 'flex', fontSize: 25, color: '#6B7280', marginTop: 8 }}>{home.city}</div> : null}
+          {facts ? <div style={{ display: 'flex', fontSize: 26, fontWeight: 900, color: deep, marginTop: 16 }}>{facts}</div> : null}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 'auto' }}>
+            <AgentFace photo={agentPhoto} name={agentName} size={60} accent={accent} light={light} />
+            <div style={{ display: 'flex', fontSize: agentName.length > 18 ? 21 : 25, fontWeight: 900 }}>{agentName}</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // 'frame' - the Showcase card's header over one big photo
+  const pillName = agentName.length > 18 ? 22 : 26
+  const pillW = 7 + 64 + 14 + Math.round(agentName.length * 0.62 * pillName) + 26
+  const countW = homesLabel ? Math.round((homesLabel.length + 2) * 0.64 * 32) + 16 : 0
+  const titleSize = fitSize(`${forName || 'Your'}’s Showcase`, 1120 - pillW - countW - 30, 0.53, 58, 30)
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', width: '100%', height: '100%', fontFamily: 'Manrope', color: '#111827', backgroundColor: '#FAF8F3', padding: '30px 40px 36px',
+      backgroundImage: `radial-gradient(700px 380px at 92% 0%, rgba(${rgb},0.30) 0%, rgba(${rgb},0) 70%), radial-gradient(620px 360px at 0% 100%, rgba(${rgb},0.16) 0%, rgba(${rgb},0) 70%)`,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 92 }}>
+        {/* "Dana's Showcase · 12 homes" - the title shrinks so a long name and "20+ homes" still fit
+            beside the agent pill */}
+        <div style={{ display: 'flex', alignItems: 'baseline', lineHeight: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', fontFamily: 'Playfair', fontWeight: 900, fontSize: titleSize, letterSpacing: -1 }}>
+            <span>{forName ? `${forName}’s` : 'Your'}</span>
+            <span style={{ color: accent, marginLeft: Math.round(titleSize * 0.27) }}>Showcase</span>
+          </div>
+          {homesLabel ? <div style={{ display: 'flex', marginLeft: 16, fontSize: 32, fontWeight: 900, color: deep, whiteSpace: 'nowrap' }}>{`· ${homesLabel}`}</div> : null}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '7px 26px 7px 7px', borderRadius: 999, backgroundColor: '#FFFFFF', border: `1.5px solid rgba(${rgb},0.35)`, boxShadow: '0 10px 30px -14px rgba(17,24,39,0.25)' }}>
+          <AgentFace photo={agentPhoto} name={agentName} size={64} accent={accent} light={light} />
+          <div style={{ display: 'flex', fontSize: agentName.length > 18 ? 22 : 26, fontWeight: 900 }}>{agentName}</div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', position: 'relative', marginTop: 16, width: 1120, height: 456, borderRadius: 30, border: `3px solid rgba(${rgb},0.7)`, boxShadow: '0 26px 50px -24px rgba(17,24,39,0.55)', overflow: 'hidden' }}>
+        <MlsSafePhoto src={home.photo} w={1114} h={450} />
+        <div style={{ display: 'flex', position: 'absolute', left: 0, right: 0, bottom: 0, height: 260, borderBottomLeftRadius: 27, borderBottomRightRadius: 27,
+          backgroundImage: 'linear-gradient(0deg, rgba(12,10,6,0.9) 0%, rgba(12,10,6,0.5) 48%, rgba(12,10,6,0) 100%)' }} />
+        {moreLabel ? (
+          <div style={{ display: 'flex', position: 'absolute', top: 22, left: 22, alignItems: 'center', gap: 10, padding: '10px 20px', borderRadius: 999, backgroundColor: 'rgba(17,24,39,0.88)', color: '#ffffff', fontSize: 24, fontWeight: 900 }}>
+            <div style={{ display: 'flex', width: 10, height: 10, borderRadius: 999, backgroundColor: light }} />
+            {moreLabel}
+          </div>
+        ) : null}
+        <div style={{ display: 'flex', flexDirection: 'column', position: 'absolute', left: 34, bottom: 28, maxWidth: 760 }}>
+          <div style={{ display: 'flex', fontSize: 84, fontWeight: 900, color: '#ffffff', letterSpacing: -2.5, lineHeight: 1 }}>{price}</div>
+          <div style={{ display: 'flex', fontFamily: 'Playfair', fontWeight: 900, fontSize: fitSize(street, 740, 0.53, 46, 28), color: '#ffffff', marginTop: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 740 }}>{street}</div>
+        </div>
+        {facts ? (
+          <div style={{ display: 'flex', position: 'absolute', right: 28, bottom: 32, padding: '12px 22px', borderRadius: 999, backgroundColor: '#FAF8F3', fontSize: 26, fontWeight: 900, color: deep }}>{facts}</div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+export async function renderShowcaseHomeCard(shareToken: string, home: string, fonts: Fonts, accentParam?: string | null, look?: string | null,
+  /** local design review only: another client name on the card */
+  previewClient?: string | null): Promise<ImageResponse> {
+  const accent = accentParam && /^[0-9a-f]{6}$/i.test(accentParam) ? `#${accentParam}` : C.gold
+  const style: ShowcaseHomeStyle = SHOWCASE_HOME_STYLES.includes(look as ShowcaseHomeStyle) ? (look as ShowcaseHomeStyle) : 'frame'
+  try {
+    const data = await ogFetch<any>(`/collections/shared/${encodeURIComponent(shareToken)}`)
+    const p = findShowcaseHome(data, home)
+    // A home that's no longer in the Showcase: the Showcase's own card.
+    if (!p) return renderShowcaseCard(shareToken, fonts, accentParam)
+    const [agentPhoto, photo] = await Promise.all([imgToDataUri(data?.agentPhotoUrl), imgToDataUri(p.ListPictureURL, 4500)])
+    const beds = num(p.BedroomsTotal), baths = num(p.BathroomsTotal), sqft = num(p.LivingArea)
+    return IR(
+      <ShowcaseHomeCard
+        look={style}
+        home={{
+          photo,
+          price: money(num(p.ListPrice)),
+          facts: [beds != null ? `${fmtN(beds)} bd` : null, baths != null ? `${fmtN(baths)} ba` : null, sqft ? `${Math.round(sqft).toLocaleString('en-US')} sq ft` : null].filter(Boolean).join('  ·  '),
+          street: titleCase(String(p.FullStreetAddress || '').split(',')[0]),
+          city: titleCase(p.City),
+          match: null,
+        }}
+        forName={previewClient || titleCase(firstName(data?.customer?.firstName || data?.customer?.name))}
+        agentName={data?.agentFullName || data?.agentName || 'Your agent'}
+        agentPhoto={agentPhoto}
+        accent={accent}
+        homesLabel={showcaseHomeCount(data.matchedProperties) ? showcaseHomesLabel(showcaseHomeCount(data.matchedProperties)) : undefined}
+        moreLabel={showcaseMoreLabel(showcaseHomeCount(data.matchedProperties)) || undefined}
+      />,
+      fonts,
+    )
+  } catch {
+    return renderShowcaseCard(shareToken, fonts, accentParam)
   }
 }
 

@@ -35,6 +35,7 @@ import OhpLoader from '@/components/brand/OhpLoader'
 import OhSheet from '@/components/open-house-manager/OhSheet'
 import { useIsPhone, useLastValue } from '@/components/ui/windowMotion'
 import ShowcasesOffSheet from './components/ShowcasesOffSheet'
+import { similarHomesOn } from '@/lib/similarHomes'
 
 // --- HELPERS ---
 const formatAddress = (address: string) => {
@@ -323,10 +324,26 @@ function OpenHouseContent() {
     handleGuestSettings(openHouse, patch)
   }, [handleGuestSettings])
 
-  const handleOpenEditSimilar = useCallback((openHouse: OpenHouse) => {
+  // Opened from the Documents window -> back to it when the picker closes. turnOn = Include was
+  // tapped: saving picked homes switches Similar Homes on, backing out leaves it off.
+  const editSimilarFrom = useRef<{ docs: boolean; turnOn: boolean }>({ docs: false, turnOn: false })
+  const handleOpenEditSimilar = useCallback((openHouse: OpenHouse, turnOn = false) => {
+    editSimilarFrom.current = { docs: isViewPDFsModalOpen, turnOn }
     setOpenHouseToEditSimilar(openHouse)
     setIsEditSimilarModalOpen(true)
     setIsViewPDFsModalOpen(false)
+  }, [isViewPDFsModalOpen])
+
+  const handleSimilarSaved = useCallback((openHouse: OpenHouse, snapshot: any[]) => {
+    setOpenHouses(current => current.map(oh => oh.id === openHouse.id ? { ...oh, similarPropertiesSnapshot: snapshot } : oh))
+    setOpenHouseForPDFs(current => current && current.id === openHouse.id ? { ...current, similarPropertiesSnapshot: snapshot } : current)
+    if (editSimilarFrom.current.turnOn && snapshot.length && openHouse.similarHomes === false) handleGuestSettings(openHouse, { similarHomes: true })
+  }, [handleGuestSettings])
+
+  const handleCloseEditSimilar = useCallback(() => {
+    setIsEditSimilarModalOpen(false)
+    if (editSimilarFrom.current.docs) setIsViewPDFsModalOpen(true)
+    editSimilarFrom.current = { docs: false, turnOn: false }
   }, [])
 
   const handleOpenEditCheatSheet = useCallback((openHouse: OpenHouse) => {
@@ -1055,12 +1072,12 @@ function OpenHouseContent() {
           onViewPaperSignIn={() => triggerPreview('paperSignIn', openHouseForPDFs.id)}
           onViewRecommendations={() => triggerPreview('recommendations', openHouseForPDFs.id)}
           onEditRecommendations={() => handleOpenEditSimilar(openHouseForPDFs)}
-          similarHomes={openHouseForPDFs.similarHomes !== false}
+          similarHomes={similarHomesOn(openHouseForPDFs)}
           onToggleSimilarHomes={() => {
-            const on = openHouseForPDFs.similarHomes === false
-            handleGuestSettings(openHouseForPDFs, { similarHomes: on })
-            // Switched on with no homes picked yet (it was off when the kit was made) - pick them now.
-            if (on && !(openHouseForPDFs.similarPropertiesSnapshot || []).length) handleOpenEditSimilar(openHouseForPDFs)
+            // Include is the on/off: off -> the same picker as Edit (earlier picks still ticked);
+            // it switches on once homes are saved there.
+            if (similarHomesOn(openHouseForPDFs)) handleGuestSettings(openHouseForPDFs, { similarHomes: false })
+            else handleOpenEditSimilar(openHouseForPDFs, true)
           }}
           showcasesOn={openHouseForPDFs.autoShowcase !== false}
           onViewBragSheet={() => triggerPreview('bragSheet', openHouseForPDFs.id)}
@@ -1091,9 +1108,9 @@ function OpenHouseContent() {
       {isEditSimilarModalOpen && openHouseToEditSimilar && (
         <EditSimilarPropertiesModal
           isOpen={isEditSimilarModalOpen}
-          onClose={() => setIsEditSimilarModalOpen(false)}
+          onClose={handleCloseEditSimilar}
           openHouse={openHouseToEditSimilar}
-          onSuccess={loadOpenHouseHistory}
+          onSuccess={(snapshot) => { handleSimilarSaved(openHouseToEditSimilar, snapshot); loadOpenHouseHistory() }}
         />
       )}
 

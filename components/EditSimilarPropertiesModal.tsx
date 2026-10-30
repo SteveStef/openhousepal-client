@@ -11,7 +11,8 @@ interface EditSimilarPropertiesModalProps {
   isOpen: boolean;
   onClose: () => void;
   openHouse: OpenHouse;
-  onSuccess: () => void;
+  // Gets the homes just saved.
+  onSuccess: (snapshot: any[]) => void;
 }
 
 export function EditSimilarPropertiesModal({
@@ -154,16 +155,19 @@ export function EditSimilarPropertiesModal({
   }, [openHouse])
 
   const handleSave = useCallback(async (newSelectedIds: (string | number)[]) => {
-    const selectedSnapshot = similarProperties.filter(p => {
-      const pId = String(p.ListingKey || p.listingKey || p.id);
-      return newSelectedIds.map(sid => String(sid)).includes(pId);
-    })
+    // Picks the current filters hide stay in the kit (owner, 10/30: reopening Edit dropped 3 of 4
+    // homes) - taken from the saved snapshot when they're not in these results.
+    const keyOf = (p: any) => String(p.ListingKey || p.listingKey || p.id)
+    const pool = new Map<string, any>()
+    ;(openHouse.similarPropertiesSnapshot || []).forEach((p: any) => pool.set(keyOf(p), p))
+    similarProperties.forEach(p => pool.set(keyOf(p), p))
+    const selectedSnapshot = newSelectedIds.map(sid => pool.get(String(sid))).filter(Boolean)
 
     const { success, error } = await api.openHouses.updateSnapshot(openHouse.id, selectedSnapshot)
     
     if (success) {
       showToast('Successfully updated similar properties snapshot', 'success')
-      onSuccess()
+      onSuccess(selectedSnapshot)
       onClose()
     } else {
       showToast(error || 'Failed to update snapshot', 'error')
@@ -173,16 +177,18 @@ export function EditSimilarPropertiesModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
+    // Phones: a full-width sheet up from the bottom (the boxed window left the picker crushed).
+    <div className="fixed inset-0 z-[110] flex items-end justify-center sm:items-center sm:p-6">
       <div className="absolute inset-0 bg-black/60 " onClick={onClose} />
-      
-      <div className="relative flex h-[85vh] w-full max-w-7xl flex-col overflow-hidden animate-fadeIn transition-all duration-300">
+
+      <div className="relative flex h-[94dvh] w-full max-w-7xl flex-col overflow-hidden animate-fadeIn transition-all duration-300 sm:h-[85vh]">
         <SimilarPropertiesPreferencesView
           preferences={preferences}
           address={openHouse.address}
           subjectProperty={subjectProperty}
           properties={similarProperties}
           isLoading={isLoading}
+          keepHiddenSelections
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           onPreferencesChange={handlePreferencesChange}

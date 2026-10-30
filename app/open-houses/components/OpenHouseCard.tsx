@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { ChevronDown, MapPin, MonitorPlay, Plus, Sparkles, Tablet, Ticket, Trash2 } from 'lucide-react'
 import { AfterSignin, GuestSettingsPatch, OpenHouse } from '@/types'
+import { similarHomesOn } from '@/lib/similarHomes'
 
 interface OpenHouseCardProps {
   // React 19: a plain prop - AnimatePresence (popLayout) measures the card through it.
@@ -41,7 +42,7 @@ export const OpenHouseCard = memo(function OpenHouseCard({
   const passOn = openHouse.guestPass !== false
   // Similar Homes (the kit's sheet + the Guest Pass's similar homes): MLS-linked homes on Bright plans.
   const similarAvailable = passAvailable && !!openHouse.listingKey
-  const similarOn = openHouse.similarHomes !== false
+  const similarOn = similarHomesOn(openHouse)
   const hubOk = !!(openHouse.hubAvailable && openHouse.hubReady)
   const opens: AfterSignin = openHouse.afterSignin === 'hub' && hubOk ? 'hub' : 'none'
   const showOpens = !passAvailable && !!openHouse.hubAvailable

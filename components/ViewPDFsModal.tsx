@@ -424,10 +424,12 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
               }
               actions={!similarOn ? [{
                 key: 'include',
-                label: 'Include',
+                label: 'Off',
                 active: false,
                 showInfo: true,
-                hint: 'Similar Homes is OFF for this open house: no Similar Homes sheet, and no similar homes on guests’ Guest Pass - guests stay focused on this home. Tap to include it again (your picked homes are kept).',
+                hint: hasComps
+                  ? 'Similar Homes is OFF for this open house: no Similar Homes sheet, and no similar homes on guests’ Guest Pass - guests stay focused on this home. Tap to turn it on - you can keep or change the homes you picked before.'
+                  : 'Similar Homes is OFF for this open house: no Similar Homes sheet, and no similar homes on guests’ Guest Pass. Tap to turn it on and pick the homes.',
                 onClick: onToggleSimilarHomes!,
               }] : [
                 ...(!hasComps && onEditRecommendations ? [{
@@ -459,7 +461,7 @@ export const ViewPDFsModal = memo(function ViewPDFsModal({
                 ...((similarSwitchable || (hasComps && onReloadRecommendations)) ? [[
                   ...(similarSwitchable ? [{
                     key: 'include',
-                    label: 'Include',
+                    label: 'On',
                     active: true,
                     showInfo: true,
                     hint: 'Similar Homes is ON: the Similar Homes sheet prints with your kit, and guests see these homes on their Guest Pass. Tap to turn it off for this open house (e.g. sitting your own listing).',

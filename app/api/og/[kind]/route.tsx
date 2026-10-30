@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { ogFontsSafe } from '@/lib/og/shared'
 import {
-  renderShowcaseCard, renderCmaCard, renderOpenHouseCard,
+  renderShowcaseCard, renderShowcaseHomeCard, renderCmaCard, renderOpenHouseCard,
   renderBlogCard, renderFormCard, renderHubCard, renderSpotlightCard, renderPropertyCard, renderSiteCard, renderIdxListingCard, renderSalesCard,
 } from '@/lib/og/cards'
 
@@ -13,6 +13,7 @@ export const runtime = 'nodejs'
  * on their OWN web address get the same agent-branded card as the openhousepal.com versions.
  *
  *   /api/og/showcase?token=...
+ *   /api/og/showcasehome?token=...&home=...
  *   /api/og/cma?slug=...
  *   /api/og/openhouse?event=...
  *   /api/og/hub?agent=...
@@ -30,6 +31,11 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ kind: strin
   switch (kind) {
     case 'showcase':
       return renderShowcaseCard(q.get('token') || '', fonts, q.get('accent'))
+    case 'showcasehome':
+      // one home inside a Showcase - the link the agent's Send makes (home = its slug or id)
+      return renderShowcaseHomeCard(q.get('token') || '', q.get('home') || '', fonts, q.get('accent'),
+        // ?style= frame | bleed | split and ?client= (another client name) - local review only
+        process.env.NODE_ENV !== 'production' ? q.get('style') : null, process.env.NODE_ENV !== 'production' ? q.get('client') : null)
     case 'cma':
       return renderCmaCard(q.get('slug') || '', fonts, process.env.NODE_ENV !== 'production' ? { mode: q.get('mode'), client: q.get('client') } : null)
     case 'openhouse':

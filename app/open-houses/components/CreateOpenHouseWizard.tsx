@@ -1357,7 +1357,7 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
   }
 
   return (
-    <div ref={rootRef} className={bare ? 'flex scroll-mt-4 flex-col' : 'bg-white dark:bg-[#151517] rounded-2xl sm:rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 transition-colors max-w-7xl mx-auto animate-fadeIn h-full flex flex-col overflow-hidden'}>
+    <div ref={rootRef} className={bare ? 'flex scroll-mt-4 flex-col' : 'bg-white dark:bg-[#151517] rounded-t-3xl sm:rounded-3xl shadow-xl border border-gray-200/60 dark:border-gray-800 transition-colors max-w-7xl mx-auto animate-fadeIn h-full flex flex-col overflow-hidden'}>
       <style>{KIT_RANGE_CSS}</style>
       {/* overscrollBehavior: 'auto' overrides a global rule (globals.css: any .overflow-y-auto
           gets overscroll-behavior: contain, so a modal's internal scroll doesn't chain into the
@@ -1370,7 +1370,7 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
           at all - so scrolling worked only once the cursor left this panel entirely (the actual
           "have to reach the edge of the page" bug). Only this specific container needs the
           override; it's inline so it beats the class-based rule regardless of stylesheet order. */}
-      <div className={bare ? 'px-4 pb-6 sm:px-8 sm:pb-8' : 'flex-1 overflow-y-auto px-5 pb-5 sm:px-8 sm:pb-8'} style={bare ? undefined : { overscrollBehavior: 'auto' }}>
+      <div className={bare ? 'px-4 pb-6 sm:px-8 sm:pb-8' : 'flex-1 overflow-y-auto px-4 pb-5 sm:px-8 sm:pb-8'} style={bare ? undefined : { overscrollBehavior: 'auto' }}>
         {onIncludeChange && <SimilarIncludeBar include={include} ownListing={ownListing} onChange={onIncludeChange} />}
         {!include ? (
           <SimilarOffPanel address={formatSubjectAddress(subjectAddress)} ownListing={ownListing} onBack={onBack} onNext={onNext} onTurnOn={() => onIncludeChange?.(true)} docked={!!kitDock} />
@@ -1383,12 +1383,37 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
           </div>
           <div className="grid gap-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
             <div className="min-w-0">
-              <h2 className="text-2xl font-black tracking-tight text-gray-900 dark:text-white sm:text-4xl">Refine Your Search</h2>
-              <p className="mt-1 truncate text-sm font-semibold text-gray-500 dark:text-gray-400">
+              <h2 className="text-xl font-black tracking-tight text-gray-900 dark:text-white sm:text-4xl">Refine Your Search</h2>
+              <p className="mt-1 truncate text-sm font-semibold text-gray-500 max-sm:hidden dark:text-gray-400">
                 Similar to <span className="font-black text-gray-900 dark:text-white">{formatSubjectAddress(subjectAddress)}</span>
               </p>
 
-              <div className="mt-4 flex overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-md dark:border-gray-800 dark:bg-[#151517]">
+              {/* Phones (owner, 10/30: the side-by-side card was crushed): the photo across the top
+                  with the address + price on it, then an even row of the home's numbers. */}
+              <div className="mt-3 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-md sm:hidden dark:border-gray-800 dark:bg-[#151517]">
+                <div className="relative h-36 bg-gray-100 dark:bg-gray-800">
+                  <Image src={subjectImage} alt={subjectAddress} fill sizes="(max-width: 640px) 100vw, 1px" className="object-cover" quality={92} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+                  {subjectPrice > 0 && (
+                    <span className="absolute right-2.5 top-2.5 rounded-full bg-white/95 px-2.5 py-1 text-[13px] font-black text-[#111827] shadow-sm">${subjectPrice.toLocaleString()}</span>
+                  )}
+                  <div className="absolute inset-x-3 bottom-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#e8c97a]">Similar to</p>
+                    <p className="truncate text-base font-black leading-tight text-white">{formatSubjectAddress(subjectAddress)}</p>
+                    {(subjectCity || subjectState) && <p className="truncate text-[11px] font-bold capitalize text-white/75">{[subjectCity, subjectState].filter(Boolean).join(', ')}</p>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 divide-x divide-gray-100 dark:divide-gray-800">
+                  {([[Bed, subjectBeds || '-', 'Beds'], [Bath, subjectBaths || '-', 'Baths'], [BoxSelect, subjectSqft ? subjectSqft.toLocaleString() : '-', 'Sq Ft'], [LandPlot, formatSubjectAcres(subjectAcres), 'Acres']] as const).map(([Icon, value, label]) => (
+                    <div key={label} className="flex flex-col items-center px-1 py-2">
+                      <span className="inline-flex items-center gap-1 text-[13px] font-black text-[#111827] dark:text-white"><Icon className="h-3 w-3 text-[#C9A24D]" />{value}</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-4 flex overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-md max-sm:hidden dark:border-gray-800 dark:bg-[#151517]">
                 <div className="relative h-32 w-36 shrink-0 bg-gray-100 dark:bg-gray-800">
                   <Image src={subjectImage} alt={subjectAddress} fill sizes="144px" className="object-cover" quality={92} />
                 </div>
@@ -1436,7 +1461,8 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
                 <div>
                   <label className="mb-1 ml-1 block text-[9px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Min Beds</label>
                   <select name="minBeds" value={prefs.minBeds} onChange={handleChange} className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-base text-gray-900 transition-all sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
-                    {[0, 1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}+ Beds</option>)}
+                    {/* Just the number - the label above says Beds (the long text was cut off on phones). */}
+                    {[0, 1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n === 0 ? 'Any' : `${n}+`}</option>)}
                   </select>
                 </div>
                 <div>
@@ -1448,7 +1474,7 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
                 <div>
                   <label className="mb-1 ml-1 block text-[9px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Min Baths</label>
                   <select name="minBaths" value={prefs.minBaths} onChange={handleChange} className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-base text-gray-900 transition-all sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
-                    {[0, 1, 1.5, 2, 2.5, 3, 3.5, 4].map(n => <option key={n} value={n}>{n}+ Baths</option>)}
+                    {[0, 1, 1.5, 2, 2.5, 3, 3.5, 4].map(n => <option key={n} value={n}>{n === 0 ? 'Any' : `${n}+`}</option>)}
                   </select>
                 </div>
               </div>
@@ -1473,13 +1499,15 @@ export const SimilarPropertiesPreferencesView = memo(function SimilarPropertiesP
               bar to the container edges and cover its rounded top corners; the parent scroll
               container's top padding was moved onto its children so top-0 pins flush. */}
           <div className="sticky top-0 z-20 -mx-4 mb-3 border-b border-gray-200/70 bg-[#FAFAF7] px-4 py-2.5 dark:border-gray-800 dark:bg-[#151517] sm:-mx-5 sm:-mt-5 sm:mb-4 sm:rounded-t-2xl sm:bg-[#f1f3f5] sm:px-5 sm:pb-3 sm:pt-5">
-          <div className="flex items-center justify-between gap-3">
+          {/* Wraps on a phone when Back/Continue show here (the Edit window has no docked bar) - the
+              row used to push the whole window past the screen edge and hide Continue. */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <h3 className="text-base font-black text-gray-900 dark:text-white sm:text-lg">Property Selection</h3>
               <p className="text-xs font-semibold text-gray-400 max-sm:hidden">Results update automatically as you refine filters.</p>
               <p className="text-[11.5px] font-semibold text-gray-400 sm:hidden">Tap homes to add them</p>
             </div>
-            <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
+            <div className={`${kitDock ? '' : 'max-sm:w-full max-sm:shrink max-sm:justify-start '}flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2`}>
               <button onClick={onBack} className={`${kitDock ? 'max-sm:hidden ' : ''}inline-flex items-center justify-center self-stretch rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm font-black sm:self-start sm:px-4 text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-[#0B0B0B] dark:text-gray-400 dark:hover:bg-gray-800`}>Back</button>
               <div className="inline-flex items-center justify-center self-stretch rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 sm:self-start sm:rounded-2xl sm:px-4 sm:py-2 dark:border-gray-800 dark:bg-[#0B0B0B]">
                 <span className="mr-1.5 text-[9px] sm:mr-2 sm:text-[10px] font-black uppercase tracking-wide text-gray-400">Results</span>

@@ -965,6 +965,31 @@ class ApiService {
         body: JSON.stringify({ filed }),
       }),
 
+    /** Select mode: one action on many homes in a client's Showcase ("remove" takes them out for good). */
+    bulkHomes: (collectionId: string, action: 'like' | 'unlike' | 'dislike' | 'undislike' | 'recommend' | 'unrecommend' | 'sold' | 'unsold' | 'remove', propertyIds: string[]) =>
+      this.request<{ success: boolean; done: string[]; skipped: string[] }>(`/collections/${collectionId}/properties/bulk`, {
+        method: 'POST',
+        body: JSON.stringify({ action, property_ids: propertyIds }),
+      }),
+
+    /** Send a home: the agent's saved intro + email app, and whether this client already got the intro by text. */
+    sendHomeState: (collectionId: string) =>
+      this.request<{ message: string | null; mail_app: 'gmail' | 'outlook' | 'default' | null; intro_texted_at: string | null }>(`/collections/${collectionId}/send-home`),
+
+    /** Save the agent's intro message (for every Showcase) and/or email app. "" resets it. */
+    saveSendHomePrefs: (prefs: { message?: string; mail_app?: string }) =>
+      this.request<{ message: string | null; mail_app: 'gmail' | 'outlook' | 'default' | null }>(`/collections/send-home/prefs`, {
+        method: 'PUT',
+        body: JSON.stringify(prefs),
+      }),
+
+    /** The agent opened Messages / their email app with the link(s) - a text with the intro marks it said. */
+    markHomeSent: (collectionId: string, method: 'text' | 'email', withIntro: boolean, propertyIds: string[]) =>
+      this.request<{ success: boolean; intro_texted_at: string | null }>(`/collections/${collectionId}/send-home/sent`, {
+        method: 'POST',
+        body: JSON.stringify({ method, with_intro: withIntro, property_ids: propertyIds }),
+      }),
+
     interact: (collectionId: string, propertyId: string, interactionType: 'like' | 'dislike', value: boolean) =>
       this.request<any>(`/collections/${collectionId}/properties/${propertyId}/interact`, {
         method: 'POST',

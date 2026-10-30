@@ -24,6 +24,7 @@ import { inSoldFolder } from '@/lib/showcaseStatus'
 // Sub-components
 import { DashboardView } from './components/DashboardView'
 import { DetailView } from './components/DetailView'
+import type { BulkAction } from '@/components/showcases/ShowcaseSelectBar'
 import ShowcaseActivityInbox from './components/ShowcaseActivityInbox'
 import { CreateCollectionModal, type ShowcaseClientInfo } from './components/CreateCollectionModal'
 import { copyText } from '@/lib/copyText'
@@ -390,6 +391,45 @@ function ShowcaseContent() {
       return
     }
     showToast(filed ? `Moved to ${selectedCollection.customer.firstName ? `${selectedCollection.customer.firstName}'s ` : ''}Sold/Removed` : 'Moved back', 'success')
+  }
+
+  // Select mode (user, 10/30): one action on many homes. The server applies the same rules as the
+  // one-home buttons; the list here follows what it says it did.
+  const handleBulkAction = async (action: BulkAction, ids: string[]) => {
+    if (!selectedCollection || !ids.length) return
+    const { success, data, error } = await api.collections.bulkHomes(selectedCollection.id, action, ids)
+    if (!success || !data) { showToast(error || "Couldn't update those homes - try again", 'error'); return }
+    const done = new Set(data.done.map(String))
+    const n = done.size
+    if (action === 'remove') {
+      setMatchedProperties(prev => prev.filter(p => !done.has(String(p.id))))
+    } else {
+      setMatchedProperties(prev => prev.map(p => {
+        if (!done.has(String(p.id))) return p
+        switch (action) {
+          case 'like': return { ...p, liked: true, disliked: false }
+          case 'unlike': return { ...p, liked: false }
+          case 'dislike': return { ...p, disliked: true, liked: false, agentRecommended: false }
+          case 'undislike': return { ...p, disliked: false }
+          case 'recommend': return { ...p, agentRecommended: true, disliked: false }
+          case 'unrecommend': return { ...p, agentRecommended: false }
+          case 'sold': return { ...p, soldFiled: true }
+          case 'unsold': return { ...p, soldFiled: false }
+        }
+        return p
+      }))
+    }
+    const homes = `${n} home${n === 1 ? '' : 's'}`
+    const name = selectedCollection.customer.firstName || 'your client'
+    const said: Record<BulkAction, string> = {
+      like: `Loved ${homes}`, unlike: `Took the love off ${homes}`,
+      dislike: `Passed on ${homes}`, undislike: `Moved ${homes} back to Matches`,
+      recommend: `Recommended ${homes} - ${name} will see them at the top`, unrecommend: `Recommendation taken off ${homes}`,
+      sold: `Moved ${homes} to Sold/Removed`, unsold: `Moved ${homes} back`,
+      remove: `Removed ${homes} from ${name}'s Showcase`,
+    }
+    const skipped = data.skipped.length ? ` (${data.skipped.length} skipped${action === 'sold' ? ' - still for sale' : ''})` : ''
+    showToast(n ? `${said[action]}${skipped}` : `Nothing to change${skipped}`, n ? 'success' : 'error')
   }
 
   const handlePropertyDislike = async (propertyId: string | number, disliked: boolean) => {
@@ -1044,6 +1084,7 @@ function ShowcaseContent() {
           onPropertyDislike={handlePropertyDislike}
           onRecommend={handleRecommend}
           onMoveToSold={handleMoveToSold}
+          onBulkAction={handleBulkAction}
           onPropertyClick={handlePropertyClick}
           onAddComment={handleAddComment}
           selectedProperty={selectedProperty}

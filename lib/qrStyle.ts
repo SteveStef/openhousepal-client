@@ -93,17 +93,19 @@ export function styledQrSvg(text: string, style: QrStyle = {}): QrSvgParts | nul
     const c = style.center || { kind: 'ohp' }
     const tile = (fill: string, stroke = 'none') =>
       `<rect x="${x}" y="${x}" width="${w}" height="${w}" rx="${w * 0.24}" fill="${fill}"${stroke !== 'none' ? ` stroke="${stroke}" stroke-width="0.35"` : ''}/>`
+    // The logo ring / initials seal share the corner eyes' colour (owner, 10/30: the seal was a darker
+    // brown than the corners).
     if (c.kind === 'logo') {
-      body += tile('#FFFFFF', eye)
+      body += tile('#FFFFFF', corner)
       const inset = w * 0.12
       body += `<image href="${c.logo}" x="${x + inset}" y="${x + inset}" width="${w - inset * 2}" height="${w - inset * 2}" preserveAspectRatio="xMidYMid meet"/>`
     } else if (c.kind === 'initials') {
-      // A monogram seal: the eye colour, a fine gold ring just inside, the initials in white serif.
+      // A monogram seal: the corner colour, a fine light ring just inside, the initials in white serif.
       const t = esc((c.initials || '').slice(0, 3))
       const fs = w * (t.length > 2 ? 0.34 : 0.44)
       const cx = x + w / 2, r = w / 2
-      body += `<circle cx="${cx}" cy="${cx}" r="${r}" fill="${eye}"/>` +
-        `<circle cx="${cx}" cy="${cx}" r="${r * 0.82}" fill="none" stroke="${GOLD}" stroke-width="${w * 0.035}"/>` +
+      body += `<circle cx="${cx}" cy="${cx}" r="${r}" fill="${corner}"/>` +
+        `<circle cx="${cx}" cy="${cx}" r="${r * 0.82}" fill="none" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="${w * 0.035}"/>` +
         `<text x="${cx}" y="${cx}" dy="0.35em" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" letter-spacing="${fs * 0.02}" font-size="${fs}" fill="#FFFFFF">${t}</text>`
     } else {
       // The logo on white (owner, 10/25): a white tile ringed in the brand gold, the house outlined in

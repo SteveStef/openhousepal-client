@@ -1209,9 +1209,9 @@ export const AgentBragSheetDocument = ({ agent, recentSales, showcaseSamplePrope
             {agent.hubUrl && (
               <View style={styles.pageOneQrRow} wrap={false}>
                 <View style={styles.pageOneQrImageWrap}>
-                  {/* The agent's initials sit in the code's own centre seal (lib/qrStyle) - not a badge
-                      laid over the house logo, which drew a circle inside a circle. */}
-                  <Image src={qrPdfSrc(agent.hubUrl, { size: 220, personal: getInitials(agent.name) ? { kind: 'initials', initials: getInitials(agent.name) } : undefined })} style={styles.pageOneQrImage} />
+                  {/* The centre follows the agent's QR choice in Settings like every other code (owner,
+                      10/30) - it used to force their initials over the default house logo. */}
+                  <Image src={qrPdfSrc(agent.hubUrl, { size: 220 })} style={styles.pageOneQrImage} />
                 </View>
                 <View style={styles.pageOneQrTextWrap}>
                   <Text style={styles.pageOneQrEyebrow}>{agent.name?.split(' ')[0] ? `${agent.name.split(' ')[0]}'s Agent Hub` : 'Agent Hub'}</Text>
