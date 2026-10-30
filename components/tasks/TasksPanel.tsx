@@ -870,6 +870,9 @@ export function suggestFollowups(events: LeadEvent[], name: string | null | unde
     }
     const rule = SUGGEST[e.source_type]
     if (!rule || used.has(rule.key)) continue
+    // A guest with their own agent: only worth a follow-up at the agent's own listing (owner, 10/29 -
+    // otherwise it just clutters the calendar).
+    if (e.source_type === 'open_house_visitor' && e.guest_has_agent && !e.own_listing) continue
     used.add(rule.key)
     const street = streetOf(tidyAddress((e.property_address || '').trim()))
     const title = rule.title(first, street)

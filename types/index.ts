@@ -2268,6 +2268,9 @@ export interface LeadEvent {
   came_from?: string | null;
   /** The agent already dealt with it (opened / marked done). */
   handled?: boolean;
+  /** Open house sign-ins: the guest has their own agent / it was the agent's own listing. */
+  guest_has_agent?: boolean | null;
+  own_listing?: boolean | null;
 }
 
 export interface LeadProperty {
