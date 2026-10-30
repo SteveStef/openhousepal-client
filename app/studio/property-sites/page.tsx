@@ -568,7 +568,7 @@ function SpotlightQrSheet({ site, url, onClose }: { site: PropertyWebsite | null
 export default function PropertySitesPageGuarded() {
   return (
     <AuthGuard>
-      <SubscriptionGuard requiredTier="IDX">
+      <SubscriptionGuard requiredTier="IDX" featureName="Spotlight">
         <PropertySitesPage />
       </SubscriptionGuard>
     </AuthGuard>

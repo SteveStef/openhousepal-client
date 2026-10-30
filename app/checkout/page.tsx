@@ -2,7 +2,7 @@
 
 import OhpLoader from '@/components/brand/OhpLoader'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import api from '@/lib/api-service'
@@ -68,13 +68,22 @@ function CheckoutContent() {
   // Agents outside Bright MLS (no MLS ID) can only use the No-MLS plans. Everyone else starts on
   // the side of the plan card they clicked before signing up (remembered by the sign-up page).
   const inBright = !!user?.mls_id
+  // The plan card they clicked opens straight on its payment step ("Change plan" goes back). Read
+  // once and cleared, so a later sign-up on the same browser doesn't inherit it.
+  const signupPlanRead = useRef(false)
   useEffect(() => {
-    if (!user) return
-    if (!user.mls_id) { setCheckoutAudience('no_mls'); return }
-    try {
-      const plan = localStorage.getItem('ohp_signup_plan')
-      if (plan === 'no_mls' || plan === 'pro_no_mls') setCheckoutAudience('no_mls')
-    } catch {}
+    if (!user || signupPlanRead.current) return
+    signupPlanRead.current = true
+    let plan = ''
+    try { plan = localStorage.getItem('ohp_signup_plan') || ''; localStorage.removeItem('ohp_signup_plan') } catch {}
+    const tier = ({ basic: 'BASIC', premium: 'PREMIUM', idx: 'IDX', no_mls: 'NO_MLS', pro_no_mls: 'PRO_NO_MLS' } as Record<string, PlanTierId>)[plan]
+    const noMlsSide = !user.mls_id || plan === 'no_mls' || plan === 'pro_no_mls'
+    if (noMlsSide) setCheckoutAudience('no_mls')
+    // Outside Bright only the No-MLS plans exist; a Bright agent who came from a No-MLS card just sees that side.
+    if (tier && (user.mls_id ? !['NO_MLS', 'PRO_NO_MLS'].includes(tier) : ['NO_MLS', 'PRO_NO_MLS'].includes(tier))) {
+      setSelectedPlan(planToSelected(tier))
+      setRegistrationStep('payment')
+    }
   }, [user])
 
   useEffect(() => {
@@ -114,18 +123,33 @@ function CheckoutContent() {
   const trialDays = billedByUs ? 0 : terms ? terms.trial_days : (selectedPlan?.tier === 'IDX' || appliedCode ? 0 : TRIAL_PERIOD_DAYS)
   const hasTrial = trialDays > 0
 
+  const applyCode = (data: CheckoutCode) => {
+    const tier = (data.plan_tier in PRICING_PLANS ? data.plan_tier : 'PREMIUM') as PlanTierId
+    setAppliedCode(data)
+    setBundleCode(data.code)
+    setSelectedPlan({ ...planToSelected(tier), id: data.plan_id || '', name: data.plan_name || PRICING_PLANS[tier].name })
+    setRegistrationStep('payment')
+    setNotification({ type: 'success', message: data.message || 'Code applied!' })
+  }
+
+  // A test account that signed up with a test code: apply it here too, instead of asking again.
+  const signupCodeRead = useRef(false)
+  useEffect(() => {
+    if (!user?.test_copy_of_user_id || signupCodeRead.current || hasValidSubscription(user)) return
+    signupCodeRead.current = true
+    api.auth.signupCode().then(({ success, data }) => {
+      if (success && data && data.code) applyCode(data as CheckoutCode)
+    })
+  }, [user])
+
   const handleVerifyBundleCode = async () => {
     if (!bundleCode.trim()) return
-    
+
     setIsVerifyingCode(true)
     const { success, data, error } = await api.auth.verifyBundleCode(bundleCode.trim())
 
     if (success && data) {
-      const tier = (data.plan_tier in PRICING_PLANS ? data.plan_tier : 'PREMIUM') as PlanTierId
-      setAppliedCode(data)
-      setSelectedPlan({ ...planToSelected(tier), id: data.plan_id || '', name: data.plan_name || PRICING_PLANS[tier].name })
-      setRegistrationStep('payment')
-      setNotification({ type: 'success', message: data.message || 'Code applied!' })
+      applyCode(data)
     } else {
       setNotification({ type: 'error', message: error || "That code isn't valid" })
     }

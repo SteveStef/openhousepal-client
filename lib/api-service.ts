@@ -215,6 +215,9 @@ class ApiService {
     }),
 
     // A "billed by us" code: switches the account on with no PayPal.
+    // The test-account code they signed up with (checkout applies it), or { code: null }.
+    signupCode: () => this.request<CheckoutCode | { code: null }>('/auth/signup-code'),
+
     redeemCode: (code: string) => this.request<{ success: boolean; plan_tier: string; subscription_status: string }>('/auth/redeem-code', {
       method: 'POST',
       body: JSON.stringify({ code }),

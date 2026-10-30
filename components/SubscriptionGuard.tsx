@@ -22,6 +22,8 @@ interface SubscriptionGuardProps {
   /** Rank-based gate for genuine Basic->Premium->IDX ladder features (Open House Manager,
    * Showcases need PREMIUM; the IDX site needs IDX). NO_MLS / PRO_NO_MLS always fail this. */
   requiredTier?: 'PREMIUM' | 'IDX'
+  /** Names the feature on the upgrade page for a requiredTier gate ("Showcases are included on..."). */
+  featureName?: string
   /** Design Studio + Blogs: PREMIUM, IDX, or PRO_NO_MLS. */
   requireStudioDesignAccess?: boolean
   /** Studio AI Media tool: IDX or PRO_NO_MLS only. */
@@ -47,7 +49,7 @@ function upgradeTargetFor(planTier: string | undefined, props: SubscriptionGuard
   if (props.requireStudioDesignAccess) return { tier: noMlsTrack ? 'PRO_NO_MLS' : 'PREMIUM', feature: 'Studio & Blogs' }
   if (props.requireAgentHubAccess) return { tier: noMlsTrack ? 'PRO_NO_MLS' : 'PREMIUM', feature: 'Agent Hub' }
   if (props.requireEmailSignatureAccess) return { tier: noMlsTrack ? 'PRO_NO_MLS' : 'IDX', feature: 'Signature' }
-  if (props.requiredTier) return { tier: props.requiredTier, feature: 'This feature' }
+  if (props.requiredTier) return { tier: props.requiredTier, feature: props.featureName || 'This feature' }
   if (props.requireMlsAccess) return { tier: 'BASIC', feature: 'Bright MLS tools' }
   return { tier: 'PREMIUM', feature: 'This feature' }
 }

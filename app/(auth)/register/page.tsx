@@ -219,6 +219,7 @@ export default function RegisterPage() {
       brokerage: formData.brokerage,
       password: formData.password,
       is_bright: isBright,
+      agree_to_terms: formData.agreeToTerms, // recorded on the account (when + which Terms)
       ...(isBright ? { mls_id: formData.mlsId, ...(signupCode ? { signup_code: signupCode } : {}) } : { license_number: formData.licenseNumber.trim() }),
     })
 
@@ -237,6 +238,8 @@ export default function RegisterPage() {
         newFieldErrors.mlsId = errorMessage
       } else if (lowerError.includes('license')) {
         newFieldErrors.licenseNumber = errorMessage
+      } else if (lowerError.includes('terms of service')) {
+        newFieldErrors.agreeToTerms = errorMessage
       }
 
       if (Object.keys(newFieldErrors).length > 0) {

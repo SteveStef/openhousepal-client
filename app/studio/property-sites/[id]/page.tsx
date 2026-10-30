@@ -2341,7 +2341,7 @@ function OpenHousesEditor({ rows, onChange, taken = [], photo, street }: { rows:
 export default function PropertySiteEditorPageGuarded() {
   return (
     <AuthGuard>
-      <SubscriptionGuard requiredTier="IDX">
+      <SubscriptionGuard requiredTier="IDX" featureName="Spotlight">
         <Suspense fallback={null}>
           <PropertySiteEditorPage />
         </Suspense>

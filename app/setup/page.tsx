@@ -213,7 +213,7 @@ function SetupFlow() {
   }
 
   const ctx: StepCtx | null = data ? {
-    data, setData, saveInfo, markSaving, plan: data.plan,
+    data, setData, saveInfo, flush, markSaving, plan: data.plan,
     setGate: (g: Gate) => { gate.current = g; if (g.ok) setGateMsg('') },
     setMini: setMiniState,
     enteredFromEnd: enteredFromEnd.current === current,

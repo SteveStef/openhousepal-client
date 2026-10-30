@@ -5,6 +5,7 @@ import OhpLoader from '@/components/brand/OhpLoader'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { hasValidSubscription } from '@/lib/auth-helpers'
 import AuthGuard from '@/components/AuthGuard'
 import Footer from '@/components/Footer'
 import { useEffect, useState } from 'react'
@@ -27,7 +28,8 @@ function BrokerAuthorizationContent() {
 
   useEffect(() => {
     if (!isLoading && user?.broker_authorized) {
-      router.push('/open-houses')
+      // Approved: on to picking a plan (same place the approval email links), or Dash if already paid.
+      router.push(hasValidSubscription(user) ? '/dash' : '/checkout')
     }
   }, [user, isLoading, router])
 

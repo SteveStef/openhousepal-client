@@ -875,6 +875,8 @@ export interface User {
   billing_group_id?: string | null;  // paid for by a brokerage group (admin)
   test_copy_of_user_id?: string | null;  // an admin-made test copy of this agent (shares their MLS ID)
   last_seen_at?: string | null;
+  terms_accepted_at?: string | null; // ticked "I agree" at sign-up (null = before this was recorded)
+  terms_version?: string | null;
 }
 
 /*export interface Agent {

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
+import { hasValidSubscription } from '@/lib/auth-helpers'
 import {
   Activity, AlertTriangle, ArrowRight, Calculator, CalendarClock, ChevronDown, Clapperboard, ClipboardList, GripVertical, Link2, Home, Image as ImageIcon,
   Layout as LayoutIcon, LayoutDashboard, Lock, Mail, Newspaper, Plus, Users,
@@ -266,7 +267,13 @@ export default function DashPage() {
     if (!isCheckingAuth && user?.is_admin) {
       router.replace('/admin')
     }
-  }, [isCheckingAuth, isAuthenticated, user?.is_admin, router])
+    // Waiting to pay, or the subscription has ended: same as every SubscriptionGuard page -
+    // /checkout sends an ended plan on to Settings > Subscription to resubscribe.
+    // Still waiting on Bright's approval: straight to the waiting page (checkout would bounce there).
+    if (!isCheckingAuth && user && !user.is_admin && !hasValidSubscription(user)) {
+      router.replace(user.broker_authorized ? '/checkout' : '/broker-authorization')
+    }
+  }, [isCheckingAuth, isAuthenticated, user, router])
 
   useEffect(() => {
     // The admin is sent on to /admin (above) - no agent data to load for it.
@@ -398,9 +405,9 @@ export default function DashPage() {
   // tucked full-width at the bottom, out of the way, once the agent is caught up. Defaults to the
   // bottom while the count is still loading (null) so it doesn't pop to the top and then back down.
   const followupsAtTop = followupsOn && (followupOpenCount ?? 0) > 0
-  // No-MLS track: drop the stat tiles for features that plan doesn't have (plain No-MLS has no
-  // Agent Hub or Blogs). Bright tiers keep every tile (Basic's are the upgrade nudge).
-  const hiddenStats = new Set<keyof StatSummary>(mlsPlan || !user?.plan_tier ? [] : [
+  // Drop the stat tiles for features this plan doesn't have (Basic and plain No-MLS have no
+  // Agent Hub or Blogs) - owner 10/30: no tiles for tools the agent can't use.
+  const hiddenStats = new Set<keyof StatSummary>(!user?.plan_tier ? [] : [
     ...(hasAgentHubAccess(user.plan_tier) ? [] : ['agent_hub_visits' as const]),
     ...(hasStudioDesignAccess(user.plan_tier) ? [] : ['blog_reads' as const]),
   ])

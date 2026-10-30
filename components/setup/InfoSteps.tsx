@@ -67,7 +67,17 @@ export function ContactStep({ ctx }: { ctx: StepCtx }) {
   if (!emailOk(v.email)) problems.push('your email')
   if (!phoneOk(v.brokeragePhone)) problems.push("your brokerage's phone")
   if (v.officePhone.trim() && !phoneOk(v.officePhone)) problems.push('your office phone')
-  useGate(ctx, { ok: problems.length === 0, message: problems.length ? `Please check ${problems.join(', ')}.` : undefined }, [problems.join()])
+  // The box starts ticked when no text number is saved yet - Continue saves it, or the step would
+  // stay "Required" with every field filled in.
+  const textUnsaved = sameText && !i.text && !!v.call
+  useGate(ctx, {
+    ok: problems.length === 0, message: problems.length ? `Please check ${problems.join(', ')}.` : undefined,
+    onContinue: textUnsaved ? async () => {
+      const r = await ctx.markSaving(() => api.setup.patchInfo({ contact: { call: v.call, text: v.call, email: v.email } }), 'info-text')
+      if (r.success && r.data) ctx.setData(r.data)
+      return r.success ? undefined : false
+    } : undefined,
+  }, [problems.join(), textUnsaved])
   return (
     <WithCard ctx={ctx} over={{ call: v.call, text: textValue, email: v.email }}>
     <div className="space-y-6">

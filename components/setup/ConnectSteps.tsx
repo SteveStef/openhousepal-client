@@ -2,7 +2,7 @@
 
 // Alerts, calendar, CRM, and the IDX website steps - each a thin, friendly front on the feature's
 // own endpoints (notification prefs, follow-ups, calendar OAuth, CRM push, site areas/theme/publish).
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { BellRing, CalendarCheck, Check, Copy, ExternalLink, Globe, Loader2, MapPin, Rocket } from 'lucide-react'
 import api, { type EmailSettings } from '@/lib/api-service'
 import { CONNECTED_EVENT, OUTLOOK_LIVE, openSignInTab } from '@/lib/providers'
@@ -307,7 +307,10 @@ export function HomesStep({ ctx }: { ctx: StepCtx }) {
     api.sites.getAreas(true).then(r => setTowns(r.success && r.data ? r.data.map(a => a.area?.name).filter(Boolean) as string[] : []))
   }, [])
   const live = siteIsLive(site)
+  // the last header / Featured change has to land before Continue publishes
+  const draftSave = useRef<Promise<unknown>>(Promise.resolve())
   useGate(ctx, { ok: true, onContinue: async () => {
+    await draftSave.current.catch(() => {})
     if (live) { const r = await api.sites.publish(); if (!r.success) return false }
     await api.setup.setState({ confirm: 'homes' })
   } }, [live])
@@ -319,7 +322,7 @@ export function HomesStep({ ctx }: { ctx: StepCtx }) {
   const hero = home?.blocks?.find(b => b.type === 'hero') || null
   const save = (patch: { pages?: SitePage[]; featured_settings?: FeaturedSettings }) => {
     setSite(s => (s ? { ...s, draft_data: { ...s.draft_data, ...patch } } : s))
-    ctx.markSaving(() => api.sites.updateDraft(patch).then(r => { if (r.success && r.data) setSite(r.data); return r }), `site-draft-${Object.keys(patch).sort().join('-')}`)
+    draftSave.current = ctx.markSaving(() => api.sites.updateDraft(patch).then(r => { if (r.success && r.data) setSite(r.data); return r }), `site-draft-${Object.keys(patch).sort().join('-')}`)
   }
   const featured = { ...DEFAULT_FEATURED, ...((site.draft_data?.featured_settings || { mode: 'served_areas' }) as FeaturedSettings) }
   const hasFeaturedSection = pages.some(p => p.is_home && p.blocks.some(b => b.type === 'featured_listings' && !b.hidden))
@@ -446,11 +449,15 @@ export function WebsiteStep({ ctx }: { ctx: StepCtx }) {
       : patch.luxe_metal ? `${LUXE_METALS[patch.luxe_metal].label} finish`
       : patch.secondary_color ? `${accentLabel(patch.secondary_color) || 'New'} accent` : undefined)
     setSite({ ...site, draft_data: { ...site.draft_data, theme: next } })
-    ctx.markSaving(() => api.sites.updateDraft({ theme: next }).then(r => { if (r.success && r.data) setSite(r.data); return r }), 'site-theme')
+    themeSave.current = ctx.markSaving(() => api.sites.updateDraft({ theme: next }).then(r => { if (r.success && r.data) setSite(r.data); return r }), 'site-theme')
   }
-  const publish = async () => {
+  // Continue publishes - wait for the last look change to land first, or it goes live without it.
+  const themeSave = useRef<Promise<unknown>>(Promise.resolve())
+  // turnOn: they pressed "Put my website live" - that switches a switched-off site back on too.
+  const publish = async (turnOn = false) => {
     setBusy(true); setErr('')
-    if (site?.is_enabled === false) await api.sites.setSiteEnabled(true)
+    await themeSave.current.catch(() => {})
+    if (turnOn && site?.is_enabled === false) await api.sites.setSiteEnabled(true)
     const r = await api.sites.publish()
     setBusy(false)
     if (r.success && r.data) { setSite(r.data); return true }
@@ -459,10 +466,15 @@ export function WebsiteStep({ ctx }: { ctx: StepCtx }) {
   }
   // Always publish on Continue: a site that's already live gets the look picked here too (it
   // used to stay in the draft until someone pressed Publish in the editor).
-  useGate(ctx, { ok: true, onContinue: async () => { const ok = await publish(); if (!ok) return false; await api.setup.setState({ confirm: 'website' }) } }, [live, site?.status])
+  // A site they switched off (Settings > IDX) stays off - Continue just moves on.
+  useGate(ctx, { ok: true, onContinue: async () => {
+    if (site?.is_enabled !== false) { const ok = await publish(); if (!ok) return false }
+    await api.setup.setState({ confirm: 'website' })
+  } }, [live, site?.status, site?.is_enabled])
   // The look, then putting it live (owner, 10/22).
   const flow = useMiniFlow(ctx, ['Look', 'Go live'])
   if (!site) return <Spinner />
+  const switchedOff = site.is_enabled === false
   const template = theme.template === 'luxe' ? 'luxe' : 'default'
   const siteHost = (() => { try { return base ? new URL(base).host : '' } catch { return '' } })()
   return (
@@ -511,14 +523,14 @@ export function WebsiteStep({ ctx }: { ctx: StepCtx }) {
         <div className="flex flex-wrap items-center gap-4">
           <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${live ? 'bg-emerald-600 text-white' : 'bg-[#111827] text-[#e8c97a]'}`}>{live ? <Globe className="h-6 w-6" /> : <Rocket className="h-6 w-6" />}</span>
           <div className="min-w-0 flex-1">
-            <p className="text-[17px] font-black text-[#111827] dark:text-white">{live ? 'Your website is live' : 'Ready when you are'}</p>
+            <p className="text-[17px] font-black text-[#111827] dark:text-white">{live ? 'Your website is live' : switchedOff ? 'Your website is switched off' : 'Ready when you are'}</p>
             {siteHost && <p className="truncate text-[14px] font-semibold text-gray-500 dark:text-gray-400">{siteHost}</p>}
           </div>
           {live
             ? <a href={ohpHostUrl(siteHost)} target="_blank" rel="noreferrer" className="inline-flex h-12 items-center gap-2 rounded-2xl bg-white px-5 text-[15px] font-black text-[#111827] shadow-sm dark:bg-black/30 dark:text-white">Visit <ExternalLink className="h-4 w-4" /></a>
-            : <button type="button" onClick={publish} disabled={busy} className="inline-flex h-12 items-center gap-2 rounded-2xl bg-gradient-to-r from-[#a8803a] via-[#C9A24D] to-[#e8c97a] px-6 text-[15px] font-black text-[#111827] shadow-lg disabled:opacity-60">{busy && <Loader2 className="h-4 w-4 animate-spin" />} Put my website live</button>}
+            : <button type="button" onClick={() => publish(true)} disabled={busy} className="inline-flex h-12 items-center gap-2 rounded-2xl bg-gradient-to-r from-[#a8803a] via-[#C9A24D] to-[#e8c97a] px-6 text-[15px] font-black text-[#111827] shadow-lg disabled:opacity-60">{busy && <Loader2 className="h-4 w-4 animate-spin" />} Put my website live</button>}
         </div>
-        <p className="mt-3 text-[13.5px] font-medium text-gray-600 dark:text-gray-300">{live ? 'The look you pick here goes live when you press Continue.' : 'Pressing Continue puts it live too.'} You can change anything later in the website editor.</p>
+        <p className="mt-3 text-[13.5px] font-medium text-gray-600 dark:text-gray-300">{live ? 'The look you pick here goes live when you press Continue.' : switchedOff ? 'Continue keeps it off - the button above switches it back on.' : 'Pressing Continue puts it live too.'} You can change anything later in the website editor.</p>
         <p className="mt-3 flex items-start gap-1.5 text-[13.5px] font-medium text-gray-600 dark:text-gray-300"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> Google is set up for you - every page, town and article gets its own search title and description automatically. Preview or reword any of them in the website editor&apos;s Google tab.</p>
         {err && <p className="mt-3 text-[14px] font-bold text-rose-600">{err}</p>}
       </div>

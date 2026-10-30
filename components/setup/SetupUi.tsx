@@ -18,6 +18,8 @@ export type StepCtx = {
   setData: (d: SetupData) => void
   /** debounced, merged save of the agent's info (hub config + account) */
   saveInfo: (patch: SetupInfoPatch) => void
+  /** send a waiting saveInfo now (and wait for one already on its way) */
+  flush: () => Promise<void>
   /** run (and report) a save made through another endpoint, for the page's save status. The job
    *  should return the API response - success: false shows "Couldn't save" and Try again re-runs
    *  the job. Same `key` = the same setting (a newer save replaces an older failed one). */

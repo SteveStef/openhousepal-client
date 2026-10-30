@@ -46,7 +46,7 @@ export default function WebsiteStudioPageGuarded() {
   return (
     <AuthGuard>
       <BrokerAuthorizationGuard>
-        <SubscriptionGuard requiredTier="IDX">
+        <SubscriptionGuard requiredTier="IDX" featureName="IDX Website">
           <WebsiteStudioPage />
         </SubscriptionGuard>
       </BrokerAuthorizationGuard>

@@ -216,7 +216,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
       const today = todayLocal()
       if (localStorage.getItem(UPGRADE_REMINDER_STORAGE_KEY) === today) return
       localStorage.setItem(UPGRADE_REMINDER_STORAGE_KEY, today)
-      showToast("You're missing out on features locked in your nav bar — tap a locked item to see what upgrading unlocks.", 'success')
+      showToast("You're missing out on features locked in your nav bar — tap a locked item to see what upgrading unlocks.", 'info')
     } catch {
       // Best-effort only - if localStorage is unavailable, just skip the reminder.
     }

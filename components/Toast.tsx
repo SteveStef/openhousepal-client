@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
-import { CheckCircle2, XCircle, X } from 'lucide-react'
+import { CheckCircle2, XCircle, Sparkles, X } from 'lucide-react'
 
 export interface ToastProps {
   message: string
-  type: 'success' | 'error'
+  type: 'success' | 'error' | 'info'
   isVisible: boolean
   onClose: () => void
   duration?: number
@@ -33,7 +33,14 @@ export default function Toast({ message, type, isVisible, onClose, duration = 50
       border: 'border-red-500/30',
       bg: 'bg-white dark:bg-[#1A1A1A]',
       accent: 'bg-red-500',
-    }
+    },
+    // Nudges / tips - not a result of something the agent just did
+    info: {
+      icon: <Sparkles className="w-5 h-5 text-[#C9A24D]" />,
+      border: 'border-[#C9A24D]/40',
+      bg: 'bg-white dark:bg-[#1A1A1A]',
+      accent: 'bg-[#C9A24D]',
+    },
   }
 
   const { icon, border, bg, accent } = config[type]
@@ -57,7 +64,7 @@ export default function Toast({ message, type, isVisible, onClose, duration = 50
         {/* Message Content */}
         <div className="flex-1">
           <p className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">
-            {type === 'success' ? 'Success' : 'Attention'}
+            {type === 'success' ? 'Success' : type === 'info' ? 'Heads up' : 'Attention'}
           </p>
           <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 font-medium whitespace-pre-line leading-relaxed">
             {message}

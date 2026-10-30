@@ -506,9 +506,11 @@ export default function SettingsPage() {
     setPhotoUploading(false)
   }
 
+  // Same rules as the setup flow's About you / Social links steps (setup_flow_service.compute).
   const profileMissing = !profile.name.trim() || !profile.title.trim() || !profile.brokerage.trim()
-  const contactMissing = !contact.call.trim() || !contact.text.trim() || !contact.email.trim() || !contact.brokeragePhone.trim()
-  const socialLinksMissing = !socialLinks.some(link => link.enabled && link.url.trim())
+  const contactMissing = !contact.call.trim() || !contact.text.trim() || !contact.email.trim() || !contact.brokeragePhone.trim() || !profile.market.trim()  // Market sits in the Contact block
+  // The Website link is filled in for them, so it alone doesn't count.
+  const socialLinksMissing = !socialLinks.some(link => link.id !== 'website' && link.enabled && link.url.trim())
   const profileGroupIncomplete = profileMissing || contactMissing || socialLinksMissing
   const salesIncomplete = getEligibleSales(recentSales).filter(sale => sale.visible).length === 0
   const listingsIncomplete = getEligibleListings(myListings).filter(listing => listing.visible).length === 0
@@ -729,7 +731,7 @@ export default function SettingsPage() {
                         <Field label="Contact Email" value={contact.email} onChange={v => updateContactField('email', v)} placeholder="you@example.com" required />
                         <Field label="Office Phone (optional)" value={contact.officePhone} onChange={v => updateContactField('officePhone', v)} placeholder="(555) 123-4589" hint="Your own office or direct line. It goes on your Save Contact card." />
                         <Field label="Your Brokerage's Phone" value={contact.brokeragePhone} onChange={v => updateContactField('brokeragePhone', v)} placeholder="(555) 123-4500" required hint="Your brokerage's main number. It's printed on your designs for compliance and never goes on your Save Contact card." />
-                        <Field label="Market" value={profile.market} onChange={v => updateProfileField('market', v)} placeholder="e.g. Greater Philadelphia" />
+                        <Field label="Market" value={profile.market} onChange={v => updateProfileField('market', v)} placeholder="e.g. Greater Philadelphia" required />
                         <LockedField label="License Number" value={profile.licenseNumber} />
                       </div>
                       {contactMissing && (

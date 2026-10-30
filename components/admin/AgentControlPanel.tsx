@@ -213,6 +213,7 @@ export default function AgentControlPanel({ users, setUsers, groups, onToast, on
                   <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" />Joined {new Date(u.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                 </p>
                 <p className="mt-0.5">Last in the app: <b className="text-[#111827] dark:text-gray-200">{u.last_seen_at ? timeAgo(u.last_seen_at) : 'not since tracking began'}</b></p>
+                <p className="mt-0.5">Agreed to Terms: <b className="text-[#111827] dark:text-gray-200">{u.terms_accepted_at ? new Date(u.terms_accepted_at).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'before we recorded it'}</b></p>
               </div>
               <div className="flex flex-wrap items-center gap-2 lg:justify-end max-sm:grid max-sm:grid-cols-2">
                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${b.cls} max-sm:col-span-2 max-sm:justify-self-start`} title="How they pay">{b.label}</span>

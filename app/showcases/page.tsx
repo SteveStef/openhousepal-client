@@ -1209,7 +1209,7 @@ export default function ShowcasesPage() {
   return (
     <AuthGuard>
       <BrokerAuthorizationGuard>
-        <SubscriptionGuard requiredTier="PREMIUM">
+        <SubscriptionGuard requiredTier="PREMIUM" featureName="Showcases">
           <Suspense fallback={null}>
             <ShowcaseContent />
           </Suspense>

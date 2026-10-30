@@ -54,7 +54,9 @@ export function HubContentPicker({ ctx, onSaved }: { ctx: StepCtx; onSaved: () =
 
   const save = (patch: Record<string, unknown> | ((c: Record<string, any>) => Record<string, unknown>)) => {
     setCfg(c => (c ? { ...c, ...(typeof patch === 'function' ? patch(c) : patch) } : c))
-    return ctx.markSaving(() => serial(() => patchHubConfig(patch)).then(r => { onSaved(); return r }), typeof patch === 'function' ? undefined : `hub-${Object.keys(patch).sort().join('-')}`)
+    // the look / header choices on this step save through saveInfo - let a waiting one land first,
+    // or this whole-config write would put back the look from before it
+    return ctx.markSaving(() => serial(async () => { await ctx.flush(); return patchHubConfig(patch) }).then(r => { onSaved(); return r }), typeof patch === 'function' ? undefined : `hub-${Object.keys(patch).sort().join('-')}`)
   }
 
   const channel = cfg ? channelFrom(cfg) : ''
@@ -236,7 +238,7 @@ export function HubFormButtons({ ctx, onSaved }: { ctx: StepCtx; onSaved: () => 
   const toggle = (type: string) => {
     const next = picked.includes(type) ? picked.filter(t => t !== type) : HUB_BUTTONS.map(b => b.type).filter(t => t === type || picked.includes(t))
     setPicked(next)
-    ctx.markSaving(() => serial(() => patchHubConfig({ hubFormButtons: next })).then(r => { onSaved(); return r }), 'hub-form-buttons')
+    ctx.markSaving(() => serial(async () => { await ctx.flush(); return patchHubConfig({ hubFormButtons: next }) }).then(r => { onSaved(); return r }), 'hub-form-buttons')
   }
   const formOf = (type: string) => forms.find(f => f.form_type === type)
   const title = (type: string, fallback: string) => formOf(type)?.title || fallback
