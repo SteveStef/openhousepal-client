@@ -265,7 +265,7 @@ export function DesktopTextLayout({ code, data, qr, sentNow, busy, onDone, onSen
                 </div>
               )}
               <div className="mt-3 flex justify-end">
-                <div className="max-w-[85%] whitespace-pre-wrap rounded-[22px] rounded-br-md bg-[#0A84FF] px-4 py-3 text-[14px] font-medium leading-relaxed text-white shadow-sm">{data.message}</div>
+                <div className="max-w-[85%] whitespace-pre-wrap rounded-[22px] rounded-br-md bg-[#0A84FF] px-4 py-3 text-[14px] font-medium leading-relaxed text-white shadow-sm [overflow-wrap:anywhere]">{data.message}</div>
               </div>
               <div className="mt-5 space-y-2">
                 <EmailChooser data={data} onSent={onSent} />
@@ -313,9 +313,6 @@ export function DesktopTextLayout({ code, data, qr, sentNow, busy, onDone, onSen
                     className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-gray-200 text-sm font-black text-gray-600 transition hover:border-[#C9A24D] disabled:opacity-60 dark:border-white/10 dark:text-gray-300">
                     {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />} Undo - not done yet
                   </button>
-                  {data.contact && data.alerts && (
-                    <div className="-mx-3 mt-4 -mb-2"><DoneLeadAlerts code={code} alerts={data.alerts} firstName={data.first_name || ''} delay={0.05} /></div>
-                  )}
                 </>
               ) : (
                 <>
@@ -328,6 +325,11 @@ export function DesktopTextLayout({ code, data, qr, sentNow, busy, onDone, onSen
                 </>
               )}
             </div>
+
+            {/* Their alert switches - always, done or not (owner, 10/30) */}
+            {data.contact && data.alerts && (
+              <div className={`${card} !px-3 !py-4`}><DoneLeadAlerts code={code} alerts={data.alerts} firstName={data.first_name || ''} delay={0.05} inCard /></div>
+            )}
 
             <div className={card}>
               <p className={label}>This follow-up</p>

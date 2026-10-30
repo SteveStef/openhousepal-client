@@ -18,7 +18,7 @@ import OhpLoader from '@/components/brand/OhpLoader'
 import { isPhoneDevice, smsHref } from '@/lib/smsLink'
 import { useQrDataUrl } from '@/lib/qr'
 
-// Their alert switches, once it's checked off (owner, 10/27) - loaded on their own.
+// Their alert switches (owner, 10/27; always shown since 10/30) - loaded on their own.
 const DoneLeadAlerts = dynamic(() => import('@/components/tasks/DoneLeadAlerts'), { ssr: false })
 
 // The card rises in, then its parts follow (same feel as the Mark-as-done page).
@@ -145,12 +145,14 @@ export default function TapToTextPage() {
               </div>
             )}
 
-            {/* The message, as it will appear in Messages */}
-            <div className="tt-up px-5 pt-4 text-left" style={{ animationDelay: '.12s' }}>
-              <div className="ml-auto max-w-[92%] whitespace-pre-wrap rounded-[20px] rounded-br-md bg-[#0A84FF] px-3.5 py-2.5 text-[13.5px] font-medium leading-snug text-white shadow-sm">
-                {data.message}
+            {/* The message, as it will appear in Messages (a long link wraps inside the bubble) */}
+            {data.message && (
+              <div className="tt-up px-5 pt-4 text-left" style={{ animationDelay: '.12s' }}>
+                <div className="ml-auto max-w-[92%] whitespace-pre-wrap rounded-[20px] rounded-br-md bg-[#0A84FF] px-3.5 py-2.5 text-[13.5px] font-medium leading-snug text-white shadow-sm [overflow-wrap:anywhere]">
+                  {data.message}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="px-5 pb-5 pt-4">
               {phone !== false ? (
@@ -160,17 +162,17 @@ export default function TapToTextPage() {
                       <CheckCircle2 className="h-4 w-4" /> {sentNow ? 'Sent? Checked off.' : 'Already checked off.'}
                     </p>
                     <p className="mt-0.5 text-[11px] font-semibold text-emerald-700/70 dark:text-emerald-300/70">Off your follow-up list and your calendar.</p>
-                    <div className="mt-2 flex items-center justify-center gap-2">
-                      <button onClick={undo} disabled={busy} className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black text-gray-500 hover:bg-white hover:text-[#111827] disabled:opacity-60 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white">
+                    <div className="mt-2 flex flex-wrap items-center justify-center gap-x-1 gap-y-1">
+                      <button onClick={undo} disabled={busy} className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-black text-gray-500 hover:bg-white hover:text-[#111827] disabled:opacity-60 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white">
                         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Didn&apos;t send it - undo
                       </button>
                       {data.phone && (
-                        <a href={smsHref(data.phone, data.message)} className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black text-[#8b7355] hover:bg-white dark:text-[#d7b974] dark:hover:bg-white/10">
+                        <a href={smsHref(data.phone, data.message)} className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-black text-[#8b7355] hover:bg-white dark:text-[#d7b974] dark:hover:bg-white/10">
                           <MessageSquare className="h-3.5 w-3.5" /> Text again
                         </a>
                       )}
                       {data.email && (
-                        <button type="button" onClick={() => setMailSheet(true)} className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black text-[#8b7355] hover:bg-white dark:text-[#d7b974] dark:hover:bg-white/10">
+                        <button type="button" onClick={() => setMailSheet(true)} className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-black text-[#8b7355] hover:bg-white dark:text-[#d7b974] dark:hover:bg-white/10">
                           <Mail className="h-3.5 w-3.5" /> Email again
                         </button>
                       )}
@@ -209,7 +211,8 @@ export default function TapToTextPage() {
               ) : null}
             </div>
 
-            {data.done && data.contact && data.alerts && (
+            {/* Always here (owner, 10/30) - most people tap Text and leave, never seeing the "done" state */}
+            {data.contact && data.alerts && (
               <DoneLeadAlerts code={code} alerts={data.alerts} firstName={first === 'them' ? '' : first} delay={0.1} />
             )}
 
