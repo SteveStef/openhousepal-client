@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Cormorant_Garamond, Inter_Tight } from 'next/font/google'
+import localFont from 'next/font/local'
 import {
   ArrowRight, ArrowUpRight, Box, CalendarDays, Check, Compass, Download, Expand,
   FileText, GraduationCap, Grid3x3, Home, Mail, MapPin, Menu, Navigation, Phone, Play, Quote,
@@ -43,8 +43,13 @@ export type {
 } from './spotlight/model'
 import type { PropertySiteResolveResponse } from './spotlight/model'
 
-const display = Cormorant_Garamond({ subsets: ['latin'], weight: ['300', '400', '500', '600'], style: ['normal', 'italic'], variable: '--font-cl-display' })
-const sans = Inter_Tight({ subsets: ['latin'], variable: '--font-cl-sans' })
+// Font files live in frontend/fonts (Latin) - builds never download from Google Fonts (11/01: a
+// Google Fonts hiccup failed two production builds in a row).
+const display = localFont({ src: [
+  { path: '../../fonts/cormorant-garamond-normal-300-700.woff2', weight: '300 700', style: 'normal' },
+  { path: '../../fonts/cormorant-garamond-italic-300-700.woff2', weight: '300 700', style: 'italic' },
+], variable: '--font-cl-display', adjustFontFallback: 'Times New Roman' })
+const sans = localFont({ src: '../../fonts/inter-tight-normal-100-900.woff2', weight: '100 900', variable: '--font-cl-sans' })
 
 const GOLD = '#C9A24D'
 

@@ -1,4 +1,4 @@
-import { Plus_Jakarta_Sans } from 'next/font/google'
+import localFont from 'next/font/local'
 
 // The OpenHousePal logo (chosen 2026-10-03): the name in Plus Jakarta Sans 800 where the O holds a
 // gold keyhole, the H is our little house (roof, round window, open gold door) and the P carries a
@@ -7,7 +7,9 @@ import { Plus_Jakarta_Sans } from 'next/font/google'
 // Pure markup + CSS (no hooks) so server components, loading.tsx files and the public sites can
 // all use it. `animate` plays the entrance once on mount.
 
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['800'], display: 'swap' })
+// Font files live in frontend/fonts (Latin) - builds never download from Google Fonts (11/01: a
+// Google Fonts hiccup failed two production builds in a row).
+const jakarta = localFont({ src: '../../fonts/plus-jakarta-sans-normal-200-800.woff2', weight: '800', display: 'swap' })
 
 const CSS = `
 .ohp-brand{--ohp-gold:#C9A24D}

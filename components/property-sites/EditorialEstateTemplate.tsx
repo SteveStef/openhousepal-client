@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Playfair_Display, DM_Mono, Manrope } from 'next/font/google'
+import localFont from 'next/font/local'
 import {
   ArrowRight, ArrowUpRight, Box, ChevronDown, Compass, Expand, FileText, Mail, Menu, Navigation, Play, Share2, X,
 } from 'lucide-react'
@@ -33,9 +33,17 @@ import { SP_MOTION_CSS, useOffscreenPause, usePresence } from './spotlight/motio
 import NearbyMap from '@/components/maps/NearbyMap'
 import { openDirections } from '@/lib/directions'
 
-const playfair = Playfair_Display({ subsets: ['latin'], weight: ['400', '500'], style: ['normal', 'italic'], variable: '--font-ee-display' })
-const dmMono = DM_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-ee-mono' })
-const manrope = Manrope({ subsets: ['latin'], variable: '--font-ee-sans' })
+// Font files live in frontend/fonts (Latin) - builds never download from Google Fonts (11/01: a
+// Google Fonts hiccup failed two production builds in a row).
+const playfair = localFont({ src: [
+  { path: '../../fonts/playfair-display-normal-400-900.woff2', weight: '400 900', style: 'normal' },
+  { path: '../../fonts/playfair-display-italic-400-900.woff2', weight: '400 900', style: 'italic' },
+], variable: '--font-ee-display', adjustFontFallback: 'Times New Roman' })
+const dmMono = localFont({ src: [
+  { path: '../../fonts/dm-mono-normal-400.woff2', weight: '400', style: 'normal' },
+  { path: '../../fonts/dm-mono-normal-500.woff2', weight: '500', style: 'normal' },
+], variable: '--font-ee-mono', adjustFontFallback: false })
+const manrope = localFont({ src: '../../fonts/manrope-normal-200-800.woff2', weight: '200 800', variable: '--font-ee-sans' })
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
 

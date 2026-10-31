@@ -1,6 +1,6 @@
 import './globals.css'
 import { headers } from 'next/headers'
-import { Inter } from 'next/font/google'
+import localFont from 'next/font/local'
 import { Providers } from './providers'
 import AppShell from '@/components/AppShellLazy'
 import ScrollLockWatcher from '@/components/ScrollLockWatcher'
@@ -10,7 +10,9 @@ import Script from 'next/script'
 import { FRAME_LINK_GUARD_SCRIPT } from '@/lib/frameLinkGuard'
 import { CHUNK_RECOVERY_SCRIPT } from '@/lib/chunkRecovery'
 
-const inter = Inter({ subsets: ['latin'] })
+// Font files live in frontend/fonts (Latin) - builds never download from Google Fonts (11/01: a
+// Google Fonts hiccup failed two production builds in a row).
+const inter = localFont({ src: '../fonts/inter-normal-100-900.woff2', weight: '100 900' })
 
 // Base URL every relative metadata URL (the OG image, canonical) is resolved against. Falls back
 // to the production domain so a shared link always points somewhere real, not localhost.
