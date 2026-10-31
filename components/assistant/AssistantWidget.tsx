@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Sparkles, X, Volume2, VolumeX, MessageSquarePlus, Maximize2, Minimize2, History, ArrowLeft } from 'lucide-react'
 import api from '@/lib/api-service'
-import { AIConversation, AIConversationListItem, AIInsight } from '@/types'
+import { AIConversation, AIConversationListItem } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import AssistantHome from './AssistantHome'
@@ -54,11 +54,8 @@ export default function AssistantWidget() {
   const [chats, setChats] = useState<AIConversationListItem[]>([])
   const [chatsLoading, setChatsLoading] = useState(false)
   const [activeConversation, setActiveConversation] = useState<AIConversation | null>(null)
-  const [insights, setInsights] = useState<AIInsight[]>([])
-  const [insightsLoading, setInsightsLoading] = useState(true)
   const [isSending, setIsSending] = useState(false)
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false)
-  const [insightsLoaded, setInsightsLoaded] = useState(false)
   const [isTalking, setIsTalking] = useState(false)
   // Every paying plan since 10/30 (unless Admin switched it off); voice stays admin-only.
   const [helper, setHelper] = useState<{ enabled: boolean; voice: boolean } | null>(null)
@@ -195,14 +192,6 @@ export default function AssistantWidget() {
     return () => window.removeEventListener(ASSISTANT_OPEN_EVENT, handler)
   }, [handleSend])
 
-  useEffect(() => {
-    if (!isOpen || insightsLoaded) return
-    setInsightsLoaded(true)
-    api.ai.getInsights().then((r) => {
-      if (r.success && r.data) setInsights(r.data.insights)
-      setInsightsLoading(false)
-    })
-  }, [isOpen, insightsLoaded])
 
   // Phone sheet: drag the top bar up for full screen, down to shrink, further down to close.
   const onTouchStart = (e: React.TouchEvent) => { dragStart.current = e.touches[0].clientY }
@@ -332,7 +321,7 @@ export default function AssistantWidget() {
                   {activeConversation ? (
                     <ChatThread messages={activeConversation.messages} isSending={isSending} autoSpeak={voiceOutputEnabled} conversationId={activeConversation.id} speech={speech} canSpeak={helper.voice} onReply={handleSend} />
                   ) : (
-                    <AssistantHome insights={insights} insightsLoading={insightsLoading} onPrompt={handleSend} />
+                    <AssistantHome onPrompt={handleSend} />
                   )}
                 </div>
                 <div className="pb-[env(safe-area-inset-bottom)]">

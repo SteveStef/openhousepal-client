@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Menu, Sparkles, Volume2, VolumeX } from 'lucide-react'
 import api from '@/lib/api-service'
-import { AIConversation, AIConversationListItem, AIInsight } from '@/types'
+import { AIConversation, AIConversationListItem } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import AssistantHome from '@/components/assistant/AssistantHome'
@@ -22,8 +22,6 @@ export default function AssistantPage() {
   const [conversations, setConversations] = useState<AIConversationListItem[]>([])
   const [conversationsLoading, setConversationsLoading] = useState(true)
   const [activeConversation, setActiveConversation] = useState<AIConversation | null>(null)
-  const [insights, setInsights] = useState<AIInsight[]>([])
-  const [insightsLoading, setInsightsLoading] = useState(true)
   const [isSending, setIsSending] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false)
@@ -45,10 +43,6 @@ export default function AssistantPage() {
     api.ai.listConversations().then((r) => {
       if (r.success && r.data) setConversations(r.data)
       setConversationsLoading(false)
-    })
-    api.ai.getInsights().then((r) => {
-      if (r.success && r.data) setInsights(r.data.insights)
-      setInsightsLoading(false)
     })
   }, [])
 
@@ -186,7 +180,7 @@ export default function AssistantPage() {
         {activeConversation ? (
           <ChatThread messages={activeConversation.messages} isSending={isSending} autoSpeak={voiceOutputEnabled} conversationId={activeConversation.id} speech={speech} canSpeak={helper.voice} />
         ) : (
-          <AssistantHome insights={insights} insightsLoading={insightsLoading} onPrompt={handleSend} />
+          <AssistantHome onPrompt={handleSend} />
         )}
 
         <ChatInput

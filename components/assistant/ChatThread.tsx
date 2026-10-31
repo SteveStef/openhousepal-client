@@ -9,6 +9,8 @@ import ActionCard from './ActionCard'
 import { useSpeech } from './useSpeech'
 import { RECORD_LINKS, RECORD_LABELS } from './recordLinks'
 
+const SHOW_RECORD_CHIPS = false
+
 type Speech = ReturnType<typeof useSpeech>
 
 // "Thinking" while the helper works - three gold dots in a wave and a shimmering word that
@@ -126,7 +128,10 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
                   </div>
                 )}
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  {refs.map((ref, i) => {
+                  {/* The automatic "Lead / Property" chips under replies are off (owner, 10/30): unnamed,
+                      and Property opened /property/<key> - a page that needs an agent too, so it
+                      never loaded. The helper's own "Go there" buttons (show_link) say where they go. */}
+                  {SHOW_RECORD_CHIPS && refs.map((ref, i) => {
                     const buildLink = RECORD_LINKS[ref.record_type]
                     if (!buildLink) return null
                     return (

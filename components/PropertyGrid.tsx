@@ -43,6 +43,9 @@ interface PropertyGridProps {
   // gives it a brief highlight ring so the agent lands on something concrete instead of a bare
   // collection page. Fires once per mount, not on every re-sort.
   highlightFirst?: boolean
+  // One exact home to land on (?glow= from Today's Rundown - its id, listing key or street): scrolls
+  // to it and lights it up so the agent sees it at once (owner, 10/30). Wins over highlightFirst.
+  highlightKey?: string | null
   // When provided (e.g. the parent's activeTab), the grid crossfades whenever this value changes
   // instead of swapping instantly - gives switching between Matches/Liked/Disliked/Sold-Removed a
   // real transition. Keyed separately from `properties` on purpose: a like/dislike also changes
@@ -74,19 +77,33 @@ interface PropertyGridProps {
 /** The Showcase's tabs in their on-screen order (buyer view and the agent's view). */
 export const SHOWCASE_TABS = ['all', 'liked', 'disliked', 'sold_removed'] as const
 
-export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, sortControl, headerAction, alignHeaderLeftOnMobile = false, compareInfo, destination, compareProperty, tourButtonVariant, cropMlsBadge = false, highlightFirst = false, animationKey, animationOrder, emptyState, compactHeader = false, phoneCompact = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold, onSend, selectMode = false, selectedIds, onToggleSelect }: PropertyGridProps) {
+/** Is this the home a ?glow= link points at - by its id, listing key, or street (the briefing's
+ *  key for a home without a listing key is its address)? */
+export function homeMatches(p: any, key: string): boolean {
+  const k = String(key).trim().toLowerCase()
+  if (!k || !p) return false
+  const ids = [p.id, p.ListingKey, p.listing_key, p.listingKey, p.ListingId].filter(Boolean).map((v: any) => String(v).toLowerCase())
+  if (ids.includes(k)) return true
+  const street = String(p.FullStreetAddress || p.address || p.UnparsedAddress || '').toLowerCase()
+  return !!street && k.length > 5 && (k.startsWith(street) || street.startsWith(k.split(',')[0]))
+}
+
+export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, sortControl, headerAction, alignHeaderLeftOnMobile = false, compareInfo, destination, compareProperty, tourButtonVariant, cropMlsBadge = false, highlightFirst = false, highlightKey = null, animationKey, animationOrder, emptyState, compactHeader = false, phoneCompact = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold, onSend, selectMode = false, selectedIds, onToggleSelect }: PropertyGridProps) {
   const firstCardRef = useRef<HTMLDivElement>(null)
   const [isHighlighting, setIsHighlighting] = useState(false)
   const hasFiredRef = useRef(false)
 
+  const glowIndex = highlightKey ? properties.findIndex(p => homeMatches(p, highlightKey)) : highlightFirst ? 0 : -1
   useEffect(() => {
-    if (!highlightFirst || hasFiredRef.current || properties.length === 0 || !firstCardRef.current) return
+    if (glowIndex < 0 || hasFiredRef.current || !firstCardRef.current) return
     hasFiredRef.current = true
-    firstCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const card = firstCardRef.current
+    // after the cards have risen in, so it scrolls to where the home really ends up
+    const go = setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350)
     setIsHighlighting(true)
-    const timer = setTimeout(() => setIsHighlighting(false), 2500)
-    return () => clearTimeout(timer)
-  }, [highlightFirst, properties])
+    const timer = setTimeout(() => setIsHighlighting(false), highlightKey ? 5200 : 2500)
+    return () => { clearTimeout(go); clearTimeout(timer) }
+  }, [glowIndex, highlightKey])
 
   // ---- Switching tabs (user, 10/19: "not a very nice animation for each page") ----
   // The new tab's homes glide in from the side its tab sits on while the old ones slide out the
@@ -202,8 +219,9 @@ export default function PropertyGrid({ properties, title = "Properties", onLike,
           layout="position"
           {...cardMotion(index)}
           exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.2 } }}
-          ref={index === 0 ? firstCardRef : undefined}
-          className={`relative ${index === 0 && isHighlighting ? 'rounded-2xl ring-4 ring-[#C9A24D] ring-offset-2 dark:ring-offset-[#0B0B0B] transition-shadow duration-500' : 'rounded-2xl'}`}
+          ref={index === glowIndex ? firstCardRef : undefined}
+          data-glow={index === glowIndex && isHighlighting ? '' : undefined}
+          className={`relative ${index === glowIndex && isHighlighting ? (highlightKey ? 'ohp-home-glow rounded-2xl' : 'rounded-2xl ring-4 ring-[#C9A24D] ring-offset-2 dark:ring-offset-[#0B0B0B] transition-shadow duration-500') : 'rounded-2xl'}`}
         >
           {/* Select mode: a layer over the card - a tap picks the home (gold ring here; the card
               draws the check in the middle of its photo - see PropertyCard PickMark). */}

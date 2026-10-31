@@ -34,7 +34,9 @@ export function openTodaysRundown() {
 }
 export const isRundownNotification = (n: { type: string }) => n.type === RUNDOWN_NOTIFICATION_TYPE
 
-type Stat = { key: string; label: string; value: number; link: string }
+// people: who is behind the number (backend _stat_people) - each row links to that exact person / home.
+type StatPerson = { who: string; what: string; at: string | null; link: string }
+type Stat = { key: string; label: string; value: number; link: string; people?: StatPerson[] }
 type FollowUp = { title: string; when: string; overdue: boolean; link: string }
 type Action = { badge: string; title: string; detail: string; link: string }
 type Client = { name: string; link: string; starred: boolean }
@@ -318,6 +320,14 @@ function RundownBody({ data, phone, short = false, go, settled = true }: { data:
     return [...busy, ...data.stats.filter(s => s.value === 0)].slice(0, want)
   }, [data.stats, cols])
   const todo = data.followups.length + data.actions.length + data.client_activity.length
+  // A tile with something in it opens who's behind it right here (owner, 10/30) - one more tap goes
+  // to that exact person / home. An empty tile still opens its page.
+  const [openKey, setOpenKey] = useState<string | null>(null)
+  const openStat = stats.find(s => s.key === openKey) || null
+  const tap = (s: Stat) => {
+    if (!s.value) { go(s.link); return }
+    setOpenKey(k => (k === s.key ? null : s.key))
+  }
   return (
     <div className="pb-6">
       {/* Hero - the Luxe header look: warm ivory + gold (light), deep ink + gold (dark). */}
@@ -353,18 +363,34 @@ function RundownBody({ data, phone, short = false, go, settled = true }: { data:
           {/* The day's numbers - each one counts up and opens its page. */}
           <div className={`mt-5 grid gap-2 ${cols === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
             {!settled && stats.map(s => <span key={s.key} aria-hidden className="h-[72px] rounded-2xl border border-[#C9A24D]/15 bg-white/40 dark:border-white/[0.05] dark:bg-white/[0.03]" />)}
-            {settled && stats.map((s, i) => (
-              <motion.button key={s.key} type="button" onClick={() => go(s.link)}
-                initial={reduce ? false : { opacity: 0, y: 14, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ type: 'spring', stiffness: 320, damping: 26, delay: 0.25 + i * 0.05 }} whileTap={{ scale: 0.95 }}
-                className="group min-w-0 rounded-2xl border border-[#C9A24D]/25 bg-white/75 px-2.5 py-2.5 text-left shadow-[0_10px_24px_-20px_rgba(139,115,85,.8)] transition hover:border-[#C9A24D]/60 dark:border-white/[0.08] dark:bg-white/[0.05] dark:shadow-none dark:hover:border-[#e8c97a]/40">
-                <span className={`block font-serif text-[1.6rem] font-black leading-none tabular-nums ${s.value ? 'text-[#111827] dark:text-white' : 'text-gray-300 dark:text-white/25'}`}>
-                  <AnimatedNumber value={s.value} duration={1100} />
-                </span>
-                <span className="mt-1 block leading-tight text-[10px] font-black uppercase tracking-[0.08em] text-[#8b7355]/90 dark:text-white/50">{s.label}</span>
-              </motion.button>
-            ))}
+            {settled && stats.map((s, i) => {
+              const on = openKey === s.key
+              return (
+                <motion.button key={s.key} type="button" onClick={() => tap(s)} aria-expanded={s.value ? on : undefined} data-testid={`rundown-stat-${s.key}`}
+                  initial={reduce ? false : { opacity: 0, y: 14, scale: 0.94 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 320, damping: 26, delay: 0.25 + i * 0.05 }} whileTap={{ scale: 0.95 }}
+                  className={`group relative min-w-0 rounded-2xl border px-2.5 py-2.5 text-left transition ${on
+                    ? 'border-[#111827] bg-[#111827] shadow-[0_14px_30px_-16px_rgba(17,24,39,.8)] dark:border-[#e8c97a] dark:bg-[#e8c97a]'
+                    : 'border-[#C9A24D]/25 bg-white/75 shadow-[0_10px_24px_-20px_rgba(139,115,85,.8)] hover:border-[#C9A24D]/60 dark:border-white/[0.08] dark:bg-white/[0.05] dark:shadow-none dark:hover:border-[#e8c97a]/40'}`}>
+                  <span className={`block font-serif text-[1.6rem] font-black leading-none tabular-nums ${on ? 'text-white dark:text-[#111827]' : s.value ? 'text-[#111827] dark:text-white' : 'text-gray-300 dark:text-white/25'}`}>
+                    <AnimatedNumber value={s.value} duration={1100} />
+                  </span>
+                  <span className={`mt-1 block leading-tight text-[10px] font-black uppercase tracking-[0.08em] ${on ? 'text-[#e8c97a] dark:text-[#111827]/70' : 'text-[#8b7355]/90 dark:text-white/50'}`}>{s.label}</span>
+                  {s.value > 0 && <ChevronDown aria-hidden className={`absolute right-1.5 top-2 h-3.5 w-3.5 transition-transform duration-300 ${on ? 'rotate-180 text-[#e8c97a] dark:text-[#111827]' : 'text-[#C9A24D]/60'}`} />}
+                </motion.button>
+              )
+            })}
           </div>
+
+          {/* Who's behind the tapped number - each one opens that exact person / home. */}
+          <AnimatePresence initial={false}>
+            {openStat && (
+              <motion.div key="people" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 32 }} className="overflow-hidden">
+                <StatPeople stat={openStat} go={go} onClose={() => setOpenKey(null)} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -469,6 +495,52 @@ function RundownBody({ data, phone, short = false, go, settled = true }: { data:
         </p>
       </div>
       )}
+    </div>
+  )
+}
+
+// Where a tile's own page is ("See all in Showcases").
+const PAGE_NAME: Record<string, string> = { '/leads': 'Leads', '/showcases': 'Showcases', '/studio/forms': 'Forms', '/open-houses': 'Open Houses', '/activity': 'Activity' }
+
+function StatPeople({ stat, go, onClose }: { stat: Stat; go: (link: string) => void; onClose: () => void }) {
+  const people = stat.people || []
+  const page = PAGE_NAME[stat.link] || 'its page'
+  return (
+    <div className="mt-3 overflow-hidden rounded-2xl border border-[#C9A24D]/30 bg-white shadow-[0_18px_40px_-28px_rgba(17,24,39,.7)] dark:border-white/10 dark:bg-[#141416]" data-testid="rundown-stat-people">
+      <div className="flex items-center gap-2 border-b border-[#C9A24D]/15 px-3.5 py-2.5 dark:border-white/[0.07]">
+        <p className="min-w-0 flex-1 truncate text-[12.5px] font-black text-[#111827] dark:text-white">
+          {stat.label} <span className="font-bold text-[#8b7355] dark:text-[#e8c97a]">· {stat.value}</span>
+        </p>
+        <button type="button" onClick={onClose} aria-label="Close list" className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-white">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      {people.length === 0 ? (
+        <p className="px-3.5 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400">The details for this one live on {page}.</p>
+      ) : (
+        <div className="max-h-[300px] divide-y divide-gray-100 overflow-y-auto overscroll-contain [scrollbar-width:thin] dark:divide-white/[0.06]">
+          {people.map((p, k) => (
+            <button key={k} type="button" onClick={() => go(p.link)} data-testid="rundown-stat-person"
+              className="flex w-full min-w-0 items-center gap-3 px-3.5 py-2.5 text-left transition hover:bg-[#faf6ec] active:bg-[#f4efe4] dark:hover:bg-white/[0.04]">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#111827] to-[#2a2218] text-[12px] font-black text-[#e8c97a]">
+                {(p.who || '?').replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase() || '·'}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-baseline gap-2">
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-black text-[#111827] dark:text-white">{p.who}</span>
+                  {p.at && <span className="shrink-0 text-[10.5px] font-bold tabular-nums text-gray-400">{clock(p.at)}</span>}
+                </span>
+                {p.what && <span className="mt-0.5 line-clamp-2 block text-xs font-semibold leading-snug text-gray-500 dark:text-gray-400">{p.what}</span>}
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-[#C9A24D]" />
+            </button>
+          ))}
+        </div>
+      )}
+      <button type="button" onClick={() => go(stat.link)}
+        className="flex w-full items-center justify-center gap-1 border-t border-[#C9A24D]/15 px-3.5 py-2.5 text-[12px] font-black text-[#8b7355] transition hover:bg-[#faf6ec] dark:border-white/[0.07] dark:text-[#e8c97a] dark:hover:bg-white/[0.04]">
+        See all in {page} <ChevronRight className="h-3.5 w-3.5" />
+      </button>
     </div>
   )
 }

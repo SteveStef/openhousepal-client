@@ -1,12 +1,12 @@
 'use client'
 
 import { homeSlug, showcaseHomeCount, showcaseLinkPath } from '@/lib/showcaseLink'
-import { memo, useCallback, useEffect, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { Calendar, CheckSquare, Copy, Check, ArrowUpDown, Mail, MapPin, MessageSquareText, Phone, Share2, User, SlidersHorizontal, X } from 'lucide-react'
-import PropertyGrid, { SHOWCASE_TABS } from '@/components/PropertyGrid'
+import PropertyGrid, { homeMatches, SHOWCASE_TABS } from '@/components/PropertyGrid'
 import ShowcaseRadiusContextLine from '@/components/ShowcaseRadiusContextLine'
 import PropertyDetailsModal, { type HomeMove } from '@/components/PropertyDetailsModal'
 import QuickCommentModal from '@/components/QuickCommentModal'
@@ -73,6 +73,8 @@ interface DetailViewProps {
   isLoadingQuickComments: boolean;
   // Deep-linked from a "new match" alert (?focus=first) - see PropertyGrid's own doc comment.
   highlightFirstProperty?: boolean;
+  // ?glow=<home> from Today's Rundown: that exact home lights up (PropertyGrid highlightKey).
+  highlightKey?: string | null;
   // IDX site + domains, so the share link defaults to the agent's own branded domain when they
   // have a published site, same as the Showcases list page's share icon.
   idxSite?: Site | null;
@@ -118,6 +120,7 @@ export const DetailView = memo(function DetailView({
   onCloseQuickComment,
   isLoadingQuickComments,
   highlightFirstProperty,
+  highlightKey,
   idxSite,
   idxDomains
 }: DetailViewProps) {
@@ -246,6 +249,16 @@ export const DetailView = memo(function DetailView({
   const endSelect = () => { setSelectMode(false); setSelectedIds(new Set()) }
   // A new tab starts a fresh pick; homes that left this tab (passed, removed...) drop out of it.
   useEffect(() => { setSelectedIds(new Set()) }, [activeTab])
+  // The ?glow home lives in another tab (liked, passed, sold/removed): open that tab, once.
+  const glowTabDone = useRef(false)
+  useEffect(() => {
+    if (!highlightKey || glowTabDone.current || matchedProperties.length === 0) return
+    const home = matchedProperties.find(p => homeMatches(p, highlightKey))
+    if (!home) return
+    glowTabDone.current = true
+    const tab = inSoldFolder(home) ? 'sold_removed' : home.disliked ? 'disliked' : 'all'
+    if (tab !== activeTab) setActiveTab(tab)
+  }, [highlightKey, matchedProperties, activeTab, setActiveTab])
   const visibleKey = filteredProperties.map(p => p.id).join('|')
   useEffect(() => {
     const visible = new Set(filteredProperties.map(p => String(p.id)))
@@ -629,6 +642,7 @@ export const DetailView = memo(function DetailView({
           tourButtonVariant="requests"
           cropMlsBadge
           highlightFirst={highlightFirstProperty}
+          highlightKey={highlightKey}
           showDetailedViewCount={true}
           destination={radiusSearchPreferences ? { address: radiusSearchPreferences.address, lat: radiusSearchPreferences.lat, lng: radiusSearchPreferences.long } : undefined}
           animationKey={activeTab}

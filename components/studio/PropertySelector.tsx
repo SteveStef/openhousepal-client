@@ -280,9 +280,11 @@ function MlsPropertySelector({ value, onChange, compact = false, only = null }: 
 // picker above and Studio's "Your newest listing / latest sale" shortcuts. `sale` = picked from
 // Recent Sales: its recorded price becomes the close price, so Just Sold designs say "Sold for"
 // truthfully; a sale not in our MLS data falls back to what the sale record has.
-export async function fetchLinkedProperty(address: string, sale?: RecentSaleItem): Promise<{ property: LinkedProperty | null; error?: string }> {
+// listingKey: the exact listing - an address alone can land on another unit in the same building
+// (the AI helper made "191 Presidential Blvd #R-605" with a different unit's details, owner 10/30).
+export async function fetchLinkedProperty(address: string, sale?: RecentSaleItem, listingKey?: string): Promise<{ property: LinkedProperty | null; error?: string }> {
   const full = sale && sale.city ? `${address}, ${sale.city}${sale.state ? `, ${sale.state}` : ''}` : address
-  const { success, data, error } = await api.properties.lookup(full)
+  const { success, data, error } = await api.properties.lookup(listingKey ? { listingKey } : full)
   if (success && data) {
     return { property: {
       listing_key: data.ListingKey || data.listing_key || undefined,

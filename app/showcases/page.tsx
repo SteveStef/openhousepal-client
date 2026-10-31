@@ -1100,6 +1100,7 @@ function ShowcaseContent() {
           onCloseQuickComment={handleCloseQuickComment}
           isLoadingQuickComments={isLoadingQuickComments}
           highlightFirstProperty={searchParams.get('focus') === 'first'}
+          highlightKey={searchParams.get('glow')}
           idxSite={idxSite}
           idxDomains={idxDomains}
         />

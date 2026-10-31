@@ -7,6 +7,8 @@ import api from '@/lib/api-service'
 import { AIToolCallRef } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { runClientAction } from './clientActions'
+import { getTemplatesFor, isCompositionReady } from '@/lib/studio/designTemplates'
+import { DESIGN_COLOR_MODES } from '@/lib/studio/designColors'
 
 type Made = AIToolCallRef['made']
 
@@ -40,11 +42,15 @@ function MadeDesign({ made, fresh }: { made: NonNullable<Made> & { design_id?: s
   }
   return (
     <div ref={boxRef} className="mt-2.5">
-      <div className="overflow-hidden rounded-xl border border-gray-100 bg-gray-50 dark:border-zinc-800 dark:bg-zinc-800/60">
-        {url ? <img src={url} alt={made.title || 'Your design'} className="ohp-ai-reveal block h-auto w-full"
-                    onLoad={() => { if (fresh) boxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }} />
-          : failed ? <div className="flex h-40 items-center justify-center px-4 text-center text-xs text-gray-400">Preview not ready - open it in the Studio.</div>
-          : <div className="ohp-skeleton flex aspect-square w-full items-end justify-center pb-4"><span className="ohp-ai-shimmer text-xs font-semibold">Drawing your design...</span></div>}
+      {/* A thumbnail, not the whole chat (owner, 10/30) - tap it for full size. */}
+      <div className="flex justify-center rounded-xl border border-gray-100 bg-gray-50 p-2 dark:border-zinc-800 dark:bg-zinc-800/60">
+        {url ? (
+          <a href={url} target="_blank" rel="noopener" title="See it full size" className="block">
+            <img src={url} alt={made.title || 'Your design'} className="ohp-ai-reveal block h-auto max-h-[220px] w-auto max-w-full rounded-lg shadow-sm"
+                 onLoad={() => { if (fresh) boxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }} />
+          </a>
+        ) : failed ? <div className="flex h-24 items-center justify-center px-4 text-center text-xs text-gray-400">Preview not ready - open it in the Studio.</div>
+          : <div className="ohp-skeleton flex h-[180px] w-[180px] items-end justify-center rounded-lg pb-3"><span className="ohp-ai-shimmer text-xs font-semibold">Drawing your design...</span></div>}
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
         {url && (
@@ -62,6 +68,59 @@ function MadeDesign({ made, fresh }: { made: NonNullable<Made> & { design_id?: s
   )
 }
 
+type Look = { layout: string | null; colors: string }
+
+// A design's look, picked right on the card before "Make it" (owner, 10/30: "I wasn't able to
+// customize it") - the layouts ready for this kind of design and the Studio's own color modes.
+function DesignPick({ payload, look, onLook, idx }: { payload: Record<string, any>; look: Look; onLook: (l: Look) => void; idx: boolean }) {
+  const layouts = getTemplatesFor(payload.situation, payload.format).filter(t => isCompositionReady(t.composition))
+    .filter((t, i, all) => all.findIndex(o => o.composition === t.composition) === i)
+    .filter(t => idx || t.composition !== 'luxe')
+  const colors = DESIGN_COLOR_MODES.filter(c => idx || c.id !== 'luxe')
+  const layout = look.layout || layouts[0]?.composition || null
+  return (
+    <div className="mt-3 space-y-3 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-design-pick">
+      {layouts.length > 1 && (
+        <div>
+          <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#C9A24D]">Layout</p>
+          <div className="flex flex-wrap gap-1.5">
+            {layouts.map(t => {
+              const on = t.composition === layout
+              return (
+                <button key={t.composition} type="button" onClick={() => onLook({ ...look, layout: t.composition })} aria-pressed={on}
+                  className={`ohp-ai-press rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${on
+                    ? 'border-[#111827] bg-[#111827] text-white dark:border-[#C9A24D] dark:bg-[#C9A24D] dark:text-[#111827]'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-[#C9A24D]/60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200'}`}>
+                  {t.composition.charAt(0).toUpperCase() + t.composition.slice(1).replace(/_/g, ' ')}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+      <div>
+        <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#C9A24D]">Colors</p>
+        <div className="flex flex-wrap gap-1.5">
+          {colors.map(c => {
+            const on = c.id === look.colors
+            return (
+              <button key={c.id} type="button" onClick={() => onLook({ ...look, colors: c.id })} aria-pressed={on} title={c.description}
+                className={`ohp-ai-press inline-flex items-center gap-1.5 rounded-full border py-1 pl-1 pr-2.5 text-xs font-bold transition-colors ${on
+                  ? 'border-[#111827] bg-white text-[#111827] ring-2 ring-[#C9A24D]/60 dark:border-[#C9A24D] dark:bg-zinc-900 dark:text-white'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-[#C9A24D]/60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200'}`}>
+                <span className="relative h-5 w-5 overflow-hidden rounded-full ring-1 ring-black/10" style={{ background: c.swatch[0] }}>
+                  <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-tl-full" style={{ background: c.swatch[1] }} />
+                </span>
+                {c.id === 'brand' ? 'My brand' : c.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Something the helper SET UP for the agent (10/30) - nothing happens until they tap Confirm.
 // The server keeps the status, so a reload shows Done / Cancelled, never a second Confirm.
 export default function ActionCard({ messageId, action }: { messageId: string; action: AIToolCallRef }) {
@@ -74,6 +133,9 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   })
   const [busy, setBusy] = useState<'confirm' | 'cancel' | null>(null)
   const [fresh, setFresh] = useState(false)  // made just now (not a reopened chat) - bring it into view
+  const isDesign = action.client_action === 'create_design' && !!action.payload
+  const [look, setLook] = useState<Look>({ layout: (action.payload?.layout as string) || null, colors: (action.payload?.colors as string) || 'light' })
+  const idx = user?.plan_tier === 'IDX' || !!user?.is_admin
 
   const act = async (kind: 'confirm' | 'cancel') => {
     setBusy(kind)
@@ -84,7 +146,8 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
     if (r.success && data?.status === 'running' && data.client_action) {
       // Built here in the browser (a design), then recorded on the card.
       setState(st => ({ ...st, status: 'running', message: 'Making it...' }))
-      const out = await runClientAction(data.client_action, data.payload || {}, user)
+      const picked = data.client_action === 'create_design' ? { ...(look.layout ? { layout: look.layout } : {}), colors: look.colors } : {}
+      const out = await runClientAction(data.client_action, { ...(data.payload || {}), ...picked }, user)
       const saved = await api.ai.clientActionResult(action.record_id, messageId, out)
       setFresh(true)
       setState({ status: saved.data?.status || (out.ok ? 'done' : 'failed'), message: saved.data?.result_message || out.message, link: saved.data?.result_link || out.link || '', made: (saved.data as any)?.made || (out.made as Made) })
@@ -103,7 +166,8 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
       <p className="text-sm font-bold text-[#111827] dark:text-white">{action.title}</p>
       {!!action.details?.length && (
         <ul className="mt-1.5 space-y-1">
-          {action.details.map((d, i) => (
+          {/* a design's "Look:" line is the picker below (and the picture once made) - it could only go stale */}
+          {action.details.filter(d => !(isDesign && d.startsWith('Look:'))).map((d, i) => (
             <li key={i} className="flex gap-1.5 text-xs leading-snug text-gray-600 dark:text-zinc-300">
               <span className="mt-[5px] h-1 w-1 shrink-0 rounded-full bg-[#C9A24D]" />
               <span className="min-w-0 [overflow-wrap:anywhere]">{d}</span>
@@ -111,6 +175,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
           ))}
         </ul>
       )}
+      {isDesign && pending && <DesignPick payload={action.payload as Record<string, any>} look={look} onLook={setLook} idx={idx} />}
       {action.warning && pending && (
         <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
           <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" /> {action.warning}

@@ -2010,3 +2010,13 @@ div[role="button"]:active {
   object-position: 50% 0 !important;
   background-position: 50% 0 !important;
 }
+
+/* A home a Today's Rundown link points at (PropertyGrid highlightKey): a soft gold pulse around the
+   card for a few seconds so the agent finds it at once (owner, 10/30). Transform/opacity-free - only
+   the shadow moves, nothing blurs. */
+@keyframes ohpHomeGlow {
+  0%, 100% { box-shadow: 0 0 0 4px #C9A24D, 0 0 0 4px rgba(201, 162, 77, 0), 0 20px 50px -24px rgba(201, 162, 77, .55); }
+  50% { box-shadow: 0 0 0 4px #C9A24D, 0 0 0 14px rgba(201, 162, 77, .25), 0 26px 60px -20px rgba(201, 162, 77, .8); }
+}
+.ohp-home-glow { box-shadow: 0 0 0 4px #C9A24D; animation: ohpHomeGlow 1.3s ease-in-out 4; }
+@media (prefers-reduced-motion: reduce) { .ohp-home-glow { animation: none; } }

@@ -41,7 +41,7 @@ async function createDesign(p: Record<string, any>, user: User | null): Promise<
 
   let property: LinkedProperty | null = null
   if (situation.propertyAttached) {
-    const found = await fetchLinkedProperty(p.address || '')
+    const found = await fetchLinkedProperty(p.address || '', undefined, p.listing_key || undefined)
     property = found.property
     if (!property) return { ok: false, message: found.error || "I couldn't load that home's details." }
   }
