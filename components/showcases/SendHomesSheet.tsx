@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, Copy, Link2, Mail, MessageSquareText, RotateCcw, Send } from 'lucide-react'
+import { Check, CheckCircle2, Copy, Link2, Mail, MessageSquareText, RotateCcw, Send } from 'lucide-react'
 import OhSheet from '@/components/open-house-manager/OhSheet'
 import api from '@/lib/api-service'
 import { copyText } from '@/lib/copyText'
@@ -12,7 +12,7 @@ import { useToast } from '@/contexts/ToastContext'
 import type { Collection, Property } from '@/types'
 import {
   DEFAULT_SEND_MESSAGE, SEND_APP_LABEL, withShowcaseCount, fillSendMessage, fitSendEmail, homeStreet, openSendEmail, openSendText,
-  sendEmailSubject, sendHomeKey, sendHomeLink, sendTextBody, toSendTemplate, type SendMailApp, type SendMethod,
+  sendEmailSubject, sendHomeKey, sendHomeLink, sendLine, sendsByHome, sendTextBody, toSendTemplate, type HomeSend, type SendMailApp, type SendMethod,
 } from '@/lib/sendHome'
 
 // Send one home (or the homes picked in select mode) to the client (user, 10/30): Text or Email,
@@ -33,9 +33,9 @@ const prettyPhone = (v: string) => {
   return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : v
 }
 
-type SendState = { message: string | null; mail_app: SendMailApp | null; intro_texted_at: string | null }
+type SendState = { message: string | null; mail_app: SendMailApp | null; intro_texted_at: string | null; sends?: HomeSend[] }
 
-export default function SendHomesSheet({ open, onClose, homes, collection, showcaseUrl, agentFirst, homeCount = 0, onTurnOnLink, onSent }: {
+export default function SendHomesSheet({ open, onClose, homes, collection, showcaseUrl, agentFirst, homeCount = 0, onTurnOnLink, onSent, onSendsChange }: {
   open: boolean
   onClose: () => void
   homes: Property[]
@@ -47,6 +47,8 @@ export default function SendHomesSheet({ open, onClose, homes, collection, showc
   homeCount?: number
   onTurnOnLink?: () => void
   onSent?: (method: SendMethod) => void
+  /** The updated send log after this send is recorded - the Showcase marks those homes "Sent". */
+  onSendsChange?: (sends: HomeSend[]) => void
 }) {
   const { showToast } = useToast()
   const client = (collection.customer.firstName || '').trim()
@@ -130,18 +132,23 @@ export default function SendHomesSheet({ open, onClose, homes, collection, showc
   }
 
   const ids = homes.map(p => String(p.id))
+  // Log it (the homes show "Sent" on the Showcase) - the server's answer is the whole log.
+  const logSent = (m: SendMethod, sentIds: string[], copiedIt = false) =>
+    api.collections.markHomeSent(collection.id, m, !!message, sentIds, copiedIt).then(({ data }) => {
+      if (!data) return
+      setState(s => (s ? { ...s, intro_texted_at: data.intro_texted_at ?? s.intro_texted_at, sends: data.sends ?? s.sends } : s))
+      if (data.sends) onSendsChange?.(data.sends)
+    })
   const send = () => {
     if (!method || !links.length) return
     if (method === 'text') {
       openSendText(phone, textBody)
-      api.collections.markHomeSent(collection.id, 'text', !!message, ids).then(({ data }) => {
-        if (data?.intro_texted_at) setState(s => (s ? { ...s, intro_texted_at: data.intro_texted_at } : s))
-      })
+      logSent('text', ids)
     } else {
       if (!app || !mail) return
       const sendHomes = homes.slice(0, mail.count)
       openSendEmail(app, email, sendEmailSubject(sendHomes), mail.body)
-      api.collections.markHomeSent(collection.id, 'email', !!message, ids.slice(0, mail.count))
+      logSent('email', ids.slice(0, mail.count))
     }
     onSent?.(method)
     showToast(method === 'text' ? 'Messages opened - tap send there' : `${SEND_APP_LABEL[app!]} opened - tap send there`, 'success')
@@ -151,13 +158,17 @@ export default function SendHomesSheet({ open, onClose, homes, collection, showc
     const ok = await copyText(method === 'email' && mail ? `${sendEmailSubject(homes)}\n\n${mail.body}` : textBody)
     if (ok) {
       setCopied(true)
-      api.collections.markHomeSent(collection.id, method || 'text', !!message, ids)
+      logSent(method || 'text', method === 'email' && mail ? ids.slice(0, mail.count) : ids, true)
       window.setTimeout(() => setCopied(false), 1800)
     }
   }
 
+  // Sent before (owner 10/31): the agent may not remember - say how and when, right at the top.
+  const byHome = useMemo(() => sendsByHome(state?.sends), [state?.sends])
+  const past = homes.map(h => ({ h, sends: byHome[String(h.id)] || [] })).filter(x => x.sends.length)
   const one = homes.length === 1 ? homes[0] : null
-  const title = `Send to ${clientName || 'your client'}`
+  const allSent = past.length > 0 && past.length === homes.length
+  const title = `${allSent ? 'Send again' : 'Send'} to ${clientName || 'your client'}`
   const subtitle = one ? homeStreet(one) : `${homes.length} homes`
   const photo = one?.ListPictureURL ? normalizeImageUrl(one.ListPictureURL) : undefined
   const ready = !!method && !!links.length && (method === 'text' || (!!app && !pickingApp))
@@ -203,6 +214,33 @@ export default function SendHomesSheet({ open, onClose, homes, collection, showc
         </div>
       ) : (
         <div className="space-y-5" data-send-sheet>
+          {/* Sent before - how and when (newest first); sending again is just the steps below */}
+          {past.length > 0 && (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 dark:border-emerald-500/20 dark:bg-emerald-500/[0.07]" data-send-history>
+              <p className="flex items-center gap-2 text-[13px] font-black text-emerald-800 dark:text-emerald-300">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                {one ? `Already sent to ${clientName || 'them'}` : `${past.length} of these ${homes.length} homes were sent before`}
+              </p>
+              <ul className="mt-2 space-y-1 pl-6">
+                {one
+                  ? past[0].sends.slice(0, 3).map((s, i) => (
+                      <li key={s.at + i} className="flex items-center gap-1.5 text-[12px] font-semibold text-emerald-900/80 dark:text-emerald-200/80">
+                        {s.method === 'email' ? <Mail className="h-3.5 w-3.5 shrink-0 opacity-70" /> : <MessageSquareText className="h-3.5 w-3.5 shrink-0 opacity-70" />}
+                        <span className="first-letter:uppercase">{sendLine(s)}</span>
+                      </li>
+                    ))
+                  : past.slice(0, 4).map(({ h, sends }) => (
+                      <li key={h.id} className="truncate text-[12px] font-semibold text-emerald-900/80 dark:text-emerald-200/80">
+                        <span className="font-black">{homeStreet(h)}</span> - {sendLine(sends[0])}
+                      </li>
+                    ))}
+                {one && past[0].sends.length > 3 && <li className="text-[11px] font-bold text-emerald-900/60 dark:text-emerald-200/60">+ {past[0].sends.length - 3} more before that</li>}
+                {!one && past.length > 4 && <li className="text-[11px] font-bold text-emerald-900/60 dark:text-emerald-200/60">+ {past.length - 4} more</li>}
+              </ul>
+              <p className="mt-2 pl-6 text-[11px] font-semibold text-emerald-900/60 dark:text-emerald-200/60">Want to send {one ? 'it' : 'them'} again? Pick Text or Email below.</p>
+            </div>
+          )}
+
           {/* The homes going out (several: a strip you can swipe) */}
           {homes.length > 1 && (
             <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden">

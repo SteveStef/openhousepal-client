@@ -19,6 +19,7 @@ import InviteCard, { type InviteCardData } from './InviteCard'
 import InviteFlow, { ShareStep, TYPE_ART } from './InviteFlow'
 import { announceInvitesChanged } from './FormsInvitesChrome'
 import { cardTitle } from '@/lib/inviteTitle'
+import { DRAFTS_EVENT, dropDraft, readDrafts, savedAgo, type InviteDraftSave } from './inviteDrafts'
 
 // Forms & Invites -> Invites: start a new invite (four kinds, each a living card like the Tools
 // page's), your invites with their RSVP counts, and each invite's guest list / answers / share /
@@ -30,7 +31,16 @@ export default function InvitesPanel() {
   const params = useSearchParams()
   const [presets, setPresets] = useState<InvitePresets | null>(null)
   const [invites, setInvites] = useState<Invite[] | null>(null)
-  const [flow, setFlow] = useState<{ type?: InviteType | null; editing?: Invite | null } | null>(null)
+  const [flow, setFlow] = useState<{ type?: InviteType | null; editing?: Invite | null; draftId?: string | null } | null>(null)
+  // Unfinished invites (owner, 10/31): the maker keeps them as it goes; they wait here.
+  const [drafts, setDrafts] = useState<InviteDraftSave[]>([])
+  useEffect(() => {
+    const read = () => setDrafts(readDrafts(user?.id))
+    read()
+    window.addEventListener(DRAFTS_EVENT, read)
+    window.addEventListener('storage', read)
+    return () => { window.removeEventListener(DRAFTS_EVENT, read); window.removeEventListener('storage', read) }
+  }, [user?.id])
   const [openId, setOpenId] = useState<string | null>(null)
   const [err, setErr] = useState('')
 
@@ -86,6 +96,13 @@ export default function InvitesPanel() {
         </div>
       </section>
 
+      <DraftsShelf drafts={drafts.filter(d => !flow && (!d.inviteId || (invites || []).some(i => i.id === d.inviteId && (i.updated_at || null) === d.base)))} host={host}
+        onContinue={d => {
+          const inv = d.inviteId ? (invites || []).find(i => i.id === d.inviteId) : null
+          setFlow(inv ? { editing: inv } : { draftId: d.id })
+        }}
+        onDiscard={d => dropDraft(user?.id, d.id)} />
+
       <section>
         <div className="mb-4 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
           <div>
@@ -113,7 +130,7 @@ export default function InvitesPanel() {
       </section>
 
       {presets && (
-        <InviteFlow open={!!flow} onClose={() => setFlow(null)} presets={presets} startType={flow?.type} editing={flow?.editing}
+        <InviteFlow open={!!flow} onClose={() => setFlow(null)} presets={presets} startType={flow?.type} editing={flow?.editing} draftId={flow?.draftId}
           onSaved={inv => { setInvites(list => [inv, ...(list || []).filter(x => x.id !== inv.id)]) }} />
       )}
       <InviteDetailSheet id={openId} host={host} onClose={closeDetail}
@@ -180,6 +197,54 @@ function EnvelopeArt({ tint, icon, delay }: { tint: string; icon: React.ReactNod
       </svg>
       <span className="ip-seal absolute bottom-[8px] left-1/2 h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-[#e8c97a] shadow" style={{ animationDelay: `${delay}s` }} />
     </div>
+  )
+}
+
+// ------------------------------------------------------------------ unfinished invites
+
+function DraftsShelf({ drafts, host, onContinue, onDiscard }: {
+  drafts: InviteDraftSave[]; host: { name: string; brokerage: string | null; photo: string | null; area?: string | null }
+  onContinue: (d: InviteDraftSave) => void; onDiscard: (d: InviteDraftSave) => void
+}) {
+  return (
+    <AnimatePresence initial={false}>
+      {drafts.length > 0 && (
+        <motion.section key="drafts" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden" data-testid="invite-drafts">
+          <div className="mb-3">
+            <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.28em] text-[#8b7355] dark:text-[#e8c97a]"><Pencil className="h-3 w-3" /> Saved as you went</p>
+            <h3 className="mt-1 font-serif text-2xl font-black tracking-tight text-[#111827] dark:text-white">Pick up where you left off</h3>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <AnimatePresence initial={false}>
+              {drafts.map(d => {
+                const data: InviteCardData = { ...d.draft, hostName: host.name, hostBrokerage: host.brokerage, hostPhoto: host.photo, hostArea: host.area || null }
+                return (
+                  <motion.div key={d.id} layout="position" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.94 }} transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+                    className="flex items-center gap-3.5 rounded-3xl border border-dashed border-[#C9A24D]/50 bg-[#fffdf8] p-3 dark:border-[#C9A24D]/30 dark:bg-[#141416]" data-testid="invite-draft">
+                    <div className="shrink-0" style={{ width: 58 }}><InviteCard data={data} width={58} shine={false} /></div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[9.5px] font-black uppercase tracking-wider text-[#a8843a] dark:text-[#e8c97a]">{d.inviteId ? 'Unsaved changes' : `Draft · ${TYPE_META[d.draft.invite_type]?.short || 'Invite'}`}</p>
+                      <p className="truncate font-serif text-[15px] font-black leading-tight text-[#111827] dark:text-white">{cardTitle(d.draft.title, d.draft.invite_type).text || 'Your invite'}</p>
+                      <p className="truncate text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">Saved {savedAgo(d.at)}</p>
+                      <div className="mt-2 flex gap-1.5">
+                        <button type="button" onClick={() => onContinue(d)} data-testid="invite-draft-continue"
+                          className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#111827] px-3.5 text-[11px] font-black text-white transition hover:bg-black dark:bg-white dark:text-[#111827]">
+                          Continue <ArrowRight className="h-3.5 w-3.5" />
+                        </button>
+                        <button type="button" onClick={() => onDiscard(d)} data-testid="invite-draft-discard"
+                          className="inline-flex h-9 items-center gap-1 rounded-xl px-3 text-[11px] font-black text-gray-500 transition hover:bg-gray-100 hover:text-red-600 dark:text-gray-400 dark:hover:bg-white/10">
+                          <Trash2 className="h-3.5 w-3.5" /> Discard
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+          </div>
+        </motion.section>
+      )}
+    </AnimatePresence>
   )
 }
 
@@ -554,12 +619,16 @@ function AnswersSummary({ inv }: { inv: InviteDetail }) {
   )
 }
 
+// Owner, 10/31 (lag): the little envelopes peek only while you point at a card - nothing moves on
+// its own.
 const PANEL_CSS = `
-.ip-peek{animation:ipPeek 4.2s ease-in-out infinite}
+.ip-peek{transform:translate(-50%,10px)}
+.group:hover .ip-peek{animation:ipPeek 2.4s ease-in-out infinite}
 @keyframes ipPeek{0%,100%{transform:translate(-50%,10px)}45%,60%{transform:translate(-50%,-4px) rotate(-3deg)}}
-.ip-seal{animation:ipSeal 4.2s ease-in-out infinite}
+.ip-seal{transform:translateX(-50%)}
+.group:hover .ip-seal{animation:ipSeal 2.4s ease-in-out infinite}
 @keyframes ipSeal{0%,100%{transform:translateX(-50%) scale(1)}45%,60%{transform:translateX(-50%) scale(.7);opacity:.6}}
-.ip-float{animation:ipFloat 3.6s ease-in-out infinite}
+.ip-float{transform:rotate(-2deg)}
 @keyframes ipFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-6px) rotate(2deg)}}
-@media (prefers-reduced-motion:reduce){.ip-peek,.ip-seal,.ip-float{animation:none}}
+@media (prefers-reduced-motion:reduce){.ip-peek,.ip-seal,.ip-float,.group:hover .ip-peek,.group:hover .ip-seal{animation:none}}
 `

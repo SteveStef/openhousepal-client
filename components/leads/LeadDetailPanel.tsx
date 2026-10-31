@@ -25,6 +25,7 @@ import NotesThread from './NotesThread'
 import { copyText } from '@/lib/copyText'
 import LuxeSelect from '@/components/ui/LuxeSelect'
 import MotionModal from '@/components/ui/MotionModal'
+import LeadOpenHouseShowcase from './LeadOpenHouseShowcase'
 
 // Something in this person's alert settings is switched off (the Alert settings button says so).
 const alertsOff = (a?: { calendar: boolean; in_app: boolean; emails: boolean }) => !!a && (!a.calendar || !a.in_app || !a.emails)
@@ -135,6 +136,8 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
   const followupsOn = useFollowupsEnabled().enabled !== false
   // This person's alert switches (owner, 10/27) - a sheet from the Follow-ups section.
   const [alertsOpen, setAlertsOpen] = useState(false)
+  // Just changed "has an agent": the Showcase question (11/01).
+  const [askShowcase, setAskShowcase] = useState<'yes' | 'no' | null>(null)
   const reduceMotion = useReducedMotion()
   const [lead, setLead] = useState<LeadDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -394,7 +397,14 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
                 className="flex-1 sm:w-[128px] sm:flex-none"
                 ariaLabel="Do they have an agent?"
                 value={lead.represented}
-                onChange={v => { if (v !== lead.represented) applyUpdate({ represented: v }) }}
+                onChange={async v => {
+                  if (v === lead.represented) return
+                  const ok = await applyUpdate({ represented: v })
+                  // Their sign-ins and follow-up follow the change on the server; then ask about their Showcase.
+                  if (ok && (v === 'yes' || v === 'no')) {
+                    setAskShowcase(v)
+                  }
+                }}
                 align="right"
                 menuWidth={220}
                 options={REPRESENTED.map(r => ({ value: r.id, label: r.label, dot: r.hex, hint: r.hint }))}
@@ -474,9 +484,13 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
               </span>}>
                 Follow-ups
               </SectionTitle>
-              <TasksPanel leadId={lead.id} leadName={lead.name} events={events} singleColumn onChanged={() => { reload(); onChanged?.() }} />
+              <TasksPanel key={`${lead.id}:${lead.represented}`} leadId={lead.id} leadName={lead.name} events={events} singleColumn onChanged={() => { reload(); onChanged?.() }} />
             </Card>
           )}
+
+          {/* The open house Showcase switch, like the Visitors window's (owner, 11/01) */}
+          <LeadOpenHouseShowcase leadId={lead.id} represented={lead.represented} asked={askShowcase} onAsked={() => setAskShowcase(null)}
+            Card={Card} Title={SectionTitle} />
 
           {/* On a phone their Showcase comes before the long history (the side column is last). */}
           {(lead.showcases || []).length > 0 && <div className="space-y-4 lg:hidden">{(lead.showcases || []).map(sc => <ShowcaseCard key={sc.id} sc={sc} onCopy={copy} />)}</div>}

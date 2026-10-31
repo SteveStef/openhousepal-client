@@ -4,7 +4,7 @@ import { useEffect, useCallback, useRef, useState } from 'react'
 import { AlertTriangle, ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import api from '@/lib/api-service'
-import type { MonthlyAiUsage } from '@/types'
+import type { ChatUsage, MonthlyAiUsage } from '@/types'
 import { useAiActivity } from '@/lib/aiActivity'
 
 /**
@@ -105,14 +105,18 @@ function useCountUp(target: number | null) {
  * hesitates like a tachometer instead of sitting still.
  */
 export default function MonthlyAiUsageMeter({
+  kind = 'ai',
   refreshKey,
   variant = 'card',
   showSpend = false,
   onDark = false,
   compact = false,
   stretch = false,
+  onlyNearLimit = false,
   className = '',
 }: {
+  /** 'chat' = the AI helper chat's own "Chat usage" bar (its own allowance, owner 11/01). */
+  kind?: 'ai' | 'chat'
   refreshKey?: number | string
   variant?: 'card' | 'inline' | 'chip'
   showSpend?: boolean
@@ -120,15 +124,17 @@ export default function MonthlyAiUsageMeter({
   compact?: boolean
   /** compact inline only: fill the container's width (the bar grows), e.g. inside a header card. */
   stretch?: boolean
+  /** Show only at 80%+ (with the upgrade offer) - e.g. above the chat's typing box. */
+  onlyNearLimit?: boolean
   className?: string
 }) {
-  const [data, setData] = useState<MonthlyAiUsage | null>(null)
+  const [data, setData] = useState<(MonthlyAiUsage & ChatUsage) | ChatUsage | null>(null)
   const [why, setWhy] = useState(false)
   const aiActive = useAiActivity()
 
   const load = useCallback(() => {
-    api.ai.monthlyUsage().then(r => { if (r.success && r.data) setData(r.data) })
-  }, [])
+    ;(kind === 'chat' ? api.ai.chatUsage() : api.ai.monthlyUsage()).then(r => { if (r.success && r.data) setData(r.data) })
+  }, [kind])
 
   useEffect(() => { load() }, [load, refreshKey])
 
@@ -145,6 +151,19 @@ export default function MonthlyAiUsageMeter({
 
   const exhausted = data.exhausted || pct >= 100
   const warning = !exhausted && (data.near_limit || pct >= 80)
+  const chat = kind === 'chat'
+  const title = chat ? 'Chat Usage' : 'Monthly AI Usage'
+  const what = chat ? 'chat' : 'AI'
+  // Both bars reset on the agent's billing day (11/01), not the 1st.
+  const resetsOn = data.resets_at
+    ? new Date(data.resets_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+    : null
+  const resetsText = resetsOn ? `resets ${resetsOn}` : 'resets next month'
+  // Near or at the chat limit: the plan with double the chat (owner, 11/01).
+  const upgrade = chat && (exhausted || warning) && 'upgrade' in data ? data.upgrade : null
+  const upgradeHref = upgrade ? `/upgrade-required?tier=${upgrade.tier}&feature=${encodeURIComponent(upgrade.times === 2 ? '2x AI chat' : 'More AI chat')}` : ''
+  const upgradeLabel = upgrade ? `Upgrade to ${upgrade.name} for ${upgrade.times === 2 ? '2x' : 'more'} the chat` : ''
+  if (onlyNearLimit && !exhausted && !warning) return null
 
   const barColor = exhausted ? 'bg-red-700' : warning ? 'bg-amber-400' : 'bg-[#C9A24D]'
   const fill = (
@@ -168,7 +187,7 @@ export default function MonthlyAiUsageMeter({
     <>
       <div className="flex items-center justify-between gap-3">
         <span className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide ${labelColor}`}>
-          <AiGaugeIcon className={`h-3.5 w-3.5 ${pctColor} ${pulseCls}`} active={aiActive} /> Monthly AI Usage
+          <AiGaugeIcon className={`h-3.5 w-3.5 ${pctColor} ${pulseCls}`} active={aiActive} /> {title}
         </span>
         <span className={`text-xs font-black tabular-nums ${pctColor}`}>{pct}%</span>
       </div>
@@ -178,13 +197,18 @@ export default function MonthlyAiUsageMeter({
       {recentNote && <p className={`mt-1 text-[10px] font-black ${recentColor}`}>{recentNote}</p>}
       {exhausted ? (
         <p className={`mt-1.5 flex items-center gap-1 text-[11px] font-bold ${onDark ? 'text-red-300' : 'text-red-600 dark:text-red-400'}`}>
-          <AlertTriangle className="h-3 w-3" /> You&apos;ve reached this month&apos;s AI limit — it resets on the 1st.
+          <AlertTriangle className="h-3 w-3" /> You&apos;ve reached this month&apos;s {what} limit — it {resetsOn ? `resets on ${resetsOn}` : 'resets next month'}.
         </p>
       ) : warning ? (
         <p className={`mt-1.5 text-[11px] font-bold ${onDark ? 'text-amber-300' : 'text-amber-600 dark:text-amber-400'}`}>
-          You&apos;re close to this month&apos;s AI limit.
+          You&apos;re close to this month&apos;s {what} limit.
         </p>
       ) : null}
+      {upgrade && (
+        <a href={upgradeHref} data-testid="chat-usage-upgrade" className="mt-2 inline-flex items-center rounded-full bg-[#111827] px-3 py-1.5 text-[11px] font-black text-white hover:bg-black dark:bg-white dark:text-[#111827]">
+          {upgradeLabel}
+        </a>
+      )}
       {(data.breakdown?.length || 0) > 0 && (
         <div className="mt-1.5">
           <button type="button" onClick={() => setWhy(v => !v)} className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wide ${labelColor} hover:opacity-80`}>
@@ -206,7 +230,7 @@ export default function MonthlyAiUsageMeter({
       )}
       {showSpend && (
         <p className={`mt-1 text-[10px] font-bold ${spendColor}`}>
-          ${data.used_usd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} used this month
+          ${data.used_usd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} used this period
         </p>
       )}
     </>
@@ -216,7 +240,7 @@ export default function MonthlyAiUsageMeter({
     return (
       <span className={`inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] font-black uppercase tracking-wide ${labelColor} ${className}`}>
         <AiGaugeIcon className={`h-3.5 w-3.5 shrink-0 ${pctColor} ${pulseCls}`} active={aiActive} />
-        Monthly AI Usage
+        {title}
         <span className={`tabular-nums ${pctColor}`}>{pct}%</span>
         {recent > 0 && <span className={`tabular-nums ${recentColor}`}>(+{recent}% last hour)</span>}
       </span>
@@ -233,7 +257,7 @@ export default function MonthlyAiUsageMeter({
       <div className={`${stretch ? 'flex w-full py-1.5' : 'inline-flex py-2'} flex-col gap-1 rounded-xl border ${cardTone} px-3 ${className}`}>
         <div className="flex items-center gap-2">
           <AiGaugeIcon className={`h-3.5 w-3.5 shrink-0 ${pctColor} ${pulseCls}`} active={aiActive} />
-          <span className={`shrink-0 text-[10px] font-black uppercase tracking-wide ${labelColor}`}>AI Usage</span>
+          <span className={`shrink-0 text-[10px] font-black uppercase tracking-wide ${labelColor}`}>{chat ? 'Chat Usage' : 'AI Usage'}</span>
           <div className={`flex h-1.5 ${stretch ? 'min-w-0 flex-1' : 'w-14 shrink-0 sm:w-28'} overflow-hidden rounded-full ${trackColor}`}>
             {fill}
           </div>
@@ -245,7 +269,7 @@ export default function MonthlyAiUsageMeter({
         {recentNote && <p className={`whitespace-nowrap text-[9px] font-black leading-tight sm:hidden ${recentColor}`}>+{recent}% in the last hour</p>}
         {exhausted ? (
           <p className={`flex items-center gap-1 whitespace-nowrap text-[9px] font-bold leading-tight ${onDark ? 'text-red-300' : 'text-red-600 dark:text-red-400'}`}>
-            <AlertTriangle className="h-2.5 w-2.5 shrink-0" /> Limit reached — resets the 1st.
+            <AlertTriangle className="h-2.5 w-2.5 shrink-0" /> Limit reached — {resetsText}.
           </p>
         ) : warning ? (
           <p className={`whitespace-nowrap text-[9px] font-bold leading-tight ${onDark ? 'text-amber-300' : 'text-amber-600 dark:text-amber-400'}`}>

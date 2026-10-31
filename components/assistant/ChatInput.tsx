@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react'
 import { Send, Loader2, Mic, PhoneCall, Keyboard } from 'lucide-react'
 
 interface ChatInputProps {
-  onSend: (message: string) => void
+  // false back = it didn't go through (e.g. too many at once) - their words go back in the box
+  onSend: (message: string) => void | boolean | Promise<void | boolean>
   disabled?: boolean
   maxChars?: number
   placeholder?: string
@@ -40,8 +41,6 @@ function getSpeechRecognition(): (new () => SpeechRecognitionLike) | null {
   return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null
 }
 
-const SILENCE_AUTO_SEND_MS = 2000
-
 export default function ChatInput({ onSend, disabled, maxChars = 12000, placeholder, onUserSpeaking, onStartCall }: ChatInputProps) {
   const [value, setValue] = useState('')
   const [isListening, setIsListening] = useState(false)
@@ -52,22 +51,12 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
   // Mirrors `value` synchronously so recognition callbacks (created once per session,
   // not per render) always see the latest transcript instead of a stale closed-over value.
   const liveValueRef = useRef('')
-  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Tracks whether the user wants continuous voice mode on, independent of any single
-  // recognition session - lets onend distinguish "restart automatically" from "user stopped it".
+  // Tracks whether the user wants dictation on, independent of any single recognition session -
+  // lets onend tell "restart automatically" (the browser cut it off) from "user stopped it".
   const micModeRef = useRef(false)
-  // Set right before we stop recognition ourselves (after 2s of silence) so onend knows
-  // this stop means "send what was captured", not "the browser/user ended the session".
-  const autoSendRef = useRef(false)
-  // Mirrors `disabled` synchronously, same reason as liveValueRef: a long-lived recognition
-  // session's onend closure can outlive several renders, so reading the `disabled` prop
-  // directly there would silently use a stale value and let two sends race each other
-  // (each thinking nothing was in flight yet) - the exact bug that made a voice follow-up
-  // spawn a second, context-less conversation instead of continuing the first.
+  // Mirrors `disabled` synchronously, same reason as liveValueRef - handleSend reads it so a
+  // second send can't race a reply that's still on its way.
   const disabledRef = useRef(!!disabled)
-  // Set when a silence-triggered auto-send fires while disabledRef is true (a reply is still
-  // in flight) - the transcript is kept, not dropped, and resent automatically once free.
-  const pendingSendRef = useRef(false)
 
   useEffect(() => {
     setVoiceSupported(getSpeechRecognition() !== null)
@@ -80,47 +69,28 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
   const handleSend = useCallback((textOverride?: string): boolean => {
     const trimmed = (textOverride ?? liveValueRef.current).trim()
     if (!trimmed || disabledRef.current || trimmed.length > maxChars) return false
-    onSend(trimmed)
+    Promise.resolve(onSend(trimmed)).then(ok => {
+      if (ok === false && !liveValueRef.current.trim()) { setValue(trimmed); liveValueRef.current = trimmed }
+    })
     setValue('')
     liveValueRef.current = ''
+    // Send ends a dictation - the mic switches off (it never sends by itself).
+    if (micModeRef.current) {
+      micModeRef.current = false
+      recognitionRef.current?.stop()
+      setIsListening(false)
+    }
     return true
   }, [maxChars, onSend])
 
-  // Lets the disabled-watching effect below call the latest handleSend without needing it in
-  // its own dependency array (which would refire that effect - and skip a pending resend -
-  // every time onSend/maxChars change instead of only when disabled actually toggles).
-  const handleSendRef = useRef(handleSend)
-  useEffect(() => { handleSendRef.current = handleSend }, [handleSend])
-
-  useEffect(() => {
-    disabledRef.current = !!disabled
-    if (!disabled && pendingSendRef.current) {
-      pendingSendRef.current = false
-      handleSendRef.current()
-    }
-  }, [disabled])
+  useEffect(() => { disabledRef.current = !!disabled }, [disabled])
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      handleSend()
+      handleSend()   // while a reply is coming this does nothing - what they typed stays put
     }
   }
-
-  const clearSilenceTimer = () => {
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current)
-      silenceTimerRef.current = null
-    }
-  }
-
-  const scheduleAutoSend = useCallback(() => {
-    clearSilenceTimer()
-    silenceTimerRef.current = setTimeout(() => {
-      autoSendRef.current = true
-      recognitionRef.current?.stop()
-    }, SILENCE_AUTO_SEND_MS)
-  }, [])
 
   const startRecognitionSession = useCallback(() => {
     const SpeechRecognition = getSpeechRecognition()
@@ -140,29 +110,14 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
       const next = baseValueRef.current + transcript
       setValue(next)
       liveValueRef.current = next
-      if (transcript.trim()) {
-        onUserSpeaking?.()
-        scheduleAutoSend()
-      }
+      // No auto-send when they pause (owner, 11/01): it keeps listening until they tap the mic
+      // off or tap Send - they can read it over and fix it first.
+      if (transcript.trim()) onUserSpeaking?.()
     }
 
     recognition.onend = () => {
-      clearSilenceTimer()
-      const wasAutoSend = autoSendRef.current
-      autoSendRef.current = false
-
-      if (wasAutoSend && !handleSend()) {
-        // A reply to the previous turn is still in flight (disabledRef is true) - don't drop
-        // what was just said, resend it automatically the moment that reply comes back (see
-        // the `disabled`-watching effect above). This is what used to race: sending anyway
-        // here could beat the first reply back, and since `activeConversation` hadn't been
-        // set yet, each one independently created its own new conversation with no memory of
-        // the other - exactly the "every follow-up starts a new chat with no context" bug.
-        pendingSendRef.current = true
-      }
-      // Keep the conversation going without making the user re-tap the mic - whether this
-      // session ended because of our 2s-silence auto-send or the browser cut it off on its
-      // own (Chrome does this periodically even with continuous:true).
+      // The browser cuts a session off on its own now and then (Chrome does, even with
+      // continuous:true) - keep listening, adding to what's already in the box.
       if (micModeRef.current) {
         startRecognitionSession()
       } else {
@@ -171,7 +126,6 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
     }
 
     recognition.onerror = (event: any) => {
-      clearSilenceTimer()
       const err = event?.error
       if (err === 'not-allowed' || err === 'service-not-allowed') {
         micModeRef.current = false
@@ -184,13 +138,11 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
     recognitionRef.current = recognition
     recognition.start()
     setIsListening(true)
-  }, [handleSend, scheduleAutoSend])
+  }, [onUserSpeaking])
 
   const toggleListening = () => {
     if (micModeRef.current) {
       micModeRef.current = false
-      autoSendRef.current = false
-      clearSilenceTimer()
       recognitionRef.current?.stop()
       setIsListening(false)
       return
@@ -213,7 +165,6 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
   useEffect(() => {
     return () => {
       micModeRef.current = false
-      clearSilenceTimer()
       recognitionRef.current?.stop()
     }
   }, [])
@@ -282,7 +233,10 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
           rows={1}
           className="flex-1 resize-none rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/60 px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/50 focus:border-[#C9A24D]/50 transition-all max-h-32"
           style={{ minHeight: '48px', scrollbarGutter: 'stable' }}
-          disabled={disabled}
+          // Never switched off while a reply is coming (owner, 10/31): a disabled box drops the
+          // cursor, so typing the next message needed a tap back in. They can type ahead; only
+          // sending waits (handleSend checks disabledRef).
+          aria-busy={disabled || undefined}
         />
         <button
           onClick={() => handleSend()}

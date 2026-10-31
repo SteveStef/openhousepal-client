@@ -83,9 +83,9 @@ export default function LuxeHero({
             <div className="absolute inset-0 bg-[radial-gradient(110%_130%_at_100%_0%,rgba(201,162,77,.22),transparent_55%),linear-gradient(135deg,#fffdf8_0%,#fbf6ec_55%,#f4ead7_100%)] dark:hidden" />
             <div className="absolute inset-0 hidden bg-[radial-gradient(120%_140%_at_100%_0%,rgba(201,162,77,.20),transparent_55%),linear-gradient(135deg,#0b0f0e_0%,#111827_55%,#1d1810_100%)] dark:block" />
           </>}
-      <div className="lx-aurora-a pointer-events-none absolute -bottom-28 -left-16 h-80 w-80 rounded-full bg-[#C9A24D]/25 blur-3xl dark:bg-[#C9A24D]/25" />
-      <div className="lx-aurora-b pointer-events-none absolute -top-32 left-1/3 h-72 w-[28rem] rounded-full bg-[#f3d9a0]/40 blur-3xl dark:bg-[#8b6a2b]/25" />
-      <div className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-white/70 blur-3xl dark:hidden" />
+      <div className="lx-aurora-a pointer-events-none absolute -bottom-44 -left-32 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.25),rgba(201,162,77,.12)_45%,transparent)]" />
+      <div className="lx-aurora-b pointer-events-none absolute -top-48 left-[28%] h-[26rem] w-[36rem] rounded-full bg-[radial-gradient(closest-side,rgba(243,217,160,.40),rgba(243,217,160,.18)_45%,transparent)] dark:bg-[radial-gradient(closest-side,rgba(139,106,43,.25),rgba(139,106,43,.11)_45%,transparent)]" />
+      <div className="pointer-events-none absolute -right-32 -top-40 h-[22rem] w-[22rem] rounded-full bg-[radial-gradient(closest-side,rgba(255,255,255,.70),rgba(255,255,255,.3)_45%,transparent)] dark:hidden" />
       {covers.length === 0 && <div className="lx-grid pointer-events-none absolute inset-0" />}
       {Icon && covers.length === 0 && <Icon aria-hidden className="lx-mark pointer-events-none absolute -bottom-10 right-6 hidden h-56 w-56 text-[#C9A24D]/[0.10] sm:block dark:text-[#e8c97a]/[0.06]" strokeWidth={0.8} />}
       <div className="lx-glow pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover/lx:opacity-100" />

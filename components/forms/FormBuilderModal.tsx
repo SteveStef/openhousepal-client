@@ -69,6 +69,8 @@ interface FormBuilderModalProps {
   onToggleRedirectToShowcase?: () => void
   /** Unsaved changes - the Save button shimmers until they're saved. */
   isDirty?: boolean
+  /** Throw away the form's unsaved draft (closing keeps it). */
+  onDiscard?: () => void
   onTogglePropertyPhotoCarousel: () => void
   onToggleBackgroundEffects: () => void
   onToggleWelcomeTextEffects: () => void
@@ -87,7 +89,7 @@ interface FormBuilderModalProps {
 }
 
 export default function FormBuilderModal({
-  isOpen, form, onClose, onUpdateField, onToggleBranding, onToggleRedirectToAgentHub, onToggleRedirectToShowcase, isDirty, hubLook, brandLook, luxeAllowed, onUpdateLook, onApplyLookToAll, onTogglePropertyPhotoCarousel, onToggleBackgroundEffects, onToggleWelcomeTextEffects, onUpdateBrandingLayout, onUpdateLinkedProperty,
+  isOpen, form, onClose, onUpdateField, onToggleBranding, onToggleRedirectToAgentHub, onToggleRedirectToShowcase, isDirty, onDiscard, hubLook, brandLook, luxeAllowed, onUpdateLook, onApplyLookToAll, onTogglePropertyPhotoCarousel, onToggleBackgroundEffects, onToggleWelcomeTextEffects, onUpdateBrandingLayout, onUpdateLinkedProperty,
   onUpdateQuestion, onAddQuestion, onRemoveQuestion, onReorderQuestions, onSave, onResetToDefault, saveStatus, showPropertyLink, branding, defaultDescription,
 }: FormBuilderModalProps) {
   const [selectedBlockId, setSelectedBlockId] = useState<BlockId>('welcome')
@@ -149,7 +151,9 @@ export default function FormBuilderModal({
         <div className="flex items-center justify-between gap-3 border-b border-gray-100 bg-white px-5 py-4 dark:border-gray-800 dark:bg-[#0B0B0B]">
           <div className="min-w-0">
             <p className="truncate text-lg font-black tracking-tight text-[#111827] dark:text-white">{form.title}</p>
-            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500">{form.questions.length} questions<span className="hidden md:inline"> · drag to reorder</span></p>
+            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500">{form.questions.length} questions<span className="hidden md:inline"> · drag to reorder</span>
+              {isDirty && <span className="hidden text-amber-600 dark:text-amber-300 sm:inline" data-testid="form-draft-note"> · Draft kept until you save</span>}
+            </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <button
@@ -164,6 +168,12 @@ export default function FormBuilderModal({
             >
               <Settings className="h-4 w-4" />
             </button>
+            {isDirty && onDiscard && (
+              <button type="button" onClick={onDiscard} data-testid="form-draft-discard" aria-label="Discard draft" title="Discard draft"
+                className="inline-flex items-center rounded-xl p-2.5 text-xs font-black text-gray-500 transition hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-500/10 sm:px-3 sm:py-2">
+                <RotateCcw className="h-4 w-4 sm:hidden" /><span className="hidden sm:inline">Discard</span>
+              </button>
+            )}
             <SaveFormButton status={saveStatus} dirty={isDirty} onClick={onSave} className="min-w-[104px]" />
             <button onClick={onClose} className="rounded-full p-2 text-gray-400 transition hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" aria-label="Close builder">
               <X className="h-5 w-5" />

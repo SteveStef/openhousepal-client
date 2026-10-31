@@ -94,7 +94,17 @@ export default function InviteLuxeOpening({ data, hostName, onOpened, autoMs = 1
   const free = phase === 'free' || phase === 'out'
   const cracked = phase !== 'idle'
   const seal = Math.max(frame ? 34 : 62, Math.round(envW * 0.17))
-  const envTop = (H - envH) / 2 + (frame ? 0 : 30)
+  const scale = frame ? W / 390 : 1
+  // "You're invited" sits ABOVE the envelope, never under it (owner, 10/31: in the builder's small
+  // preview the envelope covered the words). The words and the envelope are one block centred on
+  // the screen: the words' real height, a gap that clears the envelope's float-in and bob, then the
+  // envelope.
+  const fromSize = Math.max(7, 10 * scale)
+  const wordSize = (small ? 40 : 52) * scale
+  const wordsH = fromSize * 1.5 + 4 + wordSize * 1.15 + 12 * scale + 1
+  const gap = Math.max(12, (small ? 34 : 44) * scale)
+  const wordsTop = Math.max(frame ? 14 : 24, (H - (wordsH + gap + envH)) / 2 - (frame ? 6 : 0))
+  const envTop = wordsTop + wordsH + gap
   // Where the card sits inside: just under the pocket's V (fully hidden until the flap opens).
   const cardTop = envH * 0.7
   // 1) it rises half out of the envelope; 2) the envelope drops away below it (the card held still
@@ -103,7 +113,6 @@ export default function InviteLuxeOpening({ data, hostName, onOpened, autoMs = 1
   const drop = envH + H * 0.35
   const centerShift = (H - cardH * 1.06) / 2 - (envTop + cardTop + liftA)
   const cardY = free ? liftA - drop + centerShift : rise ? liftA : 0
-  const scale = frame ? W / 390 : 1
   const ease = [0.45, 0, 0.2, 1] as const
   const dust = useMemo(() => Array.from({ length: frame ? 14 : 30 }, (_, i) => ({
     left: rnd(i) * 100, top: rnd(i, 2) * 100, size: 1 + Math.round(rnd(i, 3) * 2.4), delay: rnd(i, 4) * 7, dur: 7 + rnd(i, 5) * 8,
@@ -155,12 +164,12 @@ export default function InviteLuxeOpening({ data, hostName, onOpened, autoMs = 1
       </motion.div>
 
       {/* "You're invited", written in foil */}
-      <div className="pointer-events-none absolute inset-x-0 text-center" style={{ top: Math.max(frame ? 10 : 40, envTop - (frame ? 58 : 132) * scale) }}>
-        <motion.p className="font-black uppercase" style={{ fontSize: Math.max(7, 10 * scale), letterSpacing: `${0.5 * scale}em`, color: `rgba(${m.lightRgb},.75)` }}
+      <div className="pointer-events-none absolute inset-x-0 text-center" style={{ top: wordsTop }} data-testid="luxe-opening-words">
+        <motion.p className="font-black uppercase" style={{ fontSize: fromSize, lineHeight: 1.5, letterSpacing: `${0.5 * scale}em`, color: `rgba(${m.lightRgb},.75)` }}
           initial={{ opacity: 0, y: 8 }} animate={{ opacity: cracked ? 0 : 1, y: 0 }} transition={{ delay: cracked ? 0 : 0.25, duration: 0.6 }}>
           {hostName ? `From ${hostName}` : 'A private invitation'}
         </motion.p>
-        <motion.h2 className="mt-1" style={{ fontFamily: SERIF, fontSize: (small ? 40 : 52) * scale, lineHeight: 1.05, fontStyle: 'italic', fontWeight: 400 }}
+        <motion.h2 className="mt-1" style={{ fontFamily: SERIF, fontSize: wordSize, lineHeight: 1.15, fontStyle: 'italic', fontWeight: 400, whiteSpace: 'nowrap' }}
           animate={{ opacity: cracked ? 0 : 1, y: cracked ? -14 : 0 }} transition={{ duration: 0.45 }}>
           {word.split('').map((ch, i) => (
             <motion.span key={i} className="lxo-foil inline-block" style={{ backgroundImage: foil, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', whiteSpace: 'pre' }}
@@ -169,18 +178,20 @@ export default function InviteLuxeOpening({ data, hostName, onOpened, autoMs = 1
             </motion.span>
           ))}
         </motion.h2>
-        <motion.div className="mx-auto mt-3" style={{ height: 1, width: 120 * scale, background: `linear-gradient(90deg, transparent, ${m.light}, transparent)` }}
+        <motion.div className="mx-auto" style={{ marginTop: 12 * scale, height: 1, width: 120 * scale, background: `linear-gradient(90deg, transparent, ${m.light}, transparent)` }}
           initial={{ scaleX: 0, opacity: 0 }} animate={{ scaleX: cracked ? 0 : 1, opacity: cracked ? 0 : 1 }} transition={{ delay: cracked ? 0 : 1.05, duration: 0.7 }} />
       </div>
 
       {/* the envelope */}
       {/* (no preserve-3d here - the layers must stack by z-index: back, card, pocket, flap, seal) */}
       <motion.div className="absolute left-1/2" style={{ width: envW, height: envH, marginLeft: -envW / 2, top: envTop }}
-        initial={{ y: 70, opacity: 0, rotateX: 28, scale: 0.86 }}
-        animate={free ? { y: drop, opacity: 1, rotateX: 0, scale: 1 } : rise ? { y: 0, opacity: 1, rotateX: 0, scale: 1 } : cracked ? { y: 0, opacity: 1, rotateX: 0, scale: 1 } : { y: [0, -7, 0], opacity: 1, rotateX: [6, 2, 6], scale: 1 }}
-        transition={free ? { y: { duration: 0.95, ease } } : cracked ? { type: 'spring', stiffness: 140, damping: 20 } : { y: { duration: 4, repeat: Infinity, ease: 'easeInOut' }, rotateX: { duration: 4, repeat: Infinity, ease: 'easeInOut' }, opacity: { duration: 0.8 }, scale: { type: 'spring', stiffness: 120, damping: 15 } }}>
+        initial={{ y: 70, opacity: 0, rotateX: 28 }}
+        animate={free ? { y: drop, opacity: 1, rotateX: 0 } : rise ? { y: 0, opacity: 1, rotateX: 0 } : cracked ? { y: 0, opacity: 1, rotateX: 0 } : { y: [0, -7, 0], opacity: 1, rotateX: 0 }}
+        transition={free ? { y: { duration: 0.95, ease } } : cracked ? { type: 'spring', stiffness: 140, damping: 20 } : { y: { duration: 4, repeat: Infinity, ease: 'easeInOut' }, rotateX: { type: 'spring', stiffness: 120, damping: 15 }, opacity: { duration: 0.8 } }}>
+        {/* (it settles flat and full size: a grow-in or an endless tilt keeps it redrawn soft-edged,
+            owner 10/31 "why do the edges look so blurry") */}
         {/* the foil edge + the lacquer back (fades as the envelope drops away) */}
-        <motion.div className="absolute inset-0 rounded-[12px]" style={{ background: foil, padding: 1.5, boxShadow: `0 50px 90px -40px rgba(0,0,0,.95), 0 0 0 1px rgba(0,0,0,.4), 0 0 60px -20px rgba(${m.rgb},.55)` }}
+        <motion.div className="absolute inset-0 rounded-[12px]" style={{ background: foil, padding: 1.5, boxShadow: `0 26px 34px -24px rgba(0,0,0,.95), 0 0 0 1px rgba(0,0,0,.4), 0 0 40px -18px rgba(${m.rgb},.5)` }}
           initial={false} animate={{ opacity: free ? 0 : 1 }} transition={{ duration: 0.7, delay: free ? 0.2 : 0 }}>
           <div className="relative h-full w-full overflow-hidden rounded-[11px]" style={{ background: 'linear-gradient(150deg,#1b1b1f 0%,#0b0b0d 55%,#141417 100%)' }}>
             <div aria-hidden className="absolute inset-0 opacity-[0.35]" style={{ background: `repeating-linear-gradient(135deg, rgba(${m.rgb},.08) 0 1px, transparent 1px 7px)` }} />
@@ -193,7 +204,9 @@ export default function InviteLuxeOpening({ data, hostName, onOpened, autoMs = 1
         {/* the card inside: rises half out turning in 3D, then - as the envelope drops away below
             it - glides to the middle of the screen. Clipped at the envelope's bottom edge, which
             slides down with it and uncovers the rest of the card. */}
-        <div className="pointer-events-none absolute overflow-hidden" style={{ left: -800, right: -800, bottom: 0, top: -4000, zIndex: 3 }}>
+        {/* (clipped a few px inside the bottom edge - the lacquer front stops 1.5px short of it and
+            a sliver of the card used to show under the envelope, owner 10/31) */}
+        <div className="pointer-events-none absolute overflow-hidden" style={{ left: -800, right: -800, bottom: 6, top: -4000, zIndex: 3 }}>
           <motion.div className="absolute left-1/2" style={{ width: cardW, height: cardH, marginLeft: -cardW / 2, top: 4000 + cardTop, transformPerspective: 1100 }}
             initial={false}
             animate={free ? { y: cardY, scale: 1.06, rotateY: 0, rotateX: 0 } : rise ? { y: cardY, scale: 1.02, rotateY: [-24, 7, 0], rotateX: [12, -3, 0] } : { y: 0, scale: 1, rotateY: 0, rotateX: 0 }}

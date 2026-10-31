@@ -12,6 +12,7 @@ import { copyText } from '@/lib/copyText'
 import LuxeSelect, { type LuxeOption } from '@/components/ui/LuxeSelect'
 import AnimatedNumber from '@/components/ui/AnimatedNumber'
 import { SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
+import { useFitLevel } from '@/lib/useFitLevel'
 
 // Icon + color per cycling activity type, matching the sentiment of each (green=positive,
 // red=negative, blue=neutral/informational).
@@ -101,28 +102,30 @@ const formatRange = (min?: number | null, max?: number | null, decimals = 0) => 
 // Compact once it's big (user, 10/17 - long numbers pushed the lot size off the card on phones):
 // 13,062 -> "13K", 2,540 stays "2,540".
 const formatSqftValue = (v: number) => (v >= 10000 ? `${Math.round(v / 1000)}K` : Math.round(v).toLocaleString())
-const formatSqftRange = (min?: number | null, max?: number | null) => {
+const formatSqftRange = (min?: number | null, max?: number | null, rough = false) => {
   if (min == null && max == null) return null
-  // A range is always short: "2.5K-13K" (two full numbers never fit the chip on a phone).
-  const k = (v: number) => (v >= 1000 ? `${v >= 10000 ? Math.round(v / 1000) : (v / 1000).toFixed(1).replace(/\.0$/, '')}K` : String(Math.round(v)))
+  // A range is always short: "2.5K-13K" (two full numbers never fit the chip on a phone); a tight
+  // card (rough) rounds to whole thousands: "2K-13K".
+  const k = (v: number) => (v >= 1000 ? `${v >= 10000 || rough ? Math.round(v / 1000) : (v / 1000).toFixed(1).replace(/\.0$/, '')}K` : String(Math.round(v)))
   if (min != null && max != null && min !== max) return `${k(min)}-${k(max)}`
   return formatSqftValue((min ?? max) as number)
 }
 
 // "0.05" -> ".05" and "1.00" -> "1" - trailing/leading zeros just add clutter at this scale.
 // 1 decimal from 1 acre up ("1.44" -> "1.4"), 2 below it (".59").
-const formatAcreValue = (v: number) => {
-  const s = v >= 1 ? v.toFixed(v >= 10 ? 0 : 1) : v.toFixed(2)
+// rough (a tight card): one digit that matters - ".13" -> ".1", "1.4" -> "1", ".04" stays ".04".
+const formatAcreValue = (v: number, rough = false) => {
+  const s = rough ? (v >= 1 ? String(Math.round(v)) : String(Number(v.toPrecision(1)))) : v >= 1 ? v.toFixed(v >= 10 ? 0 : 1) : v.toFixed(2)
   if (s.startsWith('0.')) return s.slice(1)
   return s.replace(/\.0+$/, '')
 }
-const formatAcreRange = (min?: number | null, max?: number | null) => {
+const formatAcreRange = (min?: number | null, max?: number | null, rough = false) => {
   if (min == null && max == null) return null
-  if (min != null && max != null && min !== max) return `${formatAcreValue(min)}-${formatAcreValue(max)}`
-  return formatAcreValue((min ?? max) as number)
+  if (min != null && max != null && formatAcreValue(min, rough) !== formatAcreValue(max, rough)) return `${formatAcreValue(min, rough)}-${formatAcreValue(max, rough)}`
+  return formatAcreValue((min ?? max) as number, rough)
 }
 
-const getCriteriaStats = (collection: Collection) => {
+const getCriteriaStats = (collection: Collection, rough = false) => {
   const prefs = collection.preferences as any
   const properties = collection.matchedProperties || []
   const sqftValues = properties.map(p => p.LivingArea).filter((v): v is number => !!v)
@@ -133,8 +136,8 @@ const getCriteriaStats = (collection: Collection) => {
   return {
     beds: formatRange(prefs?.min_beds, prefs?.max_beds),
     baths: formatRange(prefs?.min_baths, prefs?.max_baths, 1),
-    sqft: sqftValues.length ? formatSqftRange(Math.min(...sqftValues), Math.max(...sqftValues)) : null,
-    acreage: acreageValues.length ? formatAcreRange(Math.min(...acreageValues), Math.max(...acreageValues)) : null,
+    sqft: sqftValues.length ? formatSqftRange(Math.min(...sqftValues), Math.max(...sqftValues), rough) : null,
+    acreage: acreageValues.length ? formatAcreRange(Math.min(...acreageValues), Math.max(...acreageValues), rough) : null,
   }
 }
 
@@ -648,7 +651,12 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
   }
 
   const previewProperties = getPreviewProperties(collection)
-  const criteria = getCriteriaStats(collection)
+  // The Beds / Baths / Sqft / Acres chips never cut a number off (owner 10/31: ".13-..."): each
+  // chip is as wide as its number, and when the row still doesn't fit it tightens (level 1), then
+  // rounds the numbers (level 2: "2K-5K", ".1-.5").
+  const specsRef = useRef<HTMLDivElement>(null)
+  const specsFit = useFitLevel(specsRef, 2, [collection.id, collection.matchedProperties?.length])
+  const criteria = getCriteriaStats(collection, specsFit >= 2)
   const active = collection.status === 'ACTIVE'
 
   // Unread like/dislike/comment counts - shown together as icon+count badges, alongside the
@@ -671,6 +679,11 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
     : 'Not Specified'
   const needsYou = !!collection.refineRequestMessage || !!collection.stats.tourRequestedCount || activityBadges.length > 0 || collection.stats.newProperties > 0
   const stop = (fn: () => void) => (e: React.MouseEvent) => { e.stopPropagation(); fn() }
+  // The "needs you" badges (NEW, tours, likes...) ride in the bottom bar between Delete and the
+  // switch (owner 10/31: a whole row for them was wasted space). When they crowd it, the action
+  // words go first (icons stay, level 1), then "All caught up" shrinks to its tick (level 2).
+  const barRef = useRef<HTMLDivElement>(null)
+  const barFit = useFitLevel(barRef, 2, [needsYou, collection.stats.newProperties, collection.stats.tourRequestedCount, activityBadges.length, !!collection.refineRequestMessage, active])
 
   // One large photo + two stacked; with only one or two matches the photos share the space.
   const shownTiles = Math.max(1, Math.min(3, previewProperties.length))
@@ -830,16 +843,16 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
               </span>
             </div>
           </div>
-          <div className="mt-2.5 grid grid-cols-[1fr_1fr_1.7fr_1.15fr] gap-1.5">
+          <div ref={specsRef} data-testid="showcase-specs" className={`mt-2.5 flex overflow-hidden ${specsFit ? 'gap-1' : 'gap-1.5'}`}>
             {([
               ['Beds', criteria.beds, BedDouble],
               ['Baths', criteria.baths, Bath],
               ['Sqft', criteria.sqft, Ruler],
               ['Acres', criteria.acreage, Trees],
             ] as const).map(([label, val, Icon]) => (
-              <div key={label} title={label} className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-white px-1.5 py-2 shadow-[0_1px_0_rgba(17,24,39,.04)] ring-1 ring-gray-100 dark:bg-[#151517] dark:ring-gray-800">
-                <Icon size={14} className="shrink-0 text-[#C9A24D]" />
-                <span className={`truncate font-black text-[#0B0B0B] dark:text-white ${(val || '').length > 7 ? 'text-[11px]' : 'text-[14px]'}`}>{val || '—'}</span>
+              <div key={label} title={label} className={`flex flex-auto shrink-0 items-center justify-center whitespace-nowrap rounded-xl bg-white py-2 shadow-[0_1px_0_rgba(17,24,39,.04)] ring-1 ring-gray-100 dark:bg-[#151517] dark:ring-gray-800 ${specsFit ? 'gap-1 px-1.5' : 'gap-1.5 px-2.5'}`}>
+                <Icon size={specsFit ? 12 : 14} className="shrink-0 text-[#C9A24D]" />
+                <span className={`font-black text-[#0B0B0B] dark:text-white ${specsFit || (val || '').length > 7 ? 'text-[12px]' : 'text-[14px]'}`}>{val || '—'}</span>
               </div>
             ))}
           </div>
@@ -879,12 +892,26 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
           </div>
         ) : null}
 
-        {/* Needs you: message / tours / likes / dislikes / comments / new matches */}
-        <div className="flex min-h-[26px] flex-wrap items-center gap-1.5">
+        {/* Actions, then what needs you (message / tours / likes / dislikes / comments / new
+            matches) between Delete and the switch - one line */}
+        <div ref={barRef} data-testid="showcase-bar" className="mt-auto flex items-center gap-1.5 overflow-hidden border-t border-gray-100 pt-3 dark:border-gray-800">
+          <div className="-ml-1.5 flex shrink-0 items-center gap-0.5">
+            {([
+              { label: 'Edit', title: 'Edit Preferences', icon: Edit3, onClick: () => onEditPreferences(collection), hover: 'hover:text-[#8b6a2b] hover:bg-[#C9A24D]/12 dark:hover:text-[#e8c97a]' },
+              { label: 'Share', title: 'Share Showcase', icon: Share2, onClick: () => onShare(collection), hover: 'hover:text-[#111827] hover:bg-gray-100 dark:hover:text-white dark:hover:bg-gray-800' },
+              { label: 'Delete', title: 'Delete', icon: Trash2, onClick: () => onDelete(collection), hover: 'hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20' },
+            ]).map(a => (
+              <motion.button key={a.label} whileTap={{ scale: 0.9 }} onClick={stop(a.onClick)} title={a.title} aria-label={a.title}
+                className={`flex items-center gap-1 rounded-lg py-1.5 text-[10.5px] font-black text-gray-400 transition-colors ${barFit ? 'px-1.5' : 'px-2'} ${a.hover}`}>
+                <a.icon size={13} />{!barFit && <span className="hidden min-[400px]:inline">{a.label}</span>}
+              </motion.button>
+            ))}
+          </div>
+          <div className="flex flex-1 items-center gap-1.5">
           <AnimatePresence initial={false}>
             {!!collection.refineRequestMessage && (
               <motion.span key="msg" initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.7 }}
-                className="flex items-center gap-1 rounded-full bg-[#C9A24D] px-2 py-1 text-[9.5px] font-black text-white shadow-sm"
+                className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[#C9A24D] px-2 py-1 text-[9.5px] font-black text-white shadow-sm"
                 title={`Visitor asked to refine their search: "${collection.refineRequestMessage}"`}>
                 <MessageSquare size={10} className="flex-shrink-0" /> Message
               </motion.span>
@@ -892,7 +919,7 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
             {!!collection.stats.tourRequestedCount && (
               <motion.button key="tour" initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.7 }} whileTap={{ scale: 0.92 }}
                 onClick={stop(() => onOpenTours(collection))}
-                className="relative flex items-center gap-1 rounded-full bg-red-500 px-2 py-1 text-[9.5px] font-black text-white shadow-sm transition-colors hover:bg-red-600"
+                className="relative flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-red-500 px-2 py-1 text-[9.5px] font-black text-white shadow-sm transition-colors hover:bg-red-600"
                 title="Tour request waiting on you - click to confirm it or mark it handled">
                 <span className="absolute inset-0 animate-ping rounded-full bg-red-400 opacity-30" />
                 <Calendar size={10} className="relative flex-shrink-0" /><span className="relative">{collection.stats.tourRequestedCount} Tour{collection.stats.tourRequestedCount === 1 ? '' : 's'}</span>
@@ -902,20 +929,20 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
               // Opens the commented home's thread, not just the Showcase.
               <motion.button key={type} initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.7 }} whileTap={{ scale: 0.92 }}
                 onClick={stop(() => onOpenComments(collection))}
-                className={`flex items-center gap-1 rounded-full px-2 py-1 ${color} text-[9.5px] font-black text-white shadow-sm transition hover:brightness-110`}
+                className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 ${color} text-[9.5px] font-black text-white shadow-sm transition hover:brightness-110`}
                 title="New comment - click to open the conversation">
                 <Icon size={10} className="flex-shrink-0" />{count}
               </motion.button>
             ) : (
               <motion.span key={type} initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.7 }}
-                className={`flex items-center gap-1 rounded-full px-2 py-1 ${color} text-[9.5px] font-black text-white shadow-sm`}
+                className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 ${color} text-[9.5px] font-black text-white shadow-sm`}
                 title={type === 'LIKE' ? 'New likes' : type === 'DISLIKE' ? 'New dislikes' : 'New comments'}>
                 <Icon size={10} className="flex-shrink-0" />{count}
               </motion.span>
             ))}
             {collection.stats.newProperties > 0 && (
               <motion.span key="new" initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.7 }}
-                className="flex items-center gap-1 rounded-full bg-green-500 py-1 pl-2 pr-1 text-[9.5px] font-black uppercase tracking-wide text-white shadow-sm">
+                className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-green-500 py-1 pl-2 pr-1 text-[9.5px] font-black uppercase tracking-wide text-white shadow-sm">
                 <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-white" />
                 {collection.stats.newProperties} New
                 <button onClick={stop(() => onDismissNew(collection.id))} className="rounded-full p-0.5 text-white/80 transition-colors hover:bg-white/20 hover:text-white" title="Dismiss new matches">
@@ -924,35 +951,21 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
               </motion.span>
             )}
             {!needsYou && (
-              <motion.span key="clear" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-1 text-[10.5px] font-bold text-gray-400">
-                <CheckCircle2 size={11} className="text-gray-300 dark:text-gray-600" /> All caught up
+              <motion.span key="clear" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} title="All caught up" className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[10.5px] font-bold text-gray-400">
+                <CheckCircle2 size={11} className="text-gray-300 dark:text-gray-600" />{barFit < 2 && ' All caught up'}
               </motion.span>
             )}
           </AnimatePresence>
-        </div>
-
-        {/* Actions */}
-        <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3 dark:border-gray-800">
-          <div className="-ml-1.5 flex items-center gap-0.5">
-            {([
-              { label: 'Edit', title: 'Edit Preferences', icon: Edit3, onClick: () => onEditPreferences(collection), hover: 'hover:text-[#8b6a2b] hover:bg-[#C9A24D]/12 dark:hover:text-[#e8c97a]' },
-              { label: 'Share', title: 'Share Showcase', icon: Share2, onClick: () => onShare(collection), hover: 'hover:text-[#111827] hover:bg-gray-100 dark:hover:text-white dark:hover:bg-gray-800' },
-              { label: 'Delete', title: 'Delete', icon: Trash2, onClick: () => onDelete(collection), hover: 'hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20' },
-            ]).map(a => (
-              <motion.button key={a.label} whileTap={{ scale: 0.9 }} onClick={stop(a.onClick)} title={a.title}
-                className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10.5px] font-black text-gray-400 transition-colors ${a.hover}`}>
-                <a.icon size={13} /><span className="hidden min-[400px]:inline">{a.label}</span>
-              </motion.button>
-            ))}
           </div>
 
           {/* Active switch */}
           <button
             onClick={stop(() => onStatusToggle(collection.id))}
-            className="flex items-center gap-2 rounded-full py-1 pl-2 pr-1 text-[10px] font-black uppercase tracking-wider text-gray-400 transition-colors hover:text-[#111827] dark:hover:text-white"
+            className="flex shrink-0 items-center gap-2 rounded-full py-1 pl-1 pr-1 text-[10px] font-black uppercase tracking-wider text-gray-400 transition-colors hover:text-[#111827] dark:hover:text-white"
             title={active ? 'Put to sleep: no new matches, no emails' : 'Wake up: catches up on new homes and emails start again'}
+            aria-label={active ? 'On - put to sleep' : 'Off - wake up'}
           >
-            <span className={active ? 'text-green-600 dark:text-green-400' : ''}>{active ? 'On' : 'Off'}</span>
+            {barFit < 2 && <span className={active ? 'text-green-600 dark:text-green-400' : ''}>{active ? 'On' : 'Off'}</span>}
             <span className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full p-0.5 transition-colors duration-300 ${active ? 'bg-green-500 shadow-[0_4px_12px_-4px_rgba(34,197,94,.8)]' : 'bg-gray-200 dark:bg-gray-700'}`}>
               <motion.span layout transition={{ type: 'spring', stiffness: 700, damping: 30 }} className={`h-4 w-4 rounded-full bg-white shadow ${active ? 'ml-auto' : ''}`} />
             </span>

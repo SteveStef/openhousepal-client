@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowRight, ChevronDown, Loader2, Send, Users } from 'lucide-react'
+import { ArrowRight, ChevronDown, Loader2, MessageSquare, Send, Users } from 'lucide-react'
 import api from '@/lib/api-service'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -27,6 +27,7 @@ export default function RequestToHostModal({
   onSent,
   onBroadcastHandled,
   onFallbackToEmail,
+  onAlsoReach,
 }: {
   property: any
   // Set when the agent got here by clicking an empty weekend-calendar cell on the listing row
@@ -47,6 +48,8 @@ export default function RequestToHostModal({
   // refresh My Requests / the incoming-broadcasts list the same way it does after a normal send.
   onBroadcastHandled?: () => void
   onFallbackToEmail: () => void
+  // After an in-app request: also text / email the listing agent from their own phone (EmailHostFlow "also").
+  onAlsoReach?: () => void
 }) {
   const { showToast } = useToast()
   const { user } = useAuth()
@@ -239,6 +242,13 @@ export default function RequestToHostModal({
           title={sentBoth ? 'Requests sent' : 'Request sent'}
           text={<>{listingAgent ? `${listingAgent} gets` : 'The listing agent gets'} a message right away. You&apos;ll see it under My Requests until they answer.</>}
           onClose={() => close(onSent)}
+          ms={onAlsoReach && (property?.ListingAgentEmail || (property?.ListAgentPreferredPhone && property.ListAgentPreferredPhone !== 'N/A')) ? 7000 : 2600}
+          extra={onAlsoReach && (property?.ListingAgentEmail || (property?.ListAgentPreferredPhone && property.ListAgentPreferredPhone !== 'N/A')) ? (
+            <button type="button" onClick={() => { onSent(); onAlsoReach() }} data-testid="host-also-reach"
+              className="inline-flex items-center gap-2 rounded-full border border-[#C9A24D]/50 bg-white px-4 py-2.5 text-[13px] font-black text-[#8b7355] shadow-sm transition hover:border-[#C9A24D] dark:bg-white/[0.05] dark:text-[#e8c97a]">
+              <MessageSquare className="h-4 w-4" /> Also text or email {listingAgent || 'them'}
+            </button>
+          ) : undefined}
         />
       )}
     </HostFlowWindow>

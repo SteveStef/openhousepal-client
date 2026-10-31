@@ -22,17 +22,21 @@ export default function InviteMotionPreview({ data, hostName, width = 184 }: { d
   const [loop, setLoop] = useState(0)
   const [stage, setStage] = useState<'opening' | 'page'>('opening')
   const timer = useRef<number | null>(null)
+  // It plays twice after each change, then rests on the page (owner, 10/31 - nothing on the Invites
+  // pages moves forever; "Play again" replays it).
+  const plays = useRef(0)
   const key = `${data.design}|${data.accent_color}|${data.luxe_metal}|${data.motion}|${data.cover_image_url}`
   // Something changed - play it from the top.
-  useEffect(() => { setStage('opening'); setLoop(n => n + 1) }, [key])
+  useEffect(() => { plays.current = 0; setStage('opening'); setLoop(n => n + 1) }, [key])
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current) }, [])
   const opened = () => {
     setStage('page')
     if (timer.current) window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(() => { setStage('opening'); setLoop(n => n + 1) }, 3200)
+    plays.current += 1
+    if (plays.current < 2) timer.current = window.setTimeout(() => { setStage('opening'); setLoop(n => n + 1) }, 3200)
   }
   const luxe = data.motion === 'luxe'
-  const replay = () => { if (timer.current) window.clearTimeout(timer.current); setStage('opening'); setLoop(n => n + 1) }
+  const replay = () => { if (timer.current) window.clearTimeout(timer.current); plays.current = 0; setStage('opening'); setLoop(n => n + 1) }
   return (
     <div className="flex flex-col items-center" data-testid="invite-motion-preview">
       <div className="relative overflow-hidden rounded-[26px] bg-black p-[5px] shadow-[0_26px_50px_-24px_rgba(0,0,0,.75)] ring-1 ring-black/10 dark:ring-white/10" style={{ width: width + 10, isolation: "isolate" }}>

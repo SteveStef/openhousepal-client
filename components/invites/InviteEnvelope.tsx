@@ -88,19 +88,22 @@ export default function InviteEnvelope({ data, hostName, stageBg, onOpened, auto
       {/* a soft spotlight - a gradient, not a blur */}
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(60% 45% at 50% 48%, ${dark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.75)'} 0%, transparent 70%)` }} />
 
+      {/* no grow-in: a layer first painted small and scaled up stays soft-edged while it bobs
+          (owner, 10/31: "why do the edges look so blurry") */}
       <motion.div className="relative" style={{ width: envW, height: envH, perspective: 1200 }}
-        initial={{ y: 60, opacity: 0, rotate: -3, scale: 0.92 }}
-        animate={rise ? { y: envH * 0.55, opacity: 1, rotate: 0, scale: 1 } : { y: [0, -6, 0], opacity: 1, rotate: 0, scale: 1 }}
-        transition={rise ? { type: 'spring', stiffness: 120, damping: 20 } : { y: { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }, opacity: { duration: 0.5 }, rotate: { type: 'spring', stiffness: 140, damping: 14 }, scale: { type: 'spring', stiffness: 140, damping: 14 } }}>
+        initial={{ y: 60, opacity: 0, rotate: -3 }}
+        animate={rise ? { y: envH * 0.55, opacity: 1, rotate: 0 } : { y: [0, -6, 0], opacity: 1, rotate: 0 }}
+        transition={rise ? { type: 'spring', stiffness: 120, damping: 20 } : { y: { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }, opacity: { duration: 0.5 }, rotate: { type: 'spring', stiffness: 140, damping: 14 } }}>
 
-        {/* back of the envelope + its liner */}
-        <div className="absolute inset-0 rounded-[10px]" style={{ background: paperDeep, boxShadow: '0 40px 70px -35px rgba(0,0,0,.55)' }} />
+        {/* back of the envelope + its liner (a short, tight shadow - a wide one read as a haze) */}
+        <div className="absolute inset-0 rounded-[10px]" style={{ background: paperDeep, boxShadow: '0 1px 2px rgba(0,0,0,.08), 0 22px 30px -22px rgba(0,0,0,.45)' }} />
         <div className="absolute inset-x-[6px] top-[6px] rounded-t-[8px]" style={{ height: envH * 0.6, background: `repeating-linear-gradient(45deg, ${liner} 0 6px, ${mix(liner, '#ffffff', 0.2)} 6px 12px)`, opacity: 0.55 }} />
 
         {/* the card, tucked inside, then rising out */}
         {/* clipped only at the envelope's bottom edge, so the card's lower half stays inside the
-            envelope until it rises out of the top */}
-        <div className="pointer-events-none absolute overflow-hidden" style={{ left: -400, right: -400, bottom: 0, top: -3000, zIndex: 3 }}>
+            envelope until it rises out of the top - a few px INSIDE that edge (owner, 10/31: a
+            hairline of the card showed under the envelope where the front's edge anti-aliases) */}
+        <div className="pointer-events-none absolute overflow-hidden" style={{ left: -400, right: -400, bottom: 4, top: -3000, zIndex: 3 }}>
           <motion.div className="absolute left-1/2" style={{ width: cardW, height: cardH, marginLeft: -cardW / 2, top: 3000 + envH * 0.64 }}
             initial={false} animate={rise ? { y: liftTo, scale: 1.04 } : { y: 0, scale: 1 }}
             transition={{ type: 'spring', stiffness: 90, damping: 17, mass: 0.9 }}>

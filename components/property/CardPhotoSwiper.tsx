@@ -25,12 +25,16 @@ export default function CardPhotoSwiper({ photos, alt, sizes, priority = false, 
   // on an iPhone the photos only started as they came on screen, so each one drew in while you
   // watched). The browser's own lazy loading waits far too long, and each MLS photo is shrunk
   // from 2048px on its first request, so it needs the head start.
+  // Owner 10/31: still too late while scrolling a Showcase - now the next ~5 homes on a phone (a
+  // card is ~700px tall there) and the next ~4 rows on a computer (3 across = a dozen homes) are
+  // already loading before you reach them.
   const [near, setNear] = useState(priority)
   useEffect(() => {
     const el = track.current
     if (near || !el) return
     if (typeof IntersectionObserver === 'undefined') { setNear(true); return }
-    const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) setNear(true) }, { rootMargin: '1600px 0px' })
+    const ahead = window.innerWidth < 768 ? 3600 : 2800
+    const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) setNear(true) }, { rootMargin: `${ahead}px 0px` })
     io.observe(el)
     return () => io.disconnect()
   }, [near])

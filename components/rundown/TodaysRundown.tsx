@@ -44,7 +44,7 @@ type Home = {
   street_address: string; city: string; state: string; image: string; beds: string; baths: string; sqft: string; price: string
   is_price_drop: boolean; old_price?: string; new_price?: string; savings?: string; clients: Client[]; clients_more: string; clients_label: string
 }
-type Happening = { id: string; type: string; title: string; message: string; address?: string | null; link: string; showcase_link?: string | null; is_read: boolean; at: string }
+type Happening = { id: string; type: string; title: string; message: string; address?: string | null; link: string; showcase_link?: string | null; is_read: boolean; at: string; agent_status?: string | null }
 export type Rundown = {
   date: string; date_label: string; generated_at: string; first_name: string; headline: string
   briefing: { time_label: string; sent: boolean; sent_at: string | null; ran_today: boolean; upcoming: boolean; notification_id: string | null }
@@ -476,6 +476,12 @@ function RundownBody({ data, phone, short = false, go, settled = true }: { data:
                               <span className="shrink-0 pt-0.5 text-[10.5px] font-bold tabular-nums text-gray-400">{clock(n.at)}</span>
                             </span>
                             {(n.message || n.address) && <span className="mt-0.5 line-clamp-2 block text-xs leading-relaxed text-gray-500 dark:text-gray-400">{n.message || n.address}</span>}
+                            {/* open house guests: agent or not, like the briefing email (owner, 11/01) */}
+                            {n.agent_status && (
+                              <span data-testid="rundown-agent-status" className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10.5px] font-black ${n.agent_status === 'No agent'
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                                : 'bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-white/60'}`}>{n.agent_status}</span>
+                            )}
                             {n.showcase_link && <OpenShowcaseButton small href={n.showcase_link} onGo={go} className="mt-1.5" />}
                           </span>
                           <AnimatePresence initial={false}>

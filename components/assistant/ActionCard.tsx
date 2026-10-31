@@ -7,6 +7,8 @@ import api from '@/lib/api-service'
 import { AIToolCallRef } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { runClientAction } from './clientActions'
+import LinkPreviewCard from './LinkPreviewCard'
+import BrandPick, { type BrandPicks } from './BrandPick'
 import { getTemplatesFor, isCompositionReady } from '@/lib/studio/designTemplates'
 import { DESIGN_COLOR_MODES } from '@/lib/studio/designColors'
 
@@ -68,6 +70,12 @@ function MadeDesign({ made, fresh }: { made: NonNullable<Made> & { design_id?: s
   )
 }
 
+// The invite designs (lib/invites INVITE_DESIGNS) with a swatch each, for the invite card.
+const INVITE_DESIGN_CHOICES: [string, string, string][] = [
+  ['classic', 'Classic', 'linear-gradient(135deg,#fbf7ee,#e9dcc0)'], ['garden', 'Garden', 'linear-gradient(135deg,#eef3e6,#9bb38a)'],
+  ['midnight', 'Midnight', 'linear-gradient(135deg,#1b202b,#C9A24D)'], ['modern', 'Modern', 'linear-gradient(135deg,#ffffff,#111827)'],
+]
+
 type Look = { layout: string | null; colors: string }
 
 // A design's look, picked right on the card before "Make it" (owner, 10/30: "I wasn't able to
@@ -125,22 +133,30 @@ function DesignPick({ payload, look, onLook, idx }: { payload: Record<string, an
 // The server keeps the status, so a reload shows Done / Cancelled, never a second Confirm.
 export default function ActionCard({ messageId, action }: { messageId: string; action: AIToolCallRef }) {
   const { user } = useAuth()
-  const [state, setState] = useState<{ status: string; message: string; link: string; made?: Made }>({
+  const [state, setState] = useState<{ status: string; message: string; link: string; made?: Made; share?: AIToolCallRef['share'] }>({
     status: action.status || 'pending',
     message: action.result_message || '',
     link: action.result_link || '',
     made: action.made,
+    share: action.share,
   })
   const [busy, setBusy] = useState<'confirm' | 'cancel' | null>(null)
   const [fresh, setFresh] = useState(false)  // made just now (not a reopened chat) - bring it into view
   const isDesign = action.client_action === 'create_design' && !!action.payload
   const [look, setLook] = useState<Look>({ layout: (action.payload?.layout as string) || null, colors: (action.payload?.colors as string) || 'light' })
   const idx = user?.plan_tier === 'IDX' || !!user?.is_admin
+  // Branding: the card's swatches start from what they have now (payload.current) - sent as picks on Save.
+  const cur = (action.payload?.current || {}) as Record<string, any>
+  const [brand, setBrand] = useState<BrandPicks>({ theme: cur.theme === 'luxe' ? 'luxe' : 'classic', metal: cur.metal || 'gold', dark: !!cur.dark, secondary_color: cur.secondary_color || '#C9A24D' })
+  const isBrand = action.picker === 'brand'
+  // Invites: the four designs, tapped on the card (owner's test, 11/01: it picked Classic for them)
+  const isInvite = action.picker === 'invite'
+  const [inviteDesign, setInviteDesign] = useState<string>(((action.payload?.body as any)?.design as string) || 'classic')
 
   const act = async (kind: 'confirm' | 'cancel') => {
     setBusy(kind)
     const r = kind === 'confirm'
-      ? await api.ai.confirmAction(action.record_id, messageId)
+      ? await api.ai.confirmAction(action.record_id, messageId, isBrand ? brand : isInvite ? { design: inviteDesign } : undefined)
       : await api.ai.cancelAction(action.record_id, messageId)
     const data = r.data as (typeof r.data & { client_action?: string; payload?: Record<string, unknown> }) | undefined
     if (r.success && data?.status === 'running' && data.client_action) {
@@ -152,7 +168,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
       setFresh(true)
       setState({ status: saved.data?.status || (out.ok ? 'done' : 'failed'), message: saved.data?.result_message || out.message, link: saved.data?.result_link || out.link || '', made: (saved.data as any)?.made || (out.made as Made) })
     } else if (r.success && r.data) {
-      setState({ status: r.data.status || 'failed', message: r.data.result_message || '', link: r.data.result_link || '' })
+      setState({ status: r.data.status || 'failed', message: r.data.result_message || '', link: r.data.result_link || '', share: (r.data as any).share || null })
     } else {
       setState({ status: 'failed', message: r.error || 'Something went wrong - nothing was changed.', link: '' })
     }
@@ -167,7 +183,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
       {!!action.details?.length && (
         <ul className="mt-1.5 space-y-1">
           {/* a design's "Look:" line is the picker below (and the picture once made) - it could only go stale */}
-          {action.details.filter(d => !(isDesign && d.startsWith('Look:'))).map((d, i) => (
+          {action.details.filter(d => !(isDesign && d.startsWith('Look:')) && !(isInvite && d.startsWith('Design:')) && !(state.status === 'done' && d.startsWith('Made in your Studio'))).map((d, i) => (
             <li key={i} className="flex gap-1.5 text-xs leading-snug text-gray-600 dark:text-zinc-300">
               <span className="mt-[5px] h-1 w-1 shrink-0 rounded-full bg-[#C9A24D]" />
               <span className="min-w-0 [overflow-wrap:anywhere]">{d}</span>
@@ -176,6 +192,20 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
         </ul>
       )}
       {isDesign && pending && <DesignPick payload={action.payload as Record<string, any>} look={look} onLook={setLook} idx={idx} />}
+      {isBrand && pending && <BrandPick picks={brand} onPicks={setBrand} idx={idx} />}
+      {isInvite && pending && (
+        <div className="mt-3 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-invite-pick">
+          <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#C9A24D]">Design</p>
+          <div className="flex flex-wrap gap-1.5">
+            {INVITE_DESIGN_CHOICES.map(([id, label, swatch]) => (
+              <button key={id} type="button" onClick={() => setInviteDesign(id)} aria-pressed={inviteDesign === id}
+                className={`ohp-ai-press inline-flex items-center gap-1.5 rounded-full border py-1 pl-1 pr-2.5 text-xs font-bold transition-colors ${inviteDesign === id ? 'border-[#111827] bg-white text-[#111827] ring-2 ring-[#C9A24D]/60 dark:border-[#C9A24D] dark:bg-zinc-900 dark:text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[#C9A24D]/60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200'}`}>
+                <span className="h-5 w-5 rounded-full ring-1 ring-black/10" style={{ background: swatch }} />{label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {action.warning && pending && (
         <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
           <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" /> {action.warning}
@@ -210,6 +240,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
             ? <span className="ohp-ai-shimmer">{state.message || 'Working on it...'}</span>
             : state.message || 'Done.'}
           {state.status === 'done' && state.made?.kind === 'design' && <MadeDesign made={state.made as any} fresh={fresh} />}
+          {state.status === 'done' && state.share?.url && <LinkPreviewCard url={state.share.url} preview={state.share.preview} />}
           {state.status === 'done' && state.link && (
             <Link href={state.link} className="group mt-1.5 flex items-center gap-1 font-bold text-[#8b7355] dark:text-[#C9A24D]">
               Open it <ArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />

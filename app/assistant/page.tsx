@@ -7,6 +7,7 @@ import api from '@/lib/api-service'
 import { AIConversation, AIConversationListItem } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
+import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
 import AssistantHome from '@/components/assistant/AssistantHome'
 import ChatThread from '@/components/assistant/ChatThread'
 import ChatInput from '@/components/assistant/ChatInput'
@@ -183,6 +184,7 @@ export default function AssistantPage() {
           <AssistantHome onPrompt={handleSend} />
         )}
 
+        {activeConversation && <MonthlyAiUsageMeter kind="chat" variant="inline" onlyNearLimit refreshKey={activeConversation.messages.length} className="px-4 pt-2" />}
         <ChatInput
           onSend={handleSend}
           disabled={isSending || isTalking}

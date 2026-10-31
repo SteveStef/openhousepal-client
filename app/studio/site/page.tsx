@@ -1381,6 +1381,25 @@ function AgentHubContent() {
   const [formIsDirty, setFormIsDirty] = useState<Record<string, boolean>>({})
   const [pendingDiscardFormId, setPendingDiscardFormId] = useState('')
   const lastSavedFormsRef = useRef<Record<string, AgentFormConfig>>({})
+  // Form drafts (owner, 10/31 - "I lost a form"): a form's unsaved edits are kept in this browser as
+  // they're made, so closing the builder (or a reload) never throws them away - the card says
+  // "Unsaved draft" and the builder opens with them. Save publishes them; Discard drops them. A
+  // draft is only brought back while the saved form hasn't changed since (base = its updated_at).
+  const formDraftKey = (formId: string) => `ohp-form-draft:${user?.id || ''}:${formId}`
+  const withFormDrafts = (forms: AgentFormConfig[]) => {
+    const dirty: Record<string, boolean> = {}
+    const out = forms.map(form => {
+      try {
+        const raw = localStorage.getItem(formDraftKey(form.id))
+        if (!raw) return form
+        const d = JSON.parse(raw) as { form: AgentFormConfig; base: string | null }
+        if (d?.form?.id !== form.id || (d.base || null) !== (form.updated_at || null)) { localStorage.removeItem(formDraftKey(form.id)); return form }
+        dirty[form.id] = true
+        return { ...d.form, updated_at: form.updated_at }
+      } catch { return form }
+    })
+    return { forms: out, dirty }
+  }
   const [formSlugDrafts, setFormSlugDrafts] = useState<Record<string, string>>({})
   const [formSlugStatus, setFormSlugStatus] = useState<Record<string, 'idle' | 'checking' | 'available' | 'taken' | 'saved' | 'error'>>({})
   const [formSlugMessage, setFormSlugMessage] = useState<Record<string, string>>({})
@@ -1791,7 +1810,9 @@ function AgentHubContent() {
       const response = await api.forms.getMine()
       if (response.success && response.data) {
         const sorted = [...response.data].sort((a, b) => a.order_index - b.order_index)
-        setAgentForms(sorted)
+        const kept = withFormDrafts(sorted)
+        setAgentForms(kept.forms)
+        setFormIsDirty(kept.dirty)
         lastSavedFormsRef.current = Object.fromEntries(sorted.map(form => [form.id, form]))
         sorted.forEach(form => refreshFormSubmissions(form.id))
       }
@@ -1863,6 +1884,17 @@ function AgentHubContent() {
     if (!response.success) setMyBlogs(current => current.map(b => b.id === blogId ? { ...b, agent_hub_featured: target.agent_hub_featured } : b))
   }
 
+  // /studio/forms?edit=<form id> - straight into that form's editor (the AI helper's "Open it",
+  // owner 10/31: it used to land on the Forms list and they had to find it).
+  const openedEditRef = useRef('')
+  useEffect(() => {
+    const editId = searchParams.get('edit')
+    if (!editId || openedEditRef.current === editId || !agentForms.some(f => f.id === editId)) return
+    openedEditRef.current = editId
+    setFormEditorOpenId(editId)
+    setIsBuilderOpen(true)
+  }, [searchParams, agentForms])
+
   useEffect(() => {
     const formIdParam = searchParams.get('formId')
     if (!formIdParam) return
@@ -1922,6 +1954,11 @@ function AgentHubContent() {
   // "View RSVP" link there). Switching only rewrites the address bar, the page doesn't reload.
   const [formsView, setFormsView] = useState<'forms' | 'invites'>(() => (searchParams.get('view') === 'invites' ? 'invites' : 'forms'))
   useEffect(() => { if (searchParams.get('view') === 'invites') setFormsView('invites') }, [searchParams])
+  // Both halves stay on the page once opened (owner, 10/31: the switch was laggy and a beat late -
+  // each flip rebuilt the whole half, reloaded the invites behind a spinner and scaled the page).
+  // Now a flip only shows one and hides the other, with a quick fade.
+  const [invitesSeen, setInvitesSeen] = useState(formsView === 'invites')
+  useEffect(() => { if (formsView === 'invites') setInvitesSeen(true) }, [formsView])
   // A link that opened one form's results (?formId=...&submission=... / ?view=unfinished) is used
   // once - left in the address it re-opened that result on every tab switch (user, 10/24).
   const clearOpenedResult = (q: URLSearchParams) => { q.delete('formId'); q.delete('submission'); if (q.get('view') === 'unfinished') q.delete('view') }
@@ -2042,6 +2079,7 @@ function AgentHubContent() {
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className="inline-flex h-5 items-center rounded-full bg-[#C9A24D]/10 px-2 text-[10px] font-black uppercase leading-none tracking-wider text-[#8b7355] ring-1 ring-[#C9A24D]/20 dark:bg-[#C9A24D]/15 dark:text-[#e8cf8a]">{form.questions.length} questions</span>
                   <ShowcaseFormBadge formType={form.form_type} />
+                  {formIsDirty[form.id] && <span className="inline-flex h-5 items-center gap-1 rounded-full bg-amber-50 px-2 text-[10px] font-black uppercase leading-none tracking-wider text-amber-700 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/20" data-testid="form-draft-pill"><Pencil className="h-2.5 w-2.5" /> Unsaved draft</span>}
                 </div>
               </div>
             </button>
@@ -2172,6 +2210,7 @@ function AgentHubContent() {
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className="inline-flex h-5 items-center rounded-full bg-[#C9A24D]/10 px-2 text-[10px] font-black uppercase leading-none tracking-wider text-[#8b7355] ring-1 ring-[#C9A24D]/20 dark:bg-[#C9A24D]/15 dark:text-[#e8cf8a]">{form.questions.length} questions</span>
                   <ShowcaseFormBadge formType={form.form_type} />
+                  {formIsDirty[form.id] && <span className="inline-flex h-5 items-center gap-1 rounded-full bg-amber-50 px-2 text-[10px] font-black uppercase leading-none tracking-wider text-amber-700 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/20" data-testid="form-draft-pill"><Pencil className="h-2.5 w-2.5" /> Unsaved draft</span>}
                 </div>
               </div>
             </button>
@@ -2355,6 +2394,7 @@ function AgentHubContent() {
               <span className="flex flex-wrap items-center gap-1.5">
                 <span className="inline-flex h-5 items-center rounded-full bg-[#C9A24D]/10 px-2 text-[10px] font-black uppercase leading-none tracking-wider text-[#8b7355] ring-1 ring-[#C9A24D]/20 dark:bg-[#C9A24D]/15 dark:text-[#e8cf8a]">{form.questions.length} questions</span>
                 <ShowcaseFormBadge formType={form.form_type} />
+                  {formIsDirty[form.id] && <span className="inline-flex h-5 items-center gap-1 rounded-full bg-amber-50 px-2 text-[10px] font-black uppercase leading-none tracking-wider text-amber-700 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/20" data-testid="form-draft-pill"><Pencil className="h-2.5 w-2.5" /> Unsaved draft</span>}
               </span>
               {form.additional_campaign_count > 0 && (
                 <span className="mt-1 block truncate text-[11px] font-bold text-[#8b7355] dark:text-[#e8cf8a]">
@@ -3006,11 +3046,24 @@ function AgentHubContent() {
     }
   }
 
+  // Keep each form's unsaved edits (see formDraftKey) - a beat after each change.
+  useEffect(() => {
+    if (!user?.id || formsLoading) return
+    const t = window.setTimeout(() => {
+      for (const form of agentForms) {
+        try {
+          if (formIsDirty[form.id]) localStorage.setItem(formDraftKey(form.id), JSON.stringify({ form, base: lastSavedFormsRef.current[form.id]?.updated_at || null, at: Date.now() }))
+          else localStorage.removeItem(formDraftKey(form.id))
+        } catch { /* private mode / full */ }
+      }
+    }, 400)
+    return () => window.clearTimeout(t)
+  }, [agentForms, formIsDirty, user?.id, formsLoading]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Closing with unsaved edits keeps them as a draft (no "discard?" question any more) - Discard
+  // in the builder is the only way to throw them away.
   const handleRequestCloseFormBuilder = () => {
-    if (formIsDirty[formEditorOpenId]) {
-      setPendingDiscardFormId(formEditorOpenId)
-      return
-    }
+    if (formIsDirty[formEditorOpenId]) showToast('Draft kept - your changes are waiting. Open the form and press Save when you are ready.', 'success')
     setIsBuilderOpen(false)
   }
 
@@ -3186,7 +3239,6 @@ function AgentHubContent() {
                   <div className="flex min-h-[36px] items-center gap-2 overflow-x-auto px-1 [scrollbar-width:none]">
                     <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]">
                       <span className="relative flex h-2 w-2">
-                        {newResultForms.length + (openHouseRequestActionCount > 0 ? 1 : 0) > 0 && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-70" />}
                         <span className={`relative inline-flex h-2 w-2 rounded-full ${newResultForms.length + (openHouseRequestActionCount > 0 ? 1 : 0) > 0 ? 'bg-red-500' : 'bg-emerald-500'}`} />
                       </span>
                       New
@@ -3237,23 +3289,13 @@ function AgentHubContent() {
 
             <div id="forms-invites-switch"><FormsInvitesSwitch view={formsView} onChange={switchFormsView} formBadge={newResultPeople.length + openHouseRequestActionCount} /></div>
 
-            <AnimatePresence mode="popLayout">
-            {formsView === 'invites' ? (
-              // The same entrance as the Forms side (user, 10/24: the Invites tab glitched).
-              <motion.section key="invites" initial={{ opacity: 0, y: 12, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -12, scale: 0.99 }}
-                transition={{ type: 'spring', stiffness: 420, damping: 38, mass: 0.9 }} className="mt-6">
+            <style>{'@keyframes ohpHalfIn{from{opacity:0}to{opacity:1}}.ohp-half-in{animation:ohpHalfIn .16s ease-out both}'}</style>
+            {invitesSeen && (
+              <section className={formsView === 'invites' ? 'ohp-half-in mt-6' : 'hidden'} aria-hidden={formsView !== 'invites'}>
                 <InvitesPanel />
-              </motion.section>
-            ) : (
-            <motion.section
-              key="forms"
-              layout
-              initial={{ opacity: 0, y: 12, scale: 0.99 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -12, scale: 0.99 }}
-              transition={{ type: 'spring', stiffness: 420, damping: 38, mass: 0.9, layout: { duration: 0.28, ease: [0.22, 1, 0.36, 1] } }}
-              className="mt-6 space-y-6"
-            >
+              </section>
+            )}
+            <section className={formsView === 'forms' ? 'ohp-half-in mt-6 space-y-6' : 'hidden'} aria-hidden={formsView !== 'forms'}>
             {(() => {
               const openHouseRequestsBlock = (
                 <div id="forms-results" key="forms-results" className="scroll-mt-6 space-y-4">
@@ -3406,9 +3448,7 @@ function AgentHubContent() {
                 </div>
               )
             })()}
-            </motion.section>
-            )}
-            </AnimatePresence>
+            </section>
           </>
         ) : (
           <div className="grid gap-6 md:grid-cols-[1fr_420px] xl:grid-cols-[1fr_480px] md:items-start">
@@ -4202,6 +4242,7 @@ function AgentHubContent() {
         onToggleRedirectToAgentHub={() => toggleFormRedirect(formEditorOpenId)}
         onToggleRedirectToShowcase={() => toggleFormShowcaseRedirect(formEditorOpenId)}
         isDirty={!!formIsDirty[formEditorOpenId]}
+        onDiscard={() => setPendingDiscardFormId(formEditorOpenId)}
         onTogglePropertyPhotoCarousel={() => toggleFormPropertyPhotoCarousel(formEditorOpenId)}
         onToggleBackgroundEffects={() => toggleFormBackgroundEffects(formEditorOpenId)}
         onToggleWelcomeTextEffects={() => toggleFormWelcomeTextEffects(formEditorOpenId)}
@@ -4231,8 +4272,8 @@ function AgentHubContent() {
         isOpen={Boolean(pendingDiscardFormId)}
         onClose={() => setPendingDiscardFormId('')}
         onConfirm={handleConfirmDiscardFormChanges}
-        title="Discard unsaved changes?"
-        message="You have unsaved changes on this form. If you exit now without clicking Save, they'll be lost."
+        title="Discard your draft?"
+        message="The changes you haven't saved on this form will be thrown away, and it goes back to how it was last saved."
         confirmText="Discard changes"
       />
 

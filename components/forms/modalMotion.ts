@@ -26,6 +26,6 @@ export const cascade: Variants = {
 }
 
 export const riseItem: Variants = {
-  hidden: { opacity: 0, y: 14, scale: 0.985, filter: 'blur(3px)' },
-  show: { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)', transition: SETTLE },
+  hidden: { opacity: 0, y: 14, scale: 0.985 },
+  show: { opacity: 1, y: 0, scale: 1, transition: SETTLE },
 }

@@ -498,6 +498,8 @@ export default function OpenHouseDiscovery() {
   // click-to-prefill behavior Manager's own property cards already have.
   const [requestPrefillDate, setRequestPrefillDate] = useState<string | null>(null)
   const [emailFallbackProperty, setEmailFallbackProperty] = useState<any>(null)
+  // true = they already sent an in-app request and chose "Also text or email" (EmailHostFlow also mode)
+  const [emailAlso, setEmailAlso] = useState(false)
   const [quickViewListingKey, setQuickViewListingKey] = useState<string | null>(null)
   const [isMyRequestsOpen, setIsMyRequestsOpen] = useState(false)
 
@@ -2067,7 +2069,9 @@ export default function OpenHouseDiscovery() {
                 setRequestPrefillDate(null)
                 refreshMyRequests()
               }}
+              onAlsoReach={() => { setEmailAlso(true); setEmailFallbackProperty(selectedPropertyForRequest) }}
               onFallbackToEmail={() => {
+                setEmailAlso(false)
                 setEmailFallbackProperty(selectedPropertyForRequest)
                 setSelectedPropertyForRequest(null)
               }}
@@ -2080,7 +2084,8 @@ export default function OpenHouseDiscovery() {
               key={emailFallbackProperty.ListingKey}
               property={emailFallbackProperty}
               user={user}
-              onClose={() => setEmailFallbackProperty(null)}
+              also={emailAlso}
+              onClose={() => { setEmailFallbackProperty(null); setEmailAlso(false) }}
             />
           )}
 

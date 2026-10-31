@@ -1,14 +1,16 @@
 'use client'
 
-import { useMemo, memo } from 'react'
+import { useMemo, memo, useRef } from 'react'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { Property } from '@/types'
 import { formatOpenHouse, formatOpenHouseDay, upcomingOpenHouses } from '@/lib/mlsOpenHouses'
-import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye, Bed, Bath, Square, Home, MapPin, School, Trees, Navigation, Star, FolderInput, Undo2, Send } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye, Bed, Bath, Square, Home, MapPin, School, Trees, Navigation, Star, FolderInput, Undo2, Send, CheckCircle2 } from 'lucide-react'
 import { cleanAddress, formatMlsStatus, formatPropertyFeature, isPropertyAvailableStatus, normalizeImageUrl, haversineMiles, googleMapsDirectionsUrl } from '@/lib/utils'
 import { statusNotice, type StatusTone } from '@/lib/showcaseStatus'
 import CardPhotoSwiper from '@/components/property/CardPhotoSwiper'
+import { acresText, sqftText, useFitLevel } from '@/lib/useFitLevel'
+import { sendLine, type HomeSend } from '@/lib/sendHome'
 
 // "Lower Merion Township School District" -> "Lower Merion": the words that only make the pill
 // longer (Township, School District, Schools, Public...) come off.
@@ -53,6 +55,8 @@ interface PropertyCardProps {
   onMoveToSold?: (property: Property, filed: boolean) => void
   /** Agent's Showcase view: "Send" this home to the client by text / email (SendHomesSheet). */
   onSend?: (property: Property) => void
+  /** The last time this home was sent to the client (owner 10/31) - the Send button turns green "Sent". */
+  sent?: HomeSend
   /** Agent's Showcase select mode: picked (true) / not picked (false); undefined = not selecting. */
   selected?: boolean
 }
@@ -111,9 +115,11 @@ const NOTICE_TONE: Record<StatusTone, string> = {
   off: 'bg-[#111827] text-white',
 }
 
-const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, destination, matchScore, tourButtonVariant = 'schedule', cropMlsBadge = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold, onSend, selected }: PropertyCardProps) {
+const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, destination, matchScore, tourButtonVariant = 'schedule', cropMlsBadge = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold, onSend, sent, selected }: PropertyCardProps) {
   // The agent's pick (user, 10/18) - impossible to miss on both sides; gone once the client passes on it.
   const recommended = !!property.agentRecommended && !property.disliked
+  const statsRef = useRef<HTMLDivElement>(null)
+  const fit = useFitLevel(statsRef, 2, [property.LivingArea, property.LotSizeAcres, property.BedroomsTotal, property.BathroomsTotal])
   // Memoize visitor interaction counts to avoid redundant filtering on every render
   const interactionCounts = useMemo(() => {
     if (!property.visitorInteractions) {
@@ -522,14 +528,16 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
             ))}
           </p>
 
-          <div className="mt-3 grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap">
+          {/* One line on a computer, never wrapping Acres onto its own line (owner 10/31): when the
+              chips don't fit they shorten (10,500 -> 10.5K, 0.80 -> .8), then the words (bd / ba / sf / ac). */}
+          <div ref={statsRef} data-testid="home-stats" className="mt-3 grid grid-cols-2 gap-1.5 overflow-hidden sm:flex sm:flex-nowrap">
             {([
-              [Bed, formatPropertyFeature(property.BedroomsTotal), 'Beds'],
-              [Bath, formatPropertyFeature(property.BathroomsTotal), 'Baths'],
-              [Square, formatPropertyFeature(property.LivingArea, true), 'Sq Ft'],
-              ...(property.LotSizeAcres ? [[Trees, property.LotSizeAcres.toFixed(property.LotSizeAcres < 1 ? 2 : 1), 'Acres']] : []),
+              [Bed, formatPropertyFeature(property.BedroomsTotal), fit >= 2 ? 'bd' : 'Beds'],
+              [Bath, formatPropertyFeature(property.BathroomsTotal), fit >= 2 ? 'ba' : 'Baths'],
+              [Square, property.LivingArea ? sqftText(Number(property.LivingArea), fit >= 1) : '-', fit >= 2 ? 'sf' : 'Sq Ft'],
+              ...(property.LotSizeAcres ? [[Trees, acresText(property.LotSizeAcres, fit >= 1), fit >= 2 ? 'ac' : 'Acres']] : []),
             ] as [typeof Bed, string, string][]).map(([Icon, value, label]) => (
-              <span key={label} className="inline-flex items-center gap-1.5 rounded-lg bg-gray-50 px-2 py-1.5 text-[11px] font-bold text-gray-500 ring-1 ring-gray-100 dark:bg-white/[0.04] dark:text-gray-400 dark:ring-white/[0.06]">
+              <span key={label} className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-lg bg-gray-50 py-1.5 text-[11px] font-bold text-gray-500 ring-1 ring-gray-100 dark:bg-white/[0.04] dark:text-gray-400 dark:ring-white/[0.06] ${fit >= 2 ? 'gap-1 px-1.5' : 'gap-1.5 px-2'}`}>
                 <Icon size={13} className="shrink-0 text-[#C9A24D]" />
                 <span className="font-black text-[#111827] dark:text-white">{value}</span>
                 {label}
@@ -579,10 +587,15 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
               type="button"
               whileTap={{ scale: 0.95 }}
               data-send-home={property.id}
+              data-sent={sent ? '1' : undefined}
+              title={sent ? `Sent ${sendLine(sent)} - tap to see or send again` : undefined}
               onClick={(e) => { e.stopPropagation(); onSend(property) }}
-              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#C9A24D]/45 py-3 text-[10px] font-black uppercase tracking-widest text-[#8b7355] transition-[background-color,color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:bg-[#C9A24D] hover:text-[#16130e] hover:shadow-lg dark:text-[#e8c97a]"
+              className={sent
+                // Sent before (owner 10/31): green tick + "Sent"; tapping shows how / when and can send again
+                ? 'inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/45 bg-emerald-50 py-3 text-[10px] font-black uppercase tracking-widest text-emerald-700 transition-[background-color,color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:bg-emerald-500 hover:text-white hover:shadow-lg dark:bg-emerald-500/10 dark:text-emerald-300'
+                : 'inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#C9A24D]/45 py-3 text-[10px] font-black uppercase tracking-widest text-[#8b7355] transition-[background-color,color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:bg-[#C9A24D] hover:text-[#16130e] hover:shadow-lg dark:text-[#e8c97a]'}
             >
-              <Send size={13} /> Send
+              {sent ? <><CheckCircle2 size={13} /> Sent</> : <><Send size={13} /> Send</>}
             </motion.button>
           )}
         </div>

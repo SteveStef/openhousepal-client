@@ -1,6 +1,7 @@
 'use client'
 
 import { Sparkles, ArrowRight } from 'lucide-react'
+import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
 
 // The helper does things for you and shows you around the app (owner, 10/30) - no "suggested
 // actions" about clients here: the daily briefing, the Dash and alerts already cover that.
@@ -45,6 +46,8 @@ export default function AssistantHome({ onPrompt }: AssistantHomeProps) {
             </button>
           ))}
         </div>
+        {/* The chat's own allowance this billing period (owner, 11/01) */}
+        <MonthlyAiUsageMeter kind="chat" variant="inline" className="mt-6" />
       </div>
     </div>
   )

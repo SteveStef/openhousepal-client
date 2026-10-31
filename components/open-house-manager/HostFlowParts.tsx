@@ -473,7 +473,8 @@ export function Summary({ rows }: { rows: { label: string; value: React.ReactNod
 }
 
 /** The "sent" moment - a check that draws itself, a burst, then the window closes on its own. */
-export function SentMoment({ title, text, onClose, ms = 2600 }: { title: string; text: React.ReactNode; onClose: () => void; ms?: number }) {
+// extra: one more thing to offer under the message (e.g. "Also text or email them") - it stays up longer.
+export function SentMoment({ title, text, onClose, ms = 2600, extra }: { title: string; text: React.ReactNode; onClose: () => void; ms?: number; extra?: React.ReactNode }) {
   useEffect(() => {
     const t = window.setTimeout(onClose, ms)
     return () => window.clearTimeout(t)
@@ -497,6 +498,7 @@ export function SentMoment({ title, text, onClose, ms = 2600 }: { title: string;
       </div>
       <motion.h3 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="mt-7 font-serif text-3xl font-black text-[#111827] dark:text-white">{title}</motion.h3>
       <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }} className="mt-2 max-w-sm text-sm font-medium text-gray-500 dark:text-gray-400">{text}</motion.p>
+      {extra && <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }} className="mt-5">{extra}</motion.div>}
       <div className="mt-7 h-1 w-40 overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
         <motion.span className="block h-full rounded-full bg-[#C9A24D]" initial={{ width: '100%' }} animate={{ width: '0%' }} transition={{ duration: ms / 1000 - 0.1, ease: 'linear' }} />
       </div>

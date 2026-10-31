@@ -3,7 +3,8 @@
 // What sits in the middle of every QR code this agent prints or shares (user, 10/17): the
 // OpenHousePal house logo for everyone, or - IDX plan - their own Brand Kit logo or initials.
 // Old printed codes keep scanning (the link inside never changes); everything drawn from now on
-// uses the new look. Used in Settings -> Profile and the setup flow's brand step.
+// uses the new look. Used in Branding (Studio -> Branding, owner 10/31 - it was in Settings ->
+// Profile) and the setup flow's brand step.
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -27,12 +28,12 @@ function Preview({ center }: { center: QrCenter }) {
   return <svg viewBox={`-1 -1 ${parts.size + 2} ${parts.size + 2}`} className="h-full w-full rounded-lg bg-white" dangerouslySetInnerHTML={{ __html: parts.body }} />
 }
 
-export default function QrBrandPicker({ compact = false }: { compact?: boolean }) {
+export default function QrBrandPicker({ compact = false, logosAbove = false }: { compact?: boolean; logosAbove?: boolean }) {
   const { user } = useAuth()
   const [info, setInfo] = useState<Info | null>(null)
   const [busy, setBusy] = useState<Choice | ''>('')
   const [err, setErr] = useState('')
-  // On Settings / Setup the page's save status shows this save too (components/ui/SaveStatus).
+  // On Branding / Setup the page's save status shows this save too (components/ui/SaveStatus).
   const tracker = useSaveTracker()
   useEffect(() => { api.qrBrand.get().then(r => { if (r.success && r.data) setInfo(r.data as Info) }) }, [])
 
@@ -56,7 +57,7 @@ export default function QrBrandPicker({ compact = false }: { compact?: boolean }
   const initials = info.initials || '?'
   const options: { id: Choice; title: string; sub: string; center: QrCenter; needsLogo?: boolean }[] = [
     { id: 'ohp', title: 'OpenHousePal', sub: 'Our house logo', center: { kind: 'ohp' } },
-    { id: 'logo', title: 'Your logo', sub: info.has_logo ? 'From your Brand Kit' : 'Add one in Brand Kit', center: info.logo ? { kind: 'logo', logo: info.logo } : { kind: 'ohp' }, needsLogo: !info.has_logo },
+    { id: 'logo', title: 'Your logo', sub: info.has_logo ? (logosAbove ? 'Your Personal logo' : 'From your Brand Kit') : (logosAbove ? 'Add one above' : 'Add one in Brand Kit'), center: info.logo ? { kind: 'logo', logo: info.logo } : { kind: 'ohp' }, needsLogo: !info.has_logo },
     { id: 'initials', title: 'Your initials', sub: initials, center: { kind: 'initials', initials } },
   ]
   return (
@@ -91,7 +92,8 @@ export default function QrBrandPicker({ compact = false }: { compact?: boolean }
         })}
       </div>
       {!info.allowed && <p className="mt-2 text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">Your own logo or initials in your QR codes comes with the IDX plan.</p>}
-      {info.allowed && !info.has_logo && <p className="mt-2 text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">Want your logo? <Link href="/studio/brand-kit" className="font-black text-[#8b7355] underline dark:text-[#e8c97a]">Add it in your Brand Kit</Link>, then pick it here.</p>}
+      {info.allowed && !info.has_logo && logosAbove && <p className="mt-2 text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">Want your logo? Add a Personal logo under Logos, then pick it here.</p>}
+      {info.allowed && !info.has_logo && !logosAbove && <p className="mt-2 text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">Want your logo? <Link href="/studio/brand-kit" className="font-black text-[#8b7355] underline dark:text-[#e8c97a]">Add it in your Brand Kit</Link>, then pick it here.</p>}
       {err && <p className="mt-2 text-xs font-bold text-rose-600">{err}</p>}
     </div>
   )

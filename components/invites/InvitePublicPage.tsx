@@ -9,8 +9,9 @@ import {
   Loader2, Mail, MapPin, MessageSquare, Moon, Navigation, Pencil, Phone, Ruler, ScanSearch, Sun, Sunrise, X,
 } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/api-service'
+import { sizedImage } from '@/lib/siteImage'
 import {
-  accentOf, allDays, clockRange, dayLong, daysText, googleCalendarUrl, icsUrl, initialsOf, invitesApi, mix, onAccent, parseDay,
+  accentOf, allDays, askedByRsvp, clockRange, dayLong, daysText, googleCalendarUrl, icsUrl, initialsOf, invitesApi, mix, onAccent, parseDay,
   type InviteDay, type InviteQuestion, type InviteRequestKind, type InviteRsvp, type PublicInvite, type RsvpResponse,
 } from '@/lib/invites'
 import { openDirections } from '@/lib/directions'
@@ -183,7 +184,7 @@ export default function InvitePublicPage({ code, host }: { code: string; host: s
       {luxe && m ? <LuxeBackdrop m={m} /> : coverOf(inv) && (
         // computer: the cover photo fills the room behind everything, faded into the page colour
         <div aria-hidden className="pointer-events-none fixed inset-0 hidden lg:block">
-          <img src={coverOf(inv)} alt="" className="h-full w-full object-cover" style={{ opacity: t.dark ? 0.22 : 0.16, objectPosition: inv.cover_position ? `${inv.cover_position.x}% ${inv.cover_position.y}%` : undefined }} />
+          <img src={sizedImage(coverOf(inv), 1200, 70)} alt="" className="h-full w-full object-cover" style={{ opacity: t.dark ? 0.22 : 0.16, objectPosition: inv.cover_position ? `${inv.cover_position.x}% ${inv.cover_position.y}%` : undefined }} />
           <div className="absolute inset-0" style={{ background: `radial-gradient(70% 80% at 30% 40%, transparent 0%, ${t.bg} 75%), linear-gradient(180deg, transparent 0%, ${t.bg} 92%)` }} />
         </div>
       )}
@@ -293,7 +294,7 @@ export default function InvitePublicPage({ code, host }: { code: string; host: s
                     {/* computer: the questions right here, one at a time */}
                     {!phone && flow && (
                       <div className="mt-5">
-                        <RsvpFlow key={flow} response={flow} inv={inv} initial={mine} t={t} accent={accent} onSent={onSent} onCancel={() => setFlow(null)} />
+                        <RsvpFlow response={flow} inv={inv} initial={mine} t={t} accent={accent} onSent={onSent} onCancel={() => setFlow(null)} />
                       </div>
                     )}
                     {mine && !flow && <button type="button" onClick={() => setFlow(null)} className="mt-3 text-[12px] font-bold" style={{ color: t.sub }}>Cancel</button>}
@@ -379,7 +380,7 @@ export default function InvitePublicPage({ code, host }: { code: string; host: s
               <p className="text-center text-[10px] font-black uppercase tracking-[0.26em]" style={foilText(t, accent)}>Your host</p>
               <div className="mt-4 flex flex-col items-center text-center">
                 <span className="relative">
-                  <span aria-hidden className={`absolute -inset-2 rounded-full ${t.luxe ? 'ip-ring' : ''}`} style={{ background: t.luxe ? `conic-gradient(${t.m!.deep}, ${t.m!.light}, ${t.m!.pale}, ${t.m!.base}, ${t.m!.deep})` : mix(accent, t.dark ? '#000000' : '#ffffff', 0.6), opacity: t.luxe ? 0.9 : 1 }} />
+                  <span aria-hidden className="absolute -inset-2 rounded-full" style={{ background: t.luxe ? `conic-gradient(${t.m!.deep}, ${t.m!.light}, ${t.m!.pale}, ${t.m!.base}, ${t.m!.deep})` : mix(accent, t.dark ? '#000000' : '#ffffff', 0.6), opacity: t.luxe ? 0.9 : 1 }} />
                   <span className="relative block rounded-full p-1" style={{ background: t.surface }}><Avatar photo={inv.agent.photo_url} name={inv.agent.name} accent={accent} size={92} t={t} /></span>
                 </span>
                 <p className="mt-4 text-[24px] font-black leading-tight" style={{ fontFamily: SERIF }}>{inv.agent.name}</p>
@@ -412,7 +413,7 @@ export default function InvitePublicPage({ code, host }: { code: string; host: s
 
       {/* phone: the RSVP questions in a pull-up, one at a time */}
       <ThemedSheet open={phone && !!flow} onClose={() => setFlow(null)} t={t} label="RSVP">
-        {flow && <RsvpFlow key={flow} response={flow} inv={inv} initial={mine} t={t} accent={accent} onSent={onSent} onCancel={() => setFlow(null)} inSheet onSwitch={r => setFlow(r)} />}
+        {flow && <RsvpFlow response={flow} inv={inv} initial={mine} t={t} accent={accent} onSent={onSent} onCancel={() => setFlow(null)} inSheet onSwitch={r => setFlow(r)} />}
       </ThemedSheet>
       <ThemedSheet open={!!ask} onClose={() => setAsk(null)} t={t} label="Request">
         {ask && <RequestFlow kind={ask} inv={inv} mine={mine} t={t} accent={accent} done={!!requested[ask]} onSend={sendRequest} onClose={() => setAsk(null)} />}
@@ -428,7 +429,7 @@ export default function InvitePublicPage({ code, host }: { code: string; host: s
 // ------------------------------------------------------------------ the Luxe room behind the page
 
 function LuxeBackdrop({ m }: { m: MetalPalette }) {
-  const dust = useMemo(() => Array.from({ length: 22 }, (_, i) => {
+  const dust = useMemo(() => Array.from({ length: 14 }, (_, i) => {
     const r = (k: number) => { const x = Math.sin((i + 1) * 12.9898 * k + 78.233) * 43758.5453; return x - Math.floor(x) }
     return { left: r(1) * 100, top: r(2) * 100, size: 1 + Math.round(r(3) * 2.2), delay: r(4) * 9, dur: 9 + r(5) * 9 }
   }), [])
@@ -455,7 +456,7 @@ function TiltCard({ children, luxe, m }: { children: React.ReactNode; luxe?: boo
   const glare = useTransform(sy, [-8, 8], ['20%', '80%'])
   const glareBg = useTransform(glare, g => `linear-gradient(115deg, transparent 0%, rgba(255,255,255,.0) calc(${g} - 18%), rgba(255,255,255,.22) ${g}, rgba(255,255,255,0) calc(${g} + 18%), transparent 100%)`)
   return (
-    <div className={`mx-auto max-w-[420px] lg:max-w-[460px] ${luxe ? 'ip-float' : ''}`} style={{ perspective: 1200 }}
+    <div className="mx-auto max-w-[420px] lg:max-w-[460px]" style={{ perspective: 1200 }}
       onMouseMove={e => {
         if (window.matchMedia('(hover: none)').matches) return
         const r = e.currentTarget.getBoundingClientRect()
@@ -624,17 +625,31 @@ const CHOICES: { id: RsvpResponse; label: string; icon: typeof Check }[] = [
   { id: 'no', label: "Can't make it", icon: X },
 ]
 
+const CHOICE_ORDER: RsvpResponse[] = CHOICES.map(c => c.id)
+
+/** The questions slide in the direction of travel - Next/Back, or the new choice when the guest
+ *  switches answer partway (custom = -1 | 1, read by the exiting step too). */
+const STEP_SLIDE = {
+  enter: (d: number) => ({ opacity: 0, x: d * 40 }),
+  center: { opacity: 1, x: 0 },
+  // the old question is gone before the new one slides in - never text over text (10/31)
+  exit: (d: number) => ({ opacity: 0, x: d * -24, transition: { duration: 0.11, ease: 'easeIn' as const } }),
+}
+
+/** Nothing picked until the guest taps one; switching slides the highlight across to the new
+ *  choice (owner, 10/31). */
 function Choices({ value, onPick, accent, t }: { value: RsvpResponse | null; onPick: (r: RsvpResponse) => void; accent: string; t: Theme }) {
   return (
     <div className="mt-4 grid grid-cols-3 gap-2">
       {CHOICES.map(c => {
         const on = value === c.id
         return (
-          <motion.button key={c.id} type="button" whileTap={{ scale: 0.95 }} onClick={() => onPick(c.id)} data-testid={`rsvp-${c.id}`}
-            className={`relative flex min-h-[84px] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl px-1 text-center text-[12px] font-black transition-colors ${t.luxe && on ? 'ip-foil-anim' : ''}`}
-            style={on ? btnStyle(t, accent) : { background: t.dark ? 'rgba(255,255,255,.05)' : '#ffffff', border: `1px solid ${t.border}`, color: t.text }}>
-            <c.icon className="h-6 w-6" strokeWidth={2.6} />
-            {c.label}
+          <motion.button key={c.id} type="button" whileTap={{ scale: 0.95 }} onClick={() => onPick(c.id)} data-testid={`rsvp-${c.id}`} aria-pressed={on}
+            className="relative flex min-h-[84px] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl px-1 text-center text-[12px] font-black transition-colors duration-200"
+            style={{ background: t.dark ? 'rgba(255,255,255,.05)' : '#ffffff', border: `1px solid ${t.border}`, color: on ? (t.luxe ? '#17140f' : onAccent(accent)) : t.text }}>
+            {on && <motion.span layoutId="rsvp-choice-pill" aria-hidden className="absolute inset-0 rounded-2xl" style={{ ...btnStyle(t, accent), boxShadow: 'none' }} transition={{ type: 'spring', stiffness: 380, damping: 32 }} />}
+            <c.icon className="relative h-6 w-6" strokeWidth={2.6} />
+            <span className="relative">{c.label}</span>
           </motion.button>
         )
       })}
@@ -682,7 +697,7 @@ function HomeShowcase({ inv, t, accent }: { inv: PublicInvite; t: Theme; accent:
           className="flex aspect-[16/10] snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {(n ? photos : ['']).map((p, i) => (
             <div key={i} className="relative h-full w-full shrink-0 snap-center" style={{ background: soft(t) }}>
-              {p && <img src={resolveMediaUrl(p)} alt={i === 0 ? street : ''} loading={i < 2 ? 'eager' : 'lazy'} className="h-full w-full object-cover" />}
+              {p && <img src={sizedImage(resolveMediaUrl(p), 1080, 75)} alt={i === 0 ? street : ''} loading={i < 2 ? 'eager' : 'lazy'} className="h-full w-full object-cover" />}
             </div>
           ))}
         </div>
@@ -911,7 +926,8 @@ function RsvpFlow({ response, inv, initial, t, accent, onSent, onCancel, inSheet
   const [phone, setPhone] = useState(initial?.phone || visitor?.phone || '')
   const [answers, setAnswers] = useState<Record<string, string | string[]>>(() => Object.fromEntries((initial?.answers || []).map(a => [a.questionId, a.value])))
   const days = inv.dates?.length ? inv.dates : allDays(inv)
-  const [picked, setPicked] = useState<string[]>(() => (initial?.days?.length ? initial.days : days.map(d => d.date)))
+  // Nothing picked to start with (owner, 10/31) - the guest taps the day(s) they're coming.
+  const [picked, setPicked] = useState<string[]>(() => (initial?.days?.length ? initial.days : []))
   const [isAgent, setIsAgent] = useState<boolean | null>(initial?.is_agent ?? null)
   const [hasAgent, setHasAgent] = useState<boolean | null>(initial?.has_agent ?? null)
   const [interested, setInterested] = useState<boolean | null>(initial?.response === 'no' ? (initial.still_interested ?? null) : null)
@@ -923,7 +939,7 @@ function RsvpFlow({ response, inv, initial, t, accent, onSent, onCancel, inSheet
   const clients = inv.audience === 'clients'
   const isHome = !!inv.linked_property?.address
   const first = inv.agent.first_name || inv.agent.name.split(' ')[0] || 'your host'
-  const questions = (inv.questions || []).filter(q => (response !== 'no' || q.role === 'brokerage') && !(clients && q.role === 'represented'))
+  const questions = (inv.questions || []).filter(q => (response !== 'no' || q.role === 'brokerage') && !askedByRsvp(q, inv.audience))
 
   const steps: Step[] = []
   if (response === 'no') {
@@ -964,6 +980,20 @@ function RsvpFlow({ response, inv, initial, t, accent, onSent, onCancel, inSheet
     if (q?.required) return Array.isArray(answers[q.id]) ? (answers[q.id] as string[]).length > 0 : !!String(answers[q.id] || '').trim()
     return true
   }
+  // Switching answer partway (owner, 10/31 - "I'll be there" -> "Maybe" and back): everything typed
+  // so far stays, the guest stays on the same question when the new answer asks it too (else the
+  // first one still to answer), and the questions slide over in the direction of the new choice.
+  const [seen, setSeen] = useState(response)
+  const shownId = useRef<string | null>(null)
+  if (seen !== response) {
+    const at = steps.findIndex(s => s.id === shownId.current)
+    const open = steps.findIndex(s => !valid(s))
+    setSeen(response)
+    setI(at >= 0 ? at : open >= 0 ? open : 0)
+    setDir(CHOICE_ORDER.indexOf(response) > CHOICE_ORDER.indexOf(seen) ? 1 : -1)
+    setError('')
+  }
+  useEffect(() => { shownId.current = step.id })
   const goTo = (n: number) => { setDir(n > k ? 1 : -1); setError(''); setI(n) }
   const next = () => { if (!valid(step)) return; if (last) submit(); else goTo(k + 1) }
   // A one-tap answer moves on by itself (after a beat, so the tap shows).
@@ -972,13 +1002,16 @@ function RsvpFlow({ response, inv, initial, t, accent, onSent, onCancel, inSheet
   const submit = async () => {
     setError('')
     setBusy(true)
+    // Only what THIS answer asked is sent - an answer given under the other choice (the days, "Are
+    // you an agent?", "Still interested?") stays behind if the guest switched (owner, 10/31).
+    const asked = (id: string) => steps.some(s => s.id === id)
     const r = await invitesApi.publicRsvp(inv.code, {
       response, name: name.trim(), email: email.trim() || undefined, phone: phone.trim() || undefined,
-      answers: questions.filter(q => answers[q.id] !== undefined).map(q => ({ questionId: q.id, value: answers[q.id] })),
+      answers: questions.filter(q => answers[q.id] !== undefined && asked(`q:${q.id}`)).map(q => ({ questionId: q.id, value: answers[q.id] })),
       token: initial?.token,
-      days: response !== 'no' && days.length > 1 ? picked : undefined,
-      is_agent: clients ? isAgent : undefined, has_agent: clients && isAgent === false ? hasAgent : undefined,
-      still_interested: response === 'no' ? !!interested : undefined, keep_updated: response === 'no' && interested ? !!keep : undefined,
+      days: asked('days') ? picked : undefined,
+      is_agent: asked('isAgent') ? isAgent : undefined, has_agent: asked('hasAgent') ? hasAgent : undefined,
+      still_interested: response === 'no' ? !!interested : undefined, keep_updated: asked('updates') ? !!keep : undefined,
     })
     setBusy(false)
     if (!r.success) { setError(r.error); return }
@@ -1059,13 +1092,27 @@ function RsvpFlow({ response, inv, initial, t, accent, onSent, onCancel, inSheet
     <div data-testid="rsvp-flow">
       {inSheet && (
         <div className="mb-4 pr-12">
-          <p className="text-[10px] font-black uppercase tracking-[0.26em]" style={foilText(t, accent)}>RSVP · {response === 'yes' ? "I'll be there" : response === 'maybe' ? 'Maybe' : "Can't make it"}</p>
+          <p className="flex text-[10px] font-black uppercase tracking-[0.26em]" style={foilText(t, accent)}>
+            RSVP ·&nbsp;
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span key={response} className="inline-block" style={foilText(t, accent)} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.16 }}>
+                {response === 'yes' ? "I'll be there" : response === 'maybe' ? 'Maybe' : "Can't make it"}
+              </motion.span>
+            </AnimatePresence>
+          </p>
           {onSwitch && (
             <div className="mt-2 flex gap-1.5">
-              {CHOICES.map(c => (
-                <button key={c.id} type="button" onClick={() => onSwitch(c.id)} className="h-8 rounded-full px-3 text-[11px] font-black transition"
-                  style={c.id === response ? btnStyle(t, accent) : { background: soft(t), color: t.sub }}>{c.label}</button>
-              ))}
+              {CHOICES.map(c => {
+                const on = c.id === response
+                return (
+                  <button key={c.id} type="button" onClick={() => onSwitch(c.id)} data-testid={`rsvp-switch-${c.id}`} aria-pressed={on}
+                    className="relative h-8 rounded-full px-3 text-[11px] font-black transition-colors duration-200" style={{ background: soft(t), color: on ? (t.luxe ? '#17140f' : onAccent(accent)) : t.sub }}>
+                    {/* the highlight slides from the old choice to the new one */}
+                    {on && <motion.span layoutId="rsvp-switch-pill" aria-hidden className="absolute inset-0 rounded-full" style={{ ...btnStyle(t, accent), boxShadow: 'none' }} transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
+                    <span className="relative">{c.label}</span>
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
@@ -1075,8 +1122,8 @@ function RsvpFlow({ response, inv, initial, t, accent, onSent, onCancel, inSheet
         {steps.map((s, n) => <span key={s.id} className="h-1 flex-1 rounded-full transition-all duration-500" style={{ background: n <= k ? (t.luxe ? t.m!.light : accent) : (t.dark ? 'rgba(255,255,255,.12)' : 'rgba(0,0,0,.08)') }} />)}
       </div>
       <AutoHeight>
-        <AnimatePresence mode="popLayout" initial={false} custom={dir}>
-          <motion.div key={step.id} custom={dir} initial={{ opacity: 0, x: dir * 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: dir * -30 }}
+        <AnimatePresence mode="wait" initial={false} custom={dir}>
+          <motion.div key={`${response}:${step.id}`} custom={dir} variants={STEP_SLIDE} initial="enter" animate="center" exit="exit"
             transition={{ type: 'spring', stiffness: 380, damping: 34 }}>
             <h3 className="text-[24px] font-black leading-tight" style={{ fontFamily: SERIF, fontStyle: t.luxe ? 'italic' : 'normal' }}>{step.title}</h3>
             {step.sub && <p className="mt-1 text-[13px]" style={{ color: t.sub }}>{step.sub}</p>}
@@ -1292,28 +1339,24 @@ function SentMoment({ rsvp, inv, days, accent, t, onChange, onDone }: { rsvp: In
   )
 }
 
+// Owner, 10/31 (lag): nothing on the guest page moves forever any more. The Luxe room's light is
+// still (three soft glows and a little foil dust, no drifting full-screen layers), the panels' gold
+// edges are still lines, and the card's light sweep, the foil buttons and the bell play a couple of
+// times after the page opens and rest. No blur anywhere.
 const PAGE_CSS = `
-.ip-aur{position:absolute;width:150%;height:150%;left:-25%;top:-25%}
-.ip-aur1{background:radial-gradient(30% 28% at 28% 30%, rgba(var(--mr),.30), transparent 70%);animation:ipA1 22s ease-in-out infinite alternate}
-.ip-aur2{background:radial-gradient(28% 26% at 74% 64%, rgba(var(--ml),.20), transparent 70%);animation:ipA2 26s ease-in-out infinite alternate}
-.ip-aur3{background:radial-gradient(40% 30% at 50% 108%, rgba(var(--mr),.32), transparent 70%);animation:ipA1 30s ease-in-out infinite alternate-reverse}
-@keyframes ipA1{0%{transform:translate(-5%,-4%) scale(1)}100%{transform:translate(7%,6%) scale(1.15)}}
-@keyframes ipA2{0%{transform:translate(6%,5%) scale(1.1)}100%{transform:translate(-7%,-6%) scale(.95)}}
-.ip-dust{position:absolute;border-radius:9999px;background:var(--mp);box-shadow:0 0 6px 1px rgba(var(--ml),.7);opacity:0;animation:ipDust var(--d) linear infinite}
-@keyframes ipDust{0%{opacity:0;transform:translateY(0)}15%{opacity:.85}55%{opacity:.2}75%{opacity:.75}100%{opacity:0;transform:translateY(-160px)}}
-.ip-float{animation:ipFloat 7s ease-in-out infinite}
-@keyframes ipFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-.ip-cardsweep{position:absolute;top:-20%;bottom:-20%;width:30%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.32),transparent);transform:translateX(-200%) skewX(-16deg);animation:ipSweep 6.5s cubic-bezier(.6,.05,.3,1) infinite 1.5s}
+.ip-aur{position:absolute;inset:0}
+.ip-aur1{background:radial-gradient(34% 30% at 26% 26%, rgba(var(--mr),.30), transparent 70%)}
+.ip-aur2{background:radial-gradient(30% 28% at 76% 66%, rgba(var(--ml),.20), transparent 70%)}
+.ip-aur3{background:radial-gradient(44% 32% at 50% 104%, rgba(var(--mr),.32), transparent 70%)}
+.ip-dust{position:absolute;border-radius:9999px;background:var(--mp);opacity:.45}
+.ip-cardsweep{position:absolute;top:-20%;bottom:-20%;width:30%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.32),transparent);transform:translateX(-200%) skewX(-16deg);animation:ipSweep 6.5s cubic-bezier(.6,.05,.3,1) 1.5s 2}
 @keyframes ipSweep{0%{transform:translateX(-200%) skewX(-16deg)}35%,100%{transform:translateX(480%) skewX(-16deg)}}
-.ip-lux-panel{box-shadow:0 30px 60px -40px rgba(0,0,0,.9)}
-.ip-lux-strong{box-shadow:0 30px 70px -36px rgba(0,0,0,.95),0 0 0 1px rgba(255,255,255,.02)}
-.ip-lux-edge{background:linear-gradient(90deg,transparent 0%,rgba(255,243,207,.0) 20%,rgba(255,243,207,.75) 50%,rgba(255,243,207,0) 80%,transparent 100%);background-size:220% 100%;animation:ipEdge 5.5s ease-in-out infinite}
-@keyframes ipEdge{0%{background-position:150% 0}100%{background-position:-50% 0}}
-.ip-foil-anim{animation:ipFoil 3.4s ease-in-out infinite}
+.ip-lux-panel{box-shadow:0 24px 44px -34px rgba(0,0,0,.9)}
+.ip-lux-strong{box-shadow:0 24px 50px -32px rgba(0,0,0,.95)}
+.ip-lux-edge{background:linear-gradient(90deg,transparent 0%,rgba(255,243,207,0) 20%,rgba(255,243,207,.6) 50%,rgba(255,243,207,0) 80%,transparent 100%)}
+.ip-foil-anim{animation:ipFoil 3.4s ease-in-out 2}
 @keyframes ipFoil{0%{background-position:100% 0}100%{background-position:-120% 0}}
-.ip-bell{animation:ipBell 3.2s ease-in-out infinite;transform-origin:50% 0}
+.ip-bell{animation:ipBell 3.2s ease-in-out 3;transform-origin:50% 0}
 @keyframes ipBell{0%,70%,100%{transform:rotate(0)}76%{transform:rotate(12deg)}82%{transform:rotate(-10deg)}88%{transform:rotate(6deg)}94%{transform:rotate(-3deg)}}
-.ip-ring{animation:ipSpin 9s linear infinite}
-@keyframes ipSpin{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){.ip-aur1,.ip-aur2,.ip-aur3,.ip-dust,.ip-float,.ip-cardsweep,.ip-lux-edge,.ip-foil-anim,.ip-bell,.ip-ring{animation:none}}
+@media (prefers-reduced-motion:reduce){.ip-cardsweep,.ip-foil-anim,.ip-bell{animation:none}}
 `

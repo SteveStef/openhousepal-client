@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertOctagon, ArrowLeft, DollarSign, MessageSquare, Users, ShieldAlert, X, Bot, Loader2, Globe2, Radar } from 'lucide-react'
+import { AlertOctagon, ArrowLeft, DollarSign, MessageSquare, Users, ShieldAlert, X, Bot, Loader2, Globe2, Radar, Sparkles } from 'lucide-react'
 import api from '@/lib/api-service'
 import OhpSwitch from '@/components/ui/OhpSwitch'
 import { AIAdminOverview, AIAdminAgentSummary, AIAdminAgentDetail, AIAdminBudgetStatus, AIAdminTopConsumer, AIAdminMonthlyPoint } from '@/types'
@@ -21,7 +21,7 @@ const PROVIDER_FAILURE_LABELS: Record<string, string> = {
 }
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
-  chat: 'Chat', tts: 'Read Aloud', realtime: 'Talk to OHP', cma_ai: 'CMA - comp analysis',
+  chat: 'AI helper chat', tts: 'Read Aloud', realtime: 'Talk to OHP', cma_ai: 'CMA - comp analysis',
   cma_reasoning: 'CMA - final reasoning', area_narrative: 'Area narrative', area_research: 'Area research',
   copywrite: 'AI Copywriter', blog_writer: 'AI Blog Writer', external_api: 'Google look-ups (agents)',
   studio_media_image: 'Studio Media - image', studio_media_video: 'Studio Media - video',
@@ -357,10 +357,12 @@ export default function AIUsagePanel() {
       })()}
 
       {/* Overview cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 max-sm:gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8 max-sm:gap-3">
         <StatCard icon={<DollarSign className="w-3 h-3" />} label="Cost (Month)" value={formatCost(overview?.total_cost_month_usd || 0)} accent />
         <StatCard icon={<DollarSign className="w-3 h-3" />} label="Cost (All-Time)" value={formatCost(overview?.total_cost_all_time_usd || 0)} />
         <StatCard icon={<MessageSquare className="w-3 h-3" />} label="AI calls (Month)" value={String(overview?.messages_month || 0)} />
+        {/* the AI helper chat alone - its own event type, never other features on the same models */}
+        <StatCard icon={<Sparkles className="w-3 h-3" />} label="AI chat (Month)" value={formatCost(overview?.cost_by_type_month?.chat || 0)} />
         <StatCard icon={<Users className="w-3 h-3" />} label="Active Agents (30d)" value={String(overview?.active_agents_30d || 0)} />
         <StatCard icon={<ShieldAlert className="w-3 h-3" />} label="Blocked (Month)" value={String(overview?.blocked_count_month || 0)} />
       </div>
@@ -470,7 +472,7 @@ export default function AIUsagePanel() {
             ))}
           </div>
         </div>
-        {/* Phones: one card per agent instead of the 7-column table. */}
+        {/* Phones: one card per agent instead of the 8-column table. */}
         <ul className="divide-y divide-gray-100 dark:divide-gray-800 sm:hidden">
           {agents.length === 0 && <li className="px-5 py-10 text-center text-sm text-gray-400 dark:text-zinc-500">No AI usage recorded for this period.</li>}
           {agents.map((a) => (
@@ -484,7 +486,7 @@ export default function AIUsagePanel() {
                   <span className="shrink-0 font-black text-[#C9A24D]">{formatCost(a.cost_usd)}</span>
                 </div>
                 <p className="mt-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
-                  {a.messages} messages · {a.tool_calls} tool calls
+                  {a.messages} messages · {a.tool_calls} tool calls{a.chat_messages ? <> · AI chat {formatCost(a.chat_cost_usd || 0)} ({a.chat_messages})</> : null}
                   {a.blocked_count > 0 && <span className="text-red-500"> · {a.blocked_count} blocked</span>}
                 </p>
                 <p className="mt-0.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
@@ -501,6 +503,7 @@ export default function AIUsagePanel() {
               <tr className="bg-gray-50/50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-800">
                 <th className="px-8 py-4 text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-[0.2em]">Agent</th>
                 <th className="px-8 py-4 text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-[0.2em]">Cost</th>
+                <th className="px-8 py-4 text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-[0.2em]">AI Chat</th>
                 <th className="px-8 py-4 text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-[0.2em]">Messages</th>
                 <th className="px-8 py-4 text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-[0.2em]">Tool Calls</th>
                 <th className="px-8 py-4 text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-[0.2em]">Site Spend (Today)</th>
@@ -510,7 +513,7 @@ export default function AIUsagePanel() {
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
               {agents.length === 0 && (
-                <tr><td colSpan={7} className="px-8 py-10 text-center text-sm text-gray-400 dark:text-zinc-500">No AI usage recorded for this period.</td></tr>
+                <tr><td colSpan={8} className="px-8 py-10 text-center text-sm text-gray-400 dark:text-zinc-500">No AI usage recorded for this period.</td></tr>
               )}
               {agents.map((a) => (
                 <tr
@@ -525,6 +528,7 @@ export default function AIUsagePanel() {
                     </div>
                   </td>
                   <td className="px-8 py-5 font-black text-[#C9A24D]">{formatCost(a.cost_usd)}</td>
+                  <td className="px-8 py-5 text-sm font-bold">{a.chat_messages ? <span className="text-gray-700 dark:text-gray-300">{formatCost(a.chat_cost_usd || 0)} <span className="text-xs font-semibold text-gray-400">· {a.chat_messages} msgs</span></span> : <span className="text-gray-300 dark:text-zinc-600">-</span>}</td>
                   <td className="px-8 py-5 text-sm font-bold text-gray-700 dark:text-gray-300">{a.messages}</td>
                   <td className="px-8 py-5 text-sm font-bold text-gray-700 dark:text-gray-300">{a.tool_calls}</td>
                   <td className="px-8 py-5 text-sm font-bold">

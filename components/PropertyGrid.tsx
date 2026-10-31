@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'framer-motion'
 import { Property } from '@/types'
 import PropertyCard from './PropertyCard'
+import type { HomeSend } from '@/lib/sendHome'
 import { computeMatchScore } from '@/lib/matchScore'
 
 interface PropertyGridProps {
@@ -68,6 +69,8 @@ interface PropertyGridProps {
   onMoveToSold?: (property: Property, filed: boolean) => void
   /** Agent's Showcase: the "Send" button on each card. */
   onSend?: (property: Property) => void
+  /** Agent's Showcase: each home's sends, newest first (lib/sendHome sendsByHome) - its Send button shows "Sent". */
+  sentHomes?: Record<string, HomeSend[]>
   /** Agent's Showcase select mode: tapping a card picks it instead of opening it. */
   selectMode?: boolean
   selectedIds?: ReadonlySet<string>
@@ -88,7 +91,7 @@ export function homeMatches(p: any, key: string): boolean {
   return !!street && k.length > 5 && (k.startsWith(street) || street.startsWith(k.split(',')[0]))
 }
 
-export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, sortControl, headerAction, alignHeaderLeftOnMobile = false, compareInfo, destination, compareProperty, tourButtonVariant, cropMlsBadge = false, highlightFirst = false, highlightKey = null, animationKey, animationOrder, emptyState, compactHeader = false, phoneCompact = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold, onSend, selectMode = false, selectedIds, onToggleSelect }: PropertyGridProps) {
+export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, sortControl, headerAction, alignHeaderLeftOnMobile = false, compareInfo, destination, compareProperty, tourButtonVariant, cropMlsBadge = false, highlightFirst = false, highlightKey = null, animationKey, animationOrder, emptyState, compactHeader = false, phoneCompact = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold, onSend, sentHomes, selectMode = false, selectedIds, onToggleSelect }: PropertyGridProps) {
   const firstCardRef = useRef<HTMLDivElement>(null)
   const [isHighlighting, setIsHighlighting] = useState(false)
   const hasFiredRef = useRef(false)
@@ -262,6 +265,7 @@ export default function PropertyGrid({ properties, title = "Properties", onLike,
             offMarketNotice={offMarketNotice}
             onMoveToSold={onMoveToSold}
             onSend={onSend}
+            sent={sentHomes?.[String(property.id)]?.[0]}
             selected={selectMode ? !!selectedIds?.has(String(property.id)) : undefined}
           />
         </motion.div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { homeSlug, showcaseHomeCount, showcaseLinkPath } from '@/lib/showcaseLink'
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import api, { resolveMediaUrl } from '@/lib/api-service'
@@ -21,6 +21,7 @@ import LuxeSelect from '@/components/ui/LuxeSelect'
 import { SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
 import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
 import SendHomesSheet from '@/components/showcases/SendHomesSheet'
+import { sendsByHome, type HomeSend } from '@/lib/sendHome'
 import ShowcaseSelectBar, { type BulkAction } from '@/components/showcases/ShowcaseSelectBar'
 import { useLastValue } from '@/components/ui/windowMotion'
 
@@ -238,6 +239,16 @@ export const DetailView = memo(function DetailView({
   const [sendHomes, setSendHomes] = useState<Property[] | null>(null)
   const sendOpen = !!sendHomes
   const lastSendHomes = useLastValue(sendHomes)
+  // Homes already sent to this client (owner 10/31): their Send button turns green "Sent", and the
+  // Send window says how and when. Loaded with the Showcase, refreshed after every send.
+  const [sends, setSends] = useState<HomeSend[] | null>(null)
+  useEffect(() => {
+    let live = true
+    setSends(null)
+    api.collections.sendHomeState(selectedCollection.id).then(({ success, data }) => { if (live && success && data) setSends(data.sends || []) })
+    return () => { live = false }
+  }, [selectedCollection.id])
+  const sentHomes = useMemo(() => sendsByHome(sends), [sends])
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const toggleSelect = useCallback((p: Property) => setSelectedIds(prev => {
@@ -659,6 +670,7 @@ export const DetailView = memo(function DetailView({
           offMarketNotice
           onMoveToSold={onMoveToSold}
           onSend={(p) => setSendHomes([p])}
+          sentHomes={sentHomes}
           selectMode={selectMode}
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
@@ -781,6 +793,7 @@ export const DetailView = memo(function DetailView({
           homeCount={showcaseHomeCount(matchedProperties)}
           onTurnOnLink={onShare}
           onSent={() => { if (selectMode) endSelect() }}
+          onSendsChange={setSends}
         />
 
         {onBulkAction && (

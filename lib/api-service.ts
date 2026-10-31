@@ -1,5 +1,6 @@
 import type { MarketingMoments, SiteSeo, ShowingStatus, ShowcaseInbox, EmailPerson, ClientEmailRow, BrandUsage } from '@/types'
 import type { DomainContact, DomainSearch, DomainShop, OneClick, PurchasedDomain } from '@/lib/domainShop'
+import type { HomeSend } from '@/lib/sendHome'
 
 // One "which home?" suggestion for a public showing request (any on-market listing, the agent's first).
 export type PublicHomeSuggestion = {
@@ -15,7 +16,7 @@ import { ApiResponse, User, OpenHouse, OpenHouseFormRequest, SearchPreferences, 
   AdminStorageAgentSummary, AdminActivityOverview, AdminActivityAgentDetail, BillingGroup, BillingGroupInput, PromoCode, PromoCodeInput, AdminAreaList, AdminAreaListQuery, AdminAreaDetail, AdminAreaPlaceInput, PayPalPlanTerms, CheckoutCode, AdminStorageAgentDetail,
   AIRealtimeSessionOut, AIRealtimeToolCallResult, AgentMarketArea, CollectionPreferences,
   SupportTicketDetail, SupportTicketListItem, AdminSupportTicketListItem, SupportTicketCategory, SupportTicketDetails, SavedManualProperty, PublicQuestion,
-  StudioMediaAsset, StudioMediaGeneratePayload, StudioVideoTestGridPayload, StudioVideoTestGridResponse, MonthlyAiUsage,
+  StudioMediaAsset, StudioMediaGeneratePayload, StudioVideoTestGridPayload, StudioVideoTestGridResponse, MonthlyAiUsage, ChatUsage,
   AgentTask, TaskCounts, TaskCreateInput, TaskUpdateInput, CalendarFeedInfo, AutoFollowupRule, FollowupSettings, FollowupAlerts, PublicFollowup, PublicFollowupText,
   IntegrationsInfo, CrmTestResult,
   TitleCardOptions, BrandingOptions, BlogAiContext, BlogAiBrief, BlogAiGenerateResult, BlogAiRefineAction, LinkDomainState } from '@/types';
@@ -978,9 +979,10 @@ class ApiService {
         body: JSON.stringify({ action, property_ids: propertyIds }),
       }),
 
-    /** Send a home: the agent's saved intro + email app, and whether this client already got the intro by text. */
+    /** Send a home: the agent's saved intro + email app, whether this client already got the intro by text,
+     *  and every home sent to them before (how and when). */
     sendHomeState: (collectionId: string) =>
-      this.request<{ message: string | null; mail_app: 'gmail' | 'outlook' | 'default' | null; intro_texted_at: string | null }>(`/collections/${collectionId}/send-home`),
+      this.request<{ message: string | null; mail_app: 'gmail' | 'outlook' | 'default' | null; intro_texted_at: string | null; sends?: HomeSend[] }>(`/collections/${collectionId}/send-home`),
 
     /** Save the agent's intro message (for every Showcase) and/or email app. "" resets it. */
     saveSendHomePrefs: (prefs: { message?: string; mail_app?: string }) =>
@@ -989,11 +991,12 @@ class ApiService {
         body: JSON.stringify(prefs),
       }),
 
-    /** The agent opened Messages / their email app with the link(s) - a text with the intro marks it said. */
-    markHomeSent: (collectionId: string, method: 'text' | 'email', withIntro: boolean, propertyIds: string[]) =>
-      this.request<{ success: boolean; intro_texted_at: string | null }>(`/collections/${collectionId}/send-home/sent`, {
+    /** The agent opened Messages / their email app with the link(s), or copied the text - logged (the
+     *  homes show "Sent"); a text with the intro marks it said. */
+    markHomeSent: (collectionId: string, method: 'text' | 'email', withIntro: boolean, propertyIds: string[], copied = false) =>
+      this.request<{ success: boolean; intro_texted_at: string | null; sends?: HomeSend[] }>(`/collections/${collectionId}/send-home/sent`, {
         method: 'POST',
-        body: JSON.stringify({ method, with_intro: withIntro, property_ids: propertyIds }),
+        body: JSON.stringify({ method, with_intro: withIntro, property_ids: propertyIds, copied }),
       }),
 
     interact: (collectionId: string, propertyId: string, interactionType: 'like' | 'dislike', value: boolean) =>
@@ -1929,6 +1932,8 @@ class ApiService {
 
     update: (leadId: string, data: { name?: string; email?: string; phone?: string; status?: LeadStatus; represented?: LeadRepresented; tags?: string[]; notes?: string; mark_contacted?: boolean; is_favorite?: boolean }) =>
       this.request<LeadDetail>(`/leads/${leadId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    // The open house Visitors window's Showcase switch, on their lead (11/01).
+    openHouseShowcase: (leadId: string) => this.request<import('@/components/leads/LeadOpenHouseShowcase').LeadOhShowcase>(`/leads/${leadId}/open-house-showcase`),
     /** After an email change: can "Send them a new invitation?" be offered (and the open-house one)? */
     inviteOptions: (leadId: string) =>
       this.request<{ collection_id: string | null; open_house: boolean }>(`/leads/${leadId}/invite-options`),
@@ -2062,8 +2067,10 @@ class ApiService {
 
     getHelperStatus: () => this.request<{ enabled: boolean; voice: boolean }>('/ai/helper/status'),
 
-    confirmAction: (actionId: string, messageId: string) =>
-      this.request<{ status: string; result_message?: string; result_link?: string }>(`/ai/actions/${actionId}/confirm`, { method: 'POST', body: JSON.stringify({ message_id: messageId }) }),
+    // picks: choices tapped on the card (a picker, e.g. Branding swatches) - folded in on the server.
+    confirmAction: (actionId: string, messageId: string, picks?: Record<string, unknown>) =>
+      this.request<{ status: string; result_message?: string; result_link?: string }>(`/ai/actions/${actionId}/confirm`, { method: 'POST', body: JSON.stringify({ message_id: messageId, ...(picks ? { picks } : {}) }) }),
+
 
     clientActionResult: (actionId: string, messageId: string, out: { ok: boolean; message: string; link?: string; made?: Record<string, unknown> }) =>
       this.request<{ status: string; result_message?: string; result_link?: string; made?: { kind: string; title?: string; design_id?: string; is_print?: string } }>(`/ai/actions/${actionId}/client-result`, { method: 'POST', body: JSON.stringify({ message_id: messageId, ...out }) }),
@@ -2092,6 +2099,8 @@ class ApiService {
     // "Monthly AI Usage" meter - month-to-date spend across every AI tool vs the plan's
     // monthly AI budget. Open to every user; percent is null when the tier isn't metered.
     monthlyUsage: () => this.request<MonthlyAiUsage>('/ai/usage/monthly'),
+    // The AI helper chat's own allowance - the "Chat usage" bar (separate from the AI bar).
+    chatUsage: () => this.request<ChatUsage>('/ai/usage/chat'),
 
     // Roughly what one copywrite call will cost (% of the monthly AI budget) - shown before spending it.
     copywriteEstimate: (purpose: string, chars: number) =>
@@ -2643,6 +2652,10 @@ class ApiService {
     // Open house kit print choices saved to the account (lib/printPrefs keeps a per-device copy).
     kitPrefs: () => this.request<{ prefs: Record<string, boolean> }>('/setup/kit-prefs', { cache: 'no-store' }),
     setKitPrefs: (prefs: Record<string, boolean>) => this.request<{ prefs: Record<string, boolean> }>('/setup/kit-prefs', { method: 'PUT', body: JSON.stringify({ prefs }) }),
+    // The agent's own wording for texts / emails they send from their phone (lib/messageTemplates).
+    messageTemplates: () => this.request<{ templates: Record<string, { subject?: string; body?: string }> }>('/setup/message-templates', { cache: 'no-store' }),
+    setMessageTemplate: (patch: { key: string; subject?: string; body?: string; reset?: boolean }) =>
+      this.request<{ templates: Record<string, { subject?: string; body?: string }> }>('/setup/message-templates', { method: 'PUT', body: JSON.stringify(patch) }),
     formDefaults: () => this.request<SetupFormDefaults>('/setup/form-defaults', { cache: 'no-store' }),
     setFormDefaults: (patch: Partial<Record<'animated' | 'show_branding' | 'redirect_to_agent_hub', boolean>>) =>
       this.request<SetupFormDefaults>('/setup/form-defaults', { method: 'PUT', body: JSON.stringify(patch) }),

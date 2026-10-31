@@ -7,6 +7,7 @@ import api from '@/lib/api-service'
 import { AIConversation, AIConversationListItem } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
+import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
 import AssistantHome from './AssistantHome'
 import ChatThread from './ChatThread'
 import ChatInput from './ChatInput'
@@ -64,6 +65,9 @@ export default function AssistantWidget() {
   const restored = useRef(false)
   const panelRef = useRef<HTMLDivElement>(null)
   const [closing, setClosing] = useState(false)
+  // Phone: after a link in the chat opened a page, the sheet sits low as a peek (owner, 10/31).
+  const [peek, setPeek] = useState(false)
+  useEffect(() => { if (!isOpen) setPeek(false) }, [isOpen])
 
   // Closing plays its exit first (a beat), then unmounts.
   const close = useCallback(() => {
@@ -94,6 +98,8 @@ export default function AssistantWidget() {
       const ui = JSON.parse(store.get(UI_KEY, true) || '{}')
       if (ui.open) setIsOpen(true)
       if (ui.big) setBig(true)
+      // a link in the chat opened this page on a phone - keep the sheet down as a peek here too
+      if (ui.peek && window.matchMedia('(max-width: 639px)').matches) setPeek(true)
     } catch { /* ignore */ }
     const id = store.get(CONV_KEY)
     if (id) {
@@ -104,7 +110,7 @@ export default function AssistantWidget() {
     }
   }, [helper?.enabled])
 
-  useEffect(() => { if (restored.current) store.set(UI_KEY, JSON.stringify({ open: isOpen, big }), true) }, [isOpen, big])
+  useEffect(() => { if (restored.current) store.set(UI_KEY, JSON.stringify({ open: isOpen, big, peek }), true) }, [isOpen, big, peek])
   useEffect(() => { if (restored.current) store.set(CONV_KEY, activeConversation?.id ?? null) }, [activeConversation?.id])
 
   const loadChats = useCallback(() => {
@@ -171,9 +177,11 @@ export default function AssistantWidget() {
         const withoutTemp = prev.messages.filter((m) => m.id !== tempId)
         return { ...prev, title: prev.title || text.slice(0, 80), messages: [...withoutTemp, user_message, assistant_message] }
       })
+      return true
     } catch (err) {
       setActiveConversation((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m.id !== tempId) } : prev))
       showToast(err instanceof Error ? err.message : 'Something went wrong sending that message.', 'error')
+      return false   // the typing box puts their words back
     } finally {
       setIsSending(false)
     }
@@ -204,6 +212,7 @@ export default function AssistantWidget() {
     const dy = dragY
     dragStart.current = null
     setDragY(0)
+    if (peek) { if (dy > 40) close(); else if (dy < -30) setPeek(false); return }
     if (dy < -50) setBig(true)
     else if (dy > 70) { if (big) setBig(false); else close() }
   }
@@ -243,7 +252,8 @@ export default function AssistantWidget() {
 
   const wide = big && !isPhone          // computer big window: chats down the side
   const frame = isPhone
-    ? `fixed inset-x-0 bottom-0 z-50 rounded-t-3xl ${big ? 'h-[100dvh] rounded-t-none' : 'h-[72dvh]'}`
+    // peek: just the handle + title bar, under any window the page opens (its own buttons stay tappable)
+    ? `fixed inset-x-0 bottom-0 rounded-t-3xl transition-[height] duration-300 ease-out ${peek ? 'z-30 h-[76px] cursor-pointer' : big ? 'z-50 h-[100dvh] rounded-t-none' : 'z-50 h-[72dvh]'}`
     : big
       ? 'fixed inset-4 lg:inset-y-8 lg:left-[8%] lg:right-[8%] z-50 rounded-3xl'
       : 'fixed bottom-6 right-6 z-40 w-96 h-[560px] max-h-[calc(100vh-3rem)] rounded-2xl'
@@ -252,12 +262,26 @@ export default function AssistantWidget() {
 
   return (
     <>
-      {(big || isPhone) && (
+      {(big || isPhone) && !peek && (
         <div className={`fixed inset-0 bg-black/30 ${closing ? 'ohp-ai-fade-out' : 'ohp-ai-fade'}`} style={{ zIndex: 49 }} onClick={() => (isPhone ? close() : setBig(false))} />
       )}
       <div
         ref={panelRef}
-        data-scroll-lock={big || isPhone ? 'on' : 'off'}
+        // Tapping a "Create a Showcase" / "Open it" button inside the chat goes there and the chat
+        // steps aside (owner, 10/31: on a phone the sheet stayed over the create window). The
+        // conversation is kept - the bubble reopens it.
+        // Computer: the big window drops back to the corner; phone: the sheet slides down to a short
+        // peek so the page it opened shows (tap the peek to bring the chat back up).
+        onClickCapture={e => {
+          const a = (e.target as HTMLElement).closest('a[href]') as HTMLAnchorElement | null
+          if (!a || !a.getAttribute('href')?.startsWith('/') || a.target === '_blank' || a.hasAttribute('download')) return
+          setBig(false)
+          if (isPhone) setPeek(true)
+          // saved right now - the page change can rebuild the chat before an effect would save it
+          store.set(UI_KEY, JSON.stringify({ open: true, big: false, peek: isPhone }), true)
+        }}
+        onClick={() => { if (peek) setPeek(false) }}
+        data-scroll-lock={(big || isPhone) && !peek ? 'on' : 'off'}
         style={dragY ? { transform: `translateY(${Math.max(dragY, isPhone && !big ? -120 : 0)}px)`, transition: 'none' } : undefined}
         className={`${frame} ${motionIn} bg-white dark:bg-zinc-900 shadow-2xl shadow-black/20 border border-gray-100 dark:border-zinc-800 flex flex-col overflow-hidden`}
       >
@@ -325,6 +349,8 @@ export default function AssistantWidget() {
                   )}
                 </div>
                 <div className="pb-[env(safe-area-inset-bottom)]">
+                  {/* Near / at the chat allowance: the Chat usage bar + its upgrade offer (11/01) */}
+                  {activeConversation && <MonthlyAiUsageMeter kind="chat" variant="inline" onlyNearLimit refreshKey={activeConversation.messages.length} className="px-4 pt-2" />}
                   <ChatInput
                     onSend={handleSend}
                     disabled={isSending}

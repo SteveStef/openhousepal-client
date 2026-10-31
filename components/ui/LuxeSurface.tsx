@@ -38,8 +38,8 @@ export function LuxeSurface({ icon: Icon, className = '', children, sparks = tru
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[inherit]">
         <div className="absolute inset-0 bg-[radial-gradient(110%_130%_at_100%_0%,rgba(201,162,77,.22),transparent_55%),linear-gradient(135deg,#fffdf8_0%,#fbf6ec_55%,#f4ead7_100%)] dark:hidden" />
         <div className="absolute inset-0 hidden bg-[radial-gradient(120%_140%_at_100%_0%,rgba(201,162,77,.20),transparent_55%),linear-gradient(135deg,#0b0f0e_0%,#111827_55%,#1d1810_100%)] dark:block" />
-        <div className="lx-aurora-a absolute -bottom-24 -left-12 h-56 w-56 rounded-full bg-[#C9A24D]/20 blur-3xl" />
-        <div className="lx-aurora-b absolute -top-24 left-1/3 h-48 w-80 rounded-full bg-[#f3d9a0]/35 blur-3xl dark:bg-[#8b6a2b]/20" />
+        <div className="lx-aurora-a absolute -bottom-40 -left-28 h-[22rem] w-[22rem] rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.20),rgba(201,162,77,.09)_45%,transparent)]" />
+        <div className="lx-aurora-b absolute -top-40 left-[26%] h-80 w-[30rem] rounded-full bg-[radial-gradient(closest-side,rgba(243,217,160,.35),rgba(243,217,160,.15)_45%,transparent)] dark:bg-[radial-gradient(closest-side,rgba(139,106,43,.20),rgba(139,106,43,.09)_45%,transparent)]" />
         {grid && <div className="lx-grid absolute inset-0" />}
         {Icon && <Icon className="lx-mark absolute -bottom-8 right-4 h-36 w-36 text-[#C9A24D]/[0.10] dark:text-[#e8c97a]/[0.06]" strokeWidth={0.8} />}
         <div className="lx-glow absolute inset-0 opacity-0 transition-opacity duration-500 group-hover/lx:opacity-100" />
@@ -111,8 +111,8 @@ export function CardAlive({ seed }: { seed: number }) {
   const sparks: [string, string, number][] = [[`${18 + (seed * 7) % 50}%`, '22%', 0], [`${55 + (seed * 3) % 30}%`, '64%', 1.8], [`${30 + (seed * 5) % 40}%`, '84%', 3.4]]
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
-      <div className="lx-aurora-a absolute -bottom-24 -left-12 h-48 w-48 rounded-full bg-[#C9A24D]/[0.16] blur-3xl" style={{ animationDelay: `${d}s` }} />
-      <div className="lx-aurora-b absolute -top-24 left-1/4 h-40 w-72 rounded-full bg-[#f3d9a0]/30 blur-3xl dark:bg-[#8b6a2b]/20" style={{ animationDelay: `${d * 1.3}s` }} />
+      <div className="lx-aurora-a absolute -bottom-40 -left-28 h-80 w-80 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.16),rgba(201,162,77,.07)_45%,transparent)]" style={{ animationDelay: `${d}s` }} />
+      <div className="lx-aurora-b absolute -top-36 left-[18%] h-72 w-[26rem] rounded-full bg-[radial-gradient(closest-side,rgba(243,217,160,.30),rgba(243,217,160,.13)_45%,transparent)] dark:bg-[radial-gradient(closest-side,rgba(139,106,43,.20),rgba(139,106,43,.09)_45%,transparent)]" style={{ animationDelay: `${d * 1.3}s` }} />
       <div className="lx-glow absolute inset-0 opacity-0 transition-opacity duration-500 group-hover/lx:opacity-100" />
       <div className="lx-edge absolute inset-x-0 top-0 h-px" style={{ animationDelay: `${d}s` }} />
       {sparks.map((sp, k) => <span key={k} className="lx-spark absolute" style={{ left: sp[0], top: sp[1], animationDelay: `${sp[2] + Math.abs(d) * 0.4}s` }} />)}

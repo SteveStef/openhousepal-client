@@ -70,6 +70,22 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isSending])
 
+  // Making the big window small (or a phone sheet shorter) used to leave the chat scrolled up a bit
+  // (owner, 10/31). If they were at the newest message, they stay there through any resize.
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const atBottom = useRef(true)
+  const onScroll = () => {
+    const el = scrollRef.current
+    if (el) atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+  }
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => { if (atBottom.current) el.scrollTop = el.scrollHeight })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   useEffect(() => {
     if (!autoSpeak || isSending) return
     const last = messages[messages.length - 1]
@@ -80,7 +96,7 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
   }, [autoSpeak, isSending, messages, speak, conversationId])
 
   return (
-    <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-5">
+    <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-5">
       {messages.map((msg, idx) => {
         const isUser = msg.role === 'user'
         const extras = ['action', 'choices', 'link', 'made']

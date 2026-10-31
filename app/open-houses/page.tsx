@@ -120,9 +120,16 @@ function OpenHouseContent() {
   // "Build kit" on an open you're confirmed to host -> fills the kit address box.
   const [kitPrefill, setKitPrefill] = useState<{ address: string; nonce: number } | null>(null)
   // /open-houses?kit=<address> - the AI helper's "Go there" button starts a kit for that home (10/30).
+  // ?newKit=1 (the helper's "Start an Open House Kit") and ?kit= both bring the Create Kit box into
+  // view - on a phone it sits well below the other sections (owner's test, 11/01).
   useEffect(() => {
-    const kit = new URLSearchParams(window.location.search).get('kit')
+    const q = new URLSearchParams(window.location.search)
+    const kit = q.get('kit')
     if (kit) setKitPrefill({ address: kit, nonce: Date.now() })
+    if (kit || q.get('newKit') === '1') {
+      const t = window.setTimeout(() => document.getElementById('create-kit')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 700)
+      return () => window.clearTimeout(t)
+    }
   }, [])
   const buildKitFor = useCallback((address: string) => setKitPrefill({ address, nonce: Date.now() }), [])
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
@@ -906,11 +913,15 @@ function OpenHouseContent() {
       const withLiveVisitorCounts = await Promise.all(data.map(async openHouse => {
         const response = await api.openHouses.getVisitors(openHouse.id)
         if (response.success && response.data) {
-          return { ...openHouse, visitorCount: response.data.length }
+          const last = response.data.reduce((m: number, v: { created_at?: string }) => Math.max(m, v.created_at ? new Date(v.created_at).getTime() : 0), 0)
+          return { ...openHouse, visitorCount: response.data.length, lastSignInAt: last }
         }
         return openHouse
       }))
-      setOpenHouses(withLiveVisitorCounts)
+      // A house someone signed in at in the last week moves to the top, newest sign-in first
+      // (owner, 11/01); the rest keep their order.
+      const recent = (oh: { lastSignInAt?: number }) => (oh.lastSignInAt && Date.now() - oh.lastSignInAt < 7 * 86400000 ? oh.lastSignInAt : 0)
+      setOpenHouses([...withLiveVisitorCounts].sort((a, b) => recent(b as any) - recent(a as any)))
     }
     setIsLoadingHistory(false)
   }, [])
@@ -961,7 +972,7 @@ function OpenHouseContent() {
             </div>
 
             {/* Create Wizard - its address suggestions must sit above everything below it */}
-            <div className="relative z-30">
+            <div className="relative z-30 scroll-mt-24" id="create-kit">
             <CreateOpenHouseWizard
               currentUser={currentUser}
               onSuccess={loadOpenHouseHistory}

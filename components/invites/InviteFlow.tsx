@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Briefcase, Check, ChevronLeft, Copy, Download, ExternalLink, Home, ImagePlus, Loader2, Lock, Mail, MapPin, MessageSquare, Move, PartyPopper,
-  Pencil, Printer, QrCode, Send, Share2, Sparkles, Upload, Users, Wine, X,
+  Pencil, Printer, QrCode, RotateCcw, Send, Share2, Sparkles, Upload, Users, Wine, X,
 } from 'lucide-react'
 import FlowDock from '@/components/ui/FlowDock'
 import api, { resolveMediaUrl } from '@/lib/api-service'
@@ -22,11 +22,12 @@ import { tidyAllCaps } from '@/lib/cheatSheetContent'
 import { LUXE_METALS, LUXE_METAL_ORDER } from '@/lib/luxeMetals'
 import { backdropMotion, useEscapeToClose, useIsPhone, useSheetMotion } from '@/components/ui/windowMotion'
 import FormQrCode from '@/components/forms/FormQrCode'
-import InviteCard, { autoLineTwo, coverFrame, coverOf, type InviteCardData } from './InviteCard'
+import InviteCard, { autoLineTwo, type InviteCardData } from './InviteCard'
 import { cardTitle } from '@/lib/inviteTitle'
 import { DayStep, TimeStep } from './InviteFlowParts'
 import InviteMotionPreview from './InviteMotionPreview'
 import InviteQuestionsEditor from './InviteQuestionsEditor'
+import { dropDraft, newDraftId, putDraft, readDrafts, savedAgo } from './inviteDrafts'
 
 // Making an invite - one question per step in the house style (the open-house host flow / setup
 // flow look): the kind of invite, the event (with one of your listings, or not), the day, the
@@ -56,12 +57,14 @@ function draftFrom(preset: InvitePreset, accent: string): InviteDraft {
 
 const street = (a?: string | null) => tidyAllCaps((a || '').split(',')[0].trim())
 
-export default function InviteFlow({ open, onClose, presets, startType, editing, onSaved }: {
+export default function InviteFlow({ open, onClose, presets, startType, editing, draftId, onSaved }: {
   open: boolean
   onClose: () => void
   presets: InvitePresets
   startType?: InviteType | null
   editing?: Invite | null
+  /** Pick up a saved draft (inviteDrafts.ts) - the Invites page's "Continue". */
+  draftId?: string | null
   onSaved: (inv: Invite) => void
 }) {
   const [host, setHost] = useState<HTMLElement | null>(null)
@@ -69,19 +72,34 @@ export default function InviteFlow({ open, onClose, presets, startType, editing,
   if (!host) return null
   return createPortal(
     <AnimatePresence>
-      {open && <FlowWindow key={editing?.id || startType || 'new'} {...{ onClose, presets, startType, editing, onSaved }} />}
+      {open && <FlowWindow key={editing?.id || draftId || startType || 'new'} {...{ onClose, presets, startType, editing, draftId, onSaved }} />}
     </AnimatePresence>,
     host,
   )
 }
 
-function FlowWindow({ onClose, presets, startType, editing, onSaved }: Omit<Parameters<typeof InviteFlow>[0], 'open'>) {
+/** What a draft is compared on - the open house the server matches to the home is filled in by
+ *  itself, so it never makes an untouched invite look edited. */
+const draftJson = (d: InviteDraft) => JSON.stringify({ ...d, open_house_event_id: null })
+
+function FlowWindow({ onClose, presets, startType, editing, draftId, onSaved }: Omit<Parameters<typeof InviteFlow>[0], 'open'>) {
   const { user } = useAuth()
+  const uid = user?.id || null
   const isPhone = useIsPhone()
   const sheetMotion = useSheetMotion()
   const brandAccent = presets.brand.accent_color
   const presetOf = (t: InviteType) => presets.presets.find(p => p.id === t) || presets.presets[0]
-  const [draft, setDraft] = useState<InviteDraft>(() => editing ? {
+  // Drafts (owner, 10/31): what's filled in is kept as it's typed, so closing the maker any way -
+  // a click outside, Escape, the X, a reload - never loses it. A new invite is its own draft; an
+  // edit's unsaved changes come back when that invite is opened again (if it hasn't changed since).
+  const [draftKey, setDraftKey] = useState(() => draftId || (editing ? `edit:${editing.id}` : newDraftId()))
+  const [base, setBase] = useState<string | null>(editing?.updated_at || null)
+  const [resumed] = useState(() => {
+    const d = readDrafts(uid).find(x => x.id === draftKey)
+    return d && (!editing || d.base === (editing.updated_at || null)) ? d : null
+  })
+  const [restored, setRestored] = useState(!!resumed)
+  const fresh = (): InviteDraft => editing ? {
     invite_type: editing.invite_type, audience: editing.audience, title: editing.title, message: editing.message, event_date: editing.event_date,
     start_time: editing.start_time, end_time: editing.end_time, place_name: editing.place_name, address: editing.address,
     linked_property: editing.linked_property, cover_image_url: editing.cover_image_url, design: editing.design,
@@ -89,7 +107,9 @@ function FlowWindow({ onClose, presets, startType, editing, onSaved }: Omit<Para
     extra_dates: (editing.dates || []).slice(1), motion: editing.motion || 'normal', luxe_metal: editing.luxe_metal || null,
     cover_position: editing.cover_position || null, open_house_event_id: editing.open_house_event_id || null,
     subtitle: editing.subtitle ?? null,
-  } : draftFrom(presetOf(startType || 'open_house'), brandAccent))
+  } : draftFrom(presetOf(startType || 'open_house'), brandAccent)
+  const [draft, setDraft] = useState<InviteDraft>(() => resumed?.draft || fresh())
+  const startJson = useRef<string>(resumed ? '' : draftJson(draft))
   // The picked home's open houses already on the calendar (ours or Bright's) - the day step's first picks.
   const [scheduled, setScheduled] = useState<ScheduledSlot[] | null>(null)
   const autoPicked = useRef(false)
@@ -107,14 +127,34 @@ function FlowWindow({ onClose, presets, startType, editing, onSaved }: Omit<Para
   }, [lpKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const days = allDays(draft)
   const setDays = (next: InviteDay[]) => setDraft(d => ({ ...d, ...daysPatch(next) }))
-  const [step, setStep] = useState(editing || startType ? 1 : 0)
+  const firstStep = editing || startType ? 1 : 0
+  const [step, setStep] = useState(resumed ? Math.min(resumed.step, 6) : firstStep)
   const [dir, setDir] = useState(1)
-  const [touched, setTouched] = useState({ title: !!editing, message: !!editing, address: !!editing })
+  const [touched, setTouched] = useState(resumed?.touched || { title: !!editing, message: !!editing, address: !!editing })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState<Invite | null>(null)
   const busy = saving
-  const close = () => { if (!busy) onClose() }
+  // Keep the draft: shortly after each change, and right away when the window goes (any way).
+  const keep = useRef<() => void>(() => {})
+  keep.current = () => {
+    if (!uid || step === 7 || draftJson(draft) === startJson.current) return
+    putDraft(uid, { id: draftKey, inviteId: editing?.id || saved?.id || null, base, draft, step, touched, at: Date.now() })
+  }
+  useEffect(() => { const t = window.setTimeout(() => keep.current(), 400); return () => window.clearTimeout(t) }, [draft, step, touched])
+  useEffect(() => {
+    const f = () => keep.current()
+    window.addEventListener('pagehide', f)
+    return () => { window.removeEventListener('pagehide', f); f() }
+  }, [])
+  const startOver = () => {
+    dropDraft(uid, draftKey)
+    const d = fresh()
+    startJson.current = draftJson(d)
+    setDraft(d); setTouched({ title: !!editing, message: !!editing, address: !!editing }); setStep(firstStep); setRestored(false)
+    autoPicked.current = false
+  }
+  const close = () => { if (!busy) { keep.current(); onClose() } }
   useEscapeToClose(close, !busy)
 
   const set = (patch: Partial<InviteDraft>) => setDraft(d => ({ ...d, ...patch }))
@@ -181,6 +221,11 @@ function FlowWindow({ onClose, presets, startType, editing, onSaved }: Omit<Para
     const r = editing || saved ? await invitesApi.update((editing || saved)!.id, body) : await invitesApi.create(body)
     setSaving(false)
     if (!r.success) { setError(r.error); return }
+    // Saved - the draft is done with. Later changes (Edit on the Share screen) are kept as unsaved
+    // changes to this invite.
+    dropDraft(uid, draftKey)
+    setDraftKey(`edit:${r.data.id}`); setBase(r.data.updated_at || null); setRestored(false)
+    startJson.current = draftJson(draft)
     setSaved(r.data)
     onSaved(r.data)
     go(7)
@@ -203,9 +248,6 @@ function FlowWindow({ onClose, presets, startType, editing, onSaved }: Omit<Para
         <div className="relative isolate overflow-hidden bg-[#0b0b0c] text-white">
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(120%_90%_at_100%_0%,rgba(201,162,77,.42),transparent_55%),linear-gradient(180deg,#141210,#0b0b0c)]" />
           <span aria-hidden className="if-edge pointer-events-none absolute inset-x-0 top-0 h-px" />
-          {[['14%', '18%', 0], ['82%', '12%', 1.4], ['72%', '70%', 2.6], ['24%', '86%', 1.9]].map(([l, t, d], k) => (
-            <span key={k} aria-hidden className="if-spark pointer-events-none absolute" style={{ left: l as string, top: t as string, animationDelay: `${d}s` }} />
-          ))}
           <div className="flex h-full flex-col px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] sm:p-7">
             <div className="flex items-center justify-between">
               <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-[#e8c97a]"><Mail className="h-3.5 w-3.5" /> {editing ? 'Edit invite' : 'New invite'}</p>
@@ -217,12 +259,18 @@ function FlowWindow({ onClose, presets, startType, editing, onSaved }: Omit<Para
               <p className="mt-3 text-[10px] font-black uppercase tracking-[0.26em] text-white/55">{done ? 'Done' : `Step ${step + 1} of ${STEPS.length - 1}`}</p>
               <h3 className="font-serif text-[22px] font-black leading-tight">{STEP_TITLES[step]}</h3>
             </div>
-            <div className="mt-6 hidden justify-center sm:flex">
-              <motion.div layout className="w-[200px]" initial={{ rotate: -2, y: 8, opacity: 0 }} animate={{ rotate: -2, y: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 160, damping: 18 }}>
-                <InviteCard data={card} width={200} />
-              </motion.div>
-            </div>
-            <ol className="mt-6 hidden space-y-2 sm:block">
+            {/* computer, the Look step: the photo is dragged right on this card (owner, 10/31 - like the
+                Open House Kit), with Reset / Change photo / Upload under it */}
+            {!isPhone && step === 5 ? (
+              <div className="mt-5 hidden sm:block"><CoverTools draft={draft} set={set} card={card} width={200} dark /></div>
+            ) : (
+              <div className="mt-6 hidden justify-center sm:flex">
+                <motion.div className="w-[200px]" initial={{ rotate: -2, y: 8, opacity: 0 }} animate={{ rotate: -2, y: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 160, damping: 18 }}>
+                  <InviteCard data={card} width={200} />
+                </motion.div>
+              </div>
+            )}
+            <ol className={`mt-6 hidden space-y-2 ${!isPhone && step === 5 ? '' : 'sm:block'}`}>
               {STEPS.slice(0, 7).map((label, i) => {
                 const past = i < step || done
                 return (
@@ -252,6 +300,18 @@ function FlowWindow({ onClose, presets, startType, editing, onSaved }: Omit<Para
               <motion.div key={step} custom={dir}
                 initial={{ opacity: 0, x: dir * 36 }} animate={{ opacity: 1, x: 0, transition: { type: 'spring', stiffness: 380, damping: 34 } }} exit={{ opacity: 0, x: dir * -28, transition: { duration: 0.16 } }}
                 className="px-5 pb-6 pt-4 sm:px-8">
+                {restored && step < 7 && (
+                  <div className="mb-4 flex items-center gap-3 rounded-2xl border border-[#C9A24D]/35 bg-[#C9A24D]/[0.07] px-3.5 py-2.5" data-testid="invite-draft-restored">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#C9A24D]/20 text-[#8b6d2c] dark:text-[#e8c97a]"><Pencil className="h-3.5 w-3.5" /></span>
+                    <p className="min-w-0 flex-1 text-[12.5px] font-bold leading-snug text-[#5c4a22] dark:text-[#e8c97a]">
+                      {editing ? 'Your unsaved changes are back' : 'Picked up where you left off'}<span className="font-semibold text-[#8b7355] dark:text-[#d7b974]"> · saved {savedAgo(resumed?.at || Date.now())}</span>
+                    </p>
+                    <button type="button" onClick={startOver} data-testid="invite-draft-startover"
+                      className="shrink-0 rounded-full border border-[#C9A24D]/40 px-3 py-1.5 text-[11px] font-black text-[#5c4a22] transition hover:border-[#C9A24D] dark:text-[#e8c97a]">
+                      {editing ? 'Discard changes' : 'Start over'}
+                    </button>
+                  </div>
+                )}
                 {step === 0 && <TypeStep presets={presets.presets} value={draft.invite_type} audience={draft.audience || 'clients'} onPick={t => { pickType(t); if (t !== 'custom') go(1) }} onAudience={a => set({ audience: a })} />}
                 {step === 1 && <EventStep draft={draft} set={set} onTitle={v => { setTouched(x => ({ ...x, title: true })); set({ title: v }) }} onMessage={v => { setTouched(x => ({ ...x, message: true })); set({ message: v }) }} pickProperty={pickProperty} />}
                 {step === 2 && <DayStep type={draft.invite_type} days={days} scheduled={scheduled} onChange={setDays} />}
@@ -297,7 +357,7 @@ function FlowWindow({ onClose, presets, startType, editing, onSaved }: Omit<Para
             )}
             <motion.button type="button" whileHover={{ y: -1 }} whileTap={{ scale: 0.97 }} disabled={!ok[step] || busy} data-testid="invite-flow-next"
               onClick={() => (done ? onClose() : step === 6 ? save() : go(step + 1))}
-              className="if-shine relative ml-auto inline-flex h-12 flex-1 items-center justify-center gap-2 overflow-hidden rounded-2xl bg-[#111827] px-4 text-xs font-black uppercase tracking-widest text-white shadow-[0_16px_34px_-14px_rgba(17,24,39,.9)] transition-opacity disabled:opacity-40 dark:bg-white dark:text-[#111827] sm:flex-none sm:px-9">
+              className="relative ml-auto inline-flex h-12 flex-1 items-center justify-center gap-2 overflow-hidden rounded-2xl bg-[#111827] px-4 text-xs font-black uppercase tracking-widest text-white shadow-[0_16px_34px_-14px_rgba(17,24,39,.9)] transition-opacity disabled:opacity-40 dark:bg-white dark:text-[#111827] sm:flex-none sm:px-9">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {done ? 'Done' : step === 6 ? (editing || saved ? 'Save changes' : 'Create my invite') : step === 0 ? 'Continue' : 'Next'}
               {step === 6 && !busy ? <Sparkles className="h-4 w-4" /> : null}
@@ -322,7 +382,7 @@ function TypeStep({ presets, value, audience, onPick, onAudience }: { presets: I
             <motion.button key={p.id} type="button" onClick={() => onPick(p.id)} data-testid={`invite-type-${p.id}`}
               initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05, type: 'spring', stiffness: 320, damping: 26 }} whileTap={{ scale: 0.97 }}
               className={`group relative flex min-h-[92px] items-center gap-4 overflow-hidden rounded-[22px] border p-4 text-left transition ${on ? 'border-[#C9A24D] bg-[#C9A24D]/[0.08] shadow-[0_18px_36px_-26px_rgba(201,162,77,1)]' : 'border-gray-200 bg-white hover:border-[#C9A24D]/60 dark:border-white/10 dark:bg-white/[0.03]'}`}>
-              <span className="if-bob relative grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-white shadow-md" style={{ background: `linear-gradient(135deg, ${art.tint}, #111827)`, animationDelay: `${i * 0.4}s` }}>
+              <span className="relative grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-white shadow-md" style={{ background: `linear-gradient(135deg, ${art.tint}, #111827)` }}>
                 <art.icon className="h-6 w-6" />
                 <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-[#e8c97a] text-[#111827]"><Mail className="h-3 w-3" /></span>
               </span>
@@ -518,55 +578,78 @@ function ColorPicker({ draft, set, brandAccent }: { draft: InviteDraft; set: (p:
   )
 }
 
-/** The cover photo, framed by dragging it up / down (and sideways) - like the Sign-In Sheet's. */
-/** Drag the cover photo up or down inside the chosen design's own frame (owner, 10/24 round 7) - the
- *  Classic arch, Garden's rounded frame, Midnight's and Modern's full-width photo - so the agent
- *  centres the house exactly as guests will see it. Vertical only; touch and mouse; the page never
- *  scrolls while dragging (touch-action: none). Saved as cover_position.y (0-100, object-position). */
-function CoverFramer({ src, pos, frame, onChange }: {
-  src: string; pos: { x: number; y: number }; frame: { w: number; h: number; radius: string; fade?: boolean }
-  onChange: (p: { x: number; y: number } | null) => void
-}) {
-  const drag = useRef<{ py: number; y: number } | null>(null)
-  const [dragging, setDragging] = useState(false)
-  const [nat, setNat] = useState<{ w: number; h: number } | null>(null)
-  const scale = Math.min(300 / frame.w, 230 / frame.h)
-  const W = Math.round(frame.w * scale), H = Math.round(frame.h * scale)
-  // how far the photo hangs past the frame (object-fit: cover) - that's the room it can move
-  const spare = nat ? Math.max(0, nat.h * Math.max(W / nat.w, H / nat.h) - H) : 0
-  const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v * 10) / 10))
-  const radius = frame.radius.split(' ').map(r => `${Math.round(parseFloat(r) * scale)}px`).join(' ')
-  const moved = Math.abs(pos.y - 50) > 0.5
-  const set = (y: number) => onChange({ x: pos.x ?? 50, y: clamp(y) })
+/** The cover photo, framed right on the invitation (owner, 10/31 - the Open House Kit's way): drag
+ *  the photo on the card itself to centre the house, then Reset / Change photo / Upload under it.
+ *  The card is the real design, so what the agent sets is exactly what guests see. On a phone it
+ *  tops the Look step; on a computer it's the big card on the left. Saved as cover_position (%). */
+function CoverTools({ draft, set, card, width, dark = false }: { draft: InviteDraft; set: (p: Partial<InviteDraft>) => void; card: InviteCardData; width: number; dark?: boolean }) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [err, setErr] = useState('')
+  const [picker, setPicker] = useState(false)
+  const [room, setRoom] = useState<{ x: boolean; y: boolean } | null>(null)
+  const photos = useMemo(() => {
+    const lp = draft.linked_property
+    return [lp?.image, ...(lp?.photos || [])].filter((p, i, a): p is string => !!p && a.indexOf(p) === i).slice(0, 12)
+  }, [draft.linked_property])
+  const current = draft.cover_image_url || (draft.linked_property && !draft.linked_property.no_cover ? (photos[0] || '') : '')
+  const upload = async (file?: File) => {
+    if (!file) return
+    setUploading(true); setErr('')
+    const r = await api.studio.uploadMedia(file)
+    setUploading(false)
+    if (r.success && r.data) { set({ cover_image_url: r.data.url, cover_position: null, linked_property: draft.linked_property ? { ...draft.linked_property, no_cover: false } : null }); setPicker(false) }
+    else setErr(r.error || 'That photo could not be uploaded - try a JPG under 10 MB.')
+  }
+  const pickPhoto = (p: string | null) => {
+    if (p) set({ cover_image_url: p, cover_position: null, linked_property: draft.linked_property ? { ...draft.linked_property, no_cover: false } : null })
+    else set({ cover_image_url: null, cover_position: null, linked_property: draft.linked_property ? { ...draft.linked_property, no_cover: true } : null })
+    setPicker(false)
+  }
+  const tiles = [...(draft.cover_image_url && !photos.includes(draft.cover_image_url) ? [draft.cover_image_url] : []), ...photos]
+  const pos = draft.cover_position || { x: 50, y: 50 }
+  const moved = Math.abs(pos.x - 50) > 0.5 || Math.abs(pos.y - 50) > 0.5
+  const fits = !!current && !!room && !room.x && !room.y
+  const onMove = useMemo(() => (current ? (p: { x: number; y: number }) => set({ cover_position: p }) : undefined), [current]) // eslint-disable-line react-hooks/exhaustive-deps
+  // icon over the word, so all three fit side by side under a phone-sized card
+  const btn = `flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1.5 text-[11.5px] font-black leading-none transition disabled:cursor-not-allowed disabled:opacity-40 ${dark
+    ? 'bg-white/10 text-white hover:bg-white/[0.16]'
+    : 'border border-gray-200 bg-white text-[#111827] hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/5 dark:text-white'}`
   return (
-    <div className="flex flex-col items-center">
-      <div className={`relative touch-none select-none overflow-hidden ring-1 ring-black/10 outline-none focus-visible:ring-2 focus-visible:ring-[#C9A24D] dark:ring-white/15 ${spare ? (dragging ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
-        style={{ width: W, height: H, borderRadius: radius, touchAction: 'none' }} data-testid="invite-cover-framer"
-        role="slider" tabIndex={0} aria-label="Photo position - drag up or down" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pos.y)}
-        onKeyDown={e => { if (e.key === 'ArrowUp') { e.preventDefault(); set(pos.y + 5) } else if (e.key === 'ArrowDown') { e.preventDefault(); set(pos.y - 5) } }}
-        onPointerDown={e => { if (!spare) return; drag.current = { py: e.clientY, y: pos.y }; e.currentTarget.setPointerCapture(e.pointerId); setDragging(true) }}
-        onPointerMove={e => { const d = drag.current; if (!d || !spare) return; set(d.y - ((e.clientY - d.py) / spare) * 100) }}
-        onPointerUp={() => { drag.current = null; setDragging(false) }} onPointerCancel={() => { drag.current = null; setDragging(false) }}>
-        <img src={src} alt="" draggable={false} className="pointer-events-none h-full w-full object-cover" style={{ objectPosition: `${pos.x ?? 50}% ${pos.y}%` }}
-          onLoad={e => setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })} />
-        {frame.fade && <div className="pointer-events-none absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(11,13,18,0) 45%, rgba(14,17,24,.55) 85%, rgba(14,17,24,.8) 100%)' }} />}
-        {spare > 0 && (
-          <span className={`pointer-events-none absolute left-1/2 top-1/2 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-black/60 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white transition-opacity ${dragging ? 'opacity-0' : 'opacity-100'}`}>
-            <Move className="h-3 w-3" /> Drag to adjust
-          </span>
-        )}
+    <div className="flex flex-col items-center" data-testid="invite-cover-tools">
+      <InviteCard data={card} width={width} onCoverMove={onMove} onCoverRoom={setRoom} />
+      <p className={`mt-3 flex min-h-[18px] items-center gap-1.5 text-center text-[12px] font-black ${dark ? 'text-[#e8c97a]' : 'text-[#8b6d2c] dark:text-[#e8c97a]'}`} data-testid="invite-cover-hint">
+        {current ? <><Move className="h-3.5 w-3.5 shrink-0" /> {fits ? 'This photo already fits - nothing to move' : 'Drag the photo to center it'}</> : 'No photo - the card shows your initials'}
+      </p>
+      <div className="mt-2.5 grid w-full grid-cols-[1fr_1.45fr_1fr] gap-2" style={{ maxWidth: dark ? undefined : Math.max(width + 60, 300) }}>
+        <button type="button" onClick={() => set({ cover_position: null })} disabled={!moved} data-testid="invite-cover-reset" className={btn}>
+          <RotateCcw className="h-4 w-4 shrink-0 text-[#C9A24D]" /> Reset
+        </button>
+        <button type="button" onClick={() => setPicker(true)} data-testid="invite-cover-change" className={btn}>
+          <ImagePlus className="h-4 w-4 shrink-0 text-[#C9A24D]" /> <span className="max-w-full truncate">{current ? 'Change photo' : 'Pick a photo'}</span>
+        </button>
+        <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} data-testid="invite-cover-upload" className={btn}>
+          {uploading ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <Upload className="h-4 w-4 shrink-0 text-[#C9A24D]" />} Upload
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => { upload(e.target.files?.[0]); e.target.value = '' }} />
       </div>
-      <div className="mt-2 flex min-h-[28px] items-center gap-3 text-[11px] font-bold text-gray-500 dark:text-gray-400">
-        {nat && !spare
-          ? <span>This photo already shows top to bottom in this design - nothing to move.</span>
-          : <span>Shown in this design&apos;s frame - drag the photo up or down.</span>}
-        {moved && (
-          <button type="button" onClick={() => onChange(null)} data-testid="invite-cover-reset"
-            className="rounded-full border border-gray-200 px-2.5 py-1 text-[11px] font-black text-[#111827] transition hover:border-[#C9A24D] dark:border-white/15 dark:text-white">Reset</button>
-        )}
-      </div>
+      {err && <p className="mt-2 text-xs font-bold text-red-500">{err}</p>}
+      <CoverPicker open={picker} onClose={() => setPicker(false)} tiles={tiles} current={current} onPick={pickPhoto} onUpload={() => fileRef.current?.click()} uploading={uploading} />
     </div>
   )
+}
+
+/** Wide enough for the Look step's two columns (the "what guests see" preview beside the choices). */
+function useWide() {
+  const [wide, setWide] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)')
+    const on = () => setWide(mq.matches)
+    on()
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return wide
 }
 
 /** The flyer's two lines (owner, 10/24 round 8): Line 1 = the big title, Line 2 = the line under it.
@@ -624,104 +707,93 @@ function FlyerLines({ draft, set, autoTitle, onTitleTouched }: {
 }
 
 function LookStep({ draft, set, card, brandAccent, isPhone, hostName, autoTitle, onTitleTouched }: { draft: InviteDraft; set: (p: Partial<InviteDraft>) => void; card: InviteCardData; brandAccent: string; isPhone: boolean; hostName: string | null; autoTitle: string; onTitleTouched: (t: boolean) => void }) {
-  const fileRef = useRef<HTMLInputElement>(null)
-  const [uploading, setUploading] = useState(false)
-  const [err, setErr] = useState('')
-  const [picker, setPicker] = useState(false)
-  const photos = useMemo(() => {
-    const lp = draft.linked_property
-    return [lp?.image, ...(lp?.photos || [])].filter((p, i, a): p is string => !!p && a.indexOf(p) === i).slice(0, 12)
-  }, [draft.linked_property])
-  const current = draft.cover_image_url || (draft.linked_property && !draft.linked_property.no_cover ? (photos[0] || '') : '')
-  const upload = async (file?: File) => {
-    if (!file) return
-    setUploading(true); setErr('')
-    const r = await api.studio.uploadMedia(file)
-    setUploading(false)
-    if (r.success && r.data) { set({ cover_image_url: r.data.url, cover_position: null, linked_property: draft.linked_property ? { ...draft.linked_property, no_cover: false } : null }); setPicker(false) }
-    else setErr(r.error || 'That photo could not be uploaded - try a JPG under 10 MB.')
-  }
-  const pickPhoto = (p: string | null) => {
-    if (p) set({ cover_image_url: p, cover_position: null, linked_property: draft.linked_property ? { ...draft.linked_property, no_cover: false } : null })
-    else set({ cover_image_url: null, cover_position: null, linked_property: draft.linked_property ? { ...draft.linked_property, no_cover: true } : null })
-    setPicker(false)
-  }
-  const tiles = [...(draft.cover_image_url && !photos.includes(draft.cover_image_url) ? [draft.cover_image_url] : []), ...photos]
-  return (
-    <div className="space-y-6">
-      {isPhone && (
-        <div className="flex justify-center">
-          <motion.div key={draft.design + draft.accent_color} initial={{ scale: 0.96, rotate: -1.5, opacity: 0.6 }} animate={{ scale: 1, rotate: -1.5, opacity: 1 }} className="w-[230px]">
-            <InviteCard data={card} width={230} />
-          </motion.div>
-        </div>
-      )}
-      <FlyerLines draft={draft} set={set} autoTitle={autoTitle} onTitleTouched={onTitleTouched} />
-      <div>
-        <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Design</p>
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-          {DESIGNS.map(d => {
-            const on = draft.design === d.id
-            return (
-              <motion.button key={d.id} type="button" whileTap={{ scale: 0.96 }} onClick={() => set({ design: d.id })} data-testid={`invite-design-${d.id}`}
-                className={`rounded-2xl p-2 text-left transition ${on ? 'bg-[#C9A24D]/12 ring-2 ring-[#C9A24D]' : 'ring-1 ring-gray-200 hover:ring-[#C9A24D]/60 dark:ring-white/10'}`}>
-                <div className="pointer-events-none mx-auto w-full max-w-[120px]"><InviteCard data={{ ...card, design: d.id }} shine={false} /></div>
-                <p className="mt-2 text-[13px] font-black text-[#111827] dark:text-white">{d.label}</p>
+  const wide = useWide() && !isPhone
+  // The small previews (four designs, the animation) follow a beat behind the typing, so the words
+  // and the big card stay instant (owner, 10/31 - lag).
+  const soon = useDeferredValue(card)
+  const label = 'mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400'
+  const designs = (
+    <div>
+      <p className={label}>Design</p>
+      <div className={`grid gap-2.5 ${wide ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'}`}>
+        {DESIGNS.map(d => {
+          const on = draft.design === d.id
+          return (
+            <motion.button key={d.id} type="button" whileTap={{ scale: 0.96 }} onClick={() => set({ design: d.id })} data-testid={`invite-design-${d.id}`}
+              className={`rounded-2xl p-2 text-left transition ${wide ? 'flex items-center gap-3' : ''} ${on ? 'bg-[#C9A24D]/12 ring-2 ring-[#C9A24D]' : 'ring-1 ring-gray-200 hover:ring-[#C9A24D]/60 dark:ring-white/10'}`}>
+              <div className={`pointer-events-none ${wide ? 'w-[64px] shrink-0' : 'mx-auto w-full max-w-[120px]'}`}><InviteCard data={{ ...soon, design: d.id }} width={wide ? 64 : undefined} shine={false} /></div>
+              <div className="min-w-0">
+                <p className={`${wide ? '' : 'mt-2 '}text-[13px] font-black text-[#111827] dark:text-white`}>{d.label}</p>
                 <p className="text-[10.5px] font-semibold leading-snug text-gray-400">{d.note}</p>
-              </motion.button>
-            )
-          })}
-        </div>
+              </div>
+            </motion.button>
+          )
+        })}
       </div>
-      <div>
-        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Color</p>
-        <ColorPicker draft={draft} set={set} brandAccent={brandAccent} />
-      </div>
-      <div>
-        <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Animation</p>
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-          <div className="grid grid-cols-2 gap-2.5">
-            {MOTIONS.map(mo => {
-              const on = (draft.motion || 'normal') === mo.id
-              const lux = mo.id === 'luxe'
-              return (
-                <motion.button key={mo.id} type="button" whileTap={{ scale: 0.96 }} onClick={() => set({ motion: mo.id })} data-testid={`invite-motion-${mo.id}`}
-                  className={`relative overflow-hidden rounded-2xl p-3 text-left transition ${on ? 'ring-2 ring-[#C9A24D]' : 'ring-1 ring-gray-200 hover:ring-[#C9A24D]/60 dark:ring-white/10'} ${lux ? 'bg-[#0b0b0d] text-white' : 'bg-white dark:bg-white/[0.03]'}`}>
-                  {lux && <span aria-hidden className="if-luxe-sheen pointer-events-none absolute inset-0" />}
-                  <span className="relative flex items-center gap-2">
-                    {lux ? <Sparkles className="h-4 w-4 text-[#e8c97a]" /> : <Mail className="h-4 w-4 text-[#C9A24D]" />}
-                    <span className={`text-[14px] font-black ${lux ? 'if-luxe-text' : 'text-[#111827] dark:text-white'}`}>{mo.label}</span>
-                    {on && <span className="ml-auto grid h-5 w-5 place-items-center rounded-full bg-[#C9A24D] text-white"><Check className="h-3 w-3" strokeWidth={3} /></span>}
-                  </span>
-                  <span className={`relative mt-1 block text-[11px] font-semibold leading-snug ${lux ? 'text-white/60' : 'text-gray-400'}`}>{mo.note}</span>
-                </motion.button>
-              )
-            })}
+    </div>
+  )
+  const colors = (
+    <div>
+      <p className={`${label} mb-3`}>Color</p>
+      <ColorPicker draft={draft} set={set} brandAccent={brandAccent} />
+    </div>
+  )
+  const motions = (
+    <div className="grid grid-cols-2 gap-2.5">
+      {MOTIONS.map(mo => {
+        const on = (draft.motion || 'normal') === mo.id
+        const lux = mo.id === 'luxe'
+        return (
+          <motion.button key={mo.id} type="button" whileTap={{ scale: 0.96 }} onClick={() => set({ motion: mo.id })} data-testid={`invite-motion-${mo.id}`}
+            className={`relative overflow-hidden rounded-2xl p-3 text-left transition ${on ? 'ring-2 ring-[#C9A24D]' : 'ring-1 ring-gray-200 hover:ring-[#C9A24D]/60 dark:ring-white/10'} ${lux ? 'bg-[#0b0b0d] text-white' : 'bg-white dark:bg-white/[0.03]'}`}>
+            {lux && <span aria-hidden className="if-luxe-sheen pointer-events-none absolute inset-0" />}
+            <span className="relative flex items-center gap-2">
+              {lux ? <Sparkles className="h-4 w-4 text-[#e8c97a]" /> : <Mail className="h-4 w-4 text-[#C9A24D]" />}
+              <span className={`text-[14px] font-black ${lux ? 'if-luxe-text' : 'text-[#111827] dark:text-white'}`}>{mo.label}</span>
+              {on && <span className="ml-auto grid h-5 w-5 place-items-center rounded-full bg-[#C9A24D] text-white"><Check className="h-3 w-3" strokeWidth={3} /></span>}
+            </span>
+            <span className={`relative mt-1 block text-[11px] font-semibold leading-snug ${lux ? 'text-white/60' : 'text-gray-400'}`}>{mo.note}</span>
+          </motion.button>
+        )
+      })}
+    </div>
+  )
+  const preview = <InviteMotionPreview data={soon} hostName={hostName} width={isPhone ? 168 : 176} />
+
+  // Computer (owner, 10/31): one section - the words, designs, colours and the animation on the
+  // left, the "what guests get" preview beside them at the top (it stays in view while scrolling).
+  if (wide) {
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)_188px] items-start gap-6" data-testid="invite-look">
+        <div className="min-w-0 space-y-6">
+          <FlyerLines draft={draft} set={set} autoTitle={autoTitle} onTitleTouched={onTitleTouched} />
+          {designs}
+          {colors}
+          <div>
+            <p className={label}>Animation</p>
+            {motions}
           </div>
-          <div className="flex justify-center"><InviteMotionPreview data={card} hostName={hostName} width={isPhone ? 168 : 176} /></div>
+        </div>
+        <div className="sticky top-0 flex flex-col items-center" data-testid="invite-look-preview">
+          <p className={`${label} text-center`}>What guests see</p>
+          {preview}
         </div>
       </div>
-      <div className="pt-1">
-        <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Cover photo</p>
-        {current ? (
-          <CoverFramer key={`${current}|${card.design}`} src={resolveMediaUrl(current)} pos={draft.cover_position || { x: 50, y: 50 }} frame={coverFrame(card)} onChange={p => set({ cover_position: p })} />
-        ) : (
-          <p className="rounded-2xl border border-dashed border-gray-300 px-4 py-5 text-center text-[13px] font-semibold text-gray-500 dark:border-white/15">No photo - the card shows your initials instead.</p>
-        )}
-        <div className="mt-2.5 flex gap-2">
-          <button type="button" onClick={() => setPicker(true)} data-testid="invite-cover-change"
-            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white text-[12px] font-black text-[#111827] transition hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/5 dark:text-white">
-            <ImagePlus className="h-4 w-4 text-[#C9A24D]" /> {current ? 'Change photo' : 'Pick a photo'}
-          </button>
-          <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
-            className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-300 text-[12px] font-black text-gray-600 transition hover:border-[#C9A24D] dark:border-white/15 dark:text-gray-300">
-            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Upload
-          </button>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => upload(e.target.files?.[0])} />
+    )
+  }
+  return (
+    <div className="space-y-6" data-testid="invite-look">
+      {isPhone && <CoverTools draft={draft} set={set} card={card} width={230} />}
+      <FlyerLines draft={draft} set={set} autoTitle={autoTitle} onTitleTouched={onTitleTouched} />
+      {designs}
+      {colors}
+      <div>
+        <p className={label}>Animation</p>
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+          {motions}
+          <div className="flex justify-center">{preview}</div>
         </div>
-        {err && <p className="mt-2 text-xs font-bold text-red-500">{err}</p>}
       </div>
-      <CoverPicker open={picker} onClose={() => setPicker(false)} tiles={tiles} current={current} onPick={pickPhoto} onUpload={() => fileRef.current?.click()} uploading={uploading} />
     </div>
   )
 }
@@ -924,17 +996,13 @@ function QrPanel({ url, code }: { url: string; code: string }) {
 
 
 
+// Nothing here runs forever (owner, 10/31 - lag on the Invites pages): the gold edge is still, the
+// Luxe choice shimmers twice and rests.
 const FLOW_CSS = `
-.if-edge{background:linear-gradient(90deg,transparent 10%,#e8c97a 50%,transparent 90%);background-size:200% 100%;animation:ifEdge 6s ease-in-out infinite}
-@keyframes ifEdge{0%{background-position:150% 0}100%{background-position:-50% 0}}
-.if-spark{width:4px;height:4px;border-radius:999px;background:#e8c97a;box-shadow:0 0 10px 2px #e8c97a;opacity:0;animation:ifSpark 7s ease-in-out infinite}
-@keyframes ifSpark{0%{opacity:0;transform:translateY(0) scale(.5)}30%{opacity:.9;transform:translateY(-16px) scale(1)}100%{opacity:0;transform:translateY(-60px) scale(.5)}}
-.if-shine:after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.45) 50%,transparent 65%);transform:translateX(-100%);animation:ifShine 3.4s ease-in-out infinite}
+.if-edge{background:linear-gradient(90deg,transparent 10%,#e8c97a 50%,transparent 90%)}
 @keyframes ifShine{0%,55%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
-.if-bob{animation:ifBob 3.6s ease-in-out infinite}
-@keyframes ifBob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-3px) rotate(-3deg)}}
-.if-luxe-sheen{background:linear-gradient(110deg,transparent 30%,rgba(232,201,122,.28) 50%,transparent 70%);background-size:250% 100%;animation:ifShine 3.6s ease-in-out infinite}
-.if-luxe-text{background:linear-gradient(115deg,#8b6a2b,#e8c97a 30%,#fff3cf 48%,#C9A24D 66%,#8b6a2b);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:ifFoil 3.2s ease-in-out infinite}
+.if-luxe-sheen{background:linear-gradient(110deg,transparent 30%,rgba(232,201,122,.28) 50%,transparent 70%);background-size:250% 100%;animation:ifShine 3.6s ease-in-out 2}
+.if-luxe-text{background:linear-gradient(115deg,#8b6a2b,#e8c97a 30%,#fff3cf 48%,#C9A24D 66%,#8b6a2b);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:ifFoil 3.2s ease-in-out 2}
 @keyframes ifFoil{0%{background-position:100% 0}100%{background-position:-120% 0}}
-@media (prefers-reduced-motion:reduce){.if-edge,.if-spark,.if-shine:after,.if-bob,.if-luxe-sheen,.if-luxe-text{animation:none}}
+@media (prefers-reduced-motion:reduce){.if-luxe-sheen,.if-luxe-text{animation:none}}
 `

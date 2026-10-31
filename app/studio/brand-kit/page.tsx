@@ -15,7 +15,7 @@ import { BrandKit } from '@/types'
 import LuxeHero from '@/components/ui/LuxeHero'
 import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
-import { BRAND_MAIN_COLORS, type BrandSwatch } from '@/lib/brandSwatches'
+import QrBrandPicker from '@/components/settings/QrBrandPicker'
 import { isLight } from '@/components/setup/SetupUi'
 import { useAuth } from '@/contexts/AuthContext'
 import { hasAgentHubAccess, hasMlsAccess } from '@/lib/navAccess'
@@ -230,7 +230,7 @@ function BrandKitPageInner() {
           <FeatureShowcase kit={kit} look={shownLook} usage={usage} idxPlan={luxeAllowed} person={person} agent={designAgent} />
         </div>
 
-        {/* 3. logos, print background, fonts, disclaimer */}
+        {/* 3. logos, QR codes, fonts, disclaimer */}
         <div className="mt-10 flex items-center gap-3">
           <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#C9A24D]/40 to-[#C9A24D]/40" />
           <span className="text-[10px] font-black uppercase tracking-[0.24em] text-[#8b7355] dark:text-[#e8c97a]">Logos, fonts &amp; print</span>
@@ -251,16 +251,11 @@ function BrandKitPageInner() {
               {logoError && <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600 dark:bg-red-500/10 dark:text-red-400">{logoError}</p>}
             </section>
 
-            {/* Colors */}
-            {/* One color here (user, 10/22: "do we need 3?"): your brand color is already the one in
-                Your look above (it was shown again as "Secondary"), and "Accent" was barely used - so
-                only the print background is left. The stored values are untouched. */}
-            <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-[#151517]">
-              <h2 className="text-sm font-black uppercase tracking-widest text-gray-400">Print background</h2>
-              <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">The background color on your flyers, social posts, CMA and Spotlight. Your brand color comes from Your look above.</p>
-              <div className="mt-4 max-w-md">
-                <ColorField label="Background" value={kit.primary_color} onChange={v => scheduleSave({ ...kit, primary_color: v })} swatches={BRAND_MAIN_COLORS} />
-              </div>
+            {/* The middle of every QR code (owner 10/31: moved here from Settings; the "Print background"
+                color that sat here is gone - the stored primary_color is untouched). Keyed on the
+                personal logo so uploading one above shows it as a choice at once. */}
+            <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-[#151517]" data-testid="brand-qr">
+              <QrBrandPicker logosAbove key={kit.personal_logo_url || 'none'} />
             </section>
 
           </div>
@@ -388,35 +383,6 @@ function BrandKitPreview({ kit }: { kit: BrandKit }) {
         <p className="border-t border-gray-100 px-4 py-2.5 text-[9px] font-semibold leading-relaxed text-gray-400 dark:border-gray-800">
           {kit.disclaimer_text}
         </p>
-      )}
-    </div>
-  )
-}
-
-// A color: the same quick picks Setup offers (lib/brandSwatches), plus the picker for any other color.
-function ColorField({ label, value, onChange, swatches }: { label: string; value: string; onChange: (value: string) => void; swatches?: BrandSwatch[] }) {
-  return (
-    <div>
-      <label className="block">
-        <span className="text-xs font-black uppercase tracking-widest text-gray-400">{label}</span>
-        <div className="mt-2 flex items-center gap-2 rounded-xl border border-gray-200 bg-[#fbfaf7] p-2 dark:border-gray-700 dark:bg-[#1A1A1C]">
-          <input type="color" value={value} onChange={event => onChange(event.target.value)} className="h-9 w-9 shrink-0 cursor-pointer rounded-lg border-0 bg-transparent" />
-          <input value={value} onChange={event => onChange(event.target.value)} className="w-full bg-transparent text-sm font-bold uppercase text-[#111827] outline-none dark:text-white" />
-        </div>
-      </label>
-      {swatches && (
-        <div role="radiogroup" aria-label={`${label} quick picks`} className="mt-2.5 flex flex-wrap gap-1.5">
-          {swatches.map(s => {
-            const on = s.color.toLowerCase() === (value || '').toLowerCase()
-            return (
-              <button key={s.color} type="button" role="radio" aria-checked={on} title={s.label} aria-label={s.label} onClick={() => onChange(s.color)}
-                className={`grid h-7 w-7 place-items-center rounded-full transition hover:scale-110 active:scale-95 ${on ? 'z-[1] scale-110 ring-[3px] ring-[#C9A24D] ring-offset-2 ring-offset-white shadow-[0_6px_14px_-4px_rgba(201,162,77,.9)] dark:ring-offset-[#151517]' : 'ring-1 ring-black/15 dark:ring-white/20'}`}
-                style={{ background: s.color }}>
-                {on && <Check key={s.color} className="h-3.5 w-3.5 animate-[successPop_.3s_ease-out]" strokeWidth={3.5} style={{ color: isLight(s.color) ? '#111827' : '#ffffff' }} />}
-              </button>
-            )
-          })}
-        </div>
       )}
     </div>
   )

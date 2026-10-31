@@ -25,7 +25,12 @@ export function FormsInvitesSwitch({ view, onChange, formBadge = 0 }: {
     load()
     window.addEventListener(INVITES_CHANGED, load)
     return () => window.removeEventListener(INVITES_CHANGED, load)
-  }, [view])
+  }, [])
+  // The switch answers on the very next frame (owner, 10/31 - it felt late): it moves by itself
+  // right away (painted first), and the page swaps its halves straight after that frame.
+  const [shown, setShown] = useState(view)
+  useEffect(() => { setShown(view) }, [view])
+  const flip = (v: 'forms' | 'invites') => { if (v === shown) return; setShown(v); requestAnimationFrame(() => window.setTimeout(() => onChange(v), 0)) }
   const items = [
     { id: 'forms' as const, label: 'Forms', sub: 'Capture leads', icon: ClipboardList, badge: formBadge },
     { id: 'invites' as const, label: 'Invites', sub: 'Events & RSVPs', icon: Mail, badge: inviteBadge },
@@ -35,9 +40,9 @@ export function FormsInvitesSwitch({ view, onChange, formBadge = 0 }: {
       <style>{TOOL_CARD_CSS + FORM_CARD_CSS}</style>
       <div className="relative grid grid-cols-2 gap-1 rounded-[22px] border border-[#C9A24D]/25 bg-white/80 p-1.5 shadow-[0_18px_40px_-34px_rgba(139,115,85,.9)] dark:border-white/[0.08] dark:bg-white/[0.04] sm:inline-grid sm:min-w-[420px]">
         {items.map(it => {
-          const on = view === it.id
+          const on = shown === it.id
           return (
-            <button key={it.id} type="button" role="tab" aria-selected={on} onClick={() => onChange(it.id)} data-testid={`switch-${it.id}`}
+            <button key={it.id} type="button" role="tab" aria-selected={on} onClick={() => flip(it.id)} data-testid={`switch-${it.id}`}
               className={`relative flex min-h-[58px] items-center gap-3 rounded-2xl px-3.5 text-left transition-colors ${on ? 'text-white dark:text-[#111827]' : 'text-[#111827] hover:bg-[#C9A24D]/[0.08] dark:text-white'}`}>
               {on && <motion.span layoutId="forms-invites-switch" transition={{ type: 'spring', stiffness: 420, damping: 34 }}
                 className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#111827] to-[#2a2218] shadow-lg shadow-[#111827]/25 dark:from-[#e8c97a] dark:to-[#C9A24D]" />}
@@ -97,7 +102,6 @@ export function InvitesNewChips() {
     <div className="flex min-h-[36px] items-center gap-2 overflow-x-auto px-1 [scrollbar-width:none]" data-testid="invites-new-chips">
       <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]">
         <span className="relative flex h-2 w-2">
-          {fresh.length > 0 && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-70" />}
           <span className={`relative inline-flex h-2 w-2 rounded-full ${fresh.length ? 'bg-red-500' : 'bg-emerald-500'}`} />
         </span>
         New
@@ -164,10 +168,15 @@ export function PlayfulFormCard({ seed = 0 }: { seed?: number }) {
   )
 }
 
+// Forms & Invites (owner, 10/31): nothing moves until it's pointed at - the cards' drifting symbol,
+// sparkles, gold glows and edges, the header's shimmer - they all rest, and play while hovered or
+// keyboard-focused. (This style sits on the Forms & Invites page only.)
 const FORM_CARD_CSS = `
 .pfc-mark{transform:rotate(-8deg);animation:pfcMark 14s ease-in-out infinite alternate}
 @keyframes pfcMark{0%{transform:rotate(-8deg) translate(0,0)}100%{transform:rotate(4deg) translate(-8px,-6px)}}
 .pfc-spark{width:3px;height:3px;border-radius:9999px;background:#e8c97a;box-shadow:0 0 8px 2px rgba(232,201,122,.65);opacity:0;animation:pfcSpark 5.5s ease-in-out infinite}
 @keyframes pfcSpark{0%{opacity:0;transform:translateY(0) scale(.5)}35%{opacity:.95;transform:translateY(-10px) scale(1)}100%{opacity:0;transform:translateY(-34px) scale(.5)}}
 @media (prefers-reduced-motion:reduce){.pfc-mark,.pfc-spark{animation:none}.pfc-spark{opacity:.5}}
+:root :is(.lx-aurora-a,.lx-aurora-b,.lx-mark,.lx-spark,.lx-edge,.lx-ken,.lx-title em,.lx-urgent,.ohp-tool-edge,.pfc-mark,.pfc-spark,.fta-draw,.fta-flip,.fta-needle,.fta-orbit,.fta-rise,.fta-shine,.fta-swing,.fta-tick,.fta-twinkle,.fta-type){animation-play-state:paused}
+:root :is(.group\\/lx,.group):is(:hover,:focus-within) :is(.lx-aurora-a,.lx-aurora-b,.lx-mark,.lx-spark,.lx-edge,.lx-ken,.lx-urgent,.lx-title em,.ohp-tool-edge,.pfc-mark,.pfc-spark,.fta-draw,.fta-flip,.fta-needle,.fta-orbit,.fta-rise,.fta-shine,.fta-swing,.fta-tick,.fta-twinkle,.fta-type){animation-play-state:running}
 `

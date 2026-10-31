@@ -636,7 +636,7 @@ function CreateMediaPage() {
 
             {softCapped && (
               <p className="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
-                You've used most of this month's AI allowance, so AI Studio photo &amp; video are paused until it resets on the 1st. CMAs, cheat sheets and chat still work.
+                You've used most of this month's AI allowance, so AI Studio photo &amp; video are paused until it resets on your billing day. CMAs and cheat sheets still work.
               </p>
             )}
             {!softCapped && estUsage && optionsValid && (

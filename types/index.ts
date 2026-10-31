@@ -1713,6 +1713,14 @@ export interface MonthlyAiUsage {
   exhausted: boolean;
   studio_media_used_usd: number;
   studio_media_cap_usd: number | null;
+  /** End of this billing period - the bar resets then (the day they're charged). */
+  resets_at?: string | null;
+}
+
+/** GET /ai/usage/chat - the AI helper chat's own "Chat usage" bar (owner, 11/01). */
+export interface ChatUsage extends Omit<MonthlyAiUsage, 'studio_media_used_usd' | 'studio_media_cap_usd'> {
+  /** The plan with more chat (double), when there is one - the bar offers it near the limit. */
+  upgrade?: { tier: string; name: string; times: number | null } | null;
 }
 
 // ---- Website Builder ----
@@ -3859,6 +3867,8 @@ export interface AIToolCallRef {
   details?: string[];
   warning?: string | null;
   confirm_label?: string;
+  // the card shows this picker before Confirm (e.g. "brand" - Branding swatches, 10/31)
+  picker?: string | null;
   status?: 'pending' | 'running' | 'done' | 'failed' | 'cancelled' | 'expired';
   result_message?: string | null;
   result_link?: string | null;
@@ -3870,6 +3880,8 @@ export interface AIToolCallRef {
   client_action?: string;
   payload?: Record<string, unknown>;
   made?: { kind: string; title?: string; design_id?: string; is_print?: string } | null;
+  // a link a client would get by text - shown as its Messages-style preview card (10/31)
+  share?: { url: string; preview?: string } | null;
 }
 
 export interface AIMessage {
@@ -3977,6 +3989,9 @@ export interface AIAdminAgentSummary {
   tool_calls: number;
   blocked_count: number;
   last_active?: string | null;
+  // the AI helper chat on its own (event type "chat" only)
+  chat_cost_usd?: number;
+  chat_messages?: number;
   site_spend_today_usd: number;
   site_spend_month_usd: number;
   site_daily_limit_usd?: number | null;

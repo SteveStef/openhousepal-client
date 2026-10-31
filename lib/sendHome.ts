@@ -11,6 +11,28 @@ import { cleanAddress } from '@/lib/utils'
 export type SendMethod = 'text' | 'email'
 export type SendMailApp = 'gmail' | 'outlook' | 'default'
 
+/** One time the agent sent this client home(s) (owner 10/31) - the backend's collections.home_sends. */
+export type HomeSend = { at: string; method: SendMethod; ids: string[]; intro?: boolean; copied?: boolean }
+
+/** Each home's sends, newest first: { [propertyId]: HomeSend[] }. */
+export function sendsByHome(sends: HomeSend[] | null | undefined): Record<string, HomeSend[]> {
+  const out: Record<string, HomeSend[]> = {}
+  for (const s of sends || []) for (const id of s.ids || []) (out[String(id)] ||= []).unshift(s)
+  return out
+}
+
+/** "by text · Today, 3:12 PM" / "by email · Oct 28, 9:05 AM" (copied: "copied the text · ..."). */
+export function sendLine(s: HomeSend): string {
+  const d = new Date(s.at)
+  const now = new Date()
+  const day = d.toDateString() === now.toDateString() ? 'Today'
+    : d.toDateString() === new Date(now.getTime() - 86400000).toDateString() ? 'Yesterday'
+    : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) })
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  const how = s.copied ? `copied the ${s.method === 'email' ? 'email' : 'text'}` : `by ${s.method}`
+  return `${how} · ${day}, ${time}`
+}
+
 /** The intro every agent starts with. {client} / {agent} are filled with first names. */
 export const DEFAULT_SEND_MESSAGE = "Hey {client}, it's {agent}! I found a property that might interest you."
 

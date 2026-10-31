@@ -1209,7 +1209,7 @@ export const AgentBragSheetDocument = ({ agent, recentSales, showcaseSamplePrope
             {agent.hubUrl && (
               <View style={styles.pageOneQrRow} wrap={false}>
                 <View style={styles.pageOneQrImageWrap}>
-                  {/* The centre follows the agent's QR choice in Settings like every other code (owner,
+                  {/* The centre follows the agent's QR choice in Branding like every other code (owner,
                       10/30) - it used to force their initials over the default house logo. */}
                   <Image src={qrPdfSrc(agent.hubUrl, { size: 220 })} style={styles.pageOneQrImage} />
                 </View>

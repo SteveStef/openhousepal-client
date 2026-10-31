@@ -11,6 +11,7 @@ import { getDesignFormat } from '@/lib/studio/designFormats'
 import { getTemplatesFor, isCompositionReady } from '@/lib/studio/designTemplates'
 import { profileGaps } from '@/lib/studio/designCompliance'
 import { designAgentFrom } from '@/lib/studio/designAgent'
+import { tidyAllCaps } from '@/lib/cheatSheetContent'
 
 export interface ClientResult { ok: boolean; message: string; link?: string; made?: Record<string, unknown> }
 
@@ -58,7 +59,9 @@ async function createDesign(p: Record<string, any>, user: User | null): Promise<
     qrTarget: situation.propertyAttached ? undefined : 'agent_hub',
     priceMode: 'listing',
   })
-  const name = `${situation.label} ${format.label}${property ? ` — ${property.address}` : messaging?.headline ? ` — ${messaging.headline}` : ''}`
+  // "Open House Flyer — 417 Dogwood Ln" (not "Open House Open House Flyer — 417 DOGWOOD LN")
+  const kind = format.label.toLowerCase().startsWith(situation.label.toLowerCase()) ? format.label : `${situation.label} ${format.label}`
+  const name = `${kind}${property ? ` — ${tidyAllCaps(property.address)}` : messaging?.headline ? ` — ${messaging.headline}` : ''}`
   const res = await api.designs.create({
     design_type: format.designType,
     style_id: 'modern_luxury',

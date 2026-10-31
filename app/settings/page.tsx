@@ -35,7 +35,6 @@ import BillingPanel from '@/components/settings/BillingPanel'
 import { useSettingsCompleteness } from '@/hooks/useSettingsCompleteness'
 import { toJpeg } from '@/components/setup/SetupUi'
 import { getBrokeragePhone, getOfficePhone, upgradeHubPhones } from '@/lib/hubPhones'
-import QrBrandPicker from '@/components/settings/QrBrandPicker'
 import { SaveStatusBar, SaveStatusContext, useSaveStatus, useSaveTracker } from '@/components/ui/SaveStatus'
 
 // The "IDX Website" settings tab (IDX plan only). Answers three real questions for an IDX agent
@@ -596,6 +595,7 @@ export default function SettingsPage() {
           aside={
             <div className="w-full space-y-1.5 lg:mt-0.5">
               <MonthlyAiUsageMeter variant="inline" compact stretch />
+              <MonthlyAiUsageMeter kind="chat" variant="inline" compact stretch />
               <StorageMeter variant="inline" compact stretch />
             </div>
           }
@@ -798,10 +798,6 @@ export default function SettingsPage() {
                   incomplete={salesIncomplete}
                 />
                 </HubPanelsOpen.Provider>
-                {/* The middle of every QR code (OpenHousePal house, or IDX: your logo / initials). */}
-                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
-                  <QrBrandPicker />
-                </div>
               </div>
             )}
 

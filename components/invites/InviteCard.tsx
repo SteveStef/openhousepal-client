@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { resolveMediaUrl } from '@/lib/api-service'
+import { sizedImage } from '@/lib/siteImage'
 import { accentOf, allDays, clockRange, initialsOf, mix, onAccent, parseDay, type InviteDay, type InviteDesign, type InviteDraft } from '@/lib/invites'
 import { LUXE_METALS } from '@/lib/luxeMetals'
 import { cardTitle, tidyCaps } from '@/lib/inviteTitle'
@@ -105,8 +106,25 @@ function parts(d: InviteCardData) {
   }
 }
 
+type CoverPos = { x: number; y: number }
+type CardProps = {
+  data: InviteCardData; width?: number; className?: string; shine?: boolean
+  /** The builder (owner, 10/31): the cover photo is dragged right here on the card - inside the
+   *  design's own frame - and this gets the new position (% like object-position). */
+  onCoverMove?: (p: CoverPos) => void
+  /** Whether the photo has room to move inside its frame (sideways / up-down) - null = no photo. */
+  onCoverRoom?: (r: { x: boolean; y: boolean } | null) => void
+}
+
+/** How far (card pixels) the cover photo hangs past its frame each way - object-fit: cover. */
+function roomOf(box: HTMLElement, img: HTMLImageElement) {
+  const bw = box.offsetWidth, bh = box.offsetHeight
+  const k = Math.max(bw / img.naturalWidth, bh / img.naturalHeight)
+  return { sx: img.naturalWidth * k - bw, sy: img.naturalHeight * k - bh }
+}
+
 /** Scales the 360px card to the box it sits in. */
-export default function InviteCard({ data, width, className = '', shine = true }: { data: InviteCardData; width?: number; className?: string; shine?: boolean }) {
+function InviteCardBase({ data, width, className = '', shine = true, onCoverMove, onCoverRoom }: CardProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(width || CARD_W)
   useEffect(() => {
@@ -119,25 +137,91 @@ export default function InviteCard({ data, width, className = '', shine = true }
     return () => ro.disconnect()
   }, [width])
   const s = w / CARD_W
+  const drag = useRef<{ px: number; py: number; x: number; y: number; sx: number; sy: number; raf: number; next: CoverPos | null } | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const [room, setRoom] = useState<{ x: boolean; y: boolean } | null>(null)
+  const cover = coverOf(data)
+  const frameKey = JSON.stringify(coverFrame(data))
+  // Measure the photo's room once it has loaded (and again for a new photo / design / frame).
+  useEffect(() => {
+    if (!onCoverMove && !onCoverRoom) return
+    const box = ref.current?.querySelector<HTMLElement>('[data-invite-cover]')
+    const img = box?.querySelector('img')
+    if (!box || !img || !cover) { setRoom(null); onCoverRoom?.(null); return }
+    const measure = () => {
+      if (!img.naturalWidth) return
+      const r = roomOf(box, img)
+      const next = { x: r.sx > 1, y: r.sy > 1 }
+      setRoom(next); onCoverRoom?.(next)
+    }
+    if (img.complete) measure()
+    img.addEventListener('load', measure)
+    return () => img.removeEventListener('load', measure)
+  }, [cover, data.design, frameKey, !!onCoverMove]) // eslint-disable-line react-hooks/exhaustive-deps
+  const canDrag = !!onCoverMove && !!room && (room.x || room.y)
+  const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v * 10) / 10))
+  const end = () => {
+    const d = drag.current
+    if (d) { cancelAnimationFrame(d.raf); if (d.next) onCoverMove?.(d.next) }
+    drag.current = null; setDragging(false)
+  }
   return (
-    <div ref={ref} className={`relative ${className}`} style={{ width: width || '100%', height: (width || w) * (CARD_H / CARD_W) }}>
+    <div ref={ref} className={`relative ${canDrag ? `ic-drag ${dragging ? 'ic-dragging' : ''}` : ''} ${className}`} style={{ width: width || '100%', height: (width || w) * (CARD_H / CARD_W) }}
+      data-testid={onCoverMove ? 'invite-card-draggable' : undefined}
+      onPointerDown={canDrag ? e => {
+        const box = (e.target as HTMLElement).closest<HTMLElement>('[data-invite-cover]')
+        const img = box?.querySelector('img')
+        if (!box || !img || !img.naturalWidth || !ref.current?.contains(box)) return
+        const r = roomOf(box, img)
+        const pos = data.cover_position || { x: 50, y: 50 }
+        drag.current = { px: e.clientX, py: e.clientY, x: pos.x ?? 50, y: pos.y ?? 50, sx: r.sx, sy: r.sy, raf: 0, next: null }
+        e.currentTarget.setPointerCapture(e.pointerId)
+        e.preventDefault()
+        setDragging(true)
+      } : undefined}
+      onPointerMove={canDrag ? e => {
+        const d = drag.current
+        if (!d) return
+        // screen pixels -> the card's own pixels -> % of the room the photo has to move
+        const dx = (e.clientX - d.px) / s, dy = (e.clientY - d.py) / s
+        d.next = { x: d.sx > 1 ? clamp(d.x - (dx / d.sx) * 100) : d.x, y: d.sy > 1 ? clamp(d.y - (dy / d.sy) * 100) : d.y }
+        if (!d.raf) d.raf = requestAnimationFrame(() => { const cur = drag.current; if (!cur) return; cur.raf = 0; if (cur.next) onCoverMove?.(cur.next) })
+      } : undefined}
+      onPointerUp={canDrag ? end : undefined} onPointerCancel={canDrag ? end : undefined}>
       <div className="absolute left-0 top-0 origin-top-left" style={{ width: CARD_W, height: CARD_H, transform: `scale(${s})` }}>
-        <CardFace data={data} shine={shine} />
+        <CardFace data={data} shine={shine} flat={w < 150} imgW={Math.max(256, Math.round((width || w) * 2))} />
       </div>
     </div>
   )
 }
 
-export function CardFace({ data, shine = true }: { data: InviteCardData; shine?: boolean }) {
+const sameData = (a: InviteCardData, b: InviteCardData) => {
+  if (a === b) return true
+  const ka = Object.keys(a) as (keyof InviteCardData)[]
+  return ka.length === Object.keys(b).length && ka.every(k => a[k] === b[k])
+}
+
+/** Re-draws only when something on the card changed (the builder re-renders on every key). */
+const InviteCard = memo(InviteCardBase, (a, b) => a.width === b.width && a.className === b.className && a.shine === b.shine
+  && a.onCoverMove === b.onCoverMove && a.onCoverRoom === b.onCoverRoom && sameData(a.data, b.data))
+export default InviteCard
+
+/** imgW: about how many real pixels wide the card is drawn - the cover and the agent's photo come
+ *  resized to that (WebP, lib/siteImage) instead of the full-size upload (owner, 10/31 - a page of
+ *  invite thumbnails was decoding dozens of full-size photos). */
+export function CardFace({ data, shine = true, flat = false, imgW }: { data: InviteCardData; shine?: boolean; flat?: boolean; imgW?: number }) {
   const design: InviteDesign = (['classic', 'garden', 'midnight', 'modern'] as const).includes(data.design) ? data.design : 'classic'
-  const p = parts(data)
+  const base = parts(data)
+  const p = imgW ? { ...base, cover: sizedImage(base.cover, imgW, 75) } : base
+  const d = imgW && data.hostPhoto ? { ...data, hostPhoto: sizedImage(resolveMediaUrl(data.hostPhoto), 128, 75) } : data
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-[14px] shadow-[0_30px_60px_-30px_rgba(0,0,0,.55),0_2px_6px_rgba(0,0,0,.08)]" style={{ fontFamily: 'inherit' }}>
-      <style>{CARD_CSS}</style>
-      {design === 'classic' && <Classic d={data} p={p} shine={shine} />}
-      {design === 'garden' && <Garden d={data} p={p} />}
-      {design === 'midnight' && <Midnight d={data} p={p} shine={shine} />}
-      {design === 'modern' && <Modern d={data} p={p} />}
+    <div className={`relative h-full w-full overflow-hidden rounded-[14px] ${flat ? '' : 'shadow-[0_30px_60px_-30px_rgba(0,0,0,.55),0_2px_6px_rgba(0,0,0,.08)]'}`} style={{ fontFamily: 'inherit' }}>
+      {/* one copy in the page however many cards there are (React hoists + de-dupes it) */}
+      <style href="ohp-invite-card" precedence="medium">{CARD_CSS}</style>
+      {design === 'classic' && <Classic d={d} p={p} shine={shine} />}
+      {design === 'garden' && <Garden d={d} p={p} />}
+      {design === 'midnight' && <Midnight d={d} p={p} shine={shine} />}
+      {design === 'modern' && <Modern d={d} p={p} />}
     </div>
   )
 }
@@ -210,7 +294,7 @@ function Host({ d, color, sub, ring, font = SERIF, italic = false, weight = 600,
     <div className="mx-auto flex min-w-0 flex-col items-center text-center" data-invite-host=""
       style={{ maxWidth: maxW, ...(plate ? { background: plate, borderRadius: 18, padding: '6px 14px 6px', boxShadow: '0 6px 16px -10px rgba(0,0,0,.25)' } : {}) }}>
       {photoSet(d.hostPhoto)
-        ? <img src={resolveMediaUrl(d.hostPhoto as string)} alt="" className="shrink-0 rounded-full object-cover" style={{ width: P, height: P, boxShadow: `0 0 0 1.5px ${ring}, 0 0 0 3.5px ${dark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.9)'}` }} />
+        ? <img src={(d.hostPhoto as string).startsWith('/_next/image') ? d.hostPhoto as string : resolveMediaUrl(d.hostPhoto as string)} alt="" className="shrink-0 rounded-full object-cover" style={{ width: P, height: P, boxShadow: `0 0 0 1.5px ${ring}, 0 0 0 3.5px ${dark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.9)'}` }} />
         : <span className="grid shrink-0 place-items-center rounded-full" style={{ width: P, height: P, background: dark ? '#1a1e27' : mix(ring, '#ffffff', 0.86), boxShadow: `0 0 0 1.5px ${ring}`, fontFamily: SERIF, fontSize: 14, fontWeight: 700, color: dark ? mix(ring, '#ffffff', 0.35) : mix(ring, '#000000', 0.3), letterSpacing: 0.5 }}>{initialsOf(d.hostName)}</span>}
       <p className="mt-1.5 w-full truncate" title={d.hostName} style={{ fontFamily: font, fontStyle: italic ? 'italic' : 'normal', fontSize: nameSize, fontWeight: weight, color, lineHeight: 1.15 }}>{d.hostName}</p>
       {lines.map(x => (
@@ -265,7 +349,7 @@ function Classic({ d, p, shine }: { d: InviteCardData; p: P; shine: boolean }) {
       <div className="absolute" style={{ inset: 15, border: `0.75px solid ${mix(a, '#ffffff', 0.35)}`, borderRadius: 5 }} />
       <div className="absolute inset-0 flex flex-col items-center px-9 pb-7 pt-9">
         {p.cover ? (
-          <div className="relative overflow-hidden" style={{ width: coverFrame(d).w, height: coverFrame(d).h, borderRadius: '98px 98px 10px 10px', boxShadow: `0 0 0 3px #fdfbf6, 0 0 0 4px ${a}` }}>
+          <div className="relative overflow-hidden" data-invite-cover="" style={{ width: coverFrame(d).w, height: coverFrame(d).h, borderRadius: '98px 98px 10px 10px', boxShadow: `0 0 0 3px #fdfbf6, 0 0 0 4px ${a}` }}>
             <img src={p.cover} alt="" className="h-full w-full object-cover" style={{ objectPosition: p.coverPos }} />
           </div>
         ) : <Monogram name={d.hostName} accent={a} size={p.multi ? 80 : 92} />}
@@ -336,7 +420,7 @@ function Garden({ d, p }: { d: InviteCardData; p: P }) {
         {/* A wide soft-cornered frame (round 4: the circle cut off too much of the house) - a home
             photo fits it as taken, no dragging needed. */}
         {p.cover ? (
-          <div className="overflow-hidden" style={{ width: coverFrame(d).w, height: coverFrame(d).h, borderRadius: 18, boxShadow: `0 0 0 6px #ffffff, 0 0 0 7px ${mix(a, '#ffffff', 0.45)}, 0 18px 30px -16px rgba(0,0,0,.45)` }}>
+          <div className="relative overflow-hidden" data-invite-cover="" style={{ width: coverFrame(d).w, height: coverFrame(d).h, borderRadius: 18, boxShadow: `0 0 0 6px #ffffff, 0 0 0 7px ${mix(a, '#ffffff', 0.45)}, 0 18px 30px -16px rgba(0,0,0,.45)` }}>
             <img src={p.cover} alt="" className="h-full w-full object-cover" style={{ objectPosition: p.coverPos }} />
           </div>
         ) : <Monogram name={d.hostName} accent={a} size={p.multi ? 88 : 104} />}
@@ -385,7 +469,7 @@ function Midnight({ d, p, shine }: { d: InviteCardData; p: P; shine: boolean }) 
   return (
     <div className="absolute inset-0" style={{ background: '#0e1118' }}>
       {p.cover && (
-        <div className="absolute inset-x-0 top-0" style={{ height: coverFrame(d).h }}>
+        <div className="absolute inset-x-0 top-0" data-invite-cover="" style={{ height: coverFrame(d).h }}>
           <img src={p.cover} alt="" className="h-full w-full object-cover" style={{ opacity: 0.85, objectPosition: p.coverPos }} />
           <div className="absolute inset-x-0 top-0" style={{ height: 'calc(100% + 3px)', background: 'linear-gradient(180deg, rgba(11,13,18,.15) 0%, rgba(14,17,24,.6) 55%, #0e1118 88%, #0e1118 100%)' }} />
         </div>
@@ -492,7 +576,7 @@ function Modern({ d, p }: { d: InviteCardData; p: P }) {
   const dayWord = (s: string, o: Intl.DateTimeFormatOptions) => parseDay(s).toLocaleDateString('en-US', o)
   return (
     <div className="absolute inset-0 bg-white">
-      <div className="absolute inset-x-0 top-0 overflow-hidden" style={{ height: H }}>
+      <div className="absolute inset-x-0 top-0 overflow-hidden" data-invite-cover="" style={{ height: H }}>
         {p.cover ? <img src={p.cover} alt="" className="h-full w-full object-cover" style={{ objectPosition: p.coverPos }} /> : (
           <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${a} 0%, ${mix(a, '#000000', 0.35)} 100%)` }}>
             <svg viewBox="0 0 360 300" className="h-full w-full opacity-20" aria-hidden>
@@ -562,9 +646,17 @@ function Modern({ d, p }: { d: InviteCardData; p: P }) {
   )
 }
 
+// Midnight's metal label shimmers a few times and rests (owner, 10/31 - nothing runs forever).
+// .ic-drag: the builder's card - the photo box takes the drag (and never scrolls the page under a
+// finger); a "drag" pill sits on the photo until it's grabbed.
 const CARD_CSS = `
 .ic-foil{background-size:200% 100% !important}
-.ic-metal-text{animation:icMetal 5s ease-in-out infinite}
+.ic-metal-text{animation:icMetal 5s ease-in-out 3}
 @keyframes icMetal{0%,100%{background-position:0% 0}50%{background-position:100% 0}}
+.ic-drag [data-invite-cover]{touch-action:none;cursor:grab;-webkit-user-select:none;user-select:none}
+.ic-drag [data-invite-cover] img{pointer-events:none;-webkit-user-drag:none}
+.ic-drag.ic-dragging [data-invite-cover]{cursor:grabbing}
+.ic-drag [data-invite-cover]::after{content:"Drag to center";position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);padding:8px 14px;border-radius:999px;background:rgba(0,0,0,.6);color:#fff;font:900 13px/1 Inter,system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;pointer-events:none;transition:opacity .2s}
+.ic-drag.ic-dragging [data-invite-cover]::after{opacity:0}
 @media (prefers-reduced-motion:reduce){.ic-metal-text{animation:none}}
 `

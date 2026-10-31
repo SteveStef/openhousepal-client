@@ -198,6 +198,13 @@ export const invitesApi = {
 }
 
 /** Apple / Outlook calendar file - every day, or just the days given. */
+/** A client invite's own "Are you a real estate agent?" / "working with one?" question - the RSVP
+ *  asks both itself, so the guest page leaves it out (and the server never requires it). Keep in
+ *  step with asked_by_rsvp in backend/app/services/invites_service.py. */
+const AGENT_Q_RE = /\b(working with|have|got)\s+(a|an|your own)\s+(real estate\s+)?agent\b|\bare you (a|an)\s+(real estate\s+)?agent\b/i
+export const askedByRsvp = (q: Pick<InviteQuestion, 'role' | 'label'>, audience?: string | null) =>
+  audience === 'clients' && (q.role === 'represented' || AGENT_Q_RE.test(q.label || ''))
+
 export const icsUrl = (code: string, days?: string[] | null) =>
   `${API_BASE_URL}/invites/public/${encodeURIComponent(code)}/ics${days && days.length ? `?days=${days.join(',')}` : ''}`
 
