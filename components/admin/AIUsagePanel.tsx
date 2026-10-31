@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertOctagon, ArrowLeft, DollarSign, MessageSquare, Users, ShieldAlert, X, Bot, Loader2, Globe2, Radar } from 'lucide-react'
 import api from '@/lib/api-service'
+import OhpSwitch from '@/components/ui/OhpSwitch'
 import { AIAdminOverview, AIAdminAgentSummary, AIAdminAgentDetail, AIAdminBudgetStatus, AIAdminTopConsumer, AIAdminMonthlyPoint } from '@/types'
 
 // Mirrors ai_rate_limit_service.classify_provider_error's machine keys - a real upstream AI
@@ -202,6 +203,20 @@ export default function AIUsagePanel() {
   const [loading, setLoading] = useState(true)
   const [detail, setDetail] = useState<AIAdminAgentDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  // The bottom-right AI helper for every paying agent (10/30) - one switch turns it off for all.
+  const [helperOn, setHelperOn] = useState<boolean | null>(null)
+  const [helperBusy, setHelperBusy] = useState(false)
+
+  useEffect(() => {
+    api.admin.getAIHelperSwitch().then((r) => { if (r.success && r.data) setHelperOn(r.data.open_to_all) })
+  }, [])
+
+  const flipHelper = async (next: boolean) => {
+    setHelperBusy(true)
+    const r = await api.admin.setAIHelperSwitch(next)
+    if (r.success && r.data) setHelperOn(r.data.open_to_all)
+    setHelperBusy(false)
+  }
 
   useEffect(() => {
     setLoading(true)
@@ -252,6 +267,19 @@ export default function AIUsagePanel() {
 
   return (
     <div>
+      {helperOn !== null && (
+        <div className="mb-6 flex items-center gap-4 rounded-2xl border border-gray-100 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+          <Bot className="h-5 w-5 shrink-0 text-[#8b7355] dark:text-[#C9A24D]" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-[#111827] dark:text-white">AI helper for every agent</p>
+            <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-400">
+              {helperOn ? 'On - every agent with an active plan sees the chat button in the bottom right.' : 'Off - only the admin account and test accounts (Peter Stefanatos) see it.'}
+            </p>
+          </div>
+          <OhpSwitch on={helperOn} onChange={flipHelper} busy={helperBusy} label="AI helper for every agent" />
+        </div>
+      )}
+
       {/* Provider-side failure alert (exhausted credit balance, outage, auth, rate limit) in the
           last 24h - the one thing that used to be totally invisible here and only ever showed up
           as a backend log line, e.g. an Anthropic account running out of credit mid-generation. */}

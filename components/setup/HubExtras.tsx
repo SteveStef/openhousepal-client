@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowUpRight, Calendar, Check, CheckCircle2, Clapperboard, DollarSign, Globe, Home, Loader2, Newspaper, RefreshCw, Sparkles, TrendingUp, Youtube } from 'lucide-react'
 import api, { type SetupHubLink } from '@/lib/api-service'
 import type { AgentFormConfig, PublicBlogSummary } from '@/types'
+import GoogleVisibilityNote from '@/components/ui/GoogleVisibilityNote'
 import { BigToggle, inputCls, StepCtx } from './SetupUi'
 import { BigChoices, hubSectionOn, hubSectionPatch, MiniLabel, Note, patchHubConfig, QuestionCard, useSerialSaves } from './FeatureUi'
 
@@ -293,12 +294,8 @@ export function HubLinkNote({ ctx, slug }: { ctx: StepCtx; slug: string }) {
   const stepName = `“Web address” step${domainStep ? ` (step ${domainStep})` : ''}`
   const short = (u: string) => u.replace(/^https?:\/\//, '')
   if (!info.is_idx) {
-    return (
-      <p className="mt-4 flex items-start gap-2 text-[13px] font-semibold text-gray-500 dark:text-gray-400" data-testid="hub-link-upsell">
-        <Globe className="mt-0.5 h-4 w-4 shrink-0 text-[#C9A24D]" />
-        <span>You can make this link your own custom domain with the IDX plan.</span>
-      </p>
-    )
+    // What Google sees of the hub today, and what IDX changes (incl. their own domain).
+    return <div data-testid="hub-link-upsell"><GoogleVisibilityNote kind="hub" planTier={ctx.plan} className="mt-4" /></div>
   }
   if (info.routes_to_domain && info.domain) {
     return (

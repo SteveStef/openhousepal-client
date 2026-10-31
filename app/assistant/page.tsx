@@ -30,10 +30,16 @@ export default function AssistantPage() {
   const [isTalking, setIsTalking] = useState(false)
   const speech = useSpeech()
 
-  // Admin-only while this feature is still being tested - not ready to ship to real users yet.
+  // Every paying plan since 10/30 (unless Admin switched the helper off); voice stays admin-only.
+  const [helper, setHelper] = useState<{ enabled: boolean; voice: boolean } | null>(null)
   useEffect(() => {
-    if (!isCheckingAuth && !user?.is_admin) router.replace('/dash')
-  }, [isCheckingAuth, user, router])
+    if (isCheckingAuth) return
+    api.ai.getHelperStatus().then((r) => {
+      const s = r.success && r.data ? r.data : { enabled: false, voice: false }
+      setHelper(s)
+      if (!s.enabled) router.replace('/dash')
+    })
+  }, [isCheckingAuth, user?.id, router])
 
   useEffect(() => {
     api.ai.listConversations().then((r) => {
@@ -118,7 +124,7 @@ export default function AssistantPage() {
     }
   }, [activeConversation, showToast, voiceOutputEnabled, speech.stop])
 
-  if (isCheckingAuth || !user?.is_admin) {
+  if (isCheckingAuth || !helper?.enabled) {
     return null
   }
 
@@ -163,7 +169,7 @@ export default function AssistantPage() {
           <span className="text-sm font-bold text-[#111827] dark:text-white truncate">
             {activeConversation?.title || 'AI Assistant'}
           </span>
-          <button
+          {helper.voice && <button
             onClick={() => setVoiceOutputEnabled((v) => !v)}
             title={voiceOutputEnabled ? 'Turn off spoken replies' : 'Have replies read aloud'}
             className={`ml-auto flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
@@ -174,11 +180,11 @@ export default function AssistantPage() {
           >
             {voiceOutputEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             <span className="hidden sm:inline">{voiceOutputEnabled ? 'Voice on' : 'Voice off'}</span>
-          </button>
+          </button>}
         </div>
 
         {activeConversation ? (
-          <ChatThread messages={activeConversation.messages} isSending={isSending} autoSpeak={voiceOutputEnabled} conversationId={activeConversation.id} speech={speech} />
+          <ChatThread messages={activeConversation.messages} isSending={isSending} autoSpeak={voiceOutputEnabled} conversationId={activeConversation.id} speech={speech} canSpeak={helper.voice} />
         ) : (
           <AssistantHome insights={insights} insightsLoading={insightsLoading} onPrompt={handleSend} />
         )}
@@ -187,7 +193,7 @@ export default function AssistantPage() {
           onSend={handleSend}
           disabled={isSending || isTalking}
           onUserSpeaking={speech.stop}
-          onStartCall={() => { if (!isSending && !isTalking) setIsTalking(true) }}
+          onStartCall={helper.voice ? () => { if (!isSending && !isTalking) setIsTalking(true) } : undefined}
         />
       </div>
     </div>

@@ -1,16 +1,16 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import Link from 'next/link'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { Sparkles, X, Volume2, VolumeX, ExternalLink, MessageSquarePlus } from 'lucide-react'
+import { Sparkles, X, Volume2, VolumeX, MessageSquarePlus, Maximize2, Minimize2, History, ArrowLeft } from 'lucide-react'
 import api from '@/lib/api-service'
-import { AIConversation, AIInsight } from '@/types'
+import { AIConversation, AIConversationListItem, AIInsight } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import AssistantHome from './AssistantHome'
 import ChatThread from './ChatThread'
 import ChatInput from './ChatInput'
+import ConversationSidebar from './ConversationSidebar'
 import TalkToOHP from './TalkToOHP'
 import { useSpeech } from './useSpeech'
 
@@ -20,11 +20,39 @@ import { useSpeech } from './useSpeech'
 // without needing a shared React context.
 const ASSISTANT_OPEN_EVENT = 'assistant-widget:open'
 
+// The chat you were in comes with you - page to page (this widget never unmounts) and across a
+// reload (owner, 10/30). Per-viewer convenience only, so plain browser storage.
+const CONV_KEY = 'ohp-helper:conversation'
+const UI_KEY = 'ohp-helper:ui'
+const store = {
+  get(k: string, session = false): string | null { try { return (session ? sessionStorage : localStorage).getItem(k) } catch { return null } },
+  set(k: string, v: string | null, session = false) {
+    try { const s = session ? sessionStorage : localStorage; if (v === null) s.removeItem(k); else s.setItem(k, v) } catch { /* private mode */ }
+  },
+}
+
+function useIsPhone() {
+  const [phone, setPhone] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)')
+    const on = () => setPhone(mq.matches)
+    on(); mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return phone
+}
+
 export default function AssistantWidget() {
   const { user, isAuthenticated, isLoading: isCheckingAuth } = useAuth()
   const pathname = usePathname()
   const { showToast } = useToast()
+  const isPhone = useIsPhone()
   const [isOpen, setIsOpen] = useState(false)
+  // Computer: the corner panel or the big window. Phone: a sheet swiped up to full height.
+  const [big, setBig] = useState(false)
+  const [showChats, setShowChats] = useState(false)
+  const [chats, setChats] = useState<AIConversationListItem[]>([])
+  const [chatsLoading, setChatsLoading] = useState(false)
   const [activeConversation, setActiveConversation] = useState<AIConversation | null>(null)
   const [insights, setInsights] = useState<AIInsight[]>([])
   const [insightsLoading, setInsightsLoading] = useState(true)
@@ -32,12 +60,89 @@ export default function AssistantWidget() {
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false)
   const [insightsLoaded, setInsightsLoaded] = useState(false)
   const [isTalking, setIsTalking] = useState(false)
+  // Every paying plan since 10/30 (unless Admin switched it off); voice stays admin-only.
+  const [helper, setHelper] = useState<{ enabled: boolean; voice: boolean } | null>(null)
+  const [dragY, setDragY] = useState(0)
+  const dragStart = useRef<number | null>(null)
+  const restored = useRef(false)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [closing, setClosing] = useState(false)
+
+  // Closing plays its exit first (a beat), then unmounts.
+  const close = useCallback(() => {
+    setClosing(true)
+    window.setTimeout(() => { setIsOpen(false); setClosing(false) }, isPhone ? 170 : 140)
+  }, [isPhone])
+
+  // Bigger / smaller: a quick settle on the new size instead of a hard jump.
+  const sized = useRef(false)
+  useEffect(() => {
+    if (!sized.current) { sized.current = true; return }
+    const el = panelRef.current
+    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    el.animate([{ opacity: 0.6, transform: 'scale(0.985)' }, { opacity: 1, transform: 'none' }], { duration: 200, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' })
+  }, [big])
   const speech = useSpeech()
+
+  useEffect(() => {
+    if (!isAuthenticated) { setHelper(null); return }
+    api.ai.getHelperStatus().then((r) => setHelper(r.success && r.data ? r.data : { enabled: false, voice: false }))
+  }, [isAuthenticated, user?.id])
+
+  // Restore the open window + the chat you were in, once per page load.
+  useEffect(() => {
+    if (!helper?.enabled || restored.current) return
+    restored.current = true
+    try {
+      const ui = JSON.parse(store.get(UI_KEY, true) || '{}')
+      if (ui.open) setIsOpen(true)
+      if (ui.big) setBig(true)
+    } catch { /* ignore */ }
+    const id = store.get(CONV_KEY)
+    if (id) {
+      api.ai.getConversation(id).then((r) => {
+        if (r.success && r.data) setActiveConversation(r.data)
+        else store.set(CONV_KEY, null)
+      })
+    }
+  }, [helper?.enabled])
+
+  useEffect(() => { if (restored.current) store.set(UI_KEY, JSON.stringify({ open: isOpen, big }), true) }, [isOpen, big])
+  useEffect(() => { if (restored.current) store.set(CONV_KEY, activeConversation?.id ?? null) }, [activeConversation?.id])
+
+  const loadChats = useCallback(() => {
+    setChatsLoading(true)
+    api.ai.listConversations().then((r) => {
+      if (r.success && r.data) setChats(r.data)
+      setChatsLoading(false)
+    })
+  }, [])
+
+  // The big window keeps your chats down the side; the small ones load them when you ask.
+  useEffect(() => { if (isOpen && (showChats || (big && !isPhone))) loadChats() }, [isOpen, showChats, big, isPhone, loadChats])
+
+  const openChat = useCallback(async (id: string) => {
+    setShowChats(false)
+    if (activeConversation?.id === id) return
+    const r = await api.ai.getConversation(id)
+    if (r.success && r.data) setActiveConversation(r.data)
+    else showToast('That chat could not be opened.', 'error')
+  }, [activeConversation?.id, showToast])
+
+  const deleteChat = useCallback(async (id: string) => {
+    const r = await api.ai.deleteConversation(id)
+    if (!r.success) { showToast('That chat could not be deleted.', 'error'); return }
+    setChats((c) => c.filter((x) => x.id !== id))
+    if (activeConversation?.id === id) setActiveConversation(null)
+  }, [activeConversation?.id, showToast])
+
+  const newChat = useCallback(() => { setActiveConversation(null); setShowChats(false) }, [])
 
   const handleSend = useCallback(async (text: string) => {
     // A new message means the agent is actively talking again - cut off whatever spoken
     // reply might still be playing instead of letting it talk over the new turn.
     speech.stop()
+    setShowChats(false)
     setIsSending(true)
     const tempId = `temp-${Date.now()}`
     const optimisticUser = { id: tempId, role: 'user' as const, content: text, created_at: new Date().toISOString() }
@@ -67,7 +172,7 @@ export default function AssistantWidget() {
       setActiveConversation((prev) => {
         if (!prev) return prev
         const withoutTemp = prev.messages.filter((m) => m.id !== tempId)
-        return { ...prev, messages: [...withoutTemp, user_message, assistant_message] }
+        return { ...prev, title: prev.title || text.slice(0, 80), messages: [...withoutTemp, user_message, assistant_message] }
       })
     } catch (err) {
       setActiveConversation((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m.id !== tempId) } : prev))
@@ -99,10 +204,25 @@ export default function AssistantWidget() {
     })
   }, [isOpen, insightsLoaded])
 
+  // Phone sheet: drag the top bar up for full screen, down to shrink, further down to close.
+  const onTouchStart = (e: React.TouchEvent) => { dragStart.current = e.touches[0].clientY }
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (dragStart.current === null) return
+    setDragY(e.touches[0].clientY - dragStart.current)
+  }
+  const onTouchEnd = () => {
+    if (dragStart.current === null) return
+    const dy = dragY
+    dragStart.current = null
+    setDragY(0)
+    if (dy < -50) setBig(true)
+    else if (dy > 70) { if (big) setBig(false); else close() }
+  }
+
   // Nothing to show before login, while auth is still resolving, on the full-page experience
-  // itself (no point floating a shortcut to the page you're already on), or for anyone but the
-  // admin account - this is still being tested and isn't ready to ship to real users yet.
-  if (isCheckingAuth || !isAuthenticated || !user?.is_admin || pathname === '/assistant') {
+  // itself (no point floating a shortcut to the page you're already on), or when the helper
+  // isn't on for this account (no active plan, or the Admin switch is off).
+  if (isCheckingAuth || !isAuthenticated || !helper?.enabled || pathname === '/assistant') {
     return null
   }
 
@@ -125,71 +245,109 @@ export default function AssistantWidget() {
       <button
         onClick={() => setIsOpen(true)}
         aria-label="Open AI Assistant"
-        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-[#8b7355] hover:bg-[#7a6549] text-white shadow-xl shadow-black/20 flex items-center justify-center transition-transform hover:scale-105"
+        className="ohp-ai-fab fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-[#8b7355] hover:bg-[#7a6549] text-white shadow-xl shadow-black/20 flex items-center justify-center"
       >
-        <Sparkles className="w-6 h-6" />
+        <Sparkles className="ohp-ai-fab-icon w-6 h-6" />
       </button>
     )
   }
 
+  const wide = big && !isPhone          // computer big window: chats down the side
+  const frame = isPhone
+    ? `fixed inset-x-0 bottom-0 z-50 rounded-t-3xl ${big ? 'h-[100dvh] rounded-t-none' : 'h-[72dvh]'}`
+    : big
+      ? 'fixed inset-4 lg:inset-y-8 lg:left-[8%] lg:right-[8%] z-50 rounded-3xl'
+      : 'fixed bottom-6 right-6 z-40 w-96 h-[560px] max-h-[calc(100vh-3rem)] rounded-2xl'
+  const iconBtn = 'ohp-ai-press p-1.5 rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300'
+  const motionIn = isPhone ? (closing ? 'ohp-ai-sheet-out' : 'ohp-ai-sheet-in') : closing ? 'ohp-ai-panel-out' : 'ohp-ai-panel-in'
+
   return (
-    <div className="fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-40 sm:w-96 h-[70vh] sm:h-[560px] max-h-[560px] bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-zinc-800 flex flex-col overflow-hidden animate-fadeIn">
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 dark:border-zinc-800/60 bg-white dark:bg-zinc-900 flex-shrink-0">
-        <Sparkles className="w-4 h-4 text-[#8b7355]" />
-        <span className="text-sm font-bold text-[#111827] dark:text-white truncate">
-          {activeConversation?.title || 'AI Assistant'}
-        </span>
-        {activeConversation && (
-          <button
-            onClick={() => setActiveConversation(null)}
-            title="Start a new chat"
-            className="ml-auto p-1.5 rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-800"
-          >
-            <MessageSquarePlus className="w-4 h-4" />
-          </button>
-        )}
-        <button
-          onClick={() => setVoiceOutputEnabled((v) => !v)}
-          title={voiceOutputEnabled ? 'Turn off spoken replies' : 'Have replies read aloud'}
-          className={`${activeConversation ? '' : 'ml-auto'} p-1.5 rounded-lg transition-colors ${
-            voiceOutputEnabled
-              ? 'bg-[#8b7355]/10 text-[#8b7355] dark:text-[#C9A24D]'
-              : 'text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          {voiceOutputEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-        </button>
-        <button
-          onClick={() => setIsOpen(false)}
-          aria-label="Close"
-          className="p-1.5 rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-800"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      <div className="flex-1 min-h-0 flex flex-col">
-        {activeConversation ? (
-          <ChatThread messages={activeConversation.messages} isSending={isSending} autoSpeak={voiceOutputEnabled} conversationId={activeConversation.id} speech={speech} />
-        ) : (
-          <AssistantHome insights={insights} insightsLoading={insightsLoading} onPrompt={handleSend} />
-        )}
-      </div>
-
-      <ChatInput
-        onSend={handleSend}
-        disabled={isSending}
-        onUserSpeaking={speech.stop}
-        onStartCall={() => { if (!isSending) setIsTalking(true) }}
-      />
-
-      <Link
-        href="/assistant"
-        className="flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-gray-400 dark:text-zinc-500 hover:text-[#8b7355] dark:hover:text-[#C9A24D] border-t border-gray-100 dark:border-zinc-800/60 flex-shrink-0 transition-colors"
+    <>
+      {(big || isPhone) && (
+        <div className={`fixed inset-0 bg-black/30 ${closing ? 'ohp-ai-fade-out' : 'ohp-ai-fade'}`} style={{ zIndex: 49 }} onClick={() => (isPhone ? close() : setBig(false))} />
+      )}
+      <div
+        ref={panelRef}
+        data-scroll-lock={big || isPhone ? 'on' : 'off'}
+        style={dragY ? { transform: `translateY(${Math.max(dragY, isPhone && !big ? -120 : 0)}px)`, transition: 'none' } : undefined}
+        className={`${frame} ${motionIn} bg-white dark:bg-zinc-900 shadow-2xl shadow-black/20 border border-gray-100 dark:border-zinc-800 flex flex-col overflow-hidden`}
       >
-        View full history
-        <ExternalLink className="w-3 h-3" />
-      </Link>
-    </div>
+        {isPhone && (
+          <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onClick={() => setBig((b) => !b)}
+               className="flex justify-center pt-2 pb-1 cursor-grab touch-none" aria-label={big ? 'Swipe down to shrink' : 'Swipe up for full screen'}>
+            <span className="h-1.5 w-10 rounded-full bg-gray-300 dark:bg-zinc-600" />
+          </div>
+        )}
+        <div
+          onTouchStart={isPhone ? onTouchStart : undefined} onTouchMove={isPhone ? onTouchMove : undefined} onTouchEnd={isPhone ? onTouchEnd : undefined}
+          className="flex items-center gap-1 px-3 py-2.5 border-b border-gray-100 dark:border-zinc-800/60 bg-white dark:bg-zinc-900 flex-shrink-0"
+        >
+          {showChats && !wide ? (
+            <button onClick={() => setShowChats(false)} className={iconBtn} aria-label="Back to chat"><ArrowLeft className="w-4 h-4" /></button>
+          ) : (
+            <Sparkles className="w-4 h-4 text-[#8b7355] mx-1 flex-shrink-0" />
+          )}
+          <span className="text-sm font-bold text-[#111827] dark:text-white truncate mr-auto">
+            {showChats && !wide ? 'Your chats' : activeConversation?.title || 'AI Assistant'}
+          </span>
+          {!wide && (
+            <button onClick={() => setShowChats((s) => !s)} title="Your chats" aria-label="Your chats" className={iconBtn}><History className="w-4 h-4" /></button>
+          )}
+          {activeConversation && (
+            <button onClick={newChat} title="Start a new chat" aria-label="Start a new chat" className={iconBtn}><MessageSquarePlus className="w-4 h-4" /></button>
+          )}
+          {helper.voice && (
+            <button
+              onClick={() => setVoiceOutputEnabled((v) => !v)}
+              title={voiceOutputEnabled ? 'Turn off spoken replies' : 'Have replies read aloud'}
+              className={`p-1.5 rounded-lg transition-colors ${voiceOutputEnabled ? 'bg-[#8b7355]/10 text-[#8b7355] dark:text-[#C9A24D]' : 'text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-800'}`}
+            >
+              {voiceOutputEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </button>
+          )}
+          <button onClick={() => setBig((b) => !b)} title={big ? 'Make smaller' : 'Make bigger'} aria-label={big ? 'Make smaller' : 'Make bigger'} className={iconBtn}>
+            {big ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+          <button onClick={close} aria-label="Close" className={iconBtn}><X className="w-4 h-4" /></button>
+        </div>
+
+        <div className="flex-1 min-h-0 flex">
+          {wide && (
+            <ConversationSidebar
+              conversations={chats} activeConversationId={activeConversation?.id ?? null} loading={chatsLoading}
+              onSelect={openChat} onNew={newChat} onDelete={deleteChat}
+              className="flex flex-col w-64 flex-shrink-0 border-r border-gray-100 dark:border-zinc-800/60 bg-white dark:bg-zinc-900"
+            />
+          )}
+          <div className="flex-1 min-w-0 flex flex-col">
+            {showChats && !wide ? (
+              <ConversationSidebar
+                conversations={chats} activeConversationId={activeConversation?.id ?? null} loading={chatsLoading}
+                onSelect={openChat} onNew={newChat} onDelete={deleteChat}
+                className="flex flex-col flex-1 min-h-0 bg-white dark:bg-zinc-900"
+              />
+            ) : (
+              <>
+                <div className="flex-1 min-h-0 flex flex-col">
+                  {activeConversation ? (
+                    <ChatThread messages={activeConversation.messages} isSending={isSending} autoSpeak={voiceOutputEnabled} conversationId={activeConversation.id} speech={speech} canSpeak={helper.voice} onReply={handleSend} />
+                  ) : (
+                    <AssistantHome insights={insights} insightsLoading={insightsLoading} onPrompt={handleSend} />
+                  )}
+                </div>
+                <div className="pb-[env(safe-area-inset-bottom)]">
+                  <ChatInput
+                    onSend={handleSend}
+                    disabled={isSending}
+                    onUserSpeaking={speech.stop}
+                    onStartCall={helper.voice ? () => { if (!isSending) setIsTalking(true) } : undefined}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
   )
 }

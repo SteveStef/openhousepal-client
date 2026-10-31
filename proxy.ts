@@ -45,6 +45,22 @@ const RESERVED_APP_SEGMENTS = new Set([
 // Not robots.txt: a blocked page can still be listed from links, and Google can't see the noindex.
 const INDEXABLE_APP_PATHS = new Set(['/', '/register', '/login', '/privacy', '/terms'])
 
+// An agent's Hub (/<slug>/...) is shown on their own website's /hub, /about and /sales inside a
+// frame. `indexifembedded` lets Google count it as part of THAT page (owner, 10/30: their hub and
+// sales should be findable on their own site) while openhousepal.com/<slug> itself stays unlisted.
+function isHubPath(request: NextRequest): boolean {
+  const first = request.nextUrl.pathname.split('/').filter(Boolean)[0]?.toLowerCase()
+  return !!first && !RESERVED_APP_SEGMENTS.has(first)
+}
+
+// One article (/<slug>/blogs/<post>) is the exception: a Premium agent's posts are meant to be found
+// (owner, 10/30). The page itself decides (app/[slug]/blogs/[blogSlug]/layout.tsx) - listed only when
+// the agent left "Let Google find this article" on and the post isn't also on their IDX website.
+function isBlogPostPath(request: NextRequest): boolean {
+  const segs = request.nextUrl.pathname.split('/').filter(Boolean)
+  return segs.length === 3 && segs[1] === 'blogs' && isHubPath(request)
+}
+
 // Next.js 16 renamed Middleware to Proxy (filename proxy.ts, same functionality/API) - this
 // used to be middleware.ts/export function middleware.
 export async function proxy(request: NextRequest) {
@@ -54,7 +70,7 @@ export async function proxy(request: NextRequest) {
   if (!rawHost || APP_HOSTNAMES.has(rawHost) || APP_HOSTNAMES.has(hostWithoutPort)) {
     const res = await appHostResponse(request)
     const path = request.nextUrl.pathname.replace(/\/+$/, '') || '/'
-    if (!INDEXABLE_APP_PATHS.has(path)) res.headers.set('X-Robots-Tag', 'noindex')
+    if (!INDEXABLE_APP_PATHS.has(path) && !isBlogPostPath(request)) res.headers.set('X-Robots-Tag', isHubPath(request) ? 'noindex, indexifembedded' : 'noindex')
     return res
   }
   return siteHostResponse(request, rawHost, hostWithoutPort)

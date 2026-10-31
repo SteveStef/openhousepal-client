@@ -3852,8 +3852,24 @@ export interface AIConversationListItem {
 
 export interface AIToolCallRef {
   tool: string;
-  record_type: 'lead' | 'property' | 'open_house' | 'cma' | 'showcase' | string;
+  record_type: 'lead' | 'property' | 'open_house' | 'cma' | 'showcase' | 'action' | string;
   record_id: string;
+  // record_type 'action' only - something the helper set up for a Confirm tap (10/30)
+  title?: string;
+  details?: string[];
+  warning?: string | null;
+  confirm_label?: string;
+  status?: 'pending' | 'running' | 'done' | 'failed' | 'cancelled' | 'expired';
+  result_message?: string | null;
+  result_link?: string | null;
+  // record_type 'choices' / 'link' - tap-to-answer buttons and "Go there" buttons (10/30)
+  options?: string[];
+  label?: string;
+  href?: string;
+  // record_type 'action' run in the browser (designs) and what it made
+  client_action?: string;
+  payload?: Record<string, unknown>;
+  made?: { kind: string; title?: string; design_id?: string; is_print?: string } | null;
 }
 
 export interface AIMessage {

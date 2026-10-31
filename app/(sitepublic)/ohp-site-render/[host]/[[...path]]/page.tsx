@@ -201,7 +201,7 @@ async function baseMetadata({
       const post = hubSlug ? await fetchJson(`${INTERNAL_API_URL}/studio/blogs/public/${encodeURIComponent(hubSlug)}/${encodeURIComponent(path[1])}?track=false`) : null
       const opening = ((post?.blocks || []) as any[]).map(b => String(b?.data?.text || b?.data?.html || '').replace(/<[^>]+>/g, ' ')).join(' ')
       const auto = post ? autoPostMeta(post, opening) : null
-      return ownPageMetadata(
+      const postMeta = ownPageMetadata(
         post?.seoTitle || post?.socialTitle || post?.title || 'Blog post',
         canonical || undefined,
         {
@@ -209,6 +209,8 @@ async function baseMetadata({
           ogImage: hubSlug ? ogCard('blog', { agent: hubSlug, post: path[1] }) : undefined,
         },
       )
+      // The article's own "Let Google find this article" switch (it was never checked before 10/30).
+      return post?.isIndexed === false ? { ...postMeta, robots: { index: false, follow: true } } : postMeta
     }
     return { title: 'Media', alternates: canonical ? { canonical } : undefined }
   }
@@ -310,10 +312,12 @@ async function baseMetadata({
     )
   }
   if (path?.[0] === 'hub' || path?.[0] === 'agent-hub') {
+    // The agent's Hub on their own website is theirs to be found by (owner, 10/30) - listable,
+    // with this site's /hub as its main copy (openhousepal.com/<slug> stays off Google).
     const hubSlug = await resolveAgentHubSlug(resolved.site_id)
-    return publicAliasMetadata(
+    return ownPageMetadata(
       'Agent Hub',
-      hubSlug ? `https://${OHP_BASE_DOMAIN}/${encodeURIComponent(hubSlug)}` : undefined,
+      resolved.canonical_hostname ? `https://${resolved.canonical_hostname}/hub` : undefined,
       { ogImage: hubSlug ? ogCard('hub', { agent: hubSlug }) : undefined },
     )
   }
@@ -324,7 +328,9 @@ async function baseMetadata({
     return ownPageMetadata('Client Reviews', canonical || undefined, { description: 'What clients say - real reviews from buyers and sellers.' })
   }
   if (path?.[0] === 'sales' && !path[1]) {
-    return publicAliasMetadata('Sales', canonical || undefined)  // a filtered copy of the hub page - not for Google
+    // The agent's sales, listable like the Hub (owner, 10/30); a town's filtered view (?town=)
+    // points Google at the full page.
+    return ownPageMetadata('Sales', canonical || undefined)
   }
   if (path?.[0] === 'about' && !path[1]) {
     const hubSlug = await resolveAgentHubSlug(resolved.site_id)
@@ -424,6 +430,13 @@ function applySiteSeo(meta: Metadata, resolved: ResolveResponse, path: string[] 
     const base = auto?.title || baseTitle
     title = (custom?.title || '').trim() || (base && siteName ? withSiteName(base, siteName) : base)
     description = (custom?.description || '').trim() || auto?.description || meta.description || (seo.description || '').trim() || undefined
+  } else if (key === 'hub' || key === 'agent-hub' || key === 'sales') {
+    // Hub: the agent's own wording from About; Sales: the starter Sold page's ("Recently Sold Homes").
+    const a = autoSectionMeta(key === 'sales' ? 'sold' : 'about', ctx)
+    const name = (ctx.agent.name || '').trim()
+    const base = key === 'sales' ? a?.title : name ? `${name} - Homes, Sales & Reviews` : baseTitle
+    title = (custom?.title || '').trim() || (base && siteName ? withSiteName(base, siteName) : base)
+    description = (custom?.description || '').trim() || a?.description || meta.description
   } else if (key && areaSlugs.includes(key)) {
     // a neighborhood page - the agent can override its Google text in the Google tab too
     title = (custom?.title || '').trim() || (baseTitle && siteName ? withSiteName(baseTitle, siteName) : baseTitle)

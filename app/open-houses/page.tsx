@@ -119,6 +119,11 @@ function OpenHouseContent() {
   const [openHouses, setOpenHouses] = useState<OpenHouse[]>([])
   // "Build kit" on an open you're confirmed to host -> fills the kit address box.
   const [kitPrefill, setKitPrefill] = useState<{ address: string; nonce: number } | null>(null)
+  // /open-houses?kit=<address> - the AI helper's "Go there" button starts a kit for that home (10/30).
+  useEffect(() => {
+    const kit = new URLSearchParams(window.location.search).get('kit')
+    if (kit) setKitPrefill({ address: kit, nonce: Date.now() })
+  }, [])
   const buildKitFor = useCallback((address: string) => setKitPrefill({ address, nonce: Date.now() }), [])
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   const [statSummary, setStatSummary] = useState<StatSummary | null>(null)

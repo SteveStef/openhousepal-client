@@ -5,10 +5,10 @@ import { AIInsight } from '@/types'
 
 const SUGGESTED_PROMPTS = [
   'Who should I follow up with today?',
-  'Show me my hottest leads',
+  'Make me a Just Listed post for my newest listing',
   "What's happened since yesterday?",
-  'Review my recent open houses',
-  'Find leads with new property matches',
+  'How do I set up my Agent Hub?',
+  'Remind me to call my newest lead tomorrow at 10',
   'Prepare me for today',
 ]
 
@@ -35,7 +35,7 @@ export default function AssistantHome({ insights, insightsLoading, onPrompt }: A
           <h1 className="text-xl sm:text-2xl font-black text-[#111827] dark:text-white">Good to see you</h1>
         </div>
         <p className="text-sm text-gray-500 dark:text-zinc-400 mb-6">
-          Ask me anything about your leads, properties, open houses, or showcases.
+          Ask me how to do anything in OpenHousePal, or ask me to do it for you - designs, Spotlights, Showcases, follow-ups and more.
         </p>
 
         {insightsLoading && (
@@ -47,11 +47,12 @@ export default function AssistantHome({ insights, insightsLoading, onPrompt }: A
 
         {!insightsLoading && insights.length > 0 && (
           <div className="space-y-2 mb-8">
-            {insights.map((insight) => (
+            {insights.map((insight, i) => (
               <button
                 key={insight.id}
                 onClick={() => onPrompt(insight.title)}
-                className={`w-full text-left rounded-2xl border p-4 transition-colors hover:opacity-90 ${SEVERITY_STYLES[insight.severity] || SEVERITY_STYLES.info}`}
+                style={{ ['--i' as string]: i }}
+                className={`ohp-rise ohp-ai-press w-full text-left rounded-2xl border p-4 hover:opacity-90 ${SEVERITY_STYLES[insight.severity] || SEVERITY_STYLES.info}`}
               >
                 <div className="flex items-start gap-2.5">
                   {insight.severity === 'attention' || insight.severity === 'urgent' ? (
@@ -71,14 +72,15 @@ export default function AssistantHome({ insights, insightsLoading, onPrompt }: A
 
         <p className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-zinc-500 mb-3">Try asking</p>
         <div className="grid sm:grid-cols-2 gap-2">
-          {SUGGESTED_PROMPTS.map((prompt) => (
+          {SUGGESTED_PROMPTS.map((prompt, i) => (
             <button
               key={prompt}
               onClick={() => onPrompt(prompt)}
-              className="group flex items-center justify-between text-left rounded-xl border border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-[#C9A24D]/50 hover:bg-gray-50 dark:hover:bg-zinc-800/60 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-zinc-200 transition-colors"
+              style={{ ['--i' as string]: i + insights.length }}
+              className="ohp-rise ohp-ai-press group flex items-center justify-between text-left rounded-xl border border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-[#C9A24D]/50 hover:bg-gray-50 dark:hover:bg-zinc-800/60 px-4 py-3 text-sm font-semibold text-gray-700 dark:text-zinc-200"
             >
               {prompt}
-              <ArrowRight className="w-3.5 h-3.5 text-gray-300 dark:text-zinc-600 group-hover:text-[#C9A24D] transition-colors flex-shrink-0 ml-2" />
+              <ArrowRight className="w-3.5 h-3.5 text-gray-300 dark:text-zinc-600 group-hover:text-[#C9A24D] group-hover:translate-x-0.5 transition-[color,transform] duration-150 flex-shrink-0 ml-2" />
             </button>
           ))}
         </div>

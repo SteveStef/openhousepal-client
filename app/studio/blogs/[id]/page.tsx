@@ -27,6 +27,7 @@ import { qrDataUrl } from '@/lib/qr'
 import api, { resolveMediaUrl, type LinkableAreas } from '@/lib/api-service'
 import { notify } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
+import GoogleVisibilityNote from '@/components/ui/GoogleVisibilityNote'
 import { AgentFormConfig, Blog, BlogAiContext, BlogAiRefineAction, BlogBlock, BrandKit, LinkedProperty } from '@/types'
 import { ADDABLE_BLOG_BLOCK_TYPES, BLOG_CATEGORIES, BLOG_CTA_FORMS, ctaFormTypeOf, textStyleClasses } from '@/lib/studio/blogTopics'
 import { buildGenericDefaultBlocks } from '@/lib/studio/designFormats'
@@ -1505,6 +1506,7 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
               <textarea rows={2} value={blog.meta_description || ''} onChange={e => onChange({ ...blog, meta_description: e.target.value })} placeholder="One or two sentences on what readers will learn." className={`${inputClass} min-h-[8.5rem] resize-none sm:min-h-0`} />
             </label>
             <PubToggle className="mt-4" label="Let Google find this article" hint="Off keeps it out of search results - it still works by link." on={!!blog.is_indexed} onToggle={() => onChange({ ...blog, is_indexed: !blog.is_indexed })} />
+            {blog.is_indexed && <GoogleVisibilityNote kind="blog" className="mt-4" />}
           </PubSection>
 
           {/* Social */}

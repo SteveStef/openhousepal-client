@@ -202,7 +202,8 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
   // Stopping an active dictation session needs no confirmation - only starting one does, so it
   // can offer the live call as an alternative first.
   const handleMicClick = () => {
-    if (isListening) {
+    if (isListening || !onStartCall) {
+      // No live call on this plan (admin only - 10/30): the mic just dictates, free in the browser.
       toggleListening()
       return
     }
@@ -277,7 +278,7 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isListening ? 'Listening...' : placeholder || 'Ask about your leads, properties, or open houses...'}
+          placeholder={isListening ? 'Listening...' : placeholder || 'Ask me anything...'}
           rows={1}
           className="flex-1 resize-none rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/60 px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/50 focus:border-[#C9A24D]/50 transition-all max-h-32"
           style={{ minHeight: '48px', scrollbarGutter: 'stable' }}

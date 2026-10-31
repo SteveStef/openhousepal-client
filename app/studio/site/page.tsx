@@ -128,6 +128,7 @@ import { OhpWordmark } from '@/components/brand/OhpBrand'
 import OhpLoader from '@/components/brand/OhpLoader'
 import { copyText } from '@/lib/copyText'
 import { upgradeHubPhones } from '@/lib/hubPhones'
+import GoogleVisibilityNote from '@/components/ui/GoogleVisibilityNote'
 
 type HubStatus = 'Draft' | 'Published' | 'Unpublished'
 type PreviewSize = 'mobile' | 'tablet' | 'desktop'
@@ -3987,6 +3988,7 @@ function AgentHubContent() {
                         </div>
                       )}
                     </div>
+                    <GoogleVisibilityNote kind="hub" className="relative mt-4" />
                     </HubCollapse>
                   </div>
                   )}</HubFold>
@@ -4369,9 +4371,9 @@ function AgentHubContent() {
         isOpen={showAgentHubUrlWarning}
         onClose={() => setShowAgentHubUrlWarning(false)}
         onConfirm={() => { setShowAgentHubUrlWarning(false); handleSaveSlug() }}
-        title="Change your Agent Hub URL?"
-        message="Think carefully before changing this. Your current link stops working the moment you save a new one — anywhere you've put it (business cards, your email signature, social media bios, past texts and emails) will lead to a dead page instead of your Agent Hub. Your old link also becomes available for someone else to claim as their own. Only change this if you haven't shared your link yet, or you're prepared to update it everywhere it's been posted."
-        confirmText="Yes, change my URL"
+        title="Change your Agent Hub link?"
+        message="Pick a name you'll keep. Your current link keeps working after this change - anything you've already shared (business cards, your email signature, social bios, printed QR codes) still opens your Agent Hub. But only your most recent old link keeps working: if you change it again later, this one stops working. Your new link becomes your main one, used everywhere from now on."
+        confirmText="Yes, change my link"
         isLoading={slugStatus === 'checking'}
       />
 

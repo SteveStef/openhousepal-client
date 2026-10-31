@@ -1,14 +1,36 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Bot, User as UserIcon, ExternalLink, Volume2, Pause, Loader2, AlertCircle } from 'lucide-react'
+import { Bot, User as UserIcon, ExternalLink, Volume2, Pause, Loader2, AlertCircle, ArrowRight } from 'lucide-react'
 import { AIMessage, AIToolCallRef } from '@/types'
 import AssistantMarkdown from './markdown'
+import ActionCard from './ActionCard'
 import { useSpeech } from './useSpeech'
 import { RECORD_LINKS, RECORD_LABELS } from './recordLinks'
 
 type Speech = ReturnType<typeof useSpeech>
+
+// "Thinking" while the helper works - three gold dots in a wave and a shimmering word that
+// moves on if it takes a few seconds (looking things up / setting something up).
+const THINKING_WORDS = ['Thinking', 'Looking into it', 'Putting it together', 'Almost there']
+function Thinking() {
+  const [n, setN] = useState(0)
+  useEffect(() => {
+    const id = window.setInterval(() => setN((x) => Math.min(x + 1, THINKING_WORDS.length - 1)), 2600)
+    return () => window.clearInterval(id)
+  }, [])
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-1" aria-hidden>
+        {[0, 1, 2].map((i) => (
+          <span key={i} className="ohp-ai-dot h-1.5 w-1.5 rounded-full bg-[#C9A24D]" style={{ animationDelay: `${i * 0.14}s` }} />
+        ))}
+      </div>
+      <span key={n} className="ohp-ai-fade ohp-ai-shimmer text-[13px] font-semibold">{THINKING_WORDS[n]}...</span>
+    </div>
+  )
+}
 
 function dedupeRefs(refs: AIToolCallRef[]): AIToolCallRef[] {
   const seen = new Set<string>()
@@ -31,9 +53,13 @@ interface ChatThreadProps {
   // interrupted the moment the mic picks up the agent talking again, instead of two voices
   // overlapping - see ChatInput's onUserSpeaking.
   speech: Speech
+  // Read-aloud uses the paid speech model - admin only (10/30).
+  canSpeak?: boolean
+  // Tapping one of the helper's answer choices sends it as the agent's reply.
+  onReply?: (text: string) => void
 }
 
-export default function ChatThread({ messages, isSending, autoSpeak, conversationId, speech }: ChatThreadProps) {
+export default function ChatThread({ messages, isSending, autoSpeak, conversationId, speech, canSpeak = true, onReply }: ChatThreadProps) {
   const endRef = useRef<HTMLDivElement>(null)
   const { speakingId, state: speechState, speak } = speech
   const lastAutoSpokenId = useRef<string | null>(null)
@@ -53,12 +79,17 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
 
   return (
     <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-5">
-      {messages.map((msg) => {
+      {messages.map((msg, idx) => {
         const isUser = msg.role === 'user'
-        const refs = msg.tool_calls ? dedupeRefs(msg.tool_calls) : []
+        const extras = ['action', 'choices', 'link', 'made']
+        const refs = msg.tool_calls ? dedupeRefs(msg.tool_calls.filter((r) => !extras.includes(r.record_type))) : []
+        const actions = (msg.tool_calls || []).filter((r) => r.record_type === 'action')
+        const goLinks = (msg.tool_calls || []).filter((r) => r.record_type === 'link' && r.href)
+        // Answer choices only while they're still the question - once they've replied, they go.
+        const choices = idx === messages.length - 1 && !isSending ? (msg.tool_calls || []).find((r) => r.record_type === 'choices')?.options || [] : []
         const isSpeaking = speakingId === msg.id
         return (
-          <div key={msg.id} className={`flex animate-fadeIn ${isUser ? 'justify-end' : 'justify-start'}`}>
+          <div key={msg.id} className={`flex ${isUser ? 'ohp-ai-msg-user justify-end' : 'ohp-ai-msg-bot justify-start'}`}>
             <div className={`flex items-start gap-2.5 max-w-[85%] sm:max-w-[75%] ${isUser ? 'flex-row-reverse' : ''}`}>
               <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
                 isUser ? 'bg-[#8b7355] text-white' : 'bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-300'
@@ -73,6 +104,27 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
                 }`}>
                   {isUser ? msg.content : <AssistantMarkdown content={msg.content} />}
                 </div>
+                {actions.map((a) => <ActionCard key={a.record_id} messageId={msg.id} action={a} />)}
+                {goLinks.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {goLinks.map((l, i) => (
+                      <Link key={l.record_id} href={l.href!} style={{ ['--i' as string]: i }}
+                        className="ohp-ai-card-in ohp-ai-press group inline-flex items-center gap-1.5 rounded-xl bg-[#8b7355] px-3.5 py-2 text-sm font-bold text-white shadow-sm shadow-[#8b7355]/30 hover:bg-[#7a6549]">
+                        {l.label || 'Go there'} <ArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5" />
+                      </Link>
+                    ))}
+                  </div>
+                )}
+                {choices.length > 0 && onReply && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {choices.map((c, i) => (
+                      <button key={c} onClick={() => onReply(c)} style={{ ['--i' as string]: i }}
+                        className="ohp-ai-card-in ohp-ai-press rounded-full border border-[#C9A24D]/50 bg-white px-3.5 py-1.5 text-sm font-semibold text-[#8b7355] hover:border-[#8b7355] hover:bg-[#8b7355]/10 dark:bg-zinc-900 dark:text-[#C9A24D] dark:hover:bg-[#C9A24D]/10">
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   {refs.map((ref, i) => {
                     const buildLink = RECORD_LINKS[ref.record_type]
@@ -88,7 +140,7 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
                       </Link>
                     )
                   })}
-                  {!isUser && (() => {
+                  {!isUser && canSpeak && (() => {
                     const activeState = isSpeaking ? speechState : 'idle'
                     const label =
                       activeState === 'loading' ? 'Loading audio...' :
@@ -124,17 +176,13 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
       })}
 
       {isSending && (
-        <div className="flex justify-start animate-fadeIn">
+        <div className="ohp-ai-msg-bot flex justify-start">
           <div className="flex items-start gap-2.5 max-w-[75%]">
             <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-300">
               <Bot className="w-4 h-4" />
             </div>
             <div className="rounded-2xl px-4 py-3 bg-gray-50 dark:bg-zinc-800/70 border border-gray-100 dark:border-zinc-800">
-              <div className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-zinc-500 animate-bounce" />
-                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-zinc-500 animate-bounce" style={{ animationDelay: '0.15s' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 dark:bg-zinc-500 animate-bounce" style={{ animationDelay: '0.3s' }} />
-              </div>
+              <Thinking />
             </div>
           </div>
         </div>

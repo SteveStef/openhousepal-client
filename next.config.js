@@ -53,6 +53,12 @@ const nextConfig = {
       },
     ],
   },
+  // Photos served through Next's image resizer (agent photos, listing photos in the homepage demos)
+  // never appear in Google Images under OpenHousePal (owner, 10/30). Every other path on
+  // openhousepal.com gets its noindex from proxy.ts, but /_next/image skips the proxy.
+  async headers() {
+    return [{ source: '/_next/image', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }] }]
+  },
   // Enable standalone output for Docker
   output: 'standalone',
   // Dev-only: keep compiled routes in memory. Next's default (5 pages, disposed after 60s idle)

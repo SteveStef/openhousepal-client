@@ -17,6 +17,7 @@ import { planHasBragSheet } from '@/lib/bragSheetData'
 import { hasAgentHubAccess } from '@/lib/navAccess'
 import { mergeSignatureConfig } from '@/lib/signatureConfig'
 import RecentSalesPanel from '@/components/agent-hub/RecentSalesPanel'
+import GoogleVisibilityNote from '@/components/ui/GoogleVisibilityNote'
 import { HubPanelsOpen } from '@/components/agent-hub/HubPanelChrome'
 import { MiniFlow, StepCtx, SubHead, useGate, useMiniFlow } from './SetupUi'
 import { BigChoices, fmtMoney, hubSectionOn, hubSectionPatch, MiniLabel, Note, patchHubConfig, patchSignature, PlaceList, PlaceTile, QuestionCard, useSerialSaves } from './FeatureUi'
@@ -120,6 +121,7 @@ export function SalesStep({ ctx }: { ctx: StepCtx }) {
               onSave={o => { if (o?.recentSales) { const next = o.recentSales; saveHub({ recentSales: next }) } }} />
           </div>
         </HubPanelsOpen.Provider>
+        <GoogleVisibilityNote kind="sales" planTier={ctx.plan} className="mt-5" />
       </div>
   )
 

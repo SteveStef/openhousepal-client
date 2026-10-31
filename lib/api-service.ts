@@ -748,6 +748,9 @@ class ApiService {
         `/admin/users/${userId}/test-copy?source_user_id=${encodeURIComponent(sourceUserId)}`, { method: 'PATCH' }),
 
     getAIOverview: () => this.request<AIAdminOverview>('/admin/ai/overview'),
+    getAIHelperSwitch: () => this.request<{ open_to_all: boolean }>('/admin/ai/helper-switch'),
+    setAIHelperSwitch: (on: boolean) =>
+      this.request<{ open_to_all: boolean }>('/admin/ai/helper-switch', { method: 'PUT', body: JSON.stringify({ open_to_all: on }) }),
 
     getAIAgents: (period: 'month' | 'all' = 'month') =>
       this.request<AIAdminAgentSummary[]>(`/admin/ai/agents?period=${period}`),
@@ -2056,6 +2059,17 @@ class ApiService {
 
   public ai = {
     listConversations: () => this.request<AIConversationListItem[]>('/ai/conversations'),
+
+    getHelperStatus: () => this.request<{ enabled: boolean; voice: boolean }>('/ai/helper/status'),
+
+    confirmAction: (actionId: string, messageId: string) =>
+      this.request<{ status: string; result_message?: string; result_link?: string }>(`/ai/actions/${actionId}/confirm`, { method: 'POST', body: JSON.stringify({ message_id: messageId }) }),
+
+    clientActionResult: (actionId: string, messageId: string, out: { ok: boolean; message: string; link?: string; made?: Record<string, unknown> }) =>
+      this.request<{ status: string; result_message?: string; result_link?: string; made?: { kind: string; title?: string; design_id?: string; is_print?: string } }>(`/ai/actions/${actionId}/client-result`, { method: 'POST', body: JSON.stringify({ message_id: messageId, ...out }) }),
+
+    cancelAction: (actionId: string, messageId: string) =>
+      this.request<{ status: string; result_message?: string; result_link?: string }>(`/ai/actions/${actionId}/cancel`, { method: 'POST', body: JSON.stringify({ message_id: messageId }) }),
 
     createConversation: () => this.request<AIConversationListItem>('/ai/conversations', { method: 'POST' }),
 

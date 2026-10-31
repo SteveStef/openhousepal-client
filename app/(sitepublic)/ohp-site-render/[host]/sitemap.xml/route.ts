@@ -28,11 +28,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ host: s
     json(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/properties?limit=48`),
   ])
   const urls: { loc: string; lastmod?: string; priority: string }[] = [{ loc: origin, priority: '1.0' }]
-  for (const slug of ['search', 'properties', 'neighborhoods', 'blog', 'home-value', 'about', 'contact']) urls.push({ loc: `${origin}/${slug}`, priority: '0.8' })
+  for (const slug of ['search', 'properties', 'neighborhoods', 'blog', 'home-value', 'about', 'contact', 'hub', 'sales']) urls.push({ loc: `${origin}/${slug}`, priority: '0.8' })
   if (reviews?.show) urls.push({ loc: `${origin}/testimonials`, priority: '0.7' })
   for (const p of snapshot.pages || []) if (!p.is_home && p.slug) urls.push({ loc: `${origin}/${p.slug}`, priority: '0.7' })
   for (const a of Array.isArray(areas) ? areas : []) if (a?.slug) urls.push({ loc: `${origin}/${a.slug}`, priority: '0.7' })
-  for (const post of blog?.posts || []) if (post?.slug) urls.push({ loc: `${origin}/blog/${post.slug}`, lastmod: post.published_at || undefined, priority: '0.6' })
+  for (const post of blog?.posts || []) if (post?.slug && post.is_indexed !== false) urls.push({ loc: `${origin}/blog/${post.slug}`, lastmod: post.published_at || undefined, priority: '0.6' })
   // The Featured homes (a home with its own Spotlight redirects there, which Google follows).
   for (const l of Array.isArray(featured) ? featured : []) if (l?.listing_key) urls.push({ loc: `${origin}/properties/${encodeURIComponent(l.listing_key)}`, priority: '0.6' })
   const seen = new Set<string>()
