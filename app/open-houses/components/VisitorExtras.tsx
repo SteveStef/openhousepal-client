@@ -8,6 +8,10 @@ import OhpSwitch from '@/components/ui/OhpSwitch'
 import { useLastValue } from '@/components/ui/windowMotion'
 import { OhpSpinner } from '@/components/brand/OhpLoader'
 import api from '@/lib/api-service'
+import { Copy as CopyIcon, Mail as MailIcon, Phone as PhoneIcon } from 'lucide-react'
+import { MAIL_CHOICE_LABEL, composeHref, mailChoices, openWithFallback, phoneAppLinks, saveMailChoice, savedMailChoice, type MailChoice } from '@/lib/mailCompose'
+import { isPhoneDevice, smsHref } from '@/lib/smsLink'
+import { copyText } from '@/lib/copyText'
 
 export type VisitorRow = {
   id: string
@@ -274,5 +278,82 @@ function EventLine({ e, withDay = false }: { e: { kind: string; key: string | nu
       <span className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-gray-700 dark:text-gray-200">{eventText(e)}</span>
       <span className="shrink-0 pt-0.5 text-[11px] font-bold tabular-nums text-gray-400">{withDay ? `${day(e.at)} ` : ''}{time(e.at)}</span>
     </li>
+  )
+}
+
+// ------------------------------------------------------------------ Text / Call / Email (owner, 11/01)
+/** "Hi Jane, it's Peter from the open house at 534 Holly Knoll. Thanks for stopping by the open house!"
+ *  then room for the agent's own words, then the usual sign-off ("Thanks," + name | brokerage). */
+export function visitorHello(guestName: string, agent: { first_name?: string; last_name?: string; brokerage?: string } | null | undefined, street: string) {
+  const first = (guestName || '').trim().split(/\s+/)[0] || 'there'
+  const me = (agent?.first_name || '').trim()
+  const at = street ? ` from the open house at ${street}` : ' from the open house'
+  const hello = `Hi ${first}${me ? `, it's ${me}${at}` : ''}. Thanks for stopping by the open house!`
+  const name = [agent?.first_name, agent?.last_name].filter(Boolean).join(' ').trim()
+  const line = [name, (agent?.brokerage || '').trim()].filter(Boolean).join(' | ')
+  return `${hello}\n\n\n\n${line ? `Thanks,\n${line}` : ''}`.trimEnd()
+}
+
+/** Text (Messages, already addressed and started), Call, and Email - which asks which mail app
+ *  every time, last pick first, instead of assuming one (owner: "no one uses the Apple mail app"). */
+export function VisitorReach({ visitor, agent, street, compact = false }: {
+  visitor: { full_name: string; phone?: string | null; email?: string | null }
+  agent: { first_name?: string; last_name?: string; brokerage?: string } | null | undefined
+  street: string
+  compact?: boolean
+}) {
+  const [mailOpen, setMailOpen] = useState(false)
+  const body = visitorHello(visitor.full_name, agent, street)
+  const subject = street ? `Thanks for stopping by ${street}` : 'Thanks for stopping by the open house'
+  const btn = `inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white font-black text-[#111827] transition hover:border-[#C9A24D] active:scale-[0.97] dark:border-white/10 dark:bg-white/[0.04] dark:text-white ${compact ? 'px-2.5 py-1.5 text-[11px]' : 'py-2.5 text-[13px]'}`
+  const off = 'pointer-events-none opacity-40'
+  return (
+    <>
+      <div className={compact ? 'mt-2 flex gap-1.5' : 'grid grid-cols-3 gap-2'} data-testid="visitor-reach">
+        <a href={visitor.phone ? smsHref(visitor.phone, body) : undefined} aria-disabled={!visitor.phone} onClick={e => e.stopPropagation()}
+          className={`${btn} ${visitor.phone ? '' : off}`} data-testid="visitor-text"><MessageCircle className="h-3.5 w-3.5" /> Text</a>
+        <a href={visitor.phone ? `tel:${visitor.phone}` : undefined} aria-disabled={!visitor.phone} onClick={e => e.stopPropagation()}
+          className={`${btn} ${visitor.phone ? '' : off}`} data-testid="visitor-call"><PhoneIcon className="h-3.5 w-3.5" /> Call</a>
+        <button type="button" disabled={!visitor.email} onClick={e => { e.stopPropagation(); setMailOpen(true) }}
+          className={`${btn} ${visitor.email ? '' : off}`} data-testid="visitor-email"><MailIcon className="h-3.5 w-3.5" /> Email</button>
+      </div>
+      <MailPicker open={mailOpen} onClose={() => setMailOpen(false)} to={visitor.email || ''} subject={subject} body={body} />
+    </>
+  )
+}
+
+function MailPicker({ open, onClose, to, subject, body }: { open: boolean; onClose: () => void; to: string; subject: string; body: string }) {
+  const [last, setLast] = useState<MailChoice | null>(null)
+  const [copied, setCopied] = useState(false)
+  useEffect(() => { if (open) { setLast(savedMailChoice()); setCopied(false) } }, [open])
+  const phone = isPhoneDevice()
+  const pick = (c: MailChoice) => {
+    saveMailChoice(c)
+    if (c === 'copy') { copyText(`${subject}\n\n${body}`).catch(() => {}); setCopied(true); window.setTimeout(onClose, 900); return }
+    onClose()
+    if (phone) { const { href, fallback } = phoneAppLinks(c, to, subject, body); openWithFallback(href, fallback); return }
+    const href = composeHref(c, to, subject, body)
+    if (c === 'default') window.location.href = href
+    else window.open(href, '_blank', 'noopener,noreferrer')
+  }
+  const label = (c: MailChoice) => c === 'default' ? (phone ? "Your phone's mail app" : "Your computer's mail app") : MAIL_CHOICE_LABEL[c]
+  // Gmail and Outlook first, then the device's own mail app, then copy - last pick marked.
+  return (
+    <OhSheet open={open} onClose={onClose} width="max-w-sm" title="Email with…" subtitle={to} icon={<MailIcon className="h-4 w-4" />}>
+      <div className="space-y-2" data-testid="visitor-mail-picker">
+        {mailChoices(null).map(c => (
+          <button key={c} type="button" onClick={() => pick(c)}
+            className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-[14px] font-black transition active:scale-[0.98] ${c === last
+              ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#111827] dark:text-white'
+              : 'border-gray-200 text-[#111827] hover:border-[#C9A24D]/60 dark:border-white/10 dark:text-white'}`}>
+            <span className={`grid h-8 w-8 place-items-center rounded-xl ${c === last ? 'bg-[#C9A24D] text-[#111827]' : 'bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-300'}`}>
+              {c === 'copy' ? <CopyIcon className="h-4 w-4" /> : <MailIcon className="h-4 w-4" />}
+            </span>
+            <span className="flex-1">{c === 'copy' && copied ? 'Copied' : label(c)}</span>
+            {c === last && <span className="text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]">Last used</span>}
+          </button>
+        ))}
+      </div>
+    </OhSheet>
   )
 }

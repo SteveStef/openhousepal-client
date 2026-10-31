@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Fragment } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Copy, Check, Mail, Phone, Users, UserCheck, UserPlus, Star, Activity } from 'lucide-react'
-import { VisitorStar, StarShowcaseAsk, PassActivitySheet, VisitorShowcaseSwitch } from './VisitorExtras'
+import { VisitorStar, StarShowcaseAsk, PassActivitySheet, VisitorShowcaseSwitch, VisitorReach } from './VisitorExtras'
 import { useToast } from '@/contexts/ToastContext'
 import LuxeHero, { LuxeStats } from '@/components/ui/LuxeHero'
 import { formatPhone } from '@/lib/leadEventDetails'
@@ -53,6 +53,8 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
   // Lead star (user, 10/24): saves right away; when it's turned ON and the person has a Showcase,
   // asks whether to star the Showcase too - never when this open house's Showcases are off.
   const showcasesOn = showcasesOnProp ?? (openHouse ? openHouse.autoShowcase !== false || !!openHouse.passShowcase : true)
+  // "534 Holly Knoll" - for the Text / Email greeting (owner, 11/01)
+  const ohStreet = toTitleCase(String(openHouse?.address || '').split(',')[0].trim())
   const [askShowcaseFor, setAskShowcaseFor] = useState(null)
   const [activityFor, setActivityFor] = useState(null)
   const patchVisitor = (id, patch) => setVisitors(prev => prev.map(v => v.id === id ? { ...v, ...patch } : v))
@@ -411,6 +413,7 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
                                 <div className="flex flex-col space-y-1">
                                   <CopyField field={`${visitor.id}-email`} value={visitor.email} icon={Mail} href={`mailto:${visitor.email}`} />
                                   <CopyField field={`${visitor.id}-phone`} value={visitor.phone} icon={Phone} href={`tel:${visitor.phone}`} display={formatPhone(visitor.phone)} />
+                                  <VisitorReach compact visitor={visitor} agent={user} street={ohStreet} />
                                 </div>
                               </td>
                               <td className="px-4 py-4 lg:px-5 whitespace-nowrap">
@@ -492,6 +495,10 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
                         <div className="mx-3.5 flex flex-col gap-1.5 rounded-2xl bg-[#faf9f7] px-3 py-2.5 dark:bg-white/[0.03]">
                           <CopyField field={`${visitor.id}-email-m`} value={visitor.email} icon={Mail} href={`mailto:${visitor.email}`} />
                           <CopyField field={`${visitor.id}-phone-m`} value={visitor.phone} icon={Phone} href={`tel:${visitor.phone}`} display={formatPhone(visitor.phone)} />
+                        </div>
+
+                        <div className="mx-3.5 mt-2.5">
+                          <VisitorReach visitor={visitor} agent={user} street={ohStreet} />
                         </div>
 
                         {visitor.showcase_switchable && (

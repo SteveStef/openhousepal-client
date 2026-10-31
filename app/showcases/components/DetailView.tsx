@@ -181,7 +181,11 @@ export const DetailView = memo(function DetailView({
   const compareProperty = (selectedCollection.preferences as any)?.show_match_score !== false
     ? selectedCollection.originalProperty || undefined
     : undefined
-  const radiusSearchPreferences = selectedCollection.preferences && 'diameter' in selectedCollection.preferences && selectedCollection.preferences.address && selectedCollection.preferences.diameter
+  // Towns / townships / counties picked = the search is those places, not a circle (11/01) - so no
+  // "Searching around · 3 mi" chip for a radius that doesn't count.
+  const _p = selectedCollection.preferences as any
+  const placesPicked = !!(_p?.cities?.length || _p?.townships?.length || _p?.counties?.length)
+  const radiusSearchPreferences = !placesPicked && selectedCollection.preferences && 'diameter' in selectedCollection.preferences && selectedCollection.preferences.address && selectedCollection.preferences.diameter
     ? selectedCollection.preferences
     : null
   const customerFullName = [selectedCollection.customer.firstName, selectedCollection.customer.lastName].filter(Boolean).join(' ')
