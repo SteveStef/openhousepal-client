@@ -270,7 +270,9 @@ function ShowcaseContent() {
   // A real radius search (center address + radius). Used to show the visitor the same
   // distance-from-center pill and radius context the agent sees - previously gated behind
   // hasExplicitSearchCenter, so auto-from-open-house showcases hid it from visitors entirely.
-  const radiusSearchPrefs = showcase?.preferences && 'diameter' in showcase.preferences && (showcase.preferences as any).address && (showcase.preferences as any).diameter
+  // Towns / townships / counties picked = the search is those places - a leftover circle isn't shown (11/01).
+  const placesPicked = !!((showcase?.preferences as any)?.cities?.length || (showcase?.preferences as any)?.townships?.length || (showcase?.preferences as any)?.counties?.length)
+  const radiusSearchPrefs = !placesPicked && showcase?.preferences && 'diameter' in showcase.preferences && (showcase.preferences as any).address && (showcase.preferences as any).diameter
     ? (showcase.preferences as any as { address: string; diameter: number; lat?: number | null; long?: number | null })
     : null
 

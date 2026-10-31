@@ -26,6 +26,7 @@ import { copyText } from '@/lib/copyText'
 import LuxeSelect from '@/components/ui/LuxeSelect'
 import MotionModal from '@/components/ui/MotionModal'
 import LeadOpenHouseShowcase from './LeadOpenHouseShowcase'
+import QuickEditShowcase from '@/components/showcases/QuickEditShowcase'
 
 // Something in this person's alert settings is switched off (the Alert settings button says so).
 const alertsOff = (a?: { calendar: boolean; in_app: boolean; emails: boolean }) => !!a && (!a.calendar || !a.in_app || !a.emails)
@@ -138,6 +139,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
   const [alertsOpen, setAlertsOpen] = useState(false)
   // Just changed "has an agent": the Showcase question (11/01).
   const [askShowcase, setAskShowcase] = useState<'yes' | 'no' | null>(null)
+  const [editShowcase, setEditShowcase] = useState<string | null>(null)
   const reduceMotion = useReducedMotion()
   const [lead, setLead] = useState<LeadDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -491,9 +493,11 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
           {/* The open house Showcase switch, like the Visitors window's (owner, 11/01) */}
           <LeadOpenHouseShowcase leadId={lead.id} represented={lead.represented} asked={askShowcase} onAsked={() => setAskShowcase(null)}
             Card={Card} Title={SectionTitle} />
+          <QuickEditShowcase open={!!editShowcase} onClose={() => setEditShowcase(null)} who={lead.name}
+            showcases={(lead.showcases || []).map(s => ({ id: s.id, name: s.name }))} initialId={editShowcase} onSaved={() => reload()} />
 
           {/* On a phone their Showcase comes before the long history (the side column is last). */}
-          {(lead.showcases || []).length > 0 && <div className="space-y-4 lg:hidden">{(lead.showcases || []).map(sc => <ShowcaseCard key={sc.id} sc={sc} onCopy={copy} />)}</div>}
+          {(lead.showcases || []).length > 0 && <div className="space-y-4 lg:hidden">{(lead.showcases || []).map(sc => <ShowcaseCard key={sc.id} sc={sc} onCopy={copy} onEdit={() => setEditShowcase(sc.id)} />)}</div>}
 
           {/* ── emails we sent them: opened / clicked, and whether automatic ones are on, weekly or off (and why) */}
           {lead.email && <LeadEmailCard email={lead.email} initial={lead.email_engagement} />}
@@ -547,7 +551,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
         {/* ── side: their Showcase, open houses, tags, notes, record */}
         <div className="min-w-0 space-y-4 sm:space-y-5">
           {(lead.showcases || []).map(sc => (
-            <div key={sc.id} className="hidden lg:block"><ShowcaseCard sc={sc} onCopy={copy} /></div>
+            <div key={sc.id} className="hidden lg:block"><ShowcaseCard sc={sc} onCopy={copy} onEdit={() => setEditShowcase(sc.id)} /></div>
           ))}
 
           {!!lead.open_houses?.length && (
@@ -798,7 +802,7 @@ function ViewsRow({ items, open, onToggle }: { items: LeadEvent[]; open: boolean
   )
 }
 
-function ShowcaseCard({ sc, onCopy }: { sc: LeadShowcase; onCopy: (text: string, what: string) => void }) {
+function ShowcaseCard({ sc, onCopy, onEdit }: { sc: LeadShowcase; onCopy: (text: string, what: string) => void; onEdit?: () => void }) {
   return (
     <Card>
       <SectionTitle>Their Showcase</SectionTitle>
@@ -818,6 +822,12 @@ function ShowcaseCard({ sc, onCopy }: { sc: LeadShowcase; onCopy: (text: string,
         <Link href={`/showcases?showcase=${sc.id}`} className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl bg-[#111827] px-3 py-2 text-[11px] font-black text-white dark:bg-white dark:text-[#111827]">
           <Building2 className="h-3.5 w-3.5" /> Open
         </Link>
+        {onEdit && (
+          <button onClick={onEdit} data-testid="lead-edit-showcase"
+            className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl border border-[#C9A24D]/45 px-3 py-2 text-[11px] font-black text-[#8b7355] hover:border-[#C9A24D] dark:text-[#e8c97a]">
+            <Pencil className="h-3.5 w-3.5" /> Edit Showcase
+          </button>
+        )}
         {sc.share_token && (
           <button onClick={() => onCopy(`${window.location.origin}/showcase/${sc.short_code || sc.share_token}`, 'Their Showcase link')}
             className="inline-flex items-center justify-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-black text-gray-600 hover:border-[#C9A24D] dark:border-white/10 dark:text-gray-300">

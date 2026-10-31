@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Copy, Check, Mail, Phone, Users, UserCheck, UserPlus, Star, Activity } from 'lucide-react'
+import { Copy, Check, Mail, Phone, Users, UserCheck, UserPlus, Star, Activity, Pencil } from 'lucide-react'
 import { VisitorStar, StarShowcaseAsk, PassActivitySheet, VisitorShowcaseSwitch, VisitorReach } from './VisitorExtras'
 import { useToast } from '@/contexts/ToastContext'
 import LuxeHero, { LuxeStats } from '@/components/ui/LuxeHero'
@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import NotesThread from '@/components/leads/NotesThread'
 import { OhpSpinner } from '@/components/brand/OhpLoader'
 import { createPortal } from 'react-dom'
+import QuickEditShowcase from '@/components/showcases/QuickEditShowcase'
 import { copyText } from '@/lib/copyText'
 
 // The Visitor Insights view. As its own page (/open-houses/visitors/[id]) it reads the id from the
@@ -57,6 +58,8 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
   const ohStreet = toTitleCase(String(openHouse?.address || '').split(',')[0].trim())
   const [askShowcaseFor, setAskShowcaseFor] = useState(null)
   const [activityFor, setActivityFor] = useState(null)
+  // Edit Showcase straight from the guest (owner, 11/01)
+  const [editFor, setEditFor] = useState(null)
   const patchVisitor = (id, patch) => setVisitors(prev => prev.map(v => v.id === id ? { ...v, ...patch } : v))
   const toggleStar = async (visitor) => {
     if (!visitor.lead_id) return
@@ -89,7 +92,8 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
         if (data?.building) setTimeout(async () => {
           const r = await api.openHouses.getVisitors(openHouseEventId)
           const fresh = r.success && r.data ? r.data.find(v => v.id === visitor.id) : null
-          if (fresh) patchVisitor(visitor.id, { showcase_on: fresh.showcase_on, showcase_invite_at: fresh.showcase_invite_at, showcase_id: fresh.showcase_id })
+          // (keeps the expected time if the queued invite isn't saved yet)
+          if (fresh) patchVisitor(visitor.id, { showcase_on: fresh.showcase_on, showcase_invite_at: fresh.showcase_invite_at || data?.invite_at || null, showcase_id: fresh.showcase_id })
         }, 9000)
       }
     }
@@ -423,6 +427,9 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
                                 {visitor.showcase_switchable && (
                                   <VisitorShowcaseSwitch layout="cell" visitor={visitor} busy={!!showcaseBusy[visitor.id]} onToggle={() => toggleShowcase(visitor)} />
                                 )}
+                                {visitor.showcase_id && (
+                                  <div className="mt-1.5"><button type="button" data-testid="visitor-edit-showcase" onClick={e => { e.stopPropagation(); setEditFor(visitor) }} className="inline-flex items-center gap-1 rounded-full border border-[#C9A24D]/40 bg-white px-2.5 py-1 text-[11px] font-black text-[#8b7355] transition hover:border-[#C9A24D] active:scale-95 dark:bg-white/5 dark:text-[#e8c97a]"><Pencil className="h-3 w-3" /> Edit Showcase</button></div>
+                                )}
                               </td>
                               <td className="px-4 py-4 lg:px-5 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                                 {embedded ? new Date(visitor.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : formatDate(visitor.created_at)}
@@ -504,6 +511,14 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
                         {visitor.showcase_switchable && (
                           <div className="mx-3.5 mt-2.5">
                             <VisitorShowcaseSwitch visitor={visitor} busy={!!showcaseBusy[visitor.id]} onToggle={() => toggleShowcase(visitor)} />
+                          </div>
+                        )}
+                        {visitor.showcase_id && (
+                          <div className="mx-3.5 mt-2">
+                            <button type="button" data-testid="visitor-edit-showcase" onClick={() => setEditFor(visitor)}
+                              className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-[#C9A24D]/40 bg-white py-2.5 text-[13px] font-black text-[#8b7355] transition active:scale-[0.98] dark:bg-white/5 dark:text-[#e8c97a]">
+                              <Pencil className="h-3.5 w-3.5" /> Edit Showcase
+                            </button>
                           </div>
                         )}
 
@@ -636,6 +651,7 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
 
       <StarShowcaseAsk visitor={askShowcaseFor} onClose={() => setAskShowcaseFor(null)} onYes={starShowcase} />
       <PassActivitySheet visitor={activityFor} onClose={() => setActivityFor(null)} />
+      <QuickEditShowcase open={!!editFor} onClose={() => setEditFor(null)} leadId={editFor?.lead_id} initialId={editFor?.showcase_id} who={editFor?.full_name} />
     </div>
   )
 }

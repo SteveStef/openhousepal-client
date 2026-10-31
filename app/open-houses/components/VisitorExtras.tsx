@@ -44,7 +44,7 @@ export function VisitorShowcaseSwitch({ visitor, busy, onToggle, layout = 'row' 
   const time = at ? at.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''
   // One short line, always (it truncates as the last resort).
   const hint = on
-    ? pending ? `Invite at ${time}` : 'Showcase on'
+    ? pending ? `Invite email goes out ${time}` : 'Showcase on'
     : wait == null ? 'Off - tap to turn on' : wait === 'right away' ? 'Off - tap to send now' : `Off - tap to send (${wait})`
   const title = on
     ? 'Showcase for this visitor is ON - switch off to cancel a waiting invite and turn their Showcase off.'
@@ -59,7 +59,7 @@ export function VisitorShowcaseSwitch({ visitor, busy, onToggle, layout = 'row' 
         <OhpSwitch on={on} as="span" size="sm" busy={busy} />
         <span className="leading-tight">
           <span className={`block text-[11px] font-black ${on ? 'text-[#8b7355] dark:text-[#e8c97a]' : 'text-gray-400'}`}>Showcase</span>
-          {pending && on && <span className="block whitespace-nowrap text-[10px] font-semibold text-gray-400">invite {time}</span>}
+          {pending && on && <span className="block whitespace-nowrap text-[10px] font-semibold text-gray-400">invite email {time}</span>}
         </span>
       </button>
     )

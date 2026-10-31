@@ -56,10 +56,13 @@ export default function LeadOpenHouseShowcase({ leadId, represented, asked, onAs
     setBusy(true)
     setData({ ...data, showcase_on: on })
     const r = await api.openHouses.setVisitorShowcase(data.visitor_id, on)
+    const at = r.data?.invite_at ? new Date(r.data.invite_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : null
     if (!r.success) showToast(r.error || "Couldn't change their Showcase", 'error')
-    else if (on && r.data?.building) showToast('Making their Showcase now', 'success')
-    else showToast(on ? 'Their Showcase is on' : 'Their Showcase is off', 'success')
-    await load()
+    else if (on) showToast(`${r.data?.building ? 'Making their Showcase now' : 'Their Showcase is on'}${at ? ` - their invite email goes out at ${at}` : ''}`, 'success')
+    else showToast(r.data?.invites_cancelled ? 'Their Showcase is off - the invite email was cancelled' : 'Their Showcase is off', 'success')
+    const fresh = await load()
+    // A Showcase still being built has no invite saved yet - keep the time it will go out.
+    if (on && r.data?.invite_at && fresh && !fresh.showcase_invite_at) setData({ ...fresh, showcase_invite_at: r.data.invite_at })
     setBusy(false)
   }
 
