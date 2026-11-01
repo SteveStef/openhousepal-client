@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart3, Bell, CalendarCheck, Check, ChevronDown, ClipboardList, Globe, Handshake, Home, Image as ImageIcon, LifeBuoy, Mail, MapPin, MessageSquare,
-  Newspaper, Palette, PartyPopper, Settings2, Sparkles, Star, UserRound, X, type LucideIcon,
+  Move, Newspaper, Palette, PartyPopper, Plus, Settings2, Sparkles, Star, UserRound, X, type LucideIcon,
 } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
@@ -31,6 +31,12 @@ const ICONS: Record<string, LucideIcon> = {
   update_profile: UserRound, set_website_on: Globe, add_town: MapPin, create_followup: Bell, update_followup: Bell,
   set_followup_rules: Bell, open_help_ticket: LifeBuoy, update_review_settings: Star, answer_host_request: Handshake,
   ask_team_to_host: Handshake, request_to_host: Handshake, answer_suggested_host_time: Handshake,
+  send_invite_to_leads: Mail, remind_invite_non_responders: Mail, set_invite_rsvps: PartyPopper, duplicate_invite: PartyPopper,
+  mark_form_response_reviewed: ClipboardList, duplicate_form: ClipboardList, create_form_tracking_link: ClipboardList,
+  add_unfinished_form_response_to_leads: ClipboardList, build_open_house_kit: Home,
+  withdraw_hosting_request: Handshake, offer_other_host_time: Handshake, answer_team_host_ask: Handshake, publish_blog_post: Newspaper,
+  reply_to_help_ticket: LifeBuoy, update_email_signature: Mail, resync_calendar: CalendarCheck, send_crm_test_lead: Settings2,
+  set_discovery_search: MapPin,
 }
 const iconFor = (tool: string): LucideIcon =>
   ICONS[tool] || (/open_house|guest|similar/.test(tool) ? Home : /lead/.test(tool) ? UserRound : /setting|switch|alert/.test(tool) ? Settings2 : Sparkles)
@@ -60,9 +66,10 @@ const chip = (on: boolean) => `ohp-ai-press rounded-full border px-3 py-1.5 text
 // A card's choices as steps (owner, 11/01: "be smart and conserve space"): one open at a time; a
 // pick shows for a moment, then that step folds to one line with what was picked and the next
 // opens. Tapping a folded line opens it again.
-export function useSteps(ids: string[]) {
+export function useSteps(ids: string[], start?: string | null) {
   const key = ids.join('|')
-  const [open, setOpen] = useState<string | null>(ids[0] ?? null)
+  // `start`: open another step first - e.g. the home they already named in chat (owner, 11/01)
+  const [open, setOpen] = useState<string | null>(start !== undefined && (start === null || ids.includes(start)) ? start : ids[0] ?? null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
   // A step that went away (e.g. no photos to pick) never stays the open one.
@@ -75,7 +82,10 @@ export function useSteps(ids: string[]) {
     }, 450)
   }
   const toggle = (id: string) => { if (timer.current) clearTimeout(timer.current); setOpen(o => (o === id ? null : id)) }
-  return { open, picked, toggle, isOpen: (id: string) => open === id }
+  // A step they browse (layout, colors) stays open while they tap around; its check folds it now.
+  const done = (id: string) => { if (timer.current) clearTimeout(timer.current); const i = ids.indexOf(id); setOpen(o => (o === id ? ids[i + 1] ?? null : o)) }
+  const closeAll = () => { if (timer.current) clearTimeout(timer.current); setOpen(null) }
+  return { open, picked, toggle, done, closeAll, isOpen: (id: string) => open === id }
 }
 
 export function CardStep({ id, n, title, summary, steps, children }: {
@@ -99,6 +109,17 @@ export function CardStep({ id, n, title, summary, steps, children }: {
         </div>
       </div>
     </div>
+  )
+}
+
+/** The check at the end of a step they browse (owner, 11/01: "click through and see all the
+ *  options" - tapping one no longer folds the step; this does). */
+export function StepDone({ onDone, label = 'Done' }: { onDone: () => void; label?: string }) {
+  return (
+    <button type="button" onClick={onDone} aria-label={label} title={label} data-testid="ai-step-done"
+      className="ohp-ai-press inline-flex items-center gap-1 rounded-full bg-[#C9A24D] py-1.5 pl-2 pr-3 text-xs font-black text-white shadow-sm shadow-[#C9A24D]/30">
+      <Check className="h-3.5 w-3.5" strokeWidth={3.5} /> {label}
+    </button>
   )
 }
 
@@ -131,23 +152,63 @@ export function useDesignProperty(payload: Record<string, any>) {
   return property
 }
 
-export function DesignLivePreview({ payload, layout, colors, property, photo }: {
+export function DesignLivePreview({ payload, layout, colors, property, photo, focal, onFocal, big = false }: {
   payload: Record<string, any>; layout: string | null; colors: string; property: LinkedProperty | null | undefined; photo?: string | null
+  focal?: { x: number; y: number } | null; onFocal?: (f: { x: number; y: number }) => void; big?: boolean
 }) {
   const { agent, kit } = useAgentBits()
   const situation = getSituation(payload.situation)
   const templates = getTemplatesFor(payload.situation, payload.format).filter(t => isCompositionReady(t.composition))
   const template = templates.find(t => t.composition === layout) || templates[0]
+  // Big (the photo is picked, every step folded - owner, 11/01): drag the picture to move the photo
+  // in its frame, like the Studio's own photo framing. The drag is drawn every frame, saved on release.
+  const box = useRef<HTMLDivElement>(null)
+  const drag = useRef<{ x: number; y: number; fx: number; fy: number } | null>(null)
+  const [live, setLive] = useState<{ x: number; y: number } | null>(null)
+  const shown = live || focal || null
+  const buildOptions = useMemo(() => ({
+    openHouseDate: payload.open_house_date ? new Date(`${payload.open_house_date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : undefined,
+    openHouseTime: payload.start_time || undefined, priceMode: 'listing', heroPhoto: photo || undefined, heroFocal: shown,
+  }) as any, [payload.open_house_date, payload.start_time, photo, shown?.x, shown?.y]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!template || property === undefined) {
     return <div className="ohp-skeleton mx-auto h-[170px] w-[136px] rounded-lg" />
   }
+  const canDrag = big && !!onFocal && !!situation?.propertyAttached
+  const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v * 10) / 10))
+  const onDown = (e: React.PointerEvent) => {
+    if (!canDrag) return
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* a finger that already lifted - the drag still works */ }
+    const f = focal || { x: 50, y: 50 }
+    drag.current = { x: e.clientX, y: e.clientY, fx: f.x, fy: f.y }
+  }
+  const onMove = (e: React.PointerEvent) => {
+    const d = drag.current
+    if (!d || !box.current) return
+    const r = box.current.getBoundingClientRect()
+    // the photo follows the finger: moving it right shows more of its left side
+    setLive({ x: clamp(d.fx - ((e.clientX - d.x) / r.width) * 140), y: clamp(d.fy - ((e.clientY - d.y) / r.height) * 140) })
+  }
+  const onUp = () => {
+    if (!drag.current) return
+    drag.current = null
+    if (live) onFocal?.(live)
+    setLive(null)
+  }
   return (
-    <div className="mx-auto w-[150px] overflow-hidden rounded-lg shadow-[0_10px_24px_-12px_rgba(0,0,0,.45)] ring-1 ring-black/10" data-testid="ai-design-preview">
-      <StyleThumbnail designType={payload.format} styleId="modern_luxury" colorMode={colors as any} templateId={template.id} situation={payload.situation}
-        property={situation?.propertyAttached ? property : null} agent={agent} brandKit={kit}
-        messaging={payload.headline ? { id: 'custom', headline: String(payload.headline) } as any : undefined}
-        buildOptions={{ openHouseDate: payload.open_house_date ? new Date(`${payload.open_house_date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : undefined,
-          openHouseTime: payload.start_time || undefined, priceMode: 'listing', heroPhoto: photo || undefined } as any} rounded={false} />
+    <div className={`relative mx-auto transition-[width] duration-300 ease-out ${big ? 'w-[min(260px,100%)]' : 'w-[150px]'}`}>
+      <div ref={box} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+        className={`overflow-hidden rounded-lg shadow-[0_10px_24px_-12px_rgba(0,0,0,.45)] ring-1 ring-black/10 ${canDrag ? 'cursor-grab touch-none select-none active:cursor-grabbing' : ''}`}
+        data-testid="ai-design-preview" data-focal={shown ? `${shown.x},${shown.y}` : ''}>
+        <StyleThumbnail designType={payload.format} styleId="modern_luxury" colorMode={colors as any} templateId={template.id} situation={payload.situation}
+          property={situation?.propertyAttached ? property : null} agent={agent} brandKit={kit}
+          messaging={payload.headline ? { id: 'custom', headline: String(payload.headline) } as any : undefined}
+          buildOptions={buildOptions} rounded={false} />
+      </div>
+      {canDrag && (
+        <p className={`pointer-events-none mt-1.5 flex items-center justify-center gap-1 text-[10.5px] font-bold text-gray-500 transition-opacity dark:text-zinc-400 ${live ? 'opacity-0' : 'opacity-100'}`}>
+          <Move className="h-3 w-3" /> Drag the picture to move the photo
+        </p>
+      )}
     </div>
   )
 }
@@ -268,43 +329,71 @@ export function CmaPick({ payload, ai, onAi, mode, onMode }: { payload: Record<s
 // ---------------------------------------------------------------- a form: background + home
 export type FormQuestion = { label: string; type?: string; options?: string[]; required?: boolean }
 export type FormPicks = { background_effects: boolean; listing_key: string | null; questions: FormQuestion[] }
+const Q_LABEL: Record<string, string> = { short_text: 'Short answer', long_text: 'Long answer', select: 'Pick one', multi_select: 'Pick any', number: 'Number',
+  currency: 'Dollar amount', date: 'Date', time: 'Time', email: 'Email', phone: 'Phone' }
 
 export function FormPick({ payload, picks, onPicks }: { payload: Record<string, any>; picks: FormPicks; onPicks: (p: FormPicks) => void }) {
   const homes = (payload.homes || []) as { listing_key: string; address: string; city: string; photo?: string | null }[]
   const steps = useSteps(homes.length ? ['questions', 'background', 'home'] : ['questions', 'background'])
   // The questions as taps too (owner, 11/01): what the helper suggested (tap to drop), common ones
   // to add, and their own typed in. Name, email and phone are always on the form already.
-  const bank = ((payload.bank || []) as FormQuestion[]).filter(b => !picks.questions.some(q => q.label.toLowerCase() === b.label.toLowerCase()))
+  const has = (b: FormQuestion) => picks.questions.some(q => q.label.toLowerCase() === b.label.toLowerCase())
+  const ideas = ((payload.ideas || []) as FormQuestion[]).filter(b => !has(b))
+  const bank = ((payload.bank || []) as FormQuestion[]).filter(b => !has(b) && !ideas.some(d => d.label.toLowerCase() === b.label.toLowerCase()))
+  const [more, setMore] = useState(false)
   const [own, setOwn] = useState('')
   const addOwn = () => { const t = own.trim(); if (!t) return; onPicks({ ...picks, questions: [...picks.questions, { label: t, type: 'short_text' }] }); setOwn('') }
   const home = homes.find(h => h.listing_key === picks.listing_key)
   return (
     <div className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-form-pick">
       <CardStep id="questions" n={1} title="Questions" summary={`${picks.questions.length} + name, email, phone`} steps={steps}>
-        <p className="mb-1.5 text-[11px] font-semibold text-gray-500 dark:text-zinc-400">Full name, email and phone are always asked. Tap one to take it off.</p>
-        <div className="flex flex-col gap-1.5" data-testid="ai-form-questions">
+        <p className="mb-2 text-[11px] font-semibold text-gray-500 dark:text-zinc-400">Name, email and phone are always on the form.</p>
+        <ol className="flex flex-col gap-1.5" data-testid="ai-form-questions">
           {picks.questions.map((q, i) => (
-            <button key={`${q.label}-${i}`} type="button" onClick={() => onPicks({ ...picks, questions: picks.questions.filter((_, k) => k !== i) })}
-              className="ohp-ai-press flex items-center gap-2 rounded-xl border border-[#111827] bg-white px-3 py-2 text-left text-xs font-bold text-[#111827] dark:border-[#C9A24D] dark:bg-zinc-900 dark:text-white">
-              <span className="min-w-0 flex-1">{q.label}{q.options?.length ? <span className="block text-[10.5px] font-semibold text-gray-500 dark:text-zinc-400">{q.options.join(' · ')}</span> : null}</span>
-              <X className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-            </button>
+            <li key={`${q.label}-${i}`} className="ohp-ai-card-in flex items-start gap-2 rounded-xl bg-white px-2.5 py-2 ring-1 ring-black/5 dark:bg-zinc-900 dark:ring-white/10">
+              <span className="mt-px grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#C9A24D]/15 text-[10px] font-black text-[#8b7355] dark:text-[#e8c97a]">{i + 1}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[12.5px] font-bold leading-snug text-[#111827] dark:text-white">{q.label}</span>
+                <span className="mt-1 flex flex-wrap items-center gap-1">
+                  <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[9.5px] font-black uppercase tracking-wide text-gray-500 dark:bg-zinc-800 dark:text-zinc-400">{Q_LABEL[q.type || 'short_text'] || 'Answer'}</span>
+                  {(q.options || []).map(o => <span key={o} className="rounded-full border border-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:border-zinc-700 dark:text-zinc-300">{o}</span>)}
+                </span>
+              </span>
+              <button type="button" aria-label={`Take off: ${q.label}`} title="Take it off"
+                onClick={() => onPicks({ ...picks, questions: picks.questions.filter((_, k) => k !== i) })}
+                className="ohp-ai-press grid h-6 w-6 shrink-0 place-items-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-zinc-800">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </li>
           ))}
-        </div>
-        {bank.length > 0 && (
-          <>
-            <p className="mb-1 mt-2.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#C9A24D]">Add a common one</p>
-            <div className="flex flex-wrap gap-1.5">
-              {bank.map(b => <button key={b.label} type="button" onClick={() => onPicks({ ...picks, questions: [...picks.questions, b] })} className={`${chip(false)} text-left`}>+ {b.label}</button>)}
+        </ol>
+        {/* Ideas made for this form, then common ones for this kind of form (owner, 11/01) */}
+        {[{ title: 'Ideas for this form', list: ideas }, { title: 'Common ones', list: more ? bank : bank.slice(0, 3) }].filter(g => g.list.length).map(g => (
+          <div key={g.title} className="mt-2.5">
+            <p className="mb-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#C9A24D]">{g.title}</p>
+            <div className="flex flex-col gap-1" data-testid={g.title === 'Common ones' ? 'ai-form-bank' : 'ai-form-ideas'}>
+              {g.list.map(b => (
+                <button key={b.label} type="button" onClick={() => onPicks({ ...picks, questions: [...picks.questions, b] })}
+                  className="ohp-ai-press flex items-center gap-2 rounded-lg border border-dashed border-[#C9A24D]/50 bg-white/70 px-2.5 py-1.5 text-left hover:border-[#C9A24D] dark:bg-zinc-900/60">
+                  <Plus className="h-3.5 w-3.5 shrink-0 text-[#C9A24D]" strokeWidth={3} />
+                  <span className="min-w-0 flex-1 text-[12px] font-semibold leading-snug text-gray-700 dark:text-zinc-200">{b.label}</span>
+                  <span className="shrink-0 text-[9.5px] font-black uppercase tracking-wide text-gray-400">{Q_LABEL[b.type || 'short_text'] || ''}</span>
+                </button>
+              ))}
             </div>
-          </>
-        )}
-        <div className="mt-2 flex gap-1.5">
-          <input value={own} onChange={e => setOwn(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOwn() } }} placeholder="Or type your own question"
+            {g.title === 'Common ones' && bank.length > 3 && (
+              <button type="button" onClick={() => setMore(m => !m)} className="mt-1 text-[11px] font-black text-[#8b7355] dark:text-[#e8c97a]">
+                {more ? 'Show fewer' : `+ ${bank.length - 3} more`}
+              </button>
+            )}
+          </div>
+        ))}
+        <div className="mt-2.5 flex gap-1.5">
+          <input value={own} onChange={e => setOwn(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOwn() } }} placeholder="Type your own question"
             className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-800 outline-none focus:border-[#C9A24D] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
           <button type="button" onClick={addOwn} disabled={!own.trim()} className="rounded-xl bg-[#111827] px-3 text-[11px] font-black text-white disabled:opacity-40 dark:bg-[#C9A24D] dark:text-[#111827]">Add</button>
         </div>
-        <button type="button" onClick={() => steps.picked('questions')} className="mt-2 rounded-full bg-[#111827] px-3.5 py-1.5 text-[11px] font-black text-white dark:bg-[#C9A24D] dark:text-[#111827]">Done</button>
+        <div className="mt-2.5"><StepDone onDone={() => steps.done('questions')} /></div>
       </CardStep>
       <CardStep id="background" n={2} title="Background" summary={picks.background_effects ? 'Moving' : 'Still'} steps={steps}>
       <button type="button" role="switch" aria-checked={picks.background_effects} onClick={() => { onPicks({ ...picks, background_effects: !picks.background_effects }); steps.picked('background') }}
@@ -336,113 +425,7 @@ export function FormPick({ payload, picks, onPicks }: { payload: Record<string, 
   )
 }
 
-// ---------------------------------------------------------------- a blog post: the Blogs page's questions
-export type BlogPicks = {
-  tone: string; length: string; key_points: string; personal_take: string; cta: string
-  audiences: string[]; areas: string[]; spotlight: boolean; sale_ids: string[]
-}
-const BLOG_TONES: [string, string][] = [['warm', 'Warm & personal'], ['professional', 'Professional'], ['luxury', 'Refined luxury'], ['straight', 'Straight talk'], ['energetic', 'Energetic']]
-const BLOG_LENGTHS: [string, string, string][] = [['short', 'Quick read', '~650 words'], ['standard', 'Standard', '~1,000 words'], ['long', 'In-depth guide', '~1,700 words']]
-const BLOG_AUDIENCES = ['Buyers', 'Sellers', 'First-time buyers', 'Move-up buyers', 'Luxury buyers', 'Investors', 'Relocating', 'Homeowners']
-const BLOG_CTAS: [string, string][] = [['how_can_i_help', 'Ready to Buy or Sell?'], ['home_value', "What's My Home Worth?"], ['showing', 'Schedule a Showing'],
-  ['buying', "I'm Buying"], ['selling', "I'm Selling"], ['make_me_sell', 'Make Me Sell'], ['question', 'Ask Me a Question']]
-
-// The AI writer's own questions as taps (owner, 11/01: "ask the steps in chat flow for look and options"
-// - same as the Blogs page): one open at a time, picking folds it; pick-several steps fold on Done.
-export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, any>; picks: BlogPicks; onPicks: (p: BlogPicks) => void }) {
-  const opts = (payload.options || {}) as { areas?: string[]; area_cards?: Record<string, string>; sales?: { id: string; label: string }[] }
-  const towns = Array.from(new Set([...(opts.areas || []), ...picks.areas]))
-  const sales = opts.sales || []
-  const steps = useSteps(['who', 'towns', ...(sales.length ? ['sales'] : []), 'tone', 'length', 'cta', 'points'])
-  const n = (id: string) => ['who', 'towns', ...(sales.length ? ['sales'] : []), 'tone', 'length', 'cta', 'points'].indexOf(id) + 1
-  const pct = (payload.percents || {}) as Record<string, number>
-  const pctText = (ln: string) => (typeof pct[ln] === 'number' ? `about ${pct[ln] < 1 ? 'under 1' : Math.round(pct[ln])}% of your AI` : '')
-  const toggle = (list: string[], v: string, max: number) => (list.includes(v) ? list.filter(x => x !== v) : list.length >= max ? list : [...list, v])
-  const done = (id: string) => (
-    <button type="button" onClick={() => steps.picked(id)} className="mt-2 rounded-full bg-[#111827] px-3.5 py-1.5 text-[11px] font-black text-white dark:bg-[#C9A24D] dark:text-[#111827]">Done</button>
-  )
-  const few = (list: string[], none: string) => (list.length ? (list.length > 2 ? `${list.slice(0, 2).join(', ')} +${list.length - 2}` : list.join(', ')) : none)
-  return (
-    <div className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-blog-pick">
-      <CardStep id="who" n={n('who')} title="Who it's for" summary={few(picks.audiences, 'Anyone')} steps={steps}>
-        <div className="flex flex-wrap gap-1.5">
-          {BLOG_AUDIENCES.map(a => <button key={a} type="button" onClick={() => onPicks({ ...picks, audiences: toggle(picks.audiences, a, 8) })} aria-pressed={picks.audiences.includes(a)} className={chip(picks.audiences.includes(a))}>{a}</button>)}
-        </div>
-        {done('who')}
-      </CardStep>
-      <CardStep id="towns" n={n('towns')} title="Towns" summary={few(picks.areas, 'None picked')} steps={steps}>
-        <p className="mb-1.5 text-[11px] font-semibold text-gray-500 dark:text-zinc-400">Up to 5 - naming them is what makes it rank locally.</p>
-        <div className="flex flex-wrap gap-1.5">
-          {towns.map(t => <button key={t} type="button" onClick={() => onPicks({ ...picks, areas: toggle(picks.areas, t, 5) })} aria-pressed={picks.areas.includes(t)} className={chip(picks.areas.includes(t))}>{t}</button>)}
-        </div>
-        <button type="button" role="switch" aria-checked={picks.spotlight} onClick={() => onPicks({ ...picks, spotlight: !picks.spotlight })}
-          className="mt-2 flex w-full items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 text-left dark:bg-zinc-900">
-          <span className="min-w-0"><span className="block text-[12.5px] font-bold text-[#111827] dark:text-white">Town Spotlight</span>
-            <span className="block text-[10.5px] font-semibold text-gray-500 dark:text-zinc-400">A photo, live market numbers, schools and what's nearby for each town</span></span>
-          <span className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${picks.spotlight ? 'bg-[#C9A24D]' : 'bg-gray-300 dark:bg-zinc-600'}`}>
-            <span className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${picks.spotlight ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
-          </span>
-        </button>
-        {done('towns')}
-      </CardStep>
-      {sales.length > 0 && (
-        <CardStep id="sales" n={n('sales')} title="Your sales" summary={picks.sale_ids.length ? `${picks.sale_ids.length} picked` : 'None'} steps={steps}>
-          <p className="mb-1.5 text-[11px] font-semibold text-gray-500 dark:text-zinc-400">Mention up to 4 of your real sales (optional).</p>
-          <div className="flex flex-col gap-1.5">
-            {sales.map(x => {
-              const on = picks.sale_ids.includes(x.id)
-              return <button key={x.id} type="button" onClick={() => onPicks({ ...picks, sale_ids: toggle(picks.sale_ids, x.id, 4) })} aria-pressed={on}
-                className={`${chip(on)} !rounded-xl text-left`}>{x.label}</button>
-            })}
-          </div>
-          {done('sales')}
-        </CardStep>
-      )}
-      <CardStep id="tone" n={n('tone')} title="Tone" summary={BLOG_TONES.find(t => t[0] === picks.tone)?.[1]} steps={steps}>
-        <div className="flex flex-wrap gap-1.5">
-          {BLOG_TONES.map(([id, name]) => (
-            <button key={id} type="button" onClick={() => { onPicks({ ...picks, tone: id }); steps.picked('tone') }} aria-pressed={picks.tone === id} className={chip(picks.tone === id)}>{name}</button>
-          ))}
-        </div>
-      </CardStep>
-      <CardStep id="length" n={n('length')} title="Length" summary={BLOG_LENGTHS.find(l => l[0] === picks.length)?.[1]} steps={steps}>
-        <div className="space-y-1.5">
-          {BLOG_LENGTHS.map(([id, name, words]) => {
-            const on = picks.length === id
-            return (
-              <button key={id} type="button" onClick={() => { onPicks({ ...picks, length: id }); steps.picked('length') }} aria-pressed={on}
-                className={`ohp-ai-press flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${on
-                  ? 'border-[#111827] bg-white ring-2 ring-[#C9A24D]/60 dark:border-[#C9A24D] dark:bg-zinc-900'
-                  : 'border-gray-200 bg-white hover:border-[#C9A24D]/60 dark:border-zinc-700 dark:bg-zinc-900'}`}>
-                <span className="text-xs font-black text-[#111827] dark:text-white">{name} <span className="font-semibold text-gray-400">{words}</span></span>
-                <span className="shrink-0 text-[10.5px] font-semibold text-gray-500 dark:text-zinc-400">{pctText(id)}</span>
-              </button>
-            )
-          })}
-        </div>
-      </CardStep>
-      <CardStep id="cta" n={n('cta')} title="Ending button" summary={BLOG_CTAS.find(c => c[0] === picks.cta)?.[1]} steps={steps}>
-        <p className="mb-1.5 text-[11px] font-semibold text-gray-500 dark:text-zinc-400">What readers tap at the end - it opens that form right on the article.</p>
-        <div className="flex flex-wrap gap-1.5">
-          {BLOG_CTAS.map(([id, name]) => (
-            <button key={id} type="button" onClick={() => { onPicks({ ...picks, cta: id }); steps.picked('cta') }} aria-pressed={picks.cta === id} className={chip(picks.cta === id)}>{name}</button>
-          ))}
-        </div>
-      </CardStep>
-      <CardStep id="points" n={n('points')} title="Key points" summary={picks.key_points.trim() || picks.personal_take.trim() ? 'Added' : 'Optional'} steps={steps}>
-        <textarea value={picks.key_points} onChange={e => onPicks({ ...picks, key_points: e.target.value })} rows={2} maxLength={2000}
-          placeholder="Key points to cover (optional) - bullets are fine"
-          className="w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-800 outline-none focus:border-[#C9A24D] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
-        <textarea value={picks.personal_take} onChange={e => onPicks({ ...picks, personal_take: e.target.value })} rows={2} maxLength={2000}
-          placeholder="Your take, or a local story only you could tell (optional)"
-          className="mt-1.5 w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-800 outline-none focus:border-[#C9A24D] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
-      </CardStep>
-      {typeof pct[picks.length] === 'number' && (
-        <p className="px-0.5 text-[11px] font-semibold text-gray-500 dark:text-zinc-400">Uses {pctText(picks.length)} allowance · saved as a draft</p>
-      )}
-    </div>
-  )
-}
+// (A blog post's card is its own file: ./BlogPick - the Blogs page's whole interview.)
 
 // ---------------------------------------------------------------- something being made
 // While a card is making something (a design, a blog draft, an AI CMA, a Spotlight's setup): the
@@ -467,10 +450,10 @@ export function WorkingScene({ tool, message }: { tool: string; message?: string
   }, [lines.length])
   return (
     <div className="flex items-center gap-3" data-testid="ai-working">
-      <span className="ohp-work-orb relative grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#faf6ec] ring-1 ring-[#C9A24D]/40 dark:bg-zinc-800">
+      <span className="ohp-work-orb relative grid h-12 w-12 shrink-0 place-items-center rounded-full">
         <span aria-hidden className="ohp-work-orbit absolute inset-0"><span className="absolute -top-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[#C9A24D]" /></span>
         <span aria-hidden className="ohp-work-orbit ohp-work-orbit-2 absolute inset-1"><span className="absolute -bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-[#e8c97a]" /></span>
-        <OhpBot size={32} thinking />
+        <OhpBot size={44} thinking />
       </span>
       <div className="min-w-0 flex-1">
         <p key={i} className="ohp-work-line truncate text-[13px] font-black text-[#111827] dark:text-white">{lines[i]}</p>

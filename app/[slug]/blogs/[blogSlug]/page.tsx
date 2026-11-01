@@ -60,7 +60,7 @@ export default function PublicBlogArticlePage() {
       <BlogArticleBody
         // Every article ends with the agent's related articles, unless it already places them itself.
         blocks={blog.blocks.some(b => b.type === 'related_articles') ? blog.blocks : [...blog.blocks, { id: 'auto-related', type: 'related_articles', data: {} }]}
-        agent={{ name: blog.agentName, brokerage: blog.agentBrokerage, photoUrl: blog.agentPhotoUrl, title: blog.agentTitle }}
+        agent={{ name: blog.agentName, brokerage: blog.agentBrokerage, photoUrl: blog.agentPhotoUrl, title: blog.agentTitle, phone: blog.agentPhone, textPhone: blog.agentTextPhone, email: blog.agentEmail }}
         accentColor={blogAccent(blog.theme, blog.luxeMetal, blog.accentColor)}
         onEvent={trackEvent}
         onLead={async payload => {

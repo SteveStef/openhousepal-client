@@ -181,7 +181,8 @@ export function SiteHeader({
   // glowing "{first}'s Showcase" tab takes Search's place (user, 10/18) - search stays one tap away
   // inside it, in the phone menu, the footer and the home page.
   const visitor = useVisitor()
-  const mine = !preview && visitor ? { href: `${basePrefix}/my-showcase`, label: visitor.firstName || visitor.name?.split(' ')[0] ? `${visitor.firstName || visitor.name.split(' ')[0]}'s Showcase` : 'My Showcase' } : null
+  const mineFirst = visitor ? (visitor.firstName || visitor.name?.split(' ')[0] || '') : ''
+  const mine = !preview && visitor ? { href: `${basePrefix}/my-showcase`, label: mineFirst ? `${mineFirst}'s Showcase` : 'My Showcase' } : null
   const navLinks: { href: string; label: string; icon: LucideIcon; form?: string }[] = [
     { href: `${basePrefix}/search`, label: 'Search', icon: Search },
     { href: `${basePrefix}/properties`, label: 'Featured', icon: HomeIcon },
@@ -286,10 +287,16 @@ export function SiteHeader({
           </a>
         </div>
 
-        <div className="flex items-center gap-2 lg:hidden">
+        <div className="flex min-w-0 items-center gap-2 lg:hidden">
           {mine && (
-            <a href={mine.href} aria-label={mine.label} className="ohp-mine-dot relative grid h-10 w-10 place-items-center rounded-full" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>
-              <Sparkles className="h-[18px] w-[18px]" />
+            // Says what it is (owner, 11/01: the lone sparkle was "very hard for someone to understand"):
+            // "Peter's" over "Showcase", the same 40px height as the other header buttons.
+            <a href={mine.href} aria-label={mine.label} className="ohp-mine-card relative inline-flex h-10 min-w-0 shrink items-center gap-1.5 overflow-hidden rounded-full pl-2.5 pr-3.5" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>
+              <Sparkles className="h-4 w-4 shrink-0" />
+              <span className="flex min-w-0 flex-col text-left leading-none">
+                <span className="truncate text-[13px] font-black">{mineFirst ? `${mineFirst}'s` : 'My'}</span>
+                <span className="mt-[3px] text-[9px] font-black uppercase tracking-[0.16em] opacity-90">Showcase</span>
+              </span>
             </a>
           )}
           {showModeToggle && <ModeToggle siteKey={siteKey} initialMode={theme.mode === 'dark' ? 'dark' : 'light'} light={dark} inert={preview} />}

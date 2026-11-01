@@ -13,7 +13,11 @@ import BrandPick, { type BrandPicks } from './BrandPick'
 import { getTemplatesFor, isCompositionReady } from '@/lib/studio/designTemplates'
 import { DESIGN_COLOR_MODES } from '@/lib/studio/designColors'
 import { InvitePick, type InvitePicks } from './InvitePick'
-import { BlogPick, type BlogPicks, WorkingScene, CardIcon, CardStep, CmaPick, DesignLivePreview, BrandLivePreview, FormPick, SetupSteps, SpotlightPick, useDesignProperty, useSteps, type FormPicks, type SpotlightPicks } from './CardPickers'
+import { BlogPick, type BlogPicks } from './BlogPick'
+import { KitPick, kitStart, type KitPicks } from './KitPick'
+import { DiscoveryPick, discoveryStart, type DiscoveryPicks } from './DiscoveryPick'
+import { InviteSendPick, inviteSendInitial, inviteSendLabel, type InviteSendPicks } from './InviteSendPick'
+import { WorkingScene, CardIcon, CardStep, StepDone, CmaPick, DesignLivePreview, BrandLivePreview, FormPick, SetupSteps, SpotlightPick, useDesignProperty, useSteps, type FormPicks, type SpotlightPicks } from './CardPickers'
 import { joinColorMode, splitColorMode } from '@/lib/studio/designColors'
 import { LUXE_METALS, LUXE_METAL_ORDER, type LuxeMetal } from '@/lib/luxeMetals'
 import { runSpotlightSetup, type SetupStep } from '@/components/property-sites/spotlight/autoSetup'
@@ -84,7 +88,7 @@ function MadeDesign({ made, fresh }: { made: NonNullable<Made> & { design_id?: s
 }
 
 type DesignHome = { listing_key: string; address: string; photo?: string | null }
-type Look = { layout: string | null; colors: string; metal: LuxeMetal | null; photo: string | null; home: DesignHome | null }
+type Look = { layout: string | null; colors: string; metal: LuxeMetal | null; photo: string | null; home: DesignHome | null; focal: { x: number; y: number } | null }
 
 const stepChip = (on: boolean) => `ohp-ai-press rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${on
   ? 'border-[#111827] bg-[#111827] text-white dark:border-[#C9A24D] dark:bg-[#C9A24D] dark:text-[#111827]'
@@ -93,7 +97,9 @@ const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(
 
 // A design's look, picked right on the card before "Make it" (owner, 10/30: "I wasn't able to
 // customize it") - the Studio's own steps: layout, colors (+ the Luxe finish on IDX, like the
-// Studio's), and the photo (the listing's main one first). Each step folds once picked (11/01).
+// Studio's), and the photo (the listing's main one first). Home and photo fold once picked; layout,
+// colors and the finish stay open to browse until their check (owner, 11/01). After the photo,
+// everything folds and the picture grows - drag it to move the photo in its frame.
 function DesignPick({ payload: given, look, onLook, idx }: { payload: Record<string, any>; look: Look; onLook: (l: Look) => void; idx: boolean }) {
   // Another of their homes picked on the card (owner, 11/01) - everything below follows it.
   const homes = (given.homes || []) as DesignHome[]
@@ -107,13 +113,17 @@ function DesignPick({ payload: given, look, onLook, idx }: { payload: Record<str
   const photos = Array.from(new Set([...(property?.photos || []), property?.image_url].filter(Boolean) as string[])).slice(0, 12)
   const photo = look.photo || photos[0] || null
   const ids = [homes.length > 1 && 'home', layouts.length > 1 && 'layout', 'colors', idx && 'finish', photos.length > 1 && 'photo'].filter(Boolean) as string[]
-  const steps = useSteps(ids)
+  // The home they named in chat is already picked - start on the next step (owner, 11/01).
+  const steps = useSteps(ids, ids[0] === 'home' && given.listing_key ? ids[1] ?? null : undefined)
   const n = (id: string) => ids.indexOf(id) + 1
   const color = colors.find(c => c.id === look.colors) || colors[0]
+  // every step folded (after the photo, or by hand): the picture grows and can be dragged
+  const big = steps.open === null
   return (
     <div className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-design-pick">
       {/* how it will look, redrawn as they tap (owner, 11/01) - the Studio's own renderer */}
-      <DesignLivePreview payload={payload} layout={layout} colors={joinColorMode(look.colors, look.metal)} property={property} photo={photo} />
+      <DesignLivePreview payload={payload} layout={layout} colors={joinColorMode(look.colors, look.metal)} property={property} photo={photo}
+        focal={look.focal} onFocal={f => onLook({ ...look, focal: f })} big={big} />
       {homes.length > 1 && (
         <CardStep id="home" n={n('home')} title="Home" summary={(payload.address || '').split(',')[0]} steps={steps}>
           <div className="flex flex-col gap-1.5" data-testid="ai-design-homes">
@@ -121,7 +131,7 @@ function DesignPick({ payload: given, look, onLook, idx }: { payload: Record<str
               const on = h.listing_key === payload.listing_key
               return (
                 <button key={h.listing_key} type="button" aria-pressed={on}
-                  onClick={() => { onLook({ ...look, home: h.listing_key === given.listing_key ? null : h, photo: null }); steps.picked('home') }}
+                  onClick={() => { onLook({ ...look, home: h.listing_key === given.listing_key ? null : h, photo: null, focal: null }); steps.picked('home') }}
                   className={`ohp-ai-press flex items-center gap-2 rounded-xl border p-1.5 pr-2.5 text-left text-xs font-bold transition-colors ${on
                     ? 'border-[#111827] bg-white text-[#111827] ring-2 ring-[#C9A24D]/60 dark:border-[#C9A24D] dark:bg-zinc-900 dark:text-white'
                     : 'border-gray-200 bg-white text-gray-700 hover:border-[#C9A24D]/60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200'}`}>
@@ -138,9 +148,10 @@ function DesignPick({ payload: given, look, onLook, idx }: { payload: Record<str
         <CardStep id="layout" n={n('layout')} title="Layout" summary={layout ? titleCase(layout) : ''} steps={steps}>
           <div className="flex flex-wrap gap-1.5">
             {layouts.map(t => (
-              <button key={t.composition} type="button" onClick={() => { onLook({ ...look, layout: t.composition }); steps.picked('layout') }} aria-pressed={t.composition === layout}
+              <button key={t.composition} type="button" onClick={() => onLook({ ...look, layout: t.composition })} aria-pressed={t.composition === layout}
                 className={stepChip(t.composition === layout)}>{titleCase(t.composition)}</button>
             ))}
+            <StepDone onDone={() => steps.done('layout')} />
           </div>
         </CardStep>
       )}
@@ -150,7 +161,7 @@ function DesignPick({ payload: given, look, onLook, idx }: { payload: Record<str
           {colors.map(c => {
             const on = c.id === look.colors
             return (
-              <button key={c.id} type="button" onClick={() => { onLook({ ...look, colors: c.id }); steps.picked('colors') }} aria-pressed={on} title={c.description}
+              <button key={c.id} type="button" onClick={() => onLook({ ...look, colors: c.id })} aria-pressed={on} title={c.description}
                 className={`ohp-ai-press inline-flex items-center gap-1.5 rounded-full border py-1 pl-1 pr-2.5 text-xs font-bold transition-colors ${on
                   ? 'border-[#111827] bg-white text-[#111827] ring-2 ring-[#C9A24D]/60 dark:border-[#C9A24D] dark:bg-zinc-900 dark:text-white'
                   : 'border-gray-200 bg-white text-gray-700 hover:border-[#C9A24D]/60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200'}`}>
@@ -161,6 +172,7 @@ function DesignPick({ payload: given, look, onLook, idx }: { payload: Record<str
               </button>
             )
           })}
+          <StepDone onDone={() => steps.done('colors')} />
         </div>
       </CardStep>
       {idx && (
@@ -168,12 +180,13 @@ function DesignPick({ payload: given, look, onLook, idx }: { payload: Record<str
           {/* The Studio's Luxe finish: the metal takes over every accent (the price, rules, buttons). */}
           <div className="flex flex-wrap gap-1.5">
             {([null, ...LUXE_METAL_ORDER] as (LuxeMetal | null)[]).map(m => (
-              <button key={m || 'none'} type="button" onClick={() => { onLook({ ...look, metal: m }); steps.picked('finish') }} aria-pressed={look.metal === m}
+              <button key={m || 'none'} type="button" onClick={() => onLook({ ...look, metal: m })} aria-pressed={look.metal === m}
                 className={`${stepChip(look.metal === m)} inline-flex items-center gap-1.5`}>
                 {m && <span className="h-3.5 w-3.5 rounded-full ring-1 ring-black/10" style={{ background: `linear-gradient(135deg, ${LUXE_METALS[m].light}, ${LUXE_METALS[m].deep})` }} />}
                 {m ? LUXE_METALS[m].label : 'None'}
               </button>
             ))}
+            <StepDone onDone={() => steps.done('finish')} />
           </div>
         </CardStep>
       )}
@@ -183,7 +196,11 @@ function DesignPick({ payload: given, look, onLook, idx }: { payload: Record<str
             {photos.map((src, i) => {
               const on = src === photo
               return (
-                <button key={src} type="button" onClick={() => { onLook({ ...look, photo: i === 0 ? null : src }); steps.picked('photo') }} aria-pressed={on}
+                <button key={src} type="button" onClick={() => {
+                  onLook({ ...look, photo: i === 0 ? null : src, focal: src === photo ? look.focal : null })
+                  // the photo's in: fold everything, grow the picture for framing (owner, 11/01)
+                  window.setTimeout(() => steps.closeAll(), 350)
+                }} aria-pressed={on}
                   aria-label={i === 0 ? 'Main photo' : `Photo ${i + 1}`}
                   className={`ohp-ai-press relative h-14 w-20 shrink-0 overflow-hidden rounded-lg ring-1 ring-black/10 ${on ? 'ring-2 ring-[#C9A24D] ring-offset-1 dark:ring-offset-zinc-900' : 'opacity-80 hover:opacity-100'}`}>
                   <img src={resolveMediaUrl(src)} alt="" loading="lazy" className="h-full w-full object-cover" />
@@ -213,7 +230,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   const [busy, setBusy] = useState<'confirm' | 'cancel' | null>(null)
   const [fresh, setFresh] = useState(false)  // made just now (not a reopened chat) - bring it into view
   const isDesign = action.client_action === 'create_design' && !!action.payload
-  const [look, setLook] = useState<Look>({ layout: (action.payload?.layout as string) || null, colors: splitColorMode((action.payload?.colors as string) || 'light').base, metal: splitColorMode(action.payload?.colors as string).metal, photo: null, home: null })
+  const [look, setLook] = useState<Look>({ layout: (action.payload?.layout as string) || null, colors: splitColorMode((action.payload?.colors as string) || 'light').base, metal: splitColorMode(action.payload?.colors as string).metal, photo: null, home: null, focal: null })
   const idx = user?.plan_tier === 'IDX' || !!user?.is_admin
   // Branding: the card's swatches start from what they have now (payload.current) - sent as picks on Save.
   const cur = (action.payload?.current || {}) as Record<string, any>
@@ -236,13 +253,20 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   const [cmaMode, setCmaMode] = useState<string>((action.payload?.mode as string) === 'buyer' ? 'buyer' : 'listing')
   const isForm = action.picker === 'form'
   const isBlog = action.picker === 'blog'
+  const isKit = action.picker === 'kit'
+  const isInviteSend = action.picker === 'invite_send'
+  const isDiscovery = action.picker === 'discovery'
+  const [disc, setDisc] = useState<DiscoveryPicks>(() => discoveryStart((action.payload || {}) as Record<string, any>))
+  const [inviteSend, setInviteSend] = useState<InviteSendPicks>(() => inviteSendInitial(action.payload))
+  const [kit, setKit] = useState<KitPicks>(() => kitStart((action.payload || {}) as Record<string, any>))
   const blogBody = ((action.payload as any)?.body || {}) as Record<string, string>
   const blogList = (k: string) => (Array.isArray((blogBody as any)[k]) ? (blogBody as any)[k] as string[] : [])
-  const [blog, setBlog] = useState<BlogPicks>({ tone: blogBody.tone || 'warm', length: blogBody.length || 'standard', key_points: blogBody.key_points || '',
-    personal_take: '', cta: blogBody.cta || 'how_can_i_help', audiences: blogList('audiences'), areas: blogList('areas'), spotlight: true, sale_ids: [] })
+  const [blog, setBlog] = useState<BlogPicks>({ topic: blogBody.topic || '', goal: blogBody.goal || '', tone: blogBody.tone || 'warm', length: blogBody.length || 'standard',
+    cta: blogBody.cta || 'how_can_i_help', audiences: blogList('audiences'), areas: blogList('areas'), spotlight: true,
+    points: [], key_points: blogBody.key_points || '', personal_take: '', facts: '', sale_ids: [], listing_ids: [], video: null })
   const [form, setForm] = useState<FormPicks>({ background_effects: action.payload?.background_effects !== false, listing_key: (action.payload?.listing_key as string) || null,
     questions: (((action.payload as any)?.questions || []) as any[]).map(q => ({ label: q.label, type: q.type, options: q.options, required: q.required })) })
-  const picks = isBrand ? brand : isInvite ? invite : isSpotlight ? spot : isCma ? { ai: cmaAi, mode: cmaMode } : isForm ? form : isBlog ? blog : undefined
+  const picks = isBrand ? brand : isInvite ? invite : isSpotlight ? spot : isCma ? { ai: cmaAi, mode: cmaMode } : isForm ? form : isBlog ? blog : isInviteSend ? inviteSend : isDiscovery ? disc : undefined
   // A Spotlight made just now finishes its own setup right here (amenities, highlights, story, town).
   const [setup, setSetup] = useState<SetupStep[] | null>(null)
 
@@ -255,7 +279,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
     if (r.success && data?.status === 'running' && data.client_action) {
       // Built here in the browser (a design), then recorded on the card.
       setState(st => ({ ...st, status: 'running', message: 'Making it...' }))
-      const picked = data.client_action === 'create_design' ? { ...(look.layout ? { layout: look.layout } : {}), colors: joinColorMode(look.colors, look.metal), ...(look.photo ? { photo: look.photo } : {}), ...(look.home ? { listing_key: look.home.listing_key, address: look.home.address } : {}) } : {}
+      const picked = data.client_action === 'build_open_house_kit' ? kit : data.client_action === 'create_design' ? { ...(look.layout ? { layout: look.layout } : {}), colors: joinColorMode(look.colors, look.metal), ...(look.photo ? { photo: look.photo } : {}), ...(look.focal ? { focal: look.focal } : {}), ...(look.home ? { listing_key: look.home.listing_key, address: look.home.address } : {}) } : {}
       const out = await runClientAction(data.client_action, { ...(data.payload || {}), ...picked }, user)
       const saved = await api.ai.clientActionResult(action.record_id, messageId, out)
       setFresh(true)
@@ -309,6 +333,9 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
       {isSpotlight && choosing && <SpotlightPick payload={action.payload as Record<string, any>} picks={spot} onPicks={setSpot} />}
       {isCma && choosing && <CmaPick payload={action.payload as Record<string, any>} ai={cmaAi} onAi={setCmaAi} mode={cmaMode} onMode={setCmaMode} />}
       {isForm && choosing && <FormPick payload={action.payload as Record<string, any>} picks={form} onPicks={setForm} />}
+      {isDiscovery && choosing && <DiscoveryPick payload={action.payload as Record<string, any>} picks={disc} onPicks={setDisc} />}
+      {isInviteSend && choosing && <InviteSendPick payload={action.payload as Record<string, any>} picks={inviteSend} onPicks={setInviteSend} />}
+      {isKit && choosing && <KitPick payload={action.payload as Record<string, any>} picks={kit} onPicks={setKit} />}
       {isBlog && choosing && <BlogPick payload={action.payload as Record<string, any>} picks={blog} onPicks={setBlog} />}
       {isInvite && choosing && <InvitePick payload={action.payload as Record<string, any>} picks={invite} onPicks={setInvite} />}
       {/* a pick the server still needs ("Pick the day on the card first.") */}
@@ -324,11 +351,11 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             onClick={() => act('confirm')}
-            disabled={!!busy}
+            disabled={!!busy || (isInviteSend && !inviteSend.lead_ids.length)}
             className="ohp-ai-press inline-flex min-w-[7rem] flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#8b7355] px-3 py-2 text-sm font-bold text-white shadow-sm shadow-[#8b7355]/30 hover:bg-[#7a6549] disabled:opacity-60"
           >
             {busy === 'confirm' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            {action.confirm_label || 'Confirm'}
+            {isInviteSend ? inviteSendLabel(inviteSend) : (action.confirm_label || 'Confirm')}
           </button>
           <button
             onClick={() => act('cancel')}

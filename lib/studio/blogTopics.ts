@@ -117,6 +117,7 @@ export const ADDABLE_BLOG_BLOCK_TYPES: { type: BlogBlock['type']; label: string;
   { type: 'button', label: 'Button', group: 'Action' },
   { type: 'cta', label: 'Call to Action', group: 'Action' },
   { type: 'contact_form', label: 'Contact Form', group: 'Action' },
+  { type: 'ask_agent', label: 'Ask Me line (call · text · email)', group: 'Action' },
   { type: 'lead_form', label: 'Lead Form (one of your forms)', group: 'Action' },
   { type: 'related_articles', label: 'Related Articles', group: 'Action' },
   { type: 'disclaimer', label: 'Disclaimer', group: 'Action' },

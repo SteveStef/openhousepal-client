@@ -229,6 +229,7 @@ function ShowcaseContent() {
       inactiveAt: backendCollection.inactive_at || null,
       emailMode: backendCollection.email_mode || 'daily',
       emailModeReason: backendCollection.email_mode_reason || null,
+      invite: backendCollection.invite || null,
       cameFrom: backendCollection.came_from || null,
       stillUsing: !!backendCollection.still_using,
     }

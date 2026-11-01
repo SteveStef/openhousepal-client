@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Copy, Check, Mail, Phone, Users, UserCheck, UserPlus, Star, Activity, Pencil } from 'lucide-react'
+import { Copy, Check, Mail, Phone, Users, UserCheck, UserPlus, Star, Activity, Pencil, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
 import { VisitorStar, StarShowcaseAsk, PassActivitySheet, VisitorShowcaseSwitch, VisitorReach } from './VisitorExtras'
 import { useToast } from '@/contexts/ToastContext'
 import LuxeHero, { LuxeStats } from '@/components/ui/LuxeHero'
@@ -407,8 +408,18 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
                                     </span>
                                   </div>
                                   <div className="ml-4">
-                                    <div className="text-sm font-bold text-gray-900 dark:text-white">{visitor.full_name}</div>
-                                    <div className="text-xs text-gray-500 dark:text-gray-400">#{index + 1}</div>
+                                    {/* Their lead page, one tap from the visitor list (owner, 11/01). */}
+                                    {visitor.lead_id ? (
+                                      <Link href={`/leads/${visitor.lead_id}`} data-testid="visitor-lead-link" className="group block">
+                                        <div className="text-sm font-bold text-gray-900 group-hover:text-[#8b7355] dark:text-white dark:group-hover:text-[#C9A24D]">{visitor.full_name}</div>
+                                        <div className="flex items-center gap-0.5 text-xs text-gray-500 dark:text-gray-400">#{index + 1} · <span className="font-bold text-[#8b7355] dark:text-[#C9A24D]">Lead page</span><ChevronRight className="h-3 w-3 text-[#8b7355] dark:text-[#C9A24D]" /></div>
+                                      </Link>
+                                    ) : (
+                                      <>
+                                        <div className="text-sm font-bold text-gray-900 dark:text-white">{visitor.full_name}</div>
+                                        <div className="text-xs text-gray-500 dark:text-gray-400">#{index + 1}</div>
+                                      </>
+                                    )}
                                   </div>
                                   {visitor.lead_id && <div className="ml-2"><VisitorStar size="sm" on={!!visitor.is_favorite} onToggle={() => toggleStar(visitor)} /></div>}
                                 </div>
@@ -496,6 +507,12 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
                               <span className="truncate">{getAgentStatusLabel(visitor.has_agent)} · {new Date(visitor.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
                             </p>
                           </div>
+                          {visitor.lead_id && (
+                            <Link href={`/leads/${visitor.lead_id}`} data-testid="visitor-lead-link" aria-label={`${visitor.full_name}'s lead page`}
+                              className="flex shrink-0 items-center gap-0.5 rounded-full border border-[#C9A24D]/45 px-2.5 py-1.5 text-[11px] font-black text-[#8b7355] active:scale-95 dark:text-[#e8c97a]">
+                              Lead <ChevronRight className="h-3.5 w-3.5" />
+                            </Link>
+                          )}
                           {visitor.lead_id && <VisitorStar on={!!visitor.is_favorite} onToggle={() => toggleStar(visitor)} />}
                         </div>
 

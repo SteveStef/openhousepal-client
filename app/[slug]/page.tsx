@@ -868,7 +868,9 @@ export default function PublicAgentHubPage() {
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:56px_56px] opacity-10" />
         </div>
       )}
-      <section className="relative mx-auto grid w-full max-w-6xl gap-4 px-5 pb-10 pt-3 lg:grid-cols-[360px_1fr] lg:gap-8 lg:px-8 lg:pt-6">
+      {/* Back from Sales (or a blog) in the same visit: the hub glides in from the left instead of
+          popping up (owner, 11/01 - on the website it "just quickly pops up"). */}
+      <section className={`relative mx-auto grid w-full max-w-6xl gap-4 px-5 pb-10 pt-3 lg:grid-cols-[360px_1fr] lg:gap-8 lg:px-8 lg:pt-6 ${returning ? 'hub-page-back' : ''}`}>
         <aside className="h-fit lg:sticky lg:top-6">
           {/* Side-by-side header (Agent Hub -> Layout) - phones AND desktop (it used to be phones only,
               so switching it changed nothing on a computer). */}

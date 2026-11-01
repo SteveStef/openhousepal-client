@@ -1,4 +1,4 @@
-import type { MarketingMoments, SiteSeo, ShowingStatus, ShowcaseInbox, EmailPerson, ClientEmailRow, BrandUsage } from '@/types'
+import type { MarketingMoments, SiteSeo, ShowingStatus, ShowcaseInbox, EmailPerson, ClientEmailRow, BrandUsage, ShowcaseInviteStatus } from '@/types'
 import type { DomainContact, DomainSearch, DomainShop, OneClick, PurchasedDomain } from '@/lib/domainShop'
 import type { HomeSend } from '@/lib/sendHome'
 
@@ -959,6 +959,10 @@ class ApiService {
       this.request<{ success: boolean; added: boolean; property_id: string }>(`/collections/${collectionId}/add-home`, {
         method: 'POST', body: JSON.stringify({ property_id: home.propertyId || null, listing_key: home.listingKey || null }),
       }),
+
+    /** Email the client their Showcase invite now (Send invite / Send invite again). */
+    sendInvite: (collectionId: string) =>
+      this.request<{ invite: ShowcaseInviteStatus }>(`/collections/${collectionId}/send-invite`, { method: 'POST' }),
 
     // The Showcases page header's Tour requests + Activity inboxes.
     getInbox: () => this.request<ShowcaseInbox>('/collections/inbox'),
@@ -2086,7 +2090,8 @@ class ApiService {
 
     getHelperStatus: () => this.request<{ enabled: boolean; voice: boolean }>('/ai/helper/status'),
     // Chats where the helper finished something while they were away (an AI CMA) - the chat button's count (11/01).
-    unread: () => this.request<{ conversations: string[] }>('/ai/unread'),
+    unread: () => this.request<{ conversations: string[]; working?: { key: string; kind: string; id: string; label: string; at: string; stage?: string | null }[] }>('/ai/unread'),
+    progress: () => this.request<{ label: string | null }>('/ai/progress'),
     markRead: (conversationId: string) => this.request<{ conversations: string[] }>(`/ai/unread/${conversationId}/read`, { method: 'POST' }),
 
     // picks: choices tapped on the card (a picker, e.g. Branding swatches) - folded in on the server.

@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowUpRight, BadgeCheck, Check, ChevronLeft, ChevronRight, Contact, Copy, Mail, MessageSquare, Phone } from 'lucide-react'
+import { ArrowUpRight, BadgeCheck, Check, ChevronLeft, ChevronRight, Contact, Copy, Mail, MapPin, MessageSquare, Phone } from 'lucide-react'
 import { LUXE_METALS, type LuxeMetal } from '@/lib/luxeMetals'
 import { salesWords } from '@/lib/salesWording'
 
@@ -108,7 +108,6 @@ export default function SignatureWebCard({ input, onForm, formPaths, followPage 
     identity.email ? { key: 'email', icon: Mail, label: 'Email', href: `mailto:${identity.email}` } : null,
     identity.vcardUrl ? { key: 'save', icon: Contact, label: 'Save', href: identity.vcardUrl } : null,
   ].filter(Boolean) as { key: string; icon: any; label: string; href: string }[]
-  const subLine = [identity.title, identity.company, identity.team].filter(Boolean)
   const initials = (identity.name || 'A').split(' ').slice(0, 2).map((p: string) => p[0]?.toUpperCase() || '').join('')
   const isForm = (url: string) => { try { return formPaths.includes(new URL(url, window.location.href).pathname.replace(/\/$/, '')) } catch { return false } }
   const hasSide = slides.length > 0 || (!!stats && !statsStrip)
@@ -124,6 +123,42 @@ export default function SignatureWebCard({ input, onForm, formPaths, followPage 
     return () => ro.disconnect()
   }, [])
 
+  // Long names (owner, 11/01): the name shrinks until it fits on one line. Only a name too long even
+  // at the smallest size goes to two lines - and then the photo grows to the height of the words
+  // beside it, so the photo's top and bottom line up with the text like the Agent Hub's header.
+  const rowRef = useRef<HTMLDivElement>(null)
+  const colRef = useRef<HTMLDivElement>(null)
+  const probeRef = useRef<HTMLSpanElement>(null)
+  const lastProbeRef = useRef<HTMLSpanElement>(null)
+  const [nameFit, setNameFit] = useState<{ size: number; wrap: boolean } | null>(null)
+  const [head, setHead] = useState<{ big: boolean; colH: number }>({ big: false, colH: 0 })
+  useEffect(() => {
+    const row = rowRef.current, col = colRef.current, probe = probeRef.current
+    if (!row || !col || !probe || typeof ResizeObserver === 'undefined') return
+    const fit = () => {
+      const big = window.matchMedia('(min-width: 640px)').matches
+      const base = big ? 30 : 24, min = big ? 20 : 17
+      // Room beside the photo at its normal size (so a bigger photo never flips the name back and forth).
+      const room = row.clientWidth - (big ? 108 + 16 : 86 + 14) - (identity.showVerifiedBadge ? 28 : 2)
+      const per = probe.offsetWidth / 100
+      // The last word rides with the check mark and never breaks - it must fit the column by itself.
+      const lastFit = lastProbeRef.current?.offsetWidth ? Math.floor(((col.clientWidth - (identity.showVerifiedBadge ? 30 : 4)) / (lastProbeRef.current.offsetWidth / 100)) * 2) / 2 : 99
+      const size = per ? Math.min(base, Math.floor((room / per) * 2) / 2) : base
+      // Too long for one line: two lines, sized so it never needs a third.
+      setNameFit(size >= min ? { size, wrap: false } : { size: Math.max(15, Math.min(big ? 24 : 20, Math.floor((room * 1.8 / per) * 2) / 2)), wrap: true })
+      if (lastFit < 99) setNameFit(f => f && f.wrap && f.size > lastFit ? { ...f, size: Math.max(13, lastFit) } : f)
+      setHead({ big, colH: col.offsetHeight })
+    }
+    fit()
+    document.fonts?.ready.then(fit).catch(() => {})
+    const ro = new ResizeObserver(fit)
+    ro.observe(row); ro.observe(col)
+    return () => ro.disconnect()
+  }, [identity.name, identity.showVerifiedBadge, fontFamily])
+  const photoMinH = head.big ? 124 : 96
+  const photoH = head.colH ? Math.min(Math.max(photoMinH, head.colH), Math.round(photoMinH * 1.5)) : 0
+  const photoW = photoH ? Math.round(photoH * (head.big ? 108 / 124 : 86 / 96)) : 0
+
   return (
     <div ref={rootRef} className="overflow-hidden rounded-[28px] shadow-[0_30px_70px_-42px_rgba(0,0,0,0.55)]"
       style={{ background: bg, border: `1px solid ${line}`, color: ink }}>
@@ -131,30 +166,50 @@ export default function SignatureWebCard({ input, onForm, formPaths, followPage 
       <div className={`grid gap-0 ${hasSide && wide ? 'grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]' : ''}`}>
         {/* ---- who they are + every way to reach them */}
         <div className="p-5 sm:p-7">
-          <div className="flex items-center gap-4">
-            <div className="relative shrink-0">
+          {/* The Agent Hub's side header (owner, 11/01: "the agent hub does a better job of it"):
+              the portrait photo in a thin frame on the left; brokerage, name, title and the area
+              they serve beside it. */}
+          <div ref={rowRef} className="relative flex items-center gap-3.5 sm:gap-4">
+            {/* measures the name's natural width at 100px */}
+            <span ref={probeRef} aria-hidden className="pointer-events-none invisible absolute left-0 top-0 whitespace-nowrap font-black tracking-[-0.01em]" style={{ fontFamily, fontSize: 100 }}>{identity.name}</span>
+            <span ref={lastProbeRef} aria-hidden className="pointer-events-none invisible absolute left-0 top-0 whitespace-nowrap font-black tracking-[-0.01em]" style={{ fontFamily, fontSize: 100 }}>{String(identity.name || '').trim().split(/\s+/).pop()?.split('-').filter(Boolean).pop()}</span>
+            <div className="relative h-[96px] w-[86px] shrink-0 overflow-hidden rounded-[18px] p-[3px] shadow-sm sm:h-[124px] sm:w-[108px]"
+              style={{ border: `2px solid ${accent}`, background: dark ? '#0B0B0B' : '#FFFFFF', ...(photoH ? { height: photoH, width: photoW } : {}) }}>
               {identity.headshot ? (
-                <img src={identity.headshot} alt={identity.name} className="h-[84px] w-[84px] rounded-[22px] object-cover sm:h-[104px] sm:w-[104px]"
-                  style={{ objectPosition: identity.headshotPosition ? `${identity.headshotPosition.x}% ${identity.headshotPosition.y}%` : undefined, boxShadow: `0 0 0 3px ${accent}, 0 16px 30px -16px rgba(0,0,0,.6)` }} />
+                <img src={identity.headshot} alt={identity.name} className="h-full w-full rounded-[14px] object-cover"
+                  style={{ objectPosition: identity.headshotPosition ? `${identity.headshotPosition.x}% ${identity.headshotPosition.y}%` : undefined }} />
               ) : (
-                <span className="grid h-[84px] w-[84px] place-items-center rounded-[22px] text-2xl font-black sm:h-[104px] sm:w-[104px]" style={{ background: accent, color: onAccent }}>{initials}</span>
+                <span className="grid h-full w-full place-items-center rounded-[14px] text-2xl font-black" style={{ background: `color-mix(in srgb, ${accent} 18%, transparent)`, color: accent }}>{initials}</span>
               )}
             </div>
-            <div className="min-w-0">
+            <div ref={colRef} className="flex min-w-0 flex-1 flex-col justify-center">
+              {identity.company && (
+                <p className="truncate text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: accent }}>{identity.company}</p>
+              )}
               {identity.name && (
-                <p className="flex items-center gap-1.5 text-[22px] font-black leading-[1.1] tracking-[-0.01em] sm:text-[27px]" style={{ fontFamily }}>
+                <p className="mt-1 flex items-center gap-1.5 text-[24px] font-black leading-[1.04] tracking-[-0.01em] sm:text-[30px]"
+                  style={{ fontFamily, ...(nameFit ? (nameFit.wrap ? { fontSize: nameFit.size, textWrap: 'balance' as any } : { fontSize: nameFit.size, whiteSpace: 'nowrap' }) : {}) }}>
                   {/* The checkmark rides with the last word, so a long name never leaves it alone on
                       its own line (user, 10/27). */}
                   <span className="min-w-0 break-words">{(() => {
                     const words = String(identity.name).trim().split(/\s+/)
-                    const last = words.pop()
-                    return <>{words.length ? `${words.join(' ')} ` : ''}<span className="whitespace-nowrap">{last}{identity.showVerifiedBadge && <BadgeCheck className="ml-1.5 inline-block h-5 w-5 -translate-y-0.5 align-middle text-white" style={{ fill: "#1685e5" }} aria-label="Verified" />}</span></>
+                    let last = words.pop() || ''
+                    // A hyphenated last name may still break at its hyphen ("Montgomery-" / "Whitfield ✓").
+                    const cut = last.lastIndexOf('-') + 1
+                    const lead = cut > 0 && cut < last.length ? last.slice(0, cut) : ''
+                    last = last.slice(lead.length)
+                    return <>{words.length ? `${words.join(' ')} ` : ''}{lead}<span className="whitespace-nowrap">{last}{identity.showVerifiedBadge && <BadgeCheck className="ml-1.5 inline-block h-5 w-5 -translate-y-0.5 align-middle text-white" style={{ fill: "#1685e5" }} aria-label="Verified" />}</span></>
                   })()}</span>
                 </p>
               )}
-              {subLine.length > 0 && (
-                <p className="mt-1 text-[13px] font-semibold leading-snug sm:text-[14px]" style={{ color: muted }}>
-                  {subLine.map((b, i) => <span key={b}>{i > 0 && <span className="mx-1.5 opacity-50">·</span>}{i > 0 ? <b style={{ color: ink }}>{b}</b> : b}</span>)}
+              {(identity.title || identity.team) && (
+                <p className="mt-1.5 text-[10.5px] font-black uppercase tracking-[0.16em]" style={{ color: accent }}>
+                  {[identity.title, identity.team].filter(Boolean).join(' · ')}
+                </p>
+              )}
+              {identity.market && (
+                <p className="mt-1.5 flex items-start gap-1 text-[12.5px] font-semibold leading-snug" style={{ color: muted }}>
+                  <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: accent }} /> <span className="min-w-0">{identity.market}</span>
                 </p>
               )}
             </div>

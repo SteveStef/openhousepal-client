@@ -24,9 +24,7 @@ export default function AssistantHome({ onPrompt }: AssistantHomeProps) {
     <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-8 sm:py-12">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-2">
-          <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-2xl bg-[#faf6ec] ring-1 ring-[#C9A24D]/35 dark:bg-zinc-800">
-            <OhpBot size={38} />
-          </div>
+          <OhpBot size={48} className="flex-shrink-0 drop-shadow" />
           <h1 className="text-xl sm:text-2xl font-black text-[#111827] dark:text-white">Good to see you</h1>
         </div>
         <p className="text-sm text-gray-500 dark:text-zinc-400 mb-6">

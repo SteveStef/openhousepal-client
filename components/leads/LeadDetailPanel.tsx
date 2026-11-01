@@ -27,6 +27,7 @@ import LuxeSelect from '@/components/ui/LuxeSelect'
 import MotionModal from '@/components/ui/MotionModal'
 import { useLeadOhShowcase, LeadOhShowcaseSwitch, LeadOhShowcaseState } from './LeadOpenHouseShowcase'
 import QuickEditShowcase from '@/components/showcases/QuickEditShowcase'
+import { InviteLine, SendInviteButton } from '@/components/showcases/ShowcaseInvite'
 
 // Something in this person's alert settings is switched off (the Alert settings button says so).
 const alertsOff = (a?: { calendar: boolean; in_app: boolean; emails: boolean }) => !!a && (!a.calendar || !a.in_app || !a.emails)
@@ -498,7 +499,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
             showcases={(lead.showcases || []).map(s => ({ id: s.id, name: s.name }))} initialId={editShowcase} onSaved={() => reload()} />
 
           {/* On a phone their Showcase comes before the long history (the side column is last). */}
-          <div className="space-y-4 lg:hidden"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={setEditShowcase} /></div>
+          <div className="space-y-4 lg:hidden"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={setEditShowcase} who={lead} /></div>
 
           {/* ── emails we sent them: opened / clicked, and whether automatic ones are on, weekly or off (and why) */}
           {lead.email && <LeadEmailCard email={lead.email} initial={lead.email_engagement} />}
@@ -551,7 +552,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
 
         {/* ── side: their Showcase, open houses, tags, notes, record */}
         <div className="min-w-0 space-y-4 sm:space-y-5">
-          <div className="hidden space-y-4 lg:block sm:space-y-5"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={setEditShowcase} /></div>
+          <div className="hidden space-y-4 lg:block sm:space-y-5"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={setEditShowcase} who={lead} /></div>
 
           {!!lead.open_houses?.length && (
             <Card>
@@ -803,16 +804,20 @@ function ViewsRow({ items, open, onToggle }: { items: LeadEvent[]; open: boolean
 
 // Their Showcase in one card (owner, 11/01): the open house on/off switch sits on top of the card for
 // the Showcase it controls (or the first one); with no Showcase yet the card is just the switch.
-function ShowcaseCards({ showcases, oh, onCopy, onEdit }: { showcases: LeadShowcase[]; oh: LeadOhShowcaseState; onCopy: (text: string, what: string) => void; onEdit: (id: string) => void }) {
+type Who = { name?: string | null; email?: string | null }
+function ShowcaseCards({ showcases, oh, onCopy, onEdit, who }: { showcases: LeadShowcase[]; oh: LeadOhShowcaseState; onCopy: (text: string, what: string) => void; onEdit: (id: string) => void; who: Who }) {
   if (!showcases.length) {
     if (!oh.show) return null
     return <Card><SectionTitle>Their Showcase</SectionTitle><LeadOhShowcaseSwitch oh={oh} withLink /></Card>
   }
   const withSwitch = (oh.show && (showcases.find(s => s.id === oh.data?.showcase_id) || showcases[0]).id) || null
-  return <>{showcases.map(sc => <ShowcaseCard key={sc.id} sc={sc} onCopy={onCopy} onEdit={() => onEdit(sc.id)} top={sc.id === withSwitch ? <LeadOhShowcaseSwitch oh={oh} /> : null} />)}</>
+  return <>{showcases.map(sc => <ShowcaseCard key={sc.id} sc={sc} who={who} onCopy={onCopy} onEdit={() => onEdit(sc.id)} top={sc.id === withSwitch ? <LeadOhShowcaseSwitch oh={oh} /> : null} />)}</>
 }
 
-function ShowcaseCard({ sc, onCopy, onEdit, top }: { sc: LeadShowcase; onCopy: (text: string, what: string) => void; onEdit?: () => void; top?: React.ReactNode }) {
+function ShowcaseCard({ sc, who, onCopy, onEdit, top }: { sc: LeadShowcase; who: Who; onCopy: (text: string, what: string) => void; onEdit?: () => void; top?: React.ReactNode }) {
+  // Did their invite email reach them (owner, 11/01)? When and whether they opened it are in the
+  // Emails card; here it's sent or not, with Send invite (again).
+  const [invite, setInvite] = useState(sc.invite || null)
   return (
     <Card>
       <SectionTitle>Their Showcase</SectionTitle>
@@ -826,6 +831,7 @@ function ShowcaseCard({ sc, onCopy, onEdit, top }: { sc: LeadShowcase; onCopy: (
       <div className="mt-3 space-y-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
         {sc.new_matches > 0 && <p className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300"><Sparkles className="h-3.5 w-3.5" /> {sc.new_matches} new {sc.new_matches === 1 ? 'match' : 'matches'} since you last looked</p>}
         <p>{sc.last_active_at ? `Last active ${timeAgo(sc.last_active_at).toLowerCase()}` : "Hasn't opened it yet"}</p>
+        <InviteLine invite={invite} />
         <p>{sc.emails_on ? 'Gets Showcase emails' : 'Turned Showcase emails off'}</p>
         {sc.refine_message && <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">Asked for: &ldquo;{sc.refine_message}&rdquo;</p>}
       </div>
@@ -846,6 +852,11 @@ function ShowcaseCard({ sc, onCopy, onEdit, top }: { sc: LeadShowcase; onCopy: (
           </button>
         )}
       </div>
+      {invite?.can_send && (
+        <div className="mt-1.5">
+          <SendInviteButton collectionId={sc.id} invite={invite} name={who.name} email={who.email} homes={sc.home_count} size="full" onSent={setInvite} />
+        </div>
+      )}
     </Card>
   )
 }

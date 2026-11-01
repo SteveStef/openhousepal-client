@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowRight, ClipboardList, Eye, Mail, Users } from 'lucide-react'
+import { ArrowRight, ClipboardList, Eye, Inbox, Mail, Users } from 'lucide-react'
 import { TOOL_CARD_CSS } from '@/components/ui/LuxeSurface'
-import { InboxButton } from '@/components/ui/InboxWindow'
 import { invitesApi, type Invite } from '@/lib/invites'
 
 // The Forms & Invites page's own bits: the big Forms | Invites switch, and the warmer card look the
@@ -19,13 +18,7 @@ export function FormsInvitesSwitch({ view, onChange, formBadge = 0 }: {
   formBadge?: number
 }) {
   // New RSVPs the agent hasn't looked at yet - a red count on the Invites side.
-  const [inviteBadge, setInviteBadge] = useState(0)
-  useEffect(() => {
-    const load = () => invitesApi.list().then(r => { if (r.success) setInviteBadge(r.data.reduce((n, i) => n + (i.counts?.unseen || 0), 0)) })
-    load()
-    window.addEventListener(INVITES_CHANGED, load)
-    return () => window.removeEventListener(INVITES_CHANGED, load)
-  }, [])
+  const inviteBadge = (useInviteList() || []).reduce((n, i) => n + (i.counts?.unseen || 0), 0)
   // The switch answers on the very next frame (owner, 10/31 - it felt late): it moves by itself
   // right away (painted first), and the page swaps its halves straight after that frame.
   const [shown, setShown] = useState(view)
@@ -67,18 +60,30 @@ export function FormsInvitesSwitch({ view, onChange, formBadge = 0 }: {
 // jumped in height - Invites now has its own, the same size: new RSVPs as one-tap chips, and the
 // numbers + an inbox.)
 
-const INVITES_CHANGED = 'ohp:invites-changed'
-export const announceInvitesChanged = () => { try { window.dispatchEvent(new Event(INVITES_CHANGED)) } catch { /* ssr */ } }
+// One shared copy of the invites list for the whole page (owner, 11/01 - Invites "glitched" in: one
+// tap fired seven list loads - the switch badge, the header chips, numbers and inbox each fetched
+// their own, then fetched again when the panel's list landed, and each answer re-drew the header).
+// Now one load at a time feeds them all, and the panel hands over the list it just loaded.
+let sharedList: Invite[] | null = null
+let sharedLoad: ReturnType<typeof invitesApi.list> | null = null
+const listeners = new Set<(l: Invite[]) => void>()
+const publish = (l: Invite[]) => { sharedList = l; listeners.forEach(f => f(l)) }
+/** The last invites list loaded on this page (null before the first). */
+export const peekInvites = () => sharedList
+/** Loads the invites list once for everyone asking at the same moment. */
+export const loadInvites = () => sharedLoad || (sharedLoad = invitesApi.list().then(r => { if (r.success) publish(r.data); return r }).finally(() => { sharedLoad = null }))
+/** Something changed: pass the fresh list if you have it, or it's loaded again. */
+export const announceInvitesChanged = (list?: Invite[]) => { if (list) publish(list); else void loadInvites() }
 
 function useInviteList() {
-  const [list, setList] = useState<Invite[] | null>(null)
+  const [list, setList] = useState<Invite[] | null>(sharedList)
   useEffect(() => {
-    let live = true
-    const load = () => invitesApi.list().then(r => { if (live && r.success) setList(r.data) })
-    load()
-    window.addEventListener(INVITES_CHANGED, load)
-    window.addEventListener('focus', load)
-    return () => { live = false; window.removeEventListener(INVITES_CHANGED, load); window.removeEventListener('focus', load) }
+    listeners.add(setList)
+    if (sharedList) setList(sharedList)
+    void loadInvites()
+    const onFocus = () => { void loadInvites() }
+    window.addEventListener('focus', onFocus)
+    return () => { listeners.delete(setList); window.removeEventListener('focus', onFocus) }
   }, [])
   return list
 }
@@ -123,12 +128,9 @@ export function InvitesNewChips() {
 
 export function InvitesHeaderStats() {
   const list = useInviteList()
-  const open = useOpenInvite()
   const live = (list || []).filter(i => i.status === 'live' && !i.is_past).length
   const coming = (list || []).reduce((n, i) => n + (i.counts.guests_yes || 0), 0)
   const views = (list || []).reduce((n, i) => n + (i.view_count || 0), 0)
-  const unseen = (list || []).reduce((n, i) => n + (i.counts.unseen || 0), 0)
-  const firstNew = (list || []).find(i => i.counts.unseen > 0)
   const tile = (icon: React.ReactNode, label: string, short: string, value: number) => (
     <div className="block w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-left shadow-sm dark:border-gray-800 dark:bg-[#151517] lg:px-4 lg:py-3.5">
       <div className="flex items-center gap-1.5">
@@ -138,16 +140,39 @@ export function InvitesHeaderStats() {
       <p className="mt-1 min-w-0 truncate text-xl font-black leading-none text-[#111827] dark:text-white lg:mt-2 lg:text-2xl">{list ? value : '-'}</p>
     </div>
   )
+  // The RSVPs inbox lives up in the header's top-right corner now (InvitesInboxPill), like Forms'.
   return (
-    <div className="flex w-full items-stretch gap-2" data-testid="invites-header-stats">
-      <div className="grid flex-1 grid-cols-3 gap-2 sm:min-w-[340px] lg:min-w-[400px]">
-        {tile(<Mail />, 'Live invites', 'Live', live)}
-        {tile(<Users />, 'Guests coming', 'Going', coming)}
-        {tile(<Eye />, 'Times opened', 'Views', views)}
-      </div>
-      <InboxButton label="RSVPs" count={unseen} onClick={() => { if (firstNew) open(firstNew.id) }} title="New RSVPs you haven't looked at yet" />
+    <div className="grid w-full grid-cols-3 gap-2 sm:min-w-[340px] lg:min-w-[400px] max-sm:[&>*]:min-h-[72px]" data-testid="invites-header-stats">
+      {tile(<Mail />, 'Live invites', 'Live', live)}
+      {tile(<Users />, 'Guests coming', 'Going', coming)}
+      {tile(<Eye />, 'Times opened', 'Views', views)}
     </div>
   )
+}
+
+/** The header's inbox (owner, 11/01): one slim pill in the top-right corner - the inbox symbol and
+ *  its word on one line, with the count inside it - instead of a tall tile squeezing the numbers. */
+export function HeaderInboxPill({ label, count, onClick, title }: { label: string; count: number; onClick: () => void; title?: string }) {
+  const on = count > 0
+  return (
+    <button type="button" onClick={onClick} title={title} data-testid="header-inbox"
+      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border py-1 pl-2.5 pr-1 text-[11px] font-black leading-none shadow-sm transition hover:-translate-y-px ${on
+        ? 'border-[#C9A24D]/50 bg-[#fffaf0] text-[#8b7355] hover:border-[#C9A24D] dark:bg-[#C9A24D]/10 dark:text-[#e8c97a]'
+        : 'border-gray-200 bg-white/80 text-gray-500 hover:border-[#C9A24D]/50 hover:text-[#111827] dark:border-white/10 dark:bg-white/[0.06] dark:text-gray-300 dark:hover:text-white'}`}>
+      <Inbox className="h-3.5 w-3.5 shrink-0" />
+      {label}
+      <span className={`min-w-[20px] rounded-full px-1.5 py-[3px] text-center text-[10px] tabular-nums ${on ? 'bg-[#C9A24D] text-white dark:text-[#111827]' : 'bg-gray-100 text-gray-400 dark:bg-white/10 dark:text-white/45'}`}>{count > 99 ? '99+' : count}</span>
+    </button>
+  )
+}
+
+/** Invites' inbox pill - new RSVPs; a tap opens the first invite that has one. */
+export function InvitesInboxPill() {
+  const list = useInviteList()
+  const open = useOpenInvite()
+  const unseen = (list || []).reduce((n, i) => n + (i.counts.unseen || 0), 0)
+  const firstNew = (list || []).find(i => i.counts.unseen > 0)
+  return <HeaderInboxPill label="RSVPs" count={unseen} onClick={() => { if (firstNew) open(firstNew.id) }} title="New RSVPs you haven't looked at yet" />
 }
 
 /** The form cards' surface (was a plain white card - "too serious" next to the Tools cards). */

@@ -54,6 +54,7 @@ async function createDesign(p: Record<string, any>, user: User | null): Promise<
   const messaging = p.headline ? { id: 'custom', headline: String(p.headline) } : situation.messagingVariants?.[0]
   const blocks = template.buildBlocks(situation.propertyAttached ? property : null, messaging, {
     heroPhoto: situation.propertyAttached ? (p.photo ? String(p.photo) : null) : undefined,
+    heroFocal: situation.propertyAttached && p.focal && typeof p.focal.x === 'number' ? { x: Number(p.focal.x), y: Number(p.focal.y) } : null,
     openHouseDate: longDate(p.open_house_date),
     openHouseTime: p.start_time && p.end_time ? `${timeOfDay(p.start_time)} – ${timeOfDay(p.end_time)}` : timeOfDay(p.start_time),
     qrTarget: situation.propertyAttached ? undefined : 'agent_hub',
@@ -83,9 +84,28 @@ async function createDesign(p: Record<string, any>, user: User | null): Promise<
   }
 }
 
+// An Open House Kit (11/01): the card's choices go to the Opens page's own kit maker, which runs its
+// steps with them and stops on Review & Save. Already on Opens: it starts there (no reload); anywhere
+// else the chat moves the page there (and steps aside).
+function buildKit(p: Record<string, any>): ClientResult {
+  const home = ((p.homes || []) as any[]).find(h => h.listing_key === p.listing_key)
+  if (!home) return { ok: false, message: "I couldn't find that home - nothing was made." }
+  const auto = { listing_key: home.listing_key, lat: home.lat ?? null, lng: home.lng ?? null, cover: p.cover || null,
+    similar: p.similar !== false, cheatSheet: p.cheatSheet !== false, autoShowcase: p.autoShowcase !== false, guestPass: p.guestPass !== false,
+    followupsMode: ['on', 'no_calendar', 'off'].includes(p.followupsMode) ? p.followupsMode : 'on' }
+  const address = home.address || [home.street, home.city].filter(Boolean).join(', ')
+  if (window.location.pathname === '/open-houses') {
+    window.dispatchEvent(new CustomEvent('ohp:chat-kit', { detail: { address, auto } }))
+  } else {
+    window.dispatchEvent(new CustomEvent('ohp:navigate', { detail: `/open-houses?kit=${encodeURIComponent(address)}&chatkit=${encodeURIComponent(JSON.stringify(auto))}` }))
+  }
+  return { ok: true, message: `Building the kit for ${home.street || address} on your Opens page - look it over and tap Save.`, link: '/open-houses' }
+}
+
 export async function runClientAction(kind: string, payload: Record<string, unknown>, user: User | null): Promise<ClientResult> {
   try {
     if (kind === 'create_design') return await createDesign(payload as Record<string, any>, user)
+    if (kind === 'build_open_house_kit') return buildKit(payload as Record<string, any>)
     return { ok: false, message: "This chat can't make that yet." }
   } catch {
     return { ok: false, message: 'Something went wrong - nothing was made.' }

@@ -17,6 +17,7 @@ import BlogPhoto from './BlogPhoto'
 import { IMG, sizedImage } from '@/lib/siteImage'
 import { PropertyShowcase, VideoShowcase } from './ShowcaseBlocks'
 import ClosingCta from './ClosingCta'
+import AskAgentLine from './AskAgentLine'
 
 // New blocks store rich text as sanitized HTML (data.html); older blocks only have plain data.text.
 function richHtml(data: { html?: string; text?: string }): string {
@@ -62,6 +63,10 @@ export interface BlogArticleAgentInfo {
   brokerage?: string | null
   photoUrl?: string | null
   title?: string | null
+  /** For the small "Ask [agent] about ..." lines - the same contact the site footer shows. */
+  phone?: string | null
+  textPhone?: string | null
+  email?: string | null
 }
 
 function youtubeId(url: string): string | null {
@@ -309,6 +314,11 @@ function Block({ block, agent, accentColor, onEvent, onLead, related, relatedHre
     }
     case 'property_card':
       return <PropertyCardDisplay property={data.property} size={data.displaySize === 'large' ? 'large' : 'compact'} onEvent={onEvent} />
+    case 'ask_agent':
+      // The small "Ask [agent] about ..." line under a sentence that sends the reader to the agent.
+      return <AskAgentLine topic={data.topic} agent={agent} accentColor={accentColor}
+        onContact={via => onEvent?.('contact_click', { via, source: 'ask_agent', topic: data.topic || null })}
+        onMessage={() => { onEvent?.('contact_click', { via: 'message', source: 'ask_agent', topic: data.topic || null }); openContact(data.topic ? `Ask about ${data.topic}` : undefined) }} />
     case 'agent_profile': {
       const small = (
         <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517]">

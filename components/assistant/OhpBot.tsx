@@ -1,38 +1,39 @@
 'use client'
 
+import { useId } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { resolveMediaUrl } from '@/lib/api-service'
 
-// The helper's face (owner, 11/01: "OpenHousePal logo with eyes, like a little robot - something
-// cute"): the logo's house - navy walls, gold roof - with a screen face, two eyes that blink now and
-// then, and a gold antenna light. `thinking` = eyes glance side to side while a reply is coming.
-export function OhpBot({ size = 32, thinking = false, className = '' }: { size?: number; thinking?: boolean; className?: string }) {
+// The helper's face (owner, 11/01, third pass: "needs to be much better"): "Chat Pal" - a speech bubble
+// with a little roof, big shiny eyes that blink now and then, rosy cheeks, a smile and an AI sparkle, on
+// the OpenHousePal gold coin (no black). `coin={false}` when the chat button is the coin itself;
+// `thinking` = the eyes glance side to side while a reply is coming. Gradient ids are per instance.
+export function OhpBot({ size = 32, thinking = false, coin = true, className = '' }: { size?: number; thinking?: boolean; coin?: boolean; className?: string }) {
+  const id = useId().replace(/[^a-zA-Z0-9]/g, '')
   return (
-    <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden className={`ohp-bot ${thinking ? 'ohp-bot-thinking' : ''} ${className}`}>
+    <svg viewBox="0 0 64 64" width={size} height={size} aria-hidden className={`ohp-bot ${thinking ? 'ohp-bot-thinking' : ''} ${className}`}>
       <defs>
-        <linearGradient id="ohpBotRoof" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#e8c97a" /><stop offset="1" stopColor="#a8803a" /></linearGradient>
-        <linearGradient id="ohpBotBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1f2937" /><stop offset="1" stopColor="#0b1220" /></linearGradient>
+        <radialGradient id={`c${id}`} cx=".35" cy=".3" r=".8"><stop offset="0" stopColor="#f6e2a8" /><stop offset=".55" stopColor="#d6ae55" /><stop offset="1" stopColor="#a8803a" /></radialGradient>
+        <linearGradient id={`b${id}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffffff" /><stop offset="1" stopColor="#f4ead3" /></linearGradient>
+        <linearGradient id={`r${id}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#4a3a24" /><stop offset="1" stopColor="#2e2416" /></linearGradient>
       </defs>
-      {/* antenna */}
-      <line x1="20" y1="5.5" x2="20" y2="2.6" stroke="#C9A24D" strokeWidth="1.4" strokeLinecap="round" />
-      <circle className="ohp-bot-light" cx="20" cy="2.4" r="1.7" fill="#e8c97a" />
-      {/* roof */}
-      <path d="M20 5.5 L36.5 18.2 a1.6 1.6 0 0 1 -1 2.9 H4.5 a1.6 1.6 0 0 1 -1 -2.9 Z" fill="url(#ohpBotRoof)" />
-      {/* walls */}
-      <rect x="7.5" y="17.5" width="25" height="19" rx="4.5" fill="url(#ohpBotBody)" />
-      {/* face screen */}
-      <rect x="10.5" y="20.5" width="19" height="11.5" rx="4" fill="#f8f4ea" />
-      {/* eyes */}
+      {coin && <circle cx="32" cy="32" r="32" fill={`url(#c${id})`} />}
+      {/* the bubble */}
+      <path d="M12.5 30.5 Q12.5 21 22 21 H42 Q51.5 21 51.5 30.5 V39 Q51.5 48.5 42 48.5 H29 L21.5 54.5 Q20 55.6 20.2 53.7 L20.8 48.4 Q12.5 47.5 12.5 39 Z" fill={`url(#b${id})`} />
+      {/* its roof */}
+      <path d="M17.5 22.6 L30.4 12.9 Q32 11.7 33.6 12.9 L46.5 22.6" stroke={`url(#r${id})`} strokeWidth="4.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      {/* face */}
       <g className="ohp-bot-eyes">
-        <ellipse className="ohp-bot-eye" cx="16" cy="25.6" rx="1.9" ry="2.3" fill="#111827" />
-        <ellipse className="ohp-bot-eye" cx="24" cy="25.6" rx="1.9" ry="2.3" fill="#111827" />
-        <circle cx="16.6" cy="24.8" r=".6" fill="#fff" />
-        <circle cx="24.6" cy="24.8" r=".6" fill="#fff" />
+        <ellipse className="ohp-bot-eye" cx="25.6" cy="33.2" rx="3.6" ry="4.2" fill="#2b2418" />
+        <ellipse className="ohp-bot-eye" cx="38.4" cy="33.2" rx="3.6" ry="4.2" fill="#2b2418" />
+        <circle cx="26.8" cy="31.7" r="1.25" fill="#fff" />
+        <circle cx="39.6" cy="31.7" r="1.25" fill="#fff" />
       </g>
-      {/* cheeks + smile */}
-      <circle cx="12.9" cy="29.2" r="1.1" fill="#e8b4a0" opacity=".75" />
-      <circle cx="27.1" cy="29.2" r="1.1" fill="#e8b4a0" opacity=".75" />
-      <path d="M18.4 29.1 q1.6 1.4 3.2 0" stroke="#111827" strokeWidth="1" fill="none" strokeLinecap="round" />
+      <ellipse cx="20.4" cy="39.6" rx="2.4" ry="1.5" fill="#f2a98d" opacity=".75" />
+      <ellipse cx="43.6" cy="39.6" rx="2.4" ry="1.5" fill="#f2a98d" opacity=".75" />
+      <path d="M28.4 40 Q32 43.6 35.6 40" stroke="#2b2418" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      {/* the AI sparkle */}
+      <path className="ohp-bot-light" d="M45.2 15.8 l1.1 2.4 2.4 1.1 -2.4 1.1 -1.1 2.4 -1.1 -2.4 -2.4 -1.1 2.4 -1.1 Z" fill="#fffaf0" />
     </svg>
   )
 }

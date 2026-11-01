@@ -1,11 +1,13 @@
 'use client'
 
+import HomeCards from './HomeCards'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { OhpBot, UserAvatar } from './OhpBot'
 import { ExternalLink, Volume2, Pause, Loader2, AlertCircle, ArrowRight } from 'lucide-react'
 import { AIMessage, AIToolCallRef } from '@/types'
 import AssistantMarkdown from './markdown'
+import api from '@/lib/api-service'
 import ActionCard from './ActionCard'
 import { useSpeech } from './useSpeech'
 import { RECORD_LINKS, RECORD_LABELS } from './recordLinks'
@@ -14,23 +16,36 @@ const SHOW_RECORD_CHIPS = false
 
 type Speech = ReturnType<typeof useSpeech>
 
-// "Thinking" while the helper works - three gold dots in a wave and a shimmering word that
-// moves on if it takes a few seconds (looking things up / setting something up).
+// While the helper works: three gold dots in a wave, what it's REALLY doing right now ("Searching your
+// open house guests" - from the server, GET /ai/progress) and the seconds going by, so a longer search
+// visibly isn't stuck (owner, 11/01: "it should show that it's loading here and actually working").
 const THINKING_WORDS = ['Thinking', 'Looking into it', 'Putting it together', 'Almost there']
+
 function Thinking() {
   const [n, setN] = useState(0)
+  const [secs, setSecs] = useState(0)
+  const [label, setLabel] = useState<string | null>(null)
   useEffect(() => {
-    const id = window.setInterval(() => setN((x) => Math.min(x + 1, THINKING_WORDS.length - 1)), 2600)
-    return () => window.clearInterval(id)
+    const words = window.setInterval(() => setN((x) => Math.min(x + 1, THINKING_WORDS.length - 1)), 2600)
+    const clock = window.setInterval(() => setSecs((x) => x + 1), 1000)
+    let live = true
+    const poll = () => api.ai.progress().then((r) => { if (live && r.success && r.data?.label) setLabel(r.data.label) })
+    const t = window.setInterval(poll, 1200)
+    return () => { live = false; window.clearInterval(words); window.clearInterval(clock); window.clearInterval(t) }
   }, [])
+  const words = label || THINKING_WORDS[n]
   return (
-    <div className="flex items-center gap-2.5">
-      <div className="flex items-center gap-1" aria-hidden>
-        {[0, 1, 2].map((i) => (
-          <span key={i} className="ohp-ai-dot h-1.5 w-1.5 rounded-full bg-[#C9A24D]" style={{ animationDelay: `${i * 0.14}s` }} />
-        ))}
+    <div className="min-w-[11rem]" data-testid="ai-thinking">
+      <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1" aria-hidden>
+          {[0, 1, 2].map((i) => (
+            <span key={i} className="ohp-ai-dot h-1.5 w-1.5 rounded-full bg-[#C9A24D]" style={{ animationDelay: `${i * 0.14}s` }} />
+          ))}
+        </div>
+        <span key={words} className="ohp-ai-fade ohp-ai-shimmer min-w-0 flex-1 text-[13px] font-semibold" data-testid="ai-thinking-label">{words}...</span>
+        {secs >= 3 && <span className="shrink-0 text-[10.5px] font-bold tabular-nums text-gray-400">{secs}s</span>}
       </div>
-      <span key={n} className="ohp-ai-fade ohp-ai-shimmer text-[13px] font-semibold">{THINKING_WORDS[n]}...</span>
+      {secs >= 3 && <div className="mt-2 h-1 overflow-hidden rounded-full bg-[#C9A24D]/15"><div className="ohp-work-bar h-full w-1/3 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a]" /></div>}
     </div>
   )
 }
@@ -100,7 +115,7 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
     <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain px-3 sm:px-6 py-4 sm:py-6 space-y-5">
       {messages.map((msg, idx) => {
         const isUser = msg.role === 'user'
-        const extras = ['action', 'choices', 'link', 'made']
+        const extras = ['action', 'choices', 'link', 'made', 'homes']
         const refs = msg.tool_calls ? dedupeRefs(msg.tool_calls.filter((r) => !extras.includes(r.record_type))) : []
         const actions = (msg.tool_calls || []).filter((r) => r.record_type === 'action')
         const goLinks = (msg.tool_calls || []).filter((r) => r.record_type === 'link' && r.href)
@@ -112,9 +127,7 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
             <div className={`flex items-start gap-2.5 max-w-[85%] sm:max-w-[75%] ${isUser ? 'flex-row-reverse' : ''}`}>
               {/* Their own photo (or initials); the helper is the little OpenHousePal robot (owner, 11/01) */}
               {isUser ? <UserAvatar size={32} /> : (
-                <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-full bg-[#faf6ec] ring-1 ring-[#C9A24D]/30 dark:bg-zinc-800 dark:ring-[#C9A24D]/25">
-                  <OhpBot size={26} />
-                </span>
+                <OhpBot size={32} className="flex-shrink-0 drop-shadow-sm" />
               )}
               <div className="min-w-0">
                 <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed break-words ${
@@ -124,6 +137,9 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
                 }`}>
                   {isUser ? msg.content : <AssistantMarkdown content={msg.content} />}
                 </div>
+                {(msg.tool_calls || []).filter((r) => r.record_type === 'homes' && (r as any).homes?.length).map((r) => (
+                  <HomeCards key={r.record_id} homes={(r as any).homes} title={(r as any).title} />
+                ))}
                 {actions.map((a) => <ActionCard key={a.record_id} messageId={msg.id} action={a} />)}
                 {goLinks.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -201,9 +217,7 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
       {isSending && (
         <div className="ohp-ai-msg-bot flex justify-start">
           <div className="flex items-start gap-2.5 max-w-[75%]">
-            <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-full bg-[#faf6ec] ring-1 ring-[#C9A24D]/30 dark:bg-zinc-800 dark:ring-[#C9A24D]/25">
-              <OhpBot size={26} thinking />
-            </span>
+            <OhpBot size={32} thinking className="flex-shrink-0 drop-shadow-sm" />
             <div className="rounded-2xl px-4 py-3 bg-gray-50 dark:bg-zinc-800/70 border border-gray-100 dark:border-zinc-800">
               <Thinking />
             </div>

@@ -920,7 +920,7 @@ async function BlogDetail({ siteId, slug, theme, basePrefix, path }: { siteId: s
             hubSlug={hubSlug}
             blogSlug={post.slug}
             blocks={post.blocks}
-            agent={{ name: post.agent_name, brokerage: post.agent_brokerage, photoUrl: post.agent_photo_url, title: post.agent_title }}
+            agent={{ name: post.agent_name, brokerage: post.agent_brokerage, photoUrl: post.agent_photo_url, title: post.agent_title, phone: post.agent_phone, textPhone: post.agent_text_phone, email: post.agent_email }}
             accentColor={gold}
             mode={theme.mode === 'dark' ? 'dark' : 'light'}
             luxe={theme.template !== 'default'}

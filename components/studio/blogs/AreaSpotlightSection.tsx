@@ -26,8 +26,14 @@ export type AreaCard = {
 const money = (n?: number | null) => (n ? (n >= 1_000_000 ? `$${(Math.round(n / 100_000) / 10).toString()}M` : `$${Math.round(n / 1000)}K`) : null)
 
 export default function AreaSpotlightSection({ area, accent = '#C9A24D' }: { area: AreaCard; accent?: string }) {
-  const photos = (area.photos?.length ? area.photos : area.photo ? [{ url: area.photo }] : []).map(p => ({ ...p, url: resolveMediaUrl(p.url) }))
-  const [i, setI] = useState(0)
+  // A photo that fails (11/01: a stored Google Places photo for Princeton had expired) leaves the
+  // rotation instead of leaving a dark, empty card.
+  const [failed, setFailed] = useState<string[]>([])
+  const photos = (area.photos?.length ? area.photos : area.photo ? [{ url: area.photo }] : []).map(p => ({ ...p, url: resolveMediaUrl(p.url) })).filter(p => !failed.includes(p.url))
+  const [pick, setI] = useState(0)
+  const i = photos.length ? pick % photos.length : 0
+  // Some cards carry "Mercer County" already - never "Mercer County County".
+  const county = area.county ? (/\b(county|city)$/i.test(area.county.trim()) ? area.county.trim() : `${area.county.trim()} County`) : null
   const n = area.nearby || {}
   const schools = (area.school_districts || []).map(d => (typeof d === 'string' ? d : d?.name || '')).filter(Boolean)
   const stats = [
@@ -54,7 +60,10 @@ export default function AreaSpotlightSection({ area, accent = '#C9A24D' }: { are
       <div className="relative aspect-[16/8] overflow-hidden bg-[#111827]">
         <AnimatePresence initial={false}>
           {photos.length > 0 && (
-            <motion.img key={photos[i]?.url} src={sizedImage(photos[i]?.url, 1080)} srcSet={sizedSrcSet(photos[i]?.url, [...IMG.half]) || undefined} sizes="(min-width: 900px) 900px, 100vw" loading="lazy" decoding="async" alt={`${area.name}, ${area.state}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.9 }} className="spot-ken absolute inset-0 h-full w-full object-cover" />
+            <motion.img key={photos[i]?.url} src={sizedImage(photos[i]?.url, 1080)} srcSet={sizedSrcSet(photos[i]?.url, [...IMG.half]) || undefined} sizes="(min-width: 900px) 900px, 100vw" loading="lazy" decoding="async" alt={`${area.name}, ${area.state}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.9 }} onError={() => { const u = photos[i]?.url; if (u) setFailed(f => [...f, u]) }}
+              // An error before hydration never reaches onError - catch it on mount.
+              ref={(el: HTMLImageElement | null) => { const u = photos[i]?.url; if (el && u && el.complete && el.naturalWidth === 0 && el.getAttribute('src')) setTimeout(() => setFailed(f => (f.includes(u) ? f : [...f, u])), 0) }}
+              className="spot-ken absolute inset-0 h-full w-full object-cover" />
           )}
         </AnimatePresence>
         <div className="absolute inset-0 bg-[radial-gradient(90%_100%_at_100%_0%,rgba(201,162,77,.32),transparent_55%),linear-gradient(180deg,rgba(11,15,14,.15)_0%,rgba(11,15,14,.35)_45%,rgba(11,15,14,.92)_100%)]" />
@@ -62,7 +71,7 @@ export default function AreaSpotlightSection({ area, accent = '#C9A24D' }: { are
         <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
           <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.34em]" style={{ color: '#e8c97a' }}><span className="h-px w-8 bg-[#e8c97a]" /> Town spotlight</p>
           <p className="mt-2 font-serif text-4xl font-black leading-none text-white sm:text-5xl">{area.name}<span className="font-light italic text-[#e8c97a]">{area.state ? `, ${area.state}` : ''}</span></p>
-          {area.county && <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-white/70"><MapPin className="h-3.5 w-3.5" /> {area.county} County</p>}
+          {county && <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-white/70"><MapPin className="h-3.5 w-3.5" /> {county}</p>}
         </div>
         {photos.length > 1 && (
           <div className="absolute bottom-4 right-5 flex gap-1.5">

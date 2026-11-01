@@ -836,6 +836,8 @@ export interface Collection {
   /** The client's automatic emails: daily, weekly (not opening them) or off - and why. */
   emailMode?: 'daily' | 'weekly' | 'off';
   emailModeReason?: string | null;
+  /** Did they ever get their invite email (owner, 11/01) - the card's Send invite / Email button. */
+  invite?: ShowcaseInviteStatus | null;
   /** Where the client came from - the open house they attended (asleep cards show it), or how the
    *  Showcase was made ('manual' | 'form' | ...). */
   cameFrom?: { kind: string; address?: string | null; city?: string | null; state?: string | null; price?: number | null; image?: string | null; date?: string | null } | null;
@@ -2048,7 +2050,7 @@ export type BlogStatus = 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'UNPUBLISHED' | '
 export type BlogBlockType =
   | 'heading' | 'subheading' | 'paragraph' | 'quote' | 'bulleted_list' | 'numbered_list'
   | 'divider' | 'callout' | 'button' | 'image' | 'gallery' | 'video' | 'youtube' | 'map'
-  | 'property_card' | 'agent_profile' | 'contact_form' | 'qr_code' | 'cta' | 'related_articles' | 'disclaimer' | 'lead_form' | 'area_spotlight' | 'property_showcase' | 'video_showcase' | 'payment_example' | 'sources';
+  | 'property_card' | 'agent_profile' | 'contact_form' | 'qr_code' | 'cta' | 'related_articles' | 'disclaimer' | 'lead_form' | 'area_spotlight' | 'property_showcase' | 'video_showcase' | 'payment_example' | 'sources' | 'ask_agent';
 
 export interface BlogBlock {
   id: string;
@@ -2127,6 +2129,10 @@ export interface BlogAiReview {
   improvements?: string[]
   seo?: { search_intent?: string; primary_keyword?: string; secondary_keywords?: string[] }
   numbers_to_verify?: string[]
+  /** Laws, programs and deadlines the article names (never their terms) - the agent checks each. */
+  rules_to_check?: { name: string; source?: string | null }[]
+  /** The article's states, when none is a state the agent works in. */
+  out_of_area?: string[]
 }
 
 export interface BlogListItem {
@@ -2207,6 +2213,10 @@ export interface PublicBlogDetail {
   agentId?: string | null;
   agentTitle?: string | null;
   agentMarket?: string | null;
+  /** The article's small "Ask [agent] about ..." lines. */
+  agentPhone?: string | null;
+  agentTextPhone?: string | null;
+  agentEmail?: string | null;
 }
 
 export type LeadStatus = 'new' | 'contacted' | 'in_talks' | 'signed' | 'hidden' | 'qualified' | 'converted' | 'archived';
@@ -2258,6 +2268,17 @@ export interface LeadShowcase {
   last_active_at?: string | null;
   emails_on: boolean;
   refine_message?: string | null;
+  invite?: ShowcaseInviteStatus | null;
+}
+
+/** Whether a Showcase's invite email reached the client (backend services/showcase_invite_status).
+ *  held = the email settings held it back; blocked = why it can't be sent at all. */
+export interface ShowcaseInviteStatus {
+  state: 'sent' | 'sending' | 'held' | 'failed' | 'never';
+  at?: string | null;
+  why?: string | null;
+  can_send: boolean;
+  blocked?: string | null;
 }
 
 export interface LeadEvent {

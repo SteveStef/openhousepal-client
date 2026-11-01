@@ -551,6 +551,8 @@ export default function OpenHouseDiscovery() {
   const [minBaths, setMinBaths] = useState<number | ''>('')
   const [minSqft, setMinSqft] = useState<number | ''>('')
   const [minPrice, setMinPrice] = useState<number | ''>('')
+  // Max price right next to it (owner, 11/01)
+  const [maxPrice, setMaxPrice] = useState<number | ''>('')
 
   // Sort State
   const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'dom_asc' | 'dom_desc' | 'distance_asc' | 'distance_desc'>('dom_asc')
@@ -628,6 +630,10 @@ export default function OpenHouseDiscovery() {
     if (data.preferences?.min_price !== undefined) {
       const val = data.preferences.min_price;
       setMinPrice(val === null || val === undefined ? '' : val);
+    }
+    if (data.preferences?.max_price !== undefined) {
+      const val = data.preferences.max_price;
+      setMaxPrice(val === null || val === undefined ? '' : val);
     }
   };
 
@@ -857,9 +863,10 @@ export default function OpenHouseDiscovery() {
       if (minBeds && property.Beds < minBeds) return false;
       if (minBaths && property.Baths < minBaths) return false;
       if (minSqft && property.SquareFeet < minSqft) return false;
-      if (minPrice) {
+      if (minPrice || maxPrice) {
         const priceNum = parseInt(property.Price.replace(/[$,]/g, ''));
-        if (priceNum < minPrice) return false;
+        if (minPrice && priceNum < minPrice) return false;
+        if (maxPrice && priceNum > maxPrice) return false;
       }
       if (selectedTeamOwnerIds.length > 0 && !selectedTeamOwnerIds.includes(property.OnPlatformAgentId)) return false;
       return true;
@@ -891,7 +898,7 @@ export default function OpenHouseDiscovery() {
 
   // Closest/Farthest sort only makes sense once an address+radius search is active.
   const hasLandmarkSearch = listings.some((p: any) => p.DistanceFromLandmark != null);
-  const activeFilterCount = (minBeds ? 1 : 0) + (minBaths ? 1 : 0) + (minSqft ? 1 : 0) + (minPrice ? 1 : 0);
+  const activeFilterCount = (minBeds ? 1 : 0) + (minBaths ? 1 : 0) + (minSqft ? 1 : 0) + (minPrice ? 1 : 0) + (maxPrice ? 1 : 0);
 
   // Combined count across every filter category, used on the mobile "Filters & Sort" trigger
   // badge so agents can see at a glance whether anything is narrowing their results.
@@ -919,7 +926,9 @@ export default function OpenHouseDiscovery() {
       min_bathrooms: null,
       min_square_feet: null,
       min_price: null,
+      max_price: null,
     });
+    setMaxPrice('');
   };
 
   const closeMobileFiltersSheet = () => {
@@ -943,7 +952,7 @@ export default function OpenHouseDiscovery() {
   // never lands on a now-empty page.
   useEffect(() => {
     setCurrentPage(1);
-  }, [listings, minBeds, minBaths, minSqft, minPrice, sortBy, resultsPerPage]);
+  }, [listings, minBeds, minBaths, minSqft, minPrice, maxPrice, sortBy, resultsPerPage]);
 
   // Deep link from a notification (e.g. "your request was declined") - see the ?myRequests=1
   // link= values in open_house_manager_service.py.
@@ -1788,7 +1797,7 @@ export default function OpenHouseDiscovery() {
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                              <div>
+                              <div className="col-span-2">
                                 <div className="flex items-center justify-between mb-2">
                                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Min Sqft</label>
                                   {minSqft && (
@@ -1849,6 +1858,38 @@ export default function OpenHouseDiscovery() {
                                   />
                                 </div>
                               </div>
+
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Max Price</label>
+                                  {maxPrice && (
+                                    <button
+                                      onClick={() => {
+                                        setMaxPrice('');
+                                        updateCriteria({ max_price: null });
+                                      }}
+                                      className="text-[9px] font-black text-[#C9A24D] uppercase hover:underline"
+                                    >
+                                      Clear
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="relative">
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="No max"
+                                    data-testid="discovery-max-price"
+                                    className="w-full bg-gray-50 dark:bg-[#0B0B0B] border-none rounded-xl py-2.5 px-3 text-xs max-lg:py-3 max-lg:text-[15px] font-bold placeholder:text-gray-400 focus:ring-1 focus:ring-[#C9A24D]/30 transition-all outline-none"
+                                    value={maxPrice ? maxPrice.toLocaleString() : ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value.replace(/[^0-9]/g, '');
+                                      setMaxPrice(val ? parseInt(val) : '');
+                                    }}
+                                    onBlur={() => updateCriteria({ max_price: maxPrice || null })}
+                                  />
+                                </div>
+                              </div>
                             </div>
 
                             <button 
@@ -1857,11 +1898,13 @@ export default function OpenHouseDiscovery() {
                                 setMinBaths('');
                                 setMinSqft('');
                                 setMinPrice('');
+                                setMaxPrice('');
                                 updateCriteria({
                                   min_bedrooms: null,
                                   min_bathrooms: null,
                                   min_square_feet: null,
-                                  min_price: null
+                                  min_price: null,
+                                  max_price: null
                                 });
                               }}
                               className="w-full py-2.5 rounded-xl border border-dashed border-gray-200 dark:border-gray-800 text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-[#C9A24D] hover:border-[#C9A24D]/50 transition-all"

@@ -1043,7 +1043,7 @@ function BlogEditorPageInner() {
             publishedAt={blog.published_at || new Date().toISOString()}
             agent={{ name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(), title: user?.professional_title, brokerage: user?.brokerage, photoUrl: user?.photo_url }}
           >
-            <BlogArticleBody neighborhoodLinks={linkableAreas?.ready ? (blog.linked_areas || []).map(s => linkableAreas.areas.find(a => a.slug === s)).filter(Boolean).map(a => ({ ...a!, url: a!.url || '#' })) : []} blocks={blog.blocks} signatureHubSlug={signatureOn ? agentHubSlug : null} signatureTowns={((blog.ai_review as any)?.towns || []).map((t: any) => t.town)} signatureMatch={blogSignatureMatch(luxePeek ? 'luxe_plus' : blog.theme, blog.luxe_metal, blog.accent_color)} forms={hubForms} formHref={agentHubSlug ? (slug => `/${agentHubSlug}/${slug}?src=blog`) : undefined} accentColor={blogAccent(luxePeek ? 'luxe_plus' : blog.theme, blog.luxe_metal, blog.accent_color)} agent={{ name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(), brokerage: user?.brokerage, photoUrl: resolveMediaUrl(user?.photo_url), title: user?.professional_title }} />
+            <BlogArticleBody neighborhoodLinks={linkableAreas?.ready ? (blog.linked_areas || []).map(s => linkableAreas.areas.find(a => a.slug === s)).filter(Boolean).map(a => ({ ...a!, url: a!.url || '#' })) : []} blocks={blog.blocks} signatureHubSlug={signatureOn ? agentHubSlug : null} signatureTowns={((blog.ai_review as any)?.towns || []).map((t: any) => t.town)} signatureMatch={blogSignatureMatch(luxePeek ? 'luxe_plus' : blog.theme, blog.luxe_metal, blog.accent_color)} forms={hubForms} formHref={agentHubSlug ? (slug => `/${agentHubSlug}/${slug}?src=blog`) : undefined} accentColor={blogAccent(luxePeek ? 'luxe_plus' : blog.theme, blog.luxe_metal, blog.accent_color)} agent={{ name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(), brokerage: user?.brokerage, photoUrl: resolveMediaUrl(user?.photo_url), title: user?.professional_title, phone: (user as any)?.phone, email: user?.email }} />
           </BlogThemedArticle>
         </div>
       )}
@@ -1735,6 +1735,17 @@ function BlockContent({ block, onUpdate, onEnterAtEnd, onBackspaceAtStart, onSla
       )
     case 'sources':
       return <SourcesList data={data as SourcesData} />
+    case 'ask_agent':
+      // The small "Ask [me] about ..." line under a sentence that sends readers to the agent - its
+      // topic is editable; the article fills in the agent's photo, call, text and email.
+      return (
+        <div className="flex flex-wrap items-center gap-2 border-l-2 border-[#C9A24D] py-1 pl-3 text-xs">
+          <span className="font-black text-gray-500 dark:text-gray-400">Ask me about</span>
+          <input value={data.topic || ''} onChange={e => setData('topic', e.target.value.slice(0, 60))} placeholder="this (optional topic)" aria-label="What readers ask you about"
+            className="min-w-0 flex-1 rounded-md border border-gray-200 bg-white px-2 py-1 font-semibold text-[#111827] outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white" />
+          <span className="text-[10px] font-bold text-gray-400">+ Call · Text · Email</span>
+        </div>
+      )
     case 'property_showcase':
     case 'video_showcase': {
       // The closing pitch from the AI writer's Finish step: rename it, drop items, see it live.

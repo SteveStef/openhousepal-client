@@ -136,11 +136,14 @@ export default function NeighborhoodsExplorer({ areas, theme, basePrefix = '', c
             ].filter(Boolean).slice(0, big ? 4 : 3) as { icon: typeof Trees; label: string; v: string }[]
             return (
               <Reveal key={a.slug} delay={(i % 3) * 80} className={`h-full ${big ? 'sm:col-span-2 lg:row-span-2' : ''}`}>
-                <div className={`group relative flex h-full min-h-[360px] flex-col justify-end overflow-hidden ${luxe ? 'rounded-[28px]' : 'rounded-3xl'}`} style={{ boxShadow: '0 30px 60px -36px rgba(0,0,0,.6)' }}>
+                {/* Featured card on a phone (owner, 11/01: "so many words and so much going on"): the
+                    photo, the name, the median and the two buttons. The summary, price range and
+                    highlights panel only come on wider screens, where there's room for them. */}
+                <div className={`group relative flex h-full ${big ? 'min-h-[440px]' : 'min-h-[360px]'} flex-col justify-end overflow-hidden ${luxe ? 'rounded-[28px]' : 'rounded-3xl'}`} style={{ boxShadow: '0 30px 60px -36px rgba(0,0,0,.6)' }}>
                   <a href={`${basePrefix}/${a.slug}`} aria-label={`Explore ${a.name}`} className="absolute inset-0 z-10" />
                   <div className="ohp-mls-crop absolute inset-0 bg-cover bg-center transition duration-[1400ms] group-hover:scale-110" style={{ backgroundImage: sizedBg(a.photo, 640), backgroundColor: theme.primary_color }} />
                   {/* The big card's text climbs high up the photo, so its shade does too */}
-                  <div className={`absolute inset-0 bg-gradient-to-t ${big ? 'from-black/95 via-black/65 to-black/25' : 'from-black/90 via-black/30 to-black/10'} transition duration-500 group-hover:from-black/95 group-hover:via-black/60`} />
+                  <div className={`absolute inset-0 bg-gradient-to-t ${big ? 'from-black/95 via-black/45 to-transparent sm:from-black/95 sm:via-black/65 sm:to-black/25' : 'from-black/90 via-black/30 to-black/10'} transition duration-500 group-hover:from-black/95 group-hover:via-black/60`} />
                   {luxe && <span aria-hidden className="ohp-card-sheen pointer-events-none absolute inset-0" />}
                   <div className={`absolute left-4 top-4 flex gap-1.5 transition duration-300 ${big ? '' : 'sm:group-hover:-translate-y-2 sm:group-hover:opacity-0'}`}>
                     {a.active_count ? <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-black text-[#111827]"><Home className="h-3 w-3" />{a.active_count} for sale</span> : null}
@@ -148,17 +151,17 @@ export default function NeighborhoodsExplorer({ areas, theme, basePrefix = '', c
                   </div>
                   <div className="relative p-5 pt-16 text-white sm:p-6 sm:pt-16">
                     <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.22em] text-white/60"><MapPin className="h-3 w-3" />{[a.county, a.state].filter(Boolean).join(', ') || 'Neighborhood'}</p>
-                    <p className={`mt-1 leading-none ${big ? 'text-5xl sm:text-6xl' : 'text-3xl'} ${luxe ? `font-black ${serif}` : 'font-extrabold tracking-tight'}`}>{a.name}</p>
+                    <p className={`mt-1 leading-none ${big ? 'text-[44px] sm:text-6xl' : 'text-3xl'} ${luxe ? `font-black ${serif}` : 'font-extrabold tracking-tight'}`}>{a.name}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-bold text-white/85">
                       {a.median_price ? <span><span className="text-white/55">Median</span> {formatCompactPrice(a.median_price)}</span> : null}
-                      {a.min_price && a.max_price ? <span><span className="text-white/55">{a.price_range_basis === 'sold_2y' ? 'Most sold' : 'Range'}</span> {formatCompactPrice(a.min_price)}–{formatCompactPrice(a.max_price)}</span> : null}
+                      {a.min_price && a.max_price ? <span className={big ? 'hidden sm:inline' : ''}><span className="text-white/55">{a.price_range_basis === 'sold_2y' ? 'Most sold' : 'Range'}</span> {formatCompactPrice(a.min_price)}–{formatCompactPrice(a.max_price)}</span> : null}
                     </div>
-                    {big && a.summary && <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/75">{firstSentence(a.summary)}</p>}
+                    {big && a.summary && <p className="mt-3 hidden max-w-xl text-sm sm:block leading-relaxed text-white/75">{firstSentence(a.summary)}</p>}
                     {/* Highlights rise in on hover (always shown on the big card and on phones) */}
                     {highlights.length > 0 && (
                       // A solid frosted panel behind the highlights so they read cleanly over any photo.
                       // Small cards reveal it on hover (computers only - phones tap Explore).
-                      <div className={`grid transition-all duration-500 ${big ? 'mt-4 grid-rows-[1fr] opacity-100' : 'hidden sm:grid sm:grid-rows-[0fr] sm:opacity-0 sm:group-hover:mt-3 sm:group-hover:grid-rows-[1fr] sm:group-hover:opacity-100'}`}>
+                      <div className={`grid transition-all duration-500 ${big ? 'mt-4 hidden grid-rows-[1fr] opacity-100 sm:grid' : 'hidden sm:grid sm:grid-rows-[0fr] sm:opacity-0 sm:group-hover:mt-3 sm:group-hover:grid-rows-[1fr] sm:group-hover:opacity-100'}`}>
                         <div className="overflow-hidden">
                           <div className={`grid gap-2.5 rounded-2xl bg-black/70 p-3.5 ring-1 ring-white/10 ${big ? 'sm:grid-cols-2' : ''}`}>
                             {highlights.map(h => (

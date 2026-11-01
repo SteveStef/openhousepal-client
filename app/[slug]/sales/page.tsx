@@ -180,7 +180,8 @@ export default function AgentHubSalesPage() {
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:56px_56px] opacity-10" />
         </div>
       )}
-      <section className="relative mx-auto max-w-5xl px-5 pb-12 pt-6">
+      {/* Slides in from the right like a new page (owner, 11/01); the hub slides back in from the left. */}
+      <section className="hub-page-forward relative mx-auto max-w-5xl px-5 pb-12 pt-6">
         {backHref ? (
           <a href={backHref} target="_top" className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-black text-[#111827] shadow-sm dark:border-gray-700 dark:bg-[#151517] dark:text-white">
             <ArrowLeft className="h-4 w-4" /> {town ? `Back to ${town}` : 'Back'}

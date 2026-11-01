@@ -17,7 +17,7 @@ import {
 } from '@/lib/invites'
 import InviteCard, { type InviteCardData } from './InviteCard'
 import InviteFlow, { ShareStep, TYPE_ART } from './InviteFlow'
-import { announceInvitesChanged } from './FormsInvitesChrome'
+import { loadInvites, peekInvites } from './FormsInvitesChrome'
 import { cardTitle } from '@/lib/inviteTitle'
 import { DRAFTS_EVENT, dropDraft, readDrafts, savedAgo, type InviteDraftSave } from './inviteDrafts'
 
@@ -30,7 +30,8 @@ export default function InvitesPanel() {
   const router = useRouter()
   const params = useSearchParams()
   const [presets, setPresets] = useState<InvitePresets | null>(null)
-  const [invites, setInvites] = useState<Invite[] | null>(null)
+  // Starts from the list the page already has (owner, 11/01) - no spinner-then-cards jump.
+  const [invites, setInvites] = useState<Invite[] | null>(() => peekInvites())
   const [flow, setFlow] = useState<{ type?: InviteType | null; editing?: Invite | null; draftId?: string | null } | null>(null)
   // Unfinished invites (owner, 10/31): the maker keeps them as it goes; they wait here.
   const [drafts, setDrafts] = useState<InviteDraftSave[]>([])
@@ -45,10 +46,10 @@ export default function InvitesPanel() {
   const [err, setErr] = useState('')
 
   const load = useCallback(async () => {
-    const r = await invitesApi.list()
+    // One shared load - it also feeds the header's "New" chips / numbers / inbox and the Invites badge.
+    const r = await loadInvites()
     if (r.success) setInvites(r.data)
-    else { setErr(r.error); setInvites([]) }
-    announceInvitesChanged()  // the header's "New" chips / numbers / the Invites badge
+    else { setErr(r.error); setInvites(list => list || []) }
   }, [])
   useEffect(() => {
     invitesApi.presets().then(r => { if (r.success) setPresets(r.data) })

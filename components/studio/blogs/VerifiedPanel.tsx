@@ -18,7 +18,7 @@ const KIND_LABELS: Record<string, string> = {
   unsupported_claim: 'Unsupported claim', wrong_number: 'Wrong number', stale_data: 'Out-of-date number', wrong_geography: 'Geography',
   fair_housing: 'Fair Housing', school_language: 'School wording', invented_experience: 'Your experience', causation: 'Cause and effect',
   legal_tax: 'Legal / tax', generic_ai_phrasing: 'Generic wording', repetition: 'Repetition', placeholder: 'Unfinished text',
-  reader_voice: 'Too technical for readers', other: 'Other',
+  reader_voice: 'Too technical for readers', rule_detail: 'Fine print taken out', other: 'Other',
 }
 
 const fmtDate = (d?: string | null) => {
@@ -115,6 +115,23 @@ export default function VerifiedPanel({ review, className = '' }: { review: Blog
                       {i.replace ? <> → <span className="font-semibold text-emerald-700 dark:text-emerald-400">{i.replace}</span></> : <span className="font-semibold text-gray-500"> (removed)</span>}
                     </li>
                   ))}
+                </Section>
+              )}
+
+              {(review.rules_to_check || []).length > 0 && (
+                <Section icon={ShieldCheck} title="Rules and programs this article names">
+                  <li className="text-xs text-gray-600 dark:text-gray-300">The article names these without their amounts, deadlines or eligibility rules - readers are sent to you. Check each one is still current on its official page before you publish.</li>
+                  {review.rules_to_check!.map((r, k) => (
+                    <li key={k} className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                      {r.name}{r.source ? <> · <a href={r.source} target="_blank" rel="noreferrer" className="font-bold text-[#8b6914] underline dark:text-[#d7b974]">{host(r.source)}</a></> : null}
+                    </li>
+                  ))}
+                </Section>
+              )}
+
+              {(review.out_of_area || []).length > 0 && (
+                <Section icon={AlertTriangle} title="Outside your area">
+                  <li className="text-xs text-gray-600 dark:text-gray-300">These towns are in {review.out_of_area!.join(', ')}, outside where you work. The article doesn't claim local experience there and keeps your closing button - if a reader asks for a showing, you can handle it or refer it to a local agent.</li>
                 </Section>
               )}
 

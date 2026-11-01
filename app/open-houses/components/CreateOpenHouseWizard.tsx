@@ -41,8 +41,17 @@ interface CreateOpenHouseWizardProps {
   showToast: (message: string, type: 'success' | 'error') => void;
   triggerPreview: (type: 'flyer' | 'recommendations' | 'bragSheet' | 'cheatSheet', id?: string, customData?: any) => void;
   formatAddress: (address: string) => string;
-  /** Fill the address box (e.g. "Build kit" on an open you're confirmed to host). */
-  prefill?: { address: string; nonce: number } | null;
+  /** Fill the address box (e.g. "Build kit" on an open you're confirmed to host). With `auto` (the AI
+   *  helper's Open House Kit card, 11/01) it also runs every step with the card's choices and stops on
+   *  Review & Save - one tap left for the agent. */
+  prefill?: { address: string; nonce: number; auto?: ChatKit | null } | null;
+}
+
+/** The AI helper card's kit choices (components/assistant KitPick -> /open-houses?chatkit=...). */
+export type ChatKit = {
+  listing_key?: string | null; lat?: number | null; lng?: number | null; cover?: string | null
+  similar: boolean; cheatSheet: boolean
+  autoShowcase: boolean; guestPass: boolean; followupsMode: 'on' | 'no_calendar' | 'off'
 }
 
 export function CreateOpenHouseWizard({
@@ -305,12 +314,64 @@ export function CreateOpenHouseWizard({
     if (!prefill?.address) return
     setCurrentStep('ADDRESS')
     setAddress(prefill.address)
-    setCoordinates(null)
-    setShowAddressSuggestions(true)
+    const a = prefill.auto
+    auto.current = a || null
+    setCoordinates(a && a.lat != null && a.lng != null ? { lat: a.lat, lng: a.lng } : null)
+    setShowAddressSuggestions(!a)
     const el = document.getElementById('address') as HTMLInputElement | null
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (a) { setAutoStage('go'); return }
     setTimeout(() => el?.focus(), 350)
   }, [prefill?.nonce])
+
+  // The helper card's kit, built by the maker's own steps (same saves, same documents) - each step
+  // moves on by itself once it's ready, then Review & Save waits for the agent's tap.
+  const auto = useRef<ChatKit | null>(null)
+  const [autoStage, setAutoStage] = useState<'idle' | 'go' | 'similar' | 'cover' | 'cheat'>('idle')
+  const sawLoading = useRef(false)
+  React.useEffect(() => {
+    if (autoStage === 'go' && address && (coordinates || addressSuggestions.length)) {
+      setAutoStage('similar')
+      generateQRCode({ preventDefault() {} } as React.FormEvent)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStage, address, coordinates, addressSuggestions.length])
+  React.useEffect(() => {
+    const a = auto.current
+    if (!a || !propertyData) return
+    if (currentStep === 'PREFERENCES' && autoStage === 'similar') {
+      setSelectedFeatures(prev => ({ ...prev, similarProperties: a.similar && !ownListing, cheatSheet: a.cheatSheet && !isNoMls }))
+      if (isLoadingNeighbors) { sawLoading.current = true; return }
+      const go = () => {
+        const ids = a.similar ? similarProperties.slice(0, 12).map((p: any) => p.ListingKey || p.listingKey || p.id) : []
+        setSelectedSimilarPropertyIds(ids)
+        setAutoStage('cover')
+        handleSimilarPropertiesComplete(ids)
+      }
+      if (sawLoading.current || !a.similar) { sawLoading.current = false; go(); return }
+      const t = window.setTimeout(go, 9000)   // a search that never starts: move on without homes
+      return () => window.clearTimeout(t)
+    }
+    if (currentStep === 'COVER_IMAGE' && autoStage === 'cover') {
+      const photos: string[] = (propertyData.photos && propertyData.photos.length ? propertyData.photos : [propertyData.ListPictureURL]).filter(Boolean)
+      const url = (a.cover && photos.includes(a.cover) ? a.cover : photos[0]) || ''
+      if (!url) return
+      setAutoStage('cheat')
+      handleImageSelect({ url, width: 0, height: 0, x: 50, y: 50 })
+      return
+    }
+    if (currentStep === 'CHEAT_SHEET_PHOTOS' && autoStage === 'cheat') {
+      handleCheatSheetPhotosComplete([])
+      return
+    }
+    if (currentStep === 'REVIEW' && autoStage === 'cheat') {
+      setGuestPrefs(prev => ({ ...prev, autoShowcase: a.autoShowcase, guestPass: a.guestPass, followupsMode: a.followupsMode }))
+      auto.current = null
+      setAutoStage('idle')
+      showToast('Your kit is ready - look it over and tap Save', 'success')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, autoStage, propertyData, isLoadingNeighbors, similarProperties])
 
   // Fetch internal address suggestions
   React.useEffect(() => {
@@ -390,7 +451,8 @@ export function CreateOpenHouseWizard({
       return
     }
 
-    const { success, data, error } = await api.properties.lookup(searchAddress)
+    // (the helper's kit card names the exact listing - never a look-alike address)
+    const { success, data, error } = await api.properties.lookup(auto.current?.listing_key ? { listingKey: auto.current.listing_key } : searchAddress)
     
     if (success && data) {
       setPropertyData(data)

@@ -13,6 +13,7 @@ import LuxeSelect, { type LuxeOption } from '@/components/ui/LuxeSelect'
 import AnimatedNumber from '@/components/ui/AnimatedNumber'
 import { SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
 import { useFitLevel } from '@/lib/useFitLevel'
+import { SendInviteButton } from '@/components/showcases/ShowcaseInvite'
 
 // Icon + color per cycling activity type, matching the sentiment of each (green=positive,
 // red=negative, blue=neutral/informational).
@@ -618,6 +619,10 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
   leaving = null,
 }, ref) {
   const prefs = collection.preferences as any
+  // Their invite email (owner, 11/01): had it = a small Email button on the bar; never = a bigger
+  // amber Send invite. Both ask first (components/showcases/ShowcaseInvite).
+  const [invite, setInvite] = useState(collection.invite || null)
+  useEffect(() => { setInvite(collection.invite || null) }, [collection.invite])
 
   // A school district pick is more specific than a city/township list, so show that instead of
   // (not in addition to) cities/townships when one's set, rather than cramming both in.
@@ -683,7 +688,7 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
   // switch (owner 10/31: a whole row for them was wasted space). When they crowd it, the action
   // words go first (icons stay, level 1), then "All caught up" shrinks to its tick (level 2).
   const barRef = useRef<HTMLDivElement>(null)
-  const barFit = useFitLevel(barRef, 2, [needsYou, collection.stats.newProperties, collection.stats.tourRequestedCount, activityBadges.length, !!collection.refineRequestMessage, active])
+  const barFit = useFitLevel(barRef, 2, [needsYou, collection.stats.newProperties, collection.stats.tourRequestedCount, activityBadges.length, !!collection.refineRequestMessage, active, invite?.state, invite?.can_send])
 
   // One large photo + two stacked; with only one or two matches the photos share the space.
   const shownTiles = Math.max(1, Math.min(3, previewProperties.length))
@@ -906,6 +911,10 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
                 <a.icon size={13} />{!barFit && <span className="hidden min-[400px]:inline">{a.label}</span>}
               </motion.button>
             ))}
+            {invite?.can_send && (
+              <SendInviteButton collectionId={collection.id} invite={invite} name={`${collection.customer.firstName || ''} ${collection.customer.lastName || ''}`.trim()}
+                email={collection.customer.email} homes={collection.stats.totalProperties} size={invite.state === 'sent' ? 'icon' : 'warn'} compact={barFit >= 2} onSent={setInvite} />
+            )}
           </div>
           <div className="flex flex-1 items-center gap-1.5">
           <AnimatePresence initial={false}>

@@ -24,7 +24,7 @@ import { readPrintPref, writePrintPref } from '@/lib/printPrefs'
 // Components
 import { OpenHouseHistory } from './components/OpenHouseHistory'
 import { KioskModal } from './components/KioskModal'
-import { CreateOpenHouseWizard } from './components/CreateOpenHouseWizard'
+import { CreateOpenHouseWizard, type ChatKit } from './components/CreateOpenHouseWizard'
 import ConfirmedToHostStrip from '@/components/open-house-manager/ConfirmedToHostStrip'
 import { OpenHouseFormRequestsPanel } from '@/components/OpenHouseFormRequestsPanel'
 import { DeleteConfirmationDialog } from './components/DeleteConfirmationDialog'
@@ -118,20 +118,32 @@ function OpenHouseContent() {
   // Dashboard State
   const [openHouses, setOpenHouses] = useState<OpenHouse[]>([])
   // "Build kit" on an open you're confirmed to host -> fills the kit address box.
-  const [kitPrefill, setKitPrefill] = useState<{ address: string; nonce: number } | null>(null)
+  const [kitPrefill, setKitPrefill] = useState<{ address: string; nonce: number; auto?: ChatKit | null } | null>(null)
   // /open-houses?kit=<address> - the AI helper's "Go there" button starts a kit for that home (10/30).
   // ?newKit=1 (the helper's "Start an Open House Kit") and ?kit= both bring the Create Kit box into
   // view - on a phone it sits well below the other sections (owner's test, 11/01).
   useEffect(() => {
     const q = new URLSearchParams(window.location.search)
     const kit = q.get('kit')
-    if (kit) setKitPrefill({ address: kit, nonce: Date.now() })
+    // ?chatkit=<json> - the helper's Open House Kit card: the maker runs every step with its choices.
+    let auto: ChatKit | null = null
+    try { auto = q.get('chatkit') ? JSON.parse(q.get('chatkit') as string) : null } catch { auto = null }
+    if (kit) setKitPrefill({ address: kit, nonce: Date.now(), auto })
     if (kit || q.get('newKit') === '1') {
       const t = window.setTimeout(() => document.getElementById('create-kit')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 700)
       return () => window.clearTimeout(t)
     }
   }, [])
   const buildKitFor = useCallback((address: string) => setKitPrefill({ address, nonce: Date.now() }), [])
+  // The helper's kit card while already on this page (no reload): same as ?chatkit=.
+  useEffect(() => {
+    const on = (e: Event) => {
+      const d = (e as CustomEvent<{ address: string; auto: ChatKit }>).detail
+      if (d?.address) setKitPrefill({ address: d.address, nonce: Date.now(), auto: d.auto })
+    }
+    window.addEventListener('ohp:chat-kit', on)
+    return () => window.removeEventListener('ohp:chat-kit', on)
+  }, [])
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   const [statSummary, setStatSummary] = useState<StatSummary | null>(null)
   const isPrintingRef = useRef(false)

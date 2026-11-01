@@ -16,7 +16,7 @@ import { toJpeg } from '@/components/setup/SetupUi'
 import api, { API_BASE_URL, resolveMediaUrl } from '@/lib/api-service'
 import FormResultsModal from '@/components/forms/FormResultsModal'
 import InvitesPanel from '@/components/invites/InvitesPanel'
-import { FormsInvitesSwitch, InvitesHeaderStats, InvitesNewChips, PLAYFUL_FORM_CARD, PlayfulFormCard } from '@/components/invites/FormsInvitesChrome'
+import { FormsInvitesSwitch, HeaderInboxPill, InvitesHeaderStats, InvitesInboxPill, InvitesNewChips, PLAYFUL_FORM_CARD, PlayfulFormCard } from '@/components/invites/FormsInvitesChrome'
 import { GoldLastWord } from '@/components/ui/LuxeSurface'
 import FormStatsModal from '@/components/forms/FormStatsModal'
 import FormBuilderModal from '@/components/forms/FormBuilderModal'
@@ -28,7 +28,7 @@ import { formLookOf, type FormLookFields } from '@/lib/formLook'
 import { brandFormLook, brandHubPatch, brandColorName, modeLabel, useBrandKit } from '@/lib/brandKit'
 import FormQrCode from '@/components/forms/FormQrCode'
 import FormTypeArt, { hasFormTypeArt } from '@/components/forms/FormTypeArt'
-import InboxWindow, { InboxButton } from '@/components/ui/InboxWindow'
+import InboxWindow from '@/components/ui/InboxWindow'
 import FormCampaignsModal from '@/components/forms/FormCampaignsModal'
 import { refreshFormsActionCount } from '@/hooks/useFormsActionCount'
 import { ShowcaseFormBadge, ShowcaseFormInfoBlock } from '@/components/forms/ShowcaseFormInfo'
@@ -58,7 +58,7 @@ import { openHousePalPublicUrl, websitePublicBaseUrl, websitePublicUrl, websiteP
 import { AgentFormConfig, BlogListItem, FormQuestion, FormQuestionType, FormSubmissionListItem, LinkedProperty, Site, SiteDomain, StatSummary } from '@/types'
 import StatCard from '@/components/stats/StatCard'
 import PageHeader from '@/components/PageHeader'
-import { LuxeTabs } from '@/components/ui/LuxeHero'
+import LuxeHero, { LuxeTabs } from '@/components/ui/LuxeHero'
 import { hasMlsAccess, hasShowcaseAccess } from '@/lib/navAccess'
 import {
   ArrowDown,
@@ -1959,6 +1959,17 @@ function AgentHubContent() {
   // Now a flip only shows one and hides the other, with a quick fade.
   const [invitesSeen, setInvitesSeen] = useState(formsView === 'invites')
   useEffect(() => { if (formsView === 'invites') setInvitesSeen(true) }, [formsView])
+  // Invites gets its half ready quietly once Forms is up (owner, 11/01 - a tap on Invites "loaded in,
+  // glitched, loaded in again": Forms vanished, a blank beat, a spinner, then the cards pushed in and
+  // the header changed height). Now the tap just shows a half that's already built and filled.
+  useEffect(() => {
+    if (invitesSeen || formsLoading || !isFormsTabGroup) return
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void }
+    const ready = () => setInvitesSeen(true)
+    if (w.requestIdleCallback) { const id = w.requestIdleCallback(ready, { timeout: 1500 }); return () => w.cancelIdleCallback?.(id) }
+    const t = window.setTimeout(ready, 700)
+    return () => window.clearTimeout(t)
+  }, [invitesSeen, formsLoading, isFormsTabGroup])
   // A link that opened one form's results (?formId=...&submission=... / ?view=unfinished) is used
   // once - left in the address it re-opened that result on every tab switch (user, 10/24).
   const clearOpenedResult = (q: URLSearchParams) => { q.delete('formId'); q.delete('submission'); if (q.get('view') === 'unfinished') q.delete('view') }
@@ -3222,17 +3233,27 @@ function AgentHubContent() {
         {isFormsTabGroup ? (
           <>
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-              <PageHeader
+              {/* Phones (owner, 11/01): the title stays on one line (it shrinks to fit, like Dash's)
+                  and the inbox is a slim pill in the top-right corner, so the three numbers get the
+                  whole row and show in full. Both halves keep the same header height. */}
+              <LuxeHero
+                compact
+                className="mb-5"
                 icon={FileText}
                 kicker="Forms & Invites"
                 title={formsView === 'invites' ? <>Invite them in, <em>in style</em></> : <>Capture every lead, <em>your way</em></>}
+                titleClassName="whitespace-nowrap text-[length:min(1.7rem,calc((100vw_-_64px)*0.066))] sm:text-4xl"
                 subtitle={formsView === 'invites'
                   ? 'Beautiful invitations for open houses, broker’s opens and client dinners - one link, every RSVP in one place.'
                   : 'Create and share lead-capture forms, then track responses and open house requests right here.'}
-                subtitleClassName="xl:max-w-none xl:whitespace-nowrap"
+                subtitleClassName="max-sm:min-h-[3.75rem] xl:max-w-none xl:whitespace-nowrap"
                 backHref="/studio"
                 backLabel="Tools"
-                asideClassName="w-full lg:w-auto lg:-mt-5"
+                badge={formsView === 'invites' ? <InvitesInboxPill /> : (
+                  <HeaderInboxPill label="Inbox" count={newResultPeople.length + openHouseRequestActionCount} onClick={() => setFormsInboxOpen(true)}
+                    title="Every form response and Cheat Sheet request, newest first" />
+                )}
+                asideClassName="w-full lg:w-auto lg:self-end"
                 tabs={formsView === 'invites' ? <InvitesNewChips /> : (
                   // New results, as one-tap shortcuts: a form's chip opens its responses; the
                   // Cheat Sheet one jumps to the Open House Requests section.
@@ -3271,26 +3292,24 @@ function AgentHubContent() {
                     )}
                   </div>
                 )}
-                actions={formsView === 'invites' ? <InvitesHeaderStats /> :
-                  <div className="flex w-full items-stretch gap-2">
-                    {statSummary && (
-                      <div className="grid flex-1 grid-cols-3 gap-2 sm:min-w-[340px] lg:min-w-[400px]">
-                        <StatCard metric="form_views" label="Form Views" shortLabel="Views" icon={ClipboardListIcon} entry={statSummary.form_views} />
-                        <StatCard metric="form_fills" label="Forms Filled" shortLabel="Filled" icon={ClipboardListIcon} entry={statSummary.form_fills} />
-                        <StatCard metric="form_completion" label="Completion Rate" shortLabel="Rate" icon={ClipboardListIcon} entry={statSummary.form_completion} isPercent />
-                      </div>
-                    )}
-                    <InboxButton label="Inbox" count={newResultPeople.length + openHouseRequestActionCount} onClick={() => setFormsInboxOpen(true)}
-                      title="Every form response and Cheat Sheet request, newest first" />
-                  </div>
-                }
+                // Phones: a stat's change ("New", "+12%") sits under its number, so the number always
+                // shows in full; both halves' stat rows keep one height.
+                aside={formsView === 'invites' ? <InvitesHeaderStats /> : (
+                  statSummary && (
+                    <div className="grid w-full grid-cols-3 gap-2 sm:min-w-[340px] lg:min-w-[400px] max-sm:[&>*]:min-h-[72px] max-sm:[&_button>div:last-child]:flex-col max-sm:[&_button>div:last-child]:items-start max-sm:[&_button>div:last-child]:gap-y-1">
+                      <StatCard metric="form_views" label="Form Views" shortLabel="Views" icon={ClipboardListIcon} entry={statSummary.form_views} />
+                      <StatCard metric="form_fills" label="Forms Filled" shortLabel="Filled" icon={ClipboardListIcon} entry={statSummary.form_fills} />
+                      <StatCard metric="form_completion" label="Completion Rate" shortLabel="Rate" icon={ClipboardListIcon} entry={statSummary.form_completion} isPercent />
+                    </div>
+                  )
+                )}
               />
             </motion.div>
 
             <div id="forms-invites-switch"><FormsInvitesSwitch view={formsView} onChange={switchFormsView} formBadge={newResultPeople.length + openHouseRequestActionCount} /></div>
 
             <style>{'@keyframes ohpHalfIn{from{opacity:0}to{opacity:1}}.ohp-half-in{animation:ohpHalfIn .16s ease-out both}'}</style>
-            {invitesSeen && (
+            {(invitesSeen || formsView === 'invites') && (
               <section className={formsView === 'invites' ? 'ohp-half-in mt-6' : 'hidden'} aria-hidden={formsView !== 'invites'}>
                 <InvitesPanel />
               </section>

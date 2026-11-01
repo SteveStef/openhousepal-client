@@ -66,6 +66,8 @@ export function buildSignatureSiteInput({ config, hubConfig, agentHubSlug, owner
     title: on('title') ? (profile.title || '') : '',
     company: on('company') ? (profile.brokerage || '') : '',
     team: on('team') ? (profile.team || '') : '',
+    // The area they serve - shown under the name like the Agent Hub's side header (owner, 11/01)
+    market: (profile.market || '').trim(),
     headshot: on('headshot') ? (hubConfig.profilePhotoUrl || fallbackPhoto || '') : '',
     headshotPosition: hubConfig.profilePhotoPosition && typeof hubConfig.profilePhotoPosition.x === 'number'
       ? { x: hubConfig.profilePhotoPosition.x, y: hubConfig.profilePhotoPosition.y }

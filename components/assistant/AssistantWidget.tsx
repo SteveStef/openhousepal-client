@@ -1,21 +1,21 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { OhpBot } from './OhpBot'
 import { useFabLift } from './useFabLift'
-import { Sparkles, X, Volume2, VolumeX, MessageSquarePlus, Maximize2, Minimize2, History, ArrowLeft } from 'lucide-react'
+import { X, Volume2, VolumeX, MessageSquarePlus, Maximize2, Minimize2 } from 'lucide-react'
 import api from '@/lib/api-service'
-import { AIConversation, AIConversationListItem } from '@/types'
+import { AIConversation } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
 import AssistantHome from './AssistantHome'
 import ChatThread from './ChatThread'
 import ChatInput from './ChatInput'
-import ConversationSidebar from './ConversationSidebar'
 import TalkToOHP from './TalkToOHP'
 import { useSpeech } from './useSpeech'
+import WorkingStrip, { type WorkingJob } from './WorkingStrip'
 
 // Matches the LEADS_REFRESH_EVENT / OPEN_HOUSE_REFRESH_EVENT convention already used by
 // dash/page.tsx and NotificationBell.tsx - a plain window CustomEvent so unrelated
@@ -28,8 +28,9 @@ const ASSISTANT_OPEN_EVENT = 'assistant-widget:open'
 const CONV_KEY = 'ohp-helper:conversation'
 const UI_KEY = 'ohp-helper:ui'
 // An on-call helper, not a long thread (owner, 11/01): 30 minutes after the last message, opening
-// the helper starts a fresh chat. Older ones stay under Your chats; one with news (an AI CMA that
-// finished) still opens itself.
+// the helper starts a fresh chat. There is no chat history (owner, 11/01): starting a chat tidies the
+// old ones away on the server (POST /ai/conversations); one with news (an AI CMA that finished) still
+// opens itself.
 const FRESH_AFTER_MS = 30 * 60 * 1000
 function staleChat(c: AIConversation | null): boolean {
   if (!c) return false
@@ -57,22 +58,21 @@ function useIsPhone() {
 export default function AssistantWidget() {
   const { user, isAuthenticated, isLoading: isCheckingAuth } = useAuth()
   const pathname = usePathname()
+  const router = useRouter()
   const { showToast } = useToast()
   const isPhone = useIsPhone()
   const [isOpen, setIsOpen] = useState(false)
   // Computer: the corner panel or the big window. Phone: a sheet swiped up to full height.
   const [big, setBig] = useState(false)
-  const [showChats, setShowChats] = useState(false)
-  const [chats, setChats] = useState<AIConversationListItem[]>([])
-  const [chatsLoading, setChatsLoading] = useState(false)
   const [activeConversation, setActiveConversation] = useState<AIConversation | null>(null)
   const [isSending, setIsSending] = useState(false)
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false)
   const [isTalking, setIsTalking] = useState(false)
   // Every paying plan since 10/30 (unless Admin switched it off); voice stays admin-only.
   const [helper, setHelper] = useState<{ enabled: boolean; voice: boolean } | null>(null)
-  const [dragY, setDragY] = useState(0)
-  const dragStart = useRef<number | null>(null)
+  // Phone: the sheet's height while a finger drags its top bar (null = not dragging).
+  const [dragH, setDragH] = useState<number | null>(null)
+  const dragFrom = useRef<{ y: number; h: number; dy: number } | null>(null)
   const restored = useRef(false)
   const panelRef = useRef<HTMLDivElement>(null)
   // The round button moves up off any page button / bottom bar under it (owner, 11/01).
@@ -81,7 +81,7 @@ export default function AssistantWidget() {
   const [closing, setClosing] = useState(false)
   // Phone: after a link in the chat opened a page, the sheet sits low as a peek (owner, 10/31).
   const [peek, setPeek] = useState(false)
-  useEffect(() => { if (!isOpen) setPeek(false) }, [isOpen])
+  useEffect(() => { if (!isOpen) { setPeek(false); setDragH(null) } }, [isOpen])
 
   // Closing plays its exit first (a beat), then unmounts.
   const close = useCallback(() => {
@@ -94,7 +94,8 @@ export default function AssistantWidget() {
   useEffect(() => {
     if (!sized.current) { sized.current = true; return }
     const el = panelRef.current
-    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    // (Phones: the sheet's own height glide is the motion - a fade on top of it flickered.)
+    if (!el || isPhone || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     el.animate([{ opacity: 0.6, transform: 'scale(0.985)' }, { opacity: 1, transform: 'none' }], { duration: 200, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' })
   }, [big])
   const speech = useSpeech()
@@ -127,19 +128,7 @@ export default function AssistantWidget() {
   useEffect(() => { if (restored.current) store.set(UI_KEY, JSON.stringify({ open: isOpen, big, peek }), true) }, [isOpen, big, peek])
   useEffect(() => { if (restored.current) store.set(CONV_KEY, activeConversation?.id ?? null) }, [activeConversation?.id])
 
-  const loadChats = useCallback(() => {
-    setChatsLoading(true)
-    api.ai.listConversations().then((r) => {
-      if (r.success && r.data) setChats(r.data)
-      setChatsLoading(false)
-    })
-  }, [])
-
-  // The big window keeps your chats down the side; the small ones load them when you ask.
-  useEffect(() => { if (isOpen && (showChats || (big && !isPhone))) loadChats() }, [isOpen, showChats, big, isPhone, loadChats])
-
   const openChat = useCallback(async (id: string) => {
-    setShowChats(false)
     if (activeConversation?.id === id) return
     const r = await api.ai.getConversation(id)
     if (r.success && r.data) setActiveConversation(r.data)
@@ -149,18 +138,20 @@ export default function AssistantWidget() {
   // Something the helper finished while they were away (an AI CMA, 11/01): the chat it's in shows as
   // unread - a count on the closed button, on any device - until that chat is open on screen.
   const [unread, setUnread] = useState<string[]>([])
+  // what's still being made, for the strip under the top bar (any chat - 11/01)
+  const [working, setWorking] = useState<WorkingJob[]>([])
   // While a card in this chat is still making something (an AI CMA, a blog draft) the news is checked
   // every few seconds, not every 30 (owner, 11/01: "I wouldn't have known it finished").
   const workingHere = !!activeConversation?.messages.some(m => (m.tool_calls || []).some((t: any) => t.record_type === 'action' && (t.status === 'working' || t.status === 'running')))
   useEffect(() => {
     if (!helper?.enabled) return
     let live = true
-    const tick = () => { api.ai.unread().then(r => { if (live && r.success && r.data) setUnread(r.data.conversations) }) }
+    const tick = () => { api.ai.unread().then(r => { if (live && r.success && r.data) { setUnread(r.data.conversations); setWorking(r.data.working || []) } }) }
     tick()
-    const t = window.setInterval(tick, workingHere ? 6000 : 30000)
+    const t = window.setInterval(tick, workingHere || working.length ? 6000 : 30000)
     window.addEventListener('focus', tick)
     return () => { live = false; window.clearInterval(t); window.removeEventListener('focus', tick) }
-  }, [helper?.enabled, workingHere])
+  }, [helper?.enabled, workingHere, working.length > 0])
   // Something finished: a short notice wherever they are (the chat's newest message says what).
   const seenUnread = useRef<string[] | null>(null)
   useEffect(() => {
@@ -190,14 +181,7 @@ export default function AssistantWidget() {
     api.ai.markRead(id).then(r => { if (r.success && r.data) setUnread(r.data.conversations) })
   }, [isOpen, activeConversation?.id, unread])
 
-  const deleteChat = useCallback(async (id: string) => {
-    const r = await api.ai.deleteConversation(id)
-    if (!r.success) { showToast('That chat could not be deleted.', 'error'); return }
-    setChats((c) => c.filter((x) => x.id !== id))
-    if (activeConversation?.id === id) setActiveConversation(null)
-  }, [activeConversation?.id, showToast])
-
-  const newChat = useCallback(() => { setActiveConversation(null); setShowChats(false) }, [])
+  const newChat = useCallback(() => { setActiveConversation(null) }, [])
   // Any page change while the chat is open (a Go there button that moves the page itself, not only
   // a link - owner, 11/01: "make a new Open House Kit" kept the sheet over it): it steps aside the
   // same way - computer: the big window back to the corner; phone: down to the peek.
@@ -210,6 +194,13 @@ export default function AssistantWidget() {
     if (isPhone) setPeek(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
+  // A card that finishes on another page (an Open House Kit, 11/01) moves the page there - the chat then
+  // steps aside like any page change.
+  useEffect(() => {
+    const go = (e: Event) => { const url = (e as CustomEvent<string>).detail; if (typeof url === 'string' && url.startsWith('/')) router.push(url) }
+    window.addEventListener('ohp:navigate', go)
+    return () => window.removeEventListener('ohp:navigate', go)
+  }, [router])
   // Opened again after a while: a clean slate (a chat being answered right now is left alone).
   useEffect(() => {
     if (isOpen && !isSending && staleChat(activeConversation)) newChat()
@@ -220,7 +211,6 @@ export default function AssistantWidget() {
     // A new message means the agent is actively talking again - cut off whatever spoken
     // reply might still be playing instead of letting it talk over the new turn.
     speech.stop()
-    setShowChats(false)
     setIsSending(true)
     const tempId = `temp-${Date.now()}`
     const optimisticUser = { id: tempId, role: 'user' as const, content: text, created_at: new Date().toISOString() }
@@ -276,20 +266,29 @@ export default function AssistantWidget() {
   }, [handleSend])
 
 
-  // Phone sheet: drag the top bar up for full screen, down to shrink, further down to close.
-  const onTouchStart = (e: React.TouchEvent) => { dragStart.current = e.touches[0].clientY }
+  // Phone sheet: drag the top bar up for full screen, down to shrink, further down to close. The sheet's
+  // height follows the finger, then glides to where it lands (owner, 11/01: going full screen was
+  // glitchy - the sheet used to lift off the bottom while dragged, snap back, then grow).
+  const onTouchStart = (e: React.TouchEvent) => {
+    const h = panelRef.current?.getBoundingClientRect().height
+    if (h) dragFrom.current = { y: e.touches[0].clientY, h, dy: 0 }
+  }
   const onTouchMove = (e: React.TouchEvent) => {
-    if (dragStart.current === null) return
-    setDragY(e.touches[0].clientY - dragStart.current)
+    const d = dragFrom.current
+    if (!d) return
+    d.dy = e.touches[0].clientY - d.y
+    if (Math.abs(d.dy) > 4) setDragH(Math.min(window.innerHeight, Math.max(60, d.h - d.dy)))
   }
   const onTouchEnd = () => {
-    if (dragStart.current === null) return
-    const dy = dragY
-    dragStart.current = null
-    setDragY(0)
-    if (peek) { if (dy > 40) close(); else if (dy < -30) setPeek(false); return }
+    const d = dragFrom.current
+    dragFrom.current = null
+    if (!d) return
+    const dy = d.dy
+    if (peek) { setDragH(null); if (dy > 40) close(); else if (dy < -30) setPeek(false); return }
+    if (dy > 70 && !big) { close(); return }   // slides out from where the finger left it
+    setDragH(null)
     if (dy < -50) setBig(true)
-    else if (dy > 70) { if (big) setBig(false); else close() }
+    else if (dy > 70) setBig(false)
   }
 
   // Nothing to show before login, while auth is still resolving, on the full-page experience
@@ -315,8 +314,8 @@ export default function AssistantWidget() {
 
   if (!isOpen) {
     return (
-      // The helper's button: the little robot on a navy-and-gold coin, a gold ring that sweeps around
-      // it a few times when it appears (then rests), lifts on hover (owner, 11/01: "more stunning").
+      // The helper's button: Chat Pal on a gold coin (owner, 11/01: "don't want him to have a black
+      // background"), a gold ring that sweeps around it a few times when it appears, lifts on hover.
       <button
         ref={fabRef}
         style={fabLift ? { transform: `translateY(-${fabLift}px)` } : undefined}
@@ -326,8 +325,8 @@ export default function AssistantWidget() {
         className="ohp-ai-fab group fixed bottom-6 right-6 z-40 grid h-[60px] w-[60px] place-items-center rounded-full"
       >
         <span aria-hidden className="ohp-ai-fab-ring absolute -inset-[3px] rounded-full" />
-        <span aria-hidden className="absolute inset-0 rounded-full bg-gradient-to-br from-[#1f2937] via-[#111827] to-[#0b1220] shadow-[0_14px_30px_-10px_rgba(17,24,39,.75),inset_0_1px_0_rgba(255,255,255,.12)] ring-1 ring-[#C9A24D]/60" />
-        <OhpBot size={38} className="ohp-ai-fab-icon relative" />
+        <span aria-hidden className="absolute inset-0 rounded-full bg-gradient-to-br from-[#f0d58e] via-[#C9A24D] to-[#a8803a] shadow-[0_14px_30px_-10px_rgba(168,128,58,.85),inset_0_1px_0_rgba(255,255,255,.45)] ring-2 ring-white dark:ring-zinc-900" />
+        <OhpBot size={56} coin={false} className="ohp-ai-fab-icon relative" />
         {unread.length > 0 && (
           <span data-testid="ai-unread-badge" className="ohp-ai-check absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[11px] font-black text-white ring-2 ring-white dark:ring-zinc-900">
             {unread.length}
@@ -337,7 +336,6 @@ export default function AssistantWidget() {
     )
   }
 
-  const wide = big && !isPhone          // computer big window: chats down the side
   const frame = isPhone
     // peek: just the handle + title bar, under any window the page opens (its own buttons stay tappable)
     ? `fixed inset-x-0 bottom-0 rounded-t-3xl transition-[height] duration-300 ease-out ${peek ? 'z-30 h-[76px] cursor-pointer' : big ? 'z-50 h-[100dvh] rounded-t-none' : 'z-50 h-[72dvh]'}`
@@ -350,7 +348,7 @@ export default function AssistantWidget() {
   return (
     <>
       {(big || isPhone) && !peek && (
-        <div data-scroll-lock={isPhone && !big ? 'soft' : undefined} className={`fixed inset-0 touch-none bg-black/30 ${closing ? 'ohp-ai-fade-out' : 'ohp-ai-fade'}`} style={{ zIndex: 49 }} onClick={() => (isPhone ? close() : setBig(false))} />
+        <div data-scroll-lock={isPhone ? 'soft' : undefined} className={`fixed inset-0 touch-none bg-black/30 ${closing ? 'ohp-ai-fade-out' : 'ohp-ai-fade'}`} style={{ zIndex: 49 }} onClick={() => (isPhone ? close() : setBig(false))} />
       )}
       <div
         ref={panelRef}
@@ -368,35 +366,28 @@ export default function AssistantWidget() {
           store.set(UI_KEY, JSON.stringify({ open: true, big: false, peek: isPhone }), true)
         }}
         onClick={() => { if (peek) setPeek(false) }}
-        data-scroll-lock={peek || !(big || isPhone) ? 'off' : isPhone && !big ? 'soft' : 'on'}
-        style={dragY ? { transform: `translateY(${Math.max(dragY, isPhone && !big ? -120 : 0)}px)`, transition: 'none' } : undefined}
+        // Phones never pin the page under the sheet, full screen included (it covers it all anyway);
+        // pinning mid-swipe made the page jump behind it.
+        data-scroll-lock={peek || !(big || isPhone) ? 'off' : isPhone ? 'soft' : 'on'}
+        style={dragH !== null ? { height: dragH, transition: 'none' } : undefined}
         className={`${frame} ${motionIn} bg-white dark:bg-zinc-900 shadow-2xl shadow-black/20 border border-gray-100 dark:border-zinc-800 flex flex-col overflow-hidden`}
       >
         {isPhone && (
           <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onClick={() => setBig((b) => !b)}
                className="relative flex justify-center pt-2 pb-1 cursor-grab touch-none" aria-label={big ? 'Swipe down to shrink' : 'Swipe up for full screen'}>
             <span className="h-1.5 w-10 rounded-full bg-gray-300 dark:bg-zinc-600" />
-            {/* Phones: the chat's usage line sits on the swipe tab's right, above the X - it never
-                adds height, and it was cut off at the bottom under the typing box (owner, 11/01). */}
-            {activeConversation && <MonthlyAiUsageMeter kind="chat" variant="inline" slimOnly shortLabel refreshKey={`${activeConversation.messages.length}:${isSending}`}
-              className="pointer-events-none absolute left-[calc(50%+30px)] right-3 top-1/2 -translate-y-1/2" />}
           </div>
         )}
         <div
           onTouchStart={isPhone ? onTouchStart : undefined} onTouchMove={isPhone ? onTouchMove : undefined} onTouchEnd={isPhone ? onTouchEnd : undefined}
           className="flex items-center gap-1 px-3 py-2.5 border-b border-gray-100 dark:border-zinc-800/60 bg-white dark:bg-zinc-900 flex-shrink-0"
         >
-          {showChats && !wide ? (
-            <button onClick={() => setShowChats(false)} className={iconBtn} aria-label="Back to chat"><ArrowLeft className="w-4 h-4" /></button>
-          ) : (
-            <OhpBot size={24} className="mx-0.5 flex-shrink-0" />
-          )}
-          <span className="mr-auto min-w-0 flex-1 text-sm font-bold leading-snug text-[#111827] [overflow-wrap:anywhere] line-clamp-3 dark:text-white">
-            {showChats && !wide ? 'Your chats' : activeConversation?.title || 'AI Assistant'}
-          </span>
-          {!wide && (
-            <button onClick={() => setShowChats((s) => !s)} title="Your chats" aria-label="Your chats" className={iconBtn}><History className="w-4 h-4" /></button>
-          )}
+          <OhpBot size={26} className="mx-0.5 flex-shrink-0" />
+          {/* Always "AI Assistant", the chat's usage bar beside it on the same line (owner, 11/01) */}
+          <span className="shrink-0 text-sm font-bold leading-snug text-[#111827] dark:text-white">AI Assistant</span>
+          <MonthlyAiUsageMeter kind="chat" variant="inline" slimOnly shortLabel refreshKey={`${activeConversation?.messages.length || 0}:${isSending}`}
+            className="mx-1.5 min-w-0 flex-1" />
+          <span className="flex-1 empty:hidden" />
           {activeConversation && (
             <button onClick={newChat} title="Start a new chat" aria-label="Start a new chat" className={iconBtn}><MessageSquarePlus className="w-4 h-4" /></button>
           )}
@@ -415,22 +406,10 @@ export default function AssistantWidget() {
           <button onClick={close} aria-label="Close" className={iconBtn}><X className="w-4 h-4" /></button>
         </div>
 
+        <WorkingStrip jobs={working} />
+
         <div className="flex-1 min-h-0 flex">
-          {wide && (
-            <ConversationSidebar
-              conversations={chats} activeConversationId={activeConversation?.id ?? null} loading={chatsLoading}
-              onSelect={openChat} onNew={newChat} onDelete={deleteChat}
-              className="flex flex-col w-64 flex-shrink-0 border-r border-gray-100 dark:border-zinc-800/60 bg-white dark:bg-zinc-900"
-            />
-          )}
           <div className="flex-1 min-w-0 flex flex-col">
-            {showChats && !wide ? (
-              <ConversationSidebar
-                conversations={chats} activeConversationId={activeConversation?.id ?? null} loading={chatsLoading}
-                onSelect={openChat} onNew={newChat} onDelete={deleteChat}
-                className="flex flex-col flex-1 min-h-0 bg-white dark:bg-zinc-900"
-              />
-            ) : (
               <>
                 <div className="flex-1 min-h-0 flex flex-col">
                   {activeConversation ? (
@@ -441,8 +420,8 @@ export default function AssistantWidget() {
                 </div>
                 <div className="pb-[env(safe-area-inset-bottom)]">
                   {/* The chat's own allowance: a slim line that moves after each reply; near / at the limit the full bar + upgrade offer (11/01) */}
-                  {/* (Phones: below 80% it's on the swipe tab instead.) */}
-                  {activeConversation && <MonthlyAiUsageMeter kind="chat" variant="inline" slimBelowLimit={!isPhone} onlyNearLimit={isPhone} refreshKey={`${activeConversation.messages.length}:${isSending}`} className="px-4 pt-2" />}
+                  {/* (Below 80% it's the slim bar in the top line; near the limit the full bar + upgrade offer shows here too.) */}
+                  {activeConversation && <MonthlyAiUsageMeter kind="chat" variant="inline" onlyNearLimit refreshKey={`${activeConversation.messages.length}:${isSending}`} className="px-4 pt-2" />}
                   <ChatInput
                     onSend={handleSend}
                     disabled={isSending}
@@ -451,7 +430,6 @@ export default function AssistantWidget() {
                   />
                 </div>
               </>
-            )}
           </div>
         </div>
       </div>

@@ -9,6 +9,7 @@ import { COMPOSITION_LABELS, DesignCompositionId, formatFamily } from '@/lib/stu
 
 export interface TemplateBuildOptions {
   heroPhoto?: string | null // the photo the agent picked in the wizard (property or library/upload)
+  heroFocal?: { x: number; y: number } | null // where the main photo sits (0-100), dragged on the AI helper's card
   openHouseDate?: string
   openHouseTime?: string
   openHouseEventId?: string | null
@@ -187,6 +188,7 @@ function propertyBlocks(situationId: string, designType: string, composition: De
   const hero = block('hero_photo')
   const defaultHero = property?.photos?.[0] || property?.image_url || null
   if (options.heroPhoto && options.heroPhoto !== defaultHero) hero.overrides = { image_url: options.heroPhoto }
+  if (options.heroFocal) hero.data = { ...hero.data, photoFocalPoint: options.heroFocal }
   blocks.push(hero)
 
   const wantsGallery = composition === 'collage' || composition === 'mosaic' || composition === 'filmstrip' || (composition === 'keepsake' && (fam === 'portrait' || fam === 'tall')) || (composition === 'band' && isPrint && fam !== 'landscape') || (composition === 'framed' && (fam === 'portrait' || fam === 'tall'))
