@@ -86,7 +86,24 @@ class ApiService {
   // requests there go out signed (the server files them as the agent's, not the client's).
   private publicAsOwner = false
 
-  private async request<T>(endpoint: string, options: RequestInit = {}, includeToken: boolean = true): Promise<ApiResponse<T>> {
+  // The same read asked for twice at once (the header's two bells, two badge hooks both reading
+  // form requests, a page and its panel...) goes out once and both get the answer (owner, 11/01 -
+  // lag spikes). Each caller gets its own copy, so one sorting / editing it never touches the other.
+  private inflight = new Map<string, Promise<ApiResponse<unknown>>>()
+
+  private request<T>(endpoint: string, options: RequestInit = {}, includeToken: boolean = true): Promise<ApiResponse<T>> {
+    const method = (options.method || 'GET').toUpperCase()
+    if (method !== 'GET' || options.body || options.signal || typeof window === 'undefined') return this.send<T>(endpoint, options, includeToken)
+    const key = `${includeToken ? getToken() || '' : '-'}|${endpoint}|${JSON.stringify(options.headers || {})}`
+    let shared = this.inflight.get(key)
+    if (!shared) {
+      shared = this.send<unknown>(endpoint, options, includeToken).finally(() => this.inflight.delete(key))
+      this.inflight.set(key, shared)
+    }
+    return shared.then(r => (r.success && r.data != null && typeof r.data === 'object' ? { ...r, data: structuredClone(r.data) } : r) as ApiResponse<T>)
+  }
+
+  private async send<T>(endpoint: string, options: RequestInit = {}, includeToken: boolean = true): Promise<ApiResponse<T>> {
     const url = `${API_BASE_URL}${endpoint}`;
     const token = includeToken ? getToken() : null;
     const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
@@ -2066,6 +2083,9 @@ class ApiService {
     listConversations: () => this.request<AIConversationListItem[]>('/ai/conversations'),
 
     getHelperStatus: () => this.request<{ enabled: boolean; voice: boolean }>('/ai/helper/status'),
+    // Chats where the helper finished something while they were away (an AI CMA) - the chat button's count (11/01).
+    unread: () => this.request<{ conversations: string[] }>('/ai/unread'),
+    markRead: (conversationId: string) => this.request<{ conversations: string[] }>(`/ai/unread/${conversationId}/read`, { method: 'POST' }),
 
     // picks: choices tapped on the card (a picker, e.g. Branding swatches) - folded in on the server.
     confirmAction: (actionId: string, messageId: string, picks?: Record<string, unknown>) =>

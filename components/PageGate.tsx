@@ -19,8 +19,8 @@ import { isGatedAppPage } from '@/lib/appChrome'
 const QUIET_MS = 160      // nothing in flight for this long = the data is in
 const GRACE_MS = 280      // ready within this = the page just appears (the loader never shows)
 const MIN_SHOWN_MS = 450  // once the loader IS up, keep it this long so it never flickers
-const MAX_MS = 9000       // a slow / stuck request never holds the page hostage
-const IMAGES_MAX_MS = 2500
+const MAX_MS = 4000       // a slow / stuck request never holds the page hostage (was 9s - owner, 11/01: lag spikes)
+const IMAGES_MAX_MS = 1200 // a slow listing photo shows as it loads rather than holding the page
 const NAV_WAIT_MS = 5000  // a clicked link that never navigates lets go after this...
 const NAV_SLOW_MS = 45000 // ...unless the new page is still on its way (slow network / a rebuilding dev server)
 const COVER_OUT_MS = 200  // the loader fades away quickly...
@@ -30,7 +30,8 @@ const REVEAL_LEAD_MS = 100 // ...and the page starts rising as it goes, so the l
 // Calls that aren't the page itself - the header's badge counts and Today's Rundown (it has its own
 // "Getting your day ready…" card) - never hold the page behind the loader (owner, 10/26: switching
 // pages sat on the logo while these finished). The Activity page's list IS its notifications.
-const BACKGROUND_CALLS = /\/(unread-count|action-counts|refine-requests\/count|rundown\/today)(\?|$)|\/api\/v1\/notifications(\?|$)/
+// (11/01: + the follow-up count, the AI helper's red number / usage bar / on-off check.)
+const BACKGROUND_CALLS = /\/(unread-count|action-counts|refine-requests\/count|rundown\/today|tasks\/counts|ai\/unread|ai\/usage\/[a-z]+|ai\/helper\/status)(\?|$)|\/api\/v1\/notifications(\?|$)/
 const isBackgroundCall = (url: string) => BACKGROUND_CALLS.test(url.split('#')[0]) && !(url.includes('/api/v1/notifications') && window.location.pathname.startsWith('/activity'))
 let pending = 0
 let pageFetches = 0 // Next's own fetches for the next page (?_rsc=) - a navigation still in progress

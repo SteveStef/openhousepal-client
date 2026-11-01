@@ -1840,6 +1840,27 @@ input:-webkit-autofill:active {
 .ohp-ai-reveal { animation: ohpAiReveal 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 .ohp-ai-press { transition: transform 0.12s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease; }
 .ohp-ai-press:active { transform: scale(0.96); }
+/* The feature icon on a helper card (11/01): a slow gold sweep around it while it's working, a soft
+   glow breathing behind it, and a little pop when it lands. No blur on moving layers. */
+.ohp-ai-icon { position: relative; isolation: isolate; }
+.ohp-ai-icon-live::before {
+  content: ''; position: absolute; inset: -3px; z-index: -1; border-radius: 14px;
+  background: conic-gradient(from var(--ohp-sweep, 0deg), transparent 0deg, #e8c97a 70deg, #C9A24D 120deg, transparent 180deg, transparent 360deg);
+  animation: ohpAiSweep 1.4s linear infinite;
+}
+.ohp-ai-icon-live::after {
+  content: ''; position: absolute; inset: -8px; z-index: -2; border-radius: 18px;
+  background: radial-gradient(closest-side, rgba(201,162,77,.45), transparent); animation: ohpAiBreathe 1.8s ease-in-out infinite;
+}
+.ohp-ai-icon-live svg { animation: ohpAiIconBob 1.8s ease-in-out infinite; }
+.ohp-ai-icon-pop { animation: ohpAiCheck 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; }
+@property --ohp-sweep { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@keyframes ohpAiSweep { to { --ohp-sweep: 360deg; } }
+@keyframes ohpAiBreathe { 0%, 100% { opacity: .35; transform: scale(.92); } 50% { opacity: .9; transform: scale(1.06); } }
+@keyframes ohpAiIconBob { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-1.5px) rotate(-6deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .ohp-ai-icon-live::before, .ohp-ai-icon-live::after, .ohp-ai-icon-live svg, .ohp-ai-icon-pop { animation: none !important; }
+}
 @media (prefers-reduced-motion: reduce) {
   .ohp-ai-panel-in, .ohp-ai-panel-out, .ohp-ai-sheet-in, .ohp-ai-sheet-out, .ohp-ai-fade, .ohp-ai-fade-out, .ohp-ai-morph, .ohp-ai-fab,
   .ohp-ai-msg-user, .ohp-ai-msg-bot, .ohp-ai-card-in, .ohp-ai-dot, .ohp-ai-shimmer, .ohp-ai-check, .ohp-ai-reveal { animation: none !important; }

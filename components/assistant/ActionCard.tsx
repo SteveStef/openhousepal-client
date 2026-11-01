@@ -11,6 +11,8 @@ import LinkPreviewCard from './LinkPreviewCard'
 import BrandPick, { type BrandPicks } from './BrandPick'
 import { getTemplatesFor, isCompositionReady } from '@/lib/studio/designTemplates'
 import { DESIGN_COLOR_MODES } from '@/lib/studio/designColors'
+import { CardIcon, CmaPick, DesignLivePreview, BrandLivePreview, FormPick, SetupSteps, SpotlightPick, type FormPicks, type SpotlightPicks } from './CardPickers'
+import { runSpotlightSetup, type SetupStep } from '@/components/property-sites/spotlight/autoSetup'
 
 type Made = AIToolCallRef['made']
 
@@ -88,6 +90,8 @@ function DesignPick({ payload, look, onLook, idx }: { payload: Record<string, an
   const layout = look.layout || layouts[0]?.composition || null
   return (
     <div className="mt-3 space-y-3 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-design-pick">
+      {/* how it will look, redrawn as they tap (owner, 11/01) - the Studio's own renderer */}
+      <DesignLivePreview payload={payload} layout={layout} colors={look.colors} />
       {layouts.length > 1 && (
         <div>
           <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#C9A24D]">Layout</p>
@@ -152,11 +156,22 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   // Invites: the four designs, tapped on the card (owner's test, 11/01: it picked Classic for them)
   const isInvite = action.picker === 'invite'
   const [inviteDesign, setInviteDesign] = useState<string>(((action.payload?.body as any)?.design as string) || 'classic')
+  // Spotlight: the look + color on a small front page; CMA: AI or manual; form: background + home (11/01)
+  const isSpotlight = action.picker === 'spotlight'
+  const [spot, setSpot] = useState<SpotlightPicks>({ template_id: (action.payload?.template_id as string) || 'cinematic_luxury',
+    brand_color: ((action.payload?.preview as any)?.brand_color as string) || '#C9A24D' })
+  const isCma = action.picker === 'cma'
+  const [cmaAi, setCmaAi] = useState<boolean>(action.payload?.ai !== false)
+  const isForm = action.picker === 'form'
+  const [form, setForm] = useState<FormPicks>({ background_effects: action.payload?.background_effects !== false, listing_key: (action.payload?.listing_key as string) || null })
+  const picks = isBrand ? brand : isInvite ? { design: inviteDesign } : isSpotlight ? spot : isCma ? { ai: cmaAi } : isForm ? form : undefined
+  // A Spotlight made just now finishes its own setup right here (amenities, highlights, story, town).
+  const [setup, setSetup] = useState<SetupStep[] | null>(null)
 
   const act = async (kind: 'confirm' | 'cancel') => {
     setBusy(kind)
     const r = kind === 'confirm'
-      ? await api.ai.confirmAction(action.record_id, messageId, isBrand ? brand : isInvite ? { design: inviteDesign } : undefined)
+      ? await api.ai.confirmAction(action.record_id, messageId, picks as Record<string, unknown> | undefined)
       : await api.ai.cancelAction(action.record_id, messageId)
     const data = r.data as (typeof r.data & { client_action?: string; payload?: Record<string, unknown> }) | undefined
     if (r.success && data?.status === 'running' && data.client_action) {
@@ -168,7 +183,14 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
       setFresh(true)
       setState({ status: saved.data?.status || (out.ok ? 'done' : 'failed'), message: saved.data?.result_message || out.message, link: saved.data?.result_link || out.link || '', made: (saved.data as any)?.made || (out.made as Made) })
     } else if (r.success && r.data) {
-      setState({ status: r.data.status || 'failed', message: r.data.result_message || '', link: r.data.result_link || '', share: (r.data as any).share || null })
+      const made = (r.data as any).made as Made
+      setFresh(true)
+      setState({ status: r.data.status || 'failed', message: r.data.result_message || '', link: r.data.result_link || '', share: (r.data as any).share || null, made })
+      if (r.data.status === 'done' && made?.kind === 'spotlight' && (made as any).site_id) {
+        setSetup([])
+        const out = await runSpotlightSetup((made as any).site_id, setSetup)
+        setState(st => ({ ...st, message: out.message }))
+      }
     } else {
       setState({ status: 'failed', message: r.error || 'Something went wrong - nothing was changed.', link: '' })
     }
@@ -176,10 +198,15 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   }
 
   const pending = state.status === 'pending'
+  const working = !!busy || state.status === 'running' || state.status === 'working' || (!!setup && setup.some(s => s.state === 'run' || s.state === 'wait'))
+  const iconState = working ? 'live' : state.status === 'done' ? 'done' : state.status === 'cancelled' || state.status === 'expired' || state.status === 'failed' ? 'off' : 'idle'
   return (
     <div className={`ohp-ai-card-in mt-2 w-full rounded-2xl border bg-white p-3.5 text-left shadow-sm transition-colors duration-300 dark:bg-zinc-900 ${
-      state.status === 'done' ? 'border-emerald-200 dark:border-emerald-900/50' : 'border-[#C9A24D]/40 dark:border-[#C9A24D]/30'}`}>
-      <p className="text-sm font-bold text-[#111827] dark:text-white">{action.title}</p>
+      state.status === 'done' ? 'border-emerald-200 dark:border-emerald-900/50' : working ? 'border-[#C9A24D] shadow-[0_8px_26px_-14px_rgba(201,162,77,.7)]' : 'border-[#C9A24D]/40 dark:border-[#C9A24D]/30'}`} data-testid="ai-action-card">
+      <div className="flex items-center gap-3">
+        <CardIcon tool={action.tool} state={iconState} />
+        <p className="min-w-0 flex-1 text-sm font-bold leading-snug text-[#111827] dark:text-white">{action.title}</p>
+      </div>
       {!!action.details?.length && (
         <ul className="mt-1.5 space-y-1">
           {/* a design's "Look:" line is the picker below (and the picture once made) - it could only go stale */}
@@ -192,7 +219,15 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
         </ul>
       )}
       {isDesign && pending && <DesignPick payload={action.payload as Record<string, any>} look={look} onLook={setLook} idx={idx} />}
-      {isBrand && pending && <BrandPick picks={brand} onPicks={setBrand} idx={idx} />}
+      {isBrand && pending && (
+        <div className="mt-3 space-y-2">
+          <BrandLivePreview picks={brand} />
+          <BrandPick picks={brand} onPicks={setBrand} idx={idx} />
+        </div>
+      )}
+      {isSpotlight && pending && <SpotlightPick payload={action.payload as Record<string, any>} picks={spot} onPicks={setSpot} />}
+      {isCma && pending && <CmaPick payload={action.payload as Record<string, any>} ai={cmaAi} onAi={setCmaAi} />}
+      {isForm && pending && <FormPick payload={action.payload as Record<string, any>} picks={form} onPicks={setForm} />}
       {isInvite && pending && (
         <div className="mt-3 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-invite-pick">
           <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#C9A24D]">Design</p>
@@ -236,12 +271,14 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
             : 'bg-gray-50 text-gray-600 dark:bg-zinc-800 dark:text-zinc-300'
         }`}>
           {state.status === 'done' && <span className="ohp-ai-check mr-1 h-4 w-4 items-center justify-center rounded-full bg-emerald-500 align-[-3px] text-white"><Check className="h-3 w-3" strokeWidth={3} /></span>}
-          {state.status === 'running'
+          {state.status === 'running' || state.status === 'working'
             ? <span className="ohp-ai-shimmer">{state.message || 'Working on it...'}</span>
+            : setup && setup.some(s => s.state === 'run' || s.state === 'wait') ? <span className="ohp-ai-shimmer">Finishing your Spotlight...</span>
             : state.message || 'Done.'}
+          {setup && <SetupSteps steps={setup} />}
           {state.status === 'done' && state.made?.kind === 'design' && <MadeDesign made={state.made as any} fresh={fresh} />}
           {state.status === 'done' && state.share?.url && <LinkPreviewCard url={state.share.url} preview={state.share.preview} />}
-          {state.status === 'done' && state.link && (
+          {(state.status === 'done' || state.status === 'working') && state.link && (
             <Link href={state.link} className="group mt-1.5 flex items-center gap-1 font-bold text-[#8b7355] dark:text-[#C9A24D]">
               Open it <ArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
             </Link>

@@ -132,6 +132,32 @@ export default function AssistantWidget() {
     else showToast('That chat could not be opened.', 'error')
   }, [activeConversation?.id, showToast])
 
+  // Something the helper finished while they were away (an AI CMA, 11/01): the chat it's in shows as
+  // unread - a count on the closed button, on any device - until that chat is open on screen.
+  const [unread, setUnread] = useState<string[]>([])
+  useEffect(() => {
+    if (!helper?.enabled) return
+    let live = true
+    const tick = () => { api.ai.unread().then(r => { if (live && r.success && r.data) setUnread(r.data.conversations) }) }
+    tick()
+    const t = window.setInterval(tick, 30000)
+    window.addEventListener('focus', tick)
+    return () => { live = false; window.clearInterval(t); window.removeEventListener('focus', tick) }
+  }, [helper?.enabled])
+  // Opening the helper goes to the chat with the news...
+  useEffect(() => {
+    if (!isOpen || !unread.length || (activeConversation && unread.includes(activeConversation.id))) return
+    if (!activeConversation || !activeConversation.messages.some(m => m.id.startsWith('temp-'))) void openChat(unread[0])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, unread])
+  // ...and once it's on screen, it shows the news (the finished card + message) and is read.
+  useEffect(() => {
+    const id = activeConversation?.id
+    if (!isOpen || !id || !unread.includes(id)) return
+    api.ai.getConversation(id).then(r => { if (r.success && r.data) setActiveConversation(r.data) })
+    api.ai.markRead(id).then(r => { if (r.success && r.data) setUnread(r.data.conversations) })
+  }, [isOpen, activeConversation?.id, unread])
+
   const deleteChat = useCallback(async (id: string) => {
     const r = await api.ai.deleteConversation(id)
     if (!r.success) { showToast('That chat could not be deleted.', 'error'); return }
@@ -175,7 +201,7 @@ export default function AssistantWidget() {
       setActiveConversation((prev) => {
         if (!prev) return prev
         const withoutTemp = prev.messages.filter((m) => m.id !== tempId)
-        return { ...prev, title: prev.title || text.slice(0, 80), messages: [...withoutTemp, user_message, assistant_message] }
+        return { ...prev, title: prev.title || (text.length <= 80 ? text : `${text.slice(0, 79).replace(/\s+\S*$/, '')}…`), messages: [...withoutTemp, user_message, assistant_message] }
       })
       return true
     } catch (err) {
@@ -246,6 +272,11 @@ export default function AssistantWidget() {
         className="ohp-ai-fab fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-[#8b7355] hover:bg-[#7a6549] text-white shadow-xl shadow-black/20 flex items-center justify-center"
       >
         <Sparkles className="ohp-ai-fab-icon w-6 h-6" />
+        {unread.length > 0 && (
+          <span data-testid="ai-unread-badge" className="ohp-ai-check absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[11px] font-black text-white ring-2 ring-white dark:ring-zinc-900">
+            {unread.length}
+          </span>
+        )}
       </button>
     )
   }
@@ -300,7 +331,7 @@ export default function AssistantWidget() {
           ) : (
             <Sparkles className="w-4 h-4 text-[#8b7355] mx-1 flex-shrink-0" />
           )}
-          <span className="text-sm font-bold text-[#111827] dark:text-white truncate mr-auto">
+          <span className="mr-auto min-w-0 flex-1 text-sm font-bold leading-snug text-[#111827] [overflow-wrap:anywhere] line-clamp-3 dark:text-white">
             {showChats && !wide ? 'Your chats' : activeConversation?.title || 'AI Assistant'}
           </span>
           {!wide && (
@@ -349,8 +380,8 @@ export default function AssistantWidget() {
                   )}
                 </div>
                 <div className="pb-[env(safe-area-inset-bottom)]">
-                  {/* Near / at the chat allowance: the Chat usage bar + its upgrade offer (11/01) */}
-                  {activeConversation && <MonthlyAiUsageMeter kind="chat" variant="inline" onlyNearLimit refreshKey={activeConversation.messages.length} className="px-4 pt-2" />}
+                  {/* The chat's own allowance: a slim line that moves after each reply; near / at the limit the full bar + upgrade offer (11/01) */}
+                  {activeConversation && <MonthlyAiUsageMeter kind="chat" variant="inline" slimBelowLimit refreshKey={`${activeConversation.messages.length}:${isSending}`} className="px-4 pt-2" />}
                   <ChatInput
                     onSend={handleSend}
                     disabled={isSending}

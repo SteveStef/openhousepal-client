@@ -3869,7 +3869,8 @@ export interface AIToolCallRef {
   confirm_label?: string;
   // the card shows this picker before Confirm (e.g. "brand" - Branding swatches, 10/31)
   picker?: string | null;
-  status?: 'pending' | 'running' | 'done' | 'failed' | 'cancelled' | 'expired';
+  // working: started and still going on the server (an AI CMA) - the chat hears when it's done (11/01)
+  status?: 'pending' | 'running' | 'working' | 'done' | 'failed' | 'cancelled' | 'expired';
   result_message?: string | null;
   result_link?: string | null;
   // record_type 'choices' / 'link' - tap-to-answer buttons and "Go there" buttons (10/30)
@@ -3879,7 +3880,7 @@ export interface AIToolCallRef {
   // record_type 'action' run in the browser (designs) and what it made
   client_action?: string;
   payload?: Record<string, unknown>;
-  made?: { kind: string; title?: string; design_id?: string; is_print?: string } | null;
+  made?: { kind: string; title?: string; design_id?: string; is_print?: string; site_id?: string } | null;
   // a link a client would get by text - shown as its Messages-style preview card (10/31)
   share?: { url: string; preview?: string } | null;
 }

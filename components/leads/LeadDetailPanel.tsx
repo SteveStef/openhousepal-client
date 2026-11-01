@@ -25,7 +25,7 @@ import NotesThread from './NotesThread'
 import { copyText } from '@/lib/copyText'
 import LuxeSelect from '@/components/ui/LuxeSelect'
 import MotionModal from '@/components/ui/MotionModal'
-import LeadOpenHouseShowcase from './LeadOpenHouseShowcase'
+import { useLeadOhShowcase, LeadOhShowcaseSwitch, LeadOhShowcaseState } from './LeadOpenHouseShowcase'
 import QuickEditShowcase from '@/components/showcases/QuickEditShowcase'
 
 // Something in this person's alert settings is switched off (the Alert settings button says so).
@@ -177,6 +177,9 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
     const r = await api.leads.get(leadId)
     if (r.success && r.data) setLead(r.data)
   }, [leadId])
+  // The open house Showcase switch lives in the lead's one Showcase card (owner, 11/01).
+  const clearAsk = useCallback(() => setAskShowcase(null), [])
+  const ohShowcase = useLeadOhShowcase({ leadId, represented: lead?.represented ?? null, asked: askShowcase, onAsked: clearAsk, onChanged: reload })
 
   useEffect(() => {
     if (!leadId) return
@@ -490,14 +493,12 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
             </Card>
           )}
 
-          {/* The open house Showcase switch, like the Visitors window's (owner, 11/01) */}
-          <LeadOpenHouseShowcase leadId={lead.id} represented={lead.represented} asked={askShowcase} onAsked={() => setAskShowcase(null)}
-            Card={Card} Title={SectionTitle} />
+          {ohShowcase.modal}
           <QuickEditShowcase open={!!editShowcase} onClose={() => setEditShowcase(null)} who={lead.name}
             showcases={(lead.showcases || []).map(s => ({ id: s.id, name: s.name }))} initialId={editShowcase} onSaved={() => reload()} />
 
           {/* On a phone their Showcase comes before the long history (the side column is last). */}
-          {(lead.showcases || []).length > 0 && <div className="space-y-4 lg:hidden">{(lead.showcases || []).map(sc => <ShowcaseCard key={sc.id} sc={sc} onCopy={copy} onEdit={() => setEditShowcase(sc.id)} />)}</div>}
+          <div className="space-y-4 lg:hidden"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={setEditShowcase} /></div>
 
           {/* ── emails we sent them: opened / clicked, and whether automatic ones are on, weekly or off (and why) */}
           {lead.email && <LeadEmailCard email={lead.email} initial={lead.email_engagement} />}
@@ -550,9 +551,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
 
         {/* ── side: their Showcase, open houses, tags, notes, record */}
         <div className="min-w-0 space-y-4 sm:space-y-5">
-          {(lead.showcases || []).map(sc => (
-            <div key={sc.id} className="hidden lg:block"><ShowcaseCard sc={sc} onCopy={copy} onEdit={() => setEditShowcase(sc.id)} /></div>
-          ))}
+          <div className="hidden space-y-4 lg:block sm:space-y-5"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={setEditShowcase} /></div>
 
           {!!lead.open_houses?.length && (
             <Card>
@@ -802,10 +801,22 @@ function ViewsRow({ items, open, onToggle }: { items: LeadEvent[]; open: boolean
   )
 }
 
-function ShowcaseCard({ sc, onCopy, onEdit }: { sc: LeadShowcase; onCopy: (text: string, what: string) => void; onEdit?: () => void }) {
+// Their Showcase in one card (owner, 11/01): the open house on/off switch sits on top of the card for
+// the Showcase it controls (or the first one); with no Showcase yet the card is just the switch.
+function ShowcaseCards({ showcases, oh, onCopy, onEdit }: { showcases: LeadShowcase[]; oh: LeadOhShowcaseState; onCopy: (text: string, what: string) => void; onEdit: (id: string) => void }) {
+  if (!showcases.length) {
+    if (!oh.show) return null
+    return <Card><SectionTitle>Their Showcase</SectionTitle><LeadOhShowcaseSwitch oh={oh} withLink /></Card>
+  }
+  const withSwitch = (oh.show && (showcases.find(s => s.id === oh.data?.showcase_id) || showcases[0]).id) || null
+  return <>{showcases.map(sc => <ShowcaseCard key={sc.id} sc={sc} onCopy={onCopy} onEdit={() => onEdit(sc.id)} top={sc.id === withSwitch ? <LeadOhShowcaseSwitch oh={oh} /> : null} />)}</>
+}
+
+function ShowcaseCard({ sc, onCopy, onEdit, top }: { sc: LeadShowcase; onCopy: (text: string, what: string) => void; onEdit?: () => void; top?: React.ReactNode }) {
   return (
     <Card>
       <SectionTitle>Their Showcase</SectionTitle>
+      {top && <div className="mb-3">{top}</div>}
       <p className="truncate text-sm font-black text-[#111827] dark:text-white">{sc.name || 'Showcase'}</p>
       <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
         <div className="rounded-xl bg-gray-50 py-2 dark:bg-white/[0.04]"><p className="text-base font-black text-[#111827] dark:text-white">{sc.home_count}</p><p className="text-[10px] font-bold text-gray-400">Homes</p></div>

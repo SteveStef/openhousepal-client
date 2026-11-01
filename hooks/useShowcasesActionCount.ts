@@ -35,7 +35,7 @@ export function useShowcasesActionCount() {
 
     const handleFocus = () => fetchCount()
     window.addEventListener('focus', handleFocus)
-    const interval = setInterval(() => fetchCount(), POLL_INTERVAL_MS)
+    const interval = setInterval(() => { if (!document.hidden) fetchCount() }, POLL_INTERVAL_MS) // paused in a background tab (focus refetches)
 
     return () => {
       window.removeEventListener('focus', handleFocus)

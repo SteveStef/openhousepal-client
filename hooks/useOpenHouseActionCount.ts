@@ -73,7 +73,7 @@ export function useOpenHouseActionCounts() {
     const handleRefresh = () => fetchCounts(true)
     window.addEventListener('focus', handleFocus)
     window.addEventListener(REFRESH_EVENT, handleRefresh)
-    const interval = setInterval(() => fetchCounts(), POLL_INTERVAL_MS)
+    const interval = setInterval(() => { if (!document.hidden) fetchCounts() }, POLL_INTERVAL_MS) // paused in a background tab (focus refetches)
 
     return () => {
       window.removeEventListener('focus', handleFocus)

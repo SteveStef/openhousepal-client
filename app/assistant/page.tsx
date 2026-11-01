@@ -161,7 +161,7 @@ export default function AssistantPage() {
             <Menu className="w-5 h-5" />
           </button>
           <Sparkles className="w-4 h-4 text-[#8b7355]" />
-          <span className="text-sm font-bold text-[#111827] dark:text-white truncate">
+          <span className="min-w-0 text-sm font-bold leading-snug text-[#111827] [overflow-wrap:anywhere] line-clamp-3 dark:text-white">
             {activeConversation?.title || 'AI Assistant'}
           </span>
           {helper.voice && <button
@@ -184,7 +184,7 @@ export default function AssistantPage() {
           <AssistantHome onPrompt={handleSend} />
         )}
 
-        {activeConversation && <MonthlyAiUsageMeter kind="chat" variant="inline" onlyNearLimit refreshKey={activeConversation.messages.length} className="px-4 pt-2" />}
+        {activeConversation && <MonthlyAiUsageMeter kind="chat" variant="inline" slimBelowLimit refreshKey={`${activeConversation.messages.length}:${isSending}`} className="px-4 pt-2" />}
         <ChatInput
           onSend={handleSend}
           disabled={isSending || isTalking}

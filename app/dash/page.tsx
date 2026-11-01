@@ -179,7 +179,7 @@ export default function DashPage() {
   const mlsPlan = hasMlsAccess(user?.plan_tier)
   const mlsPlanRef = useRef(mlsPlan)
   mlsPlanRef.current = mlsPlan
-  const loadDashData = useCallback(async (isFirstLoad = false) => {
+  const loadDashDataOnce = useCallback(async (isFirstLoad = false) => {
     const mls = mlsPlanRef.current
     const skip: Promise<unknown> = Promise.resolve({ success: false, data: null })
     const [statsRes, attentionLeadsRes, recentLeadsRes, activityNotificationsRes, hostRequestsRes, discoveryRes, myListingsRes] = await Promise.all([
@@ -242,6 +242,14 @@ export default function DashPage() {
     setLastUpdated(new Date())
     if (isFirstLoad) setLoading(false)
   }, [])
+  // One refresh at a time: on a slow connection the 8s refresh (or a focus / refresh event) used to
+  // start a second round of seven calls while the first was still loading (owner, 11/01 - lag).
+  const dashBusy = useRef(false)
+  const loadDashData = useCallback(async (isFirstLoad = false) => {
+    if (dashBusy.current && !isFirstLoad) return
+    dashBusy.current = true
+    try { await loadDashDataOnce(isFirstLoad) } finally { dashBusy.current = false }
+  }, [loadDashDataOnce])
 
   // Real per-listing schedule data for the "Open House Discovery" shortcut panel - same call
   // Discovery's own page makes for the properties it renders, just scoped to the handful the

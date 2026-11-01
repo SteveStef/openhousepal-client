@@ -15,6 +15,7 @@ import SmoothHeight from '@/components/pricing/SmoothHeight'
 import api from '@/lib/api-service'
 import { Check, ChevronDown, Loader2, Send, Sparkles } from 'lucide-react'
 import HeroTagline from '@/components/home/HeroTagline'
+import CalmLoops, { usePlayWhenSeen } from '@/components/CalmLoops'
 
 // The FAQ section's closing "Ask Us a Question" card. Logged-in agents already have a real
 // ticket inbox (Header's Help icon / /settings/help), so this just routes them straight into the
@@ -170,6 +171,8 @@ const TOOL_ICON_ASSEMBLE: Record<string, string> = {
 export default function HomePage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B]" />}>
+      {/* The looping glows / shimmers rest when off screen or untouched - a phone left on this page got hot (11/01) */}
+      <CalmLoops />
       <HomePageContent />
     </Suspense>
   )
@@ -242,6 +245,18 @@ function HomePageContent() {
   const ActiveDemo = currentFeature.Demo
   const successVideoRef = useRef<HTMLVideoElement>(null)
   const toolDemoRef = useRef<HTMLDivElement>(null)
+  // The demo player only runs while it's on screen (its timers kept a phone hot, 11/01); scrolled
+  // away it's swapped for a same-height space and starts over when it comes back.
+  const demoLive = usePlayWhenSeen(toolDemoRef, { keepWhileWatched: true })
+  const demoBox = useRef<HTMLDivElement>(null)
+  const demoHeight = useRef(0)
+  useEffect(() => {
+    const el = demoBox.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => { if (el.offsetHeight) demoHeight.current = el.offsetHeight })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [currentFeature.key])
   const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement | null>>>({})
   const [activeSection, setActiveSection] = useState<SectionId>('hero')
   const [seenSections, setSeenSections] = useState<Set<SectionId>>(() => new Set<SectionId>(['hero']))
@@ -815,7 +830,9 @@ function HomePageContent() {
                   the 90% shrink, so the walkthroughs read at full size on a narrow screen. */}
               <div className="relative order-2 max-sm:-mx-2" ref={toolDemoRef}>
                 <div key={currentFeature.key} className="relative z-10 transition-all duration-700 animate-fadeIn transform scale-90 origin-top max-sm:scale-100">
-                  <ActiveDemo />
+                  <div ref={demoBox}>
+                    {demoLive ? <ActiveDemo /> : <div aria-hidden style={{ height: demoHeight.current || 520 }} />}
+                  </div>
                 </div>
 
                 {/* Visual Glow Backdrop */}

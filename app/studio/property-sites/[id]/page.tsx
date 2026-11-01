@@ -24,6 +24,7 @@ import RoomsStep from '@/components/property-sites/editor/RoomsStep'
 import HeroFramer, { frameIsSet } from '@/components/property-sites/editor/HeroFramer'
 import type { HeaderMode, HeaderMotion, HeroFrame, SpotlightHeader, TownPhoto } from '@/components/property-sites/spotlight/model'
 import type { TownFacts } from '@/components/property-sites/spotlight/TownSection'
+import { parseTownFacts, tidyTown } from '@/components/property-sites/spotlight/autoSetup'
 import { allFeatureTags as allTags, autoFeatured, rankFeature } from '@/components/property-sites/spotlight/features'
 import api, { API_BASE_URL } from '@/lib/api-service'
 import { getToken } from '@/lib/token'
@@ -1716,28 +1717,6 @@ function PropertySiteEditorPage() {
 }
 
 // The town facts arrive as JSON text from the copywriter - keep only well-formed short fields.
-function parseTownFacts(text: string): TownFacts | null {
-  try {
-    const raw = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1))
-    const str = (v: unknown, n: number) => (typeof v === 'string' ? v.trim().slice(0, n) : '')
-    const list = (v: unknown, n: number, max: number) => (Array.isArray(v) ? v.map(x => str(x, n)).filter(Boolean).slice(0, max) : [])
-    const dt = raw.downtown && typeof raw.downtown === 'object' ? raw.downtown : {}
-    const facts: TownFacts = {
-      tagline: str(raw.tagline, 140),
-      known_for: list(raw.known_for, 50, 6),
-      downtown: { name: str(dt.name, 60), where: str(dt.where, 90), highlights: list(dt.highlights, 60, 4) },
-      why_move: list(raw.why_move, 90, 4),
-      getting_around: (Array.isArray(raw.getting_around) ? raw.getting_around : [])
-        .map((g: any) => ({ label: str(g?.label, 80), detail: str(g?.detail, 60) })).filter((g: { label: string }) => g.label).slice(0, 3),
-      outdoors: list(raw.outdoors, 60, 4),
-      whats_new: str(raw.whats_new, 140),
-    }
-    return facts.tagline || facts.known_for?.length || facts.downtown?.name || facts.why_move?.length ? facts : null
-  } catch {
-    return null
-  }
-}
-
 // A coloured group in the town editor - module-level so typing never remounts the inputs.
 function Group({ tone, title, children, wide }: { tone: string; title: string; children: React.ReactNode; wide?: boolean }) {
   return (
@@ -1799,11 +1778,6 @@ function TownFactsEditor({ facts, onChange }: { facts: TownFacts; onChange: (f: 
 }
 
 // MLS city/county names often arrive in capitals ("MALVERN") - read as a normal name.
-function tidyTown(value?: string | null): string {
-  const v = (value || '').trim()
-  if (!v || /[a-z]/.test(v)) return v
-  return v.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
-}
 
 // A tiny drawing of each design's opening screen, so the two choices actually look different.
 function TemplateMini({ id, photo, address }: { id: PropertyWebsiteTemplateId; photo: string | null; address: string }) {

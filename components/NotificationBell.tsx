@@ -67,7 +67,7 @@ export default function NotificationBell() {
     window.addEventListener('focus', handleFocus)
     window.addEventListener(LEADS_REFRESH_EVENT, handleRefresh)
     window.addEventListener(OPEN_HOUSE_REFRESH_EVENT, handleRefresh)
-    const interval = setInterval(() => fetchNotifications(), POLL_INTERVAL_MS)
+    const interval = setInterval(() => { if (!document.hidden) fetchNotifications() }, POLL_INTERVAL_MS) // paused in a background tab (focus refetches)
 
     return () => {
       window.removeEventListener('focus', handleFocus)

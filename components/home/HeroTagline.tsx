@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { usePlayWhenSeen } from '@/components/CalmLoops'
 
 // The hero's "Built by real estate agents." / "Used by real estate agents." line. Each word rises
 // in out of a soft blur behind a gold highlight that sweeps across, holds, then the line leaves
@@ -13,14 +14,18 @@ const HOLD_MS = 3800
 export default function HeroTagline() {
   const [i, setI] = useState(0)
   const reduce = useReducedMotion()
+  // Only changes while it's on screen and someone is using the page (a phone left open got hot, 11/01).
+  const box = useRef<HTMLSpanElement>(null)
+  const live = usePlayWhenSeen(box)
   useEffect(() => {
+    if (!live) return
     const id = window.setInterval(() => setI(n => (n + 1) % LINES.length), HOLD_MS)
     return () => window.clearInterval(id)
-  }, [])
+  }, [live])
   const words = LINES[i].split(' ')
 
   return (
-    <span className="relative inline-flex h-9 items-center justify-center" aria-live="polite">
+    <span ref={box} className="relative inline-flex h-9 items-center justify-center" aria-live="polite">
       <AnimatePresence mode="wait" initial={false}>
         <motion.span
           key={i}

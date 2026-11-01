@@ -52,7 +52,7 @@ export function useFormsActionCount() {
     const handleRefresh = () => fetchCount(true)
     window.addEventListener('focus', handleFocus)
     window.addEventListener(REFRESH_EVENT, handleRefresh)
-    const interval = setInterval(() => fetchCount(), POLL_INTERVAL_MS)
+    const interval = setInterval(() => { if (!document.hidden) fetchCount() }, POLL_INTERVAL_MS) // paused in a background tab (focus refetches)
 
     return () => {
       window.removeEventListener('focus', handleFocus)

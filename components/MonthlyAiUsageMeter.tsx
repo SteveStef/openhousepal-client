@@ -67,7 +67,8 @@ function useCountUp(target: number | null) {
       const elapsed = now - startTime
       const t = Math.min(1, elapsed / duration)
       const eased = 1 - Math.pow(1 - t, 3)
-      setDisplay(Math.round(start + (target - start) * eased))
+      const k = Number.isInteger(target) ? 1 : 10   // whole-number bars count in whole numbers
+      setDisplay(Math.round((start + (target - start) * eased) * k) / k)
       if (t < 1) {
         rafRef.current = requestAnimationFrame(step)
       } else {
@@ -113,6 +114,7 @@ export default function MonthlyAiUsageMeter({
   compact = false,
   stretch = false,
   onlyNearLimit = false,
+  slimBelowLimit = false,
   className = '',
 }: {
   /** 'chat' = the AI helper chat's own "Chat usage" bar (its own allowance, owner 11/01). */
@@ -126,6 +128,8 @@ export default function MonthlyAiUsageMeter({
   stretch?: boolean
   /** Show only at 80%+ (with the upgrade offer) - e.g. above the chat's typing box. */
   onlyNearLimit?: boolean
+  /** Below 80% a one-line slim bar (in the chat, updating after each reply); the full bar + upgrade offer from 80%. */
+  slimBelowLimit?: boolean
   className?: string
 }) {
   const [data, setData] = useState<(MonthlyAiUsage & ChatUsage) | ChatUsage | null>(null)
@@ -147,7 +151,10 @@ export default function MonthlyAiUsageMeter({
   // just made is visible against the rest of the month (gold).
   const recent = Math.max(0, Math.min(pct, data.recent_percent ?? 0))
   const older = Math.max(0, pct - recent)
-  const recentNote = recent > 0 ? `+${recent}% in the last hour` : ''
+  // The chat bar comes with one decimal (a message is a fraction of a percent), so it shows it.
+  const one = (n: number) => (n > 0 && n < 100 && n % 1 ? n.toFixed(1) : String(Math.round(n)))
+  const pctText = one(pct)
+  const recentNote = recent > 0 ? `+${one(recent)}% in the last hour` : ''
 
   const exhausted = data.exhausted || pct >= 100
   const warning = !exhausted && (data.near_limit || pct >= 80)
@@ -164,6 +171,7 @@ export default function MonthlyAiUsageMeter({
   const upgradeHref = upgrade ? `/upgrade-required?tier=${upgrade.tier}&feature=${encodeURIComponent(upgrade.times === 2 ? '2x AI chat' : 'More AI chat')}` : ''
   const upgradeLabel = upgrade ? `Upgrade to ${upgrade.name} for ${upgrade.times === 2 ? '2x' : 'more'} the chat` : ''
   if (onlyNearLimit && !exhausted && !warning) return null
+  const slim = slimBelowLimit && !exhausted && !warning
 
   const barColor = exhausted ? 'bg-red-700' : warning ? 'bg-amber-400' : 'bg-[#C9A24D]'
   const fill = (
@@ -189,7 +197,7 @@ export default function MonthlyAiUsageMeter({
         <span className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide ${labelColor}`}>
           <AiGaugeIcon className={`h-3.5 w-3.5 ${pctColor} ${pulseCls}`} active={aiActive} /> {title}
         </span>
-        <span className={`text-xs font-black tabular-nums ${pctColor}`}>{pct}%</span>
+        <span className={`text-xs font-black tabular-nums ${pctColor}`}>{pctText}%</span>
       </div>
       <div className={`mt-1.5 flex h-2 w-full overflow-hidden rounded-full ${trackColor}`}>
         {fill}
@@ -236,13 +244,24 @@ export default function MonthlyAiUsageMeter({
     </>
   )
 
+  if (slim) {
+    return (
+      <div className={`flex items-center gap-2 ${className}`} data-testid="chat-usage-slim" title={`${title} - ${resetsText}`}>
+        <AiGaugeIcon className={`h-3 w-3 shrink-0 ${pctColor} ${pulseCls}`} active={aiActive} />
+        <span className={`shrink-0 text-[9px] font-black uppercase tracking-[0.14em] ${labelColor}`}>{title}</span>
+        <div className={`flex h-1 min-w-0 flex-1 overflow-hidden rounded-full ${trackColor}`}>{fill}</div>
+        <span className={`shrink-0 text-[10px] font-black tabular-nums ${pctColor}`}>{pctText}%</span>
+      </div>
+    )
+  }
+
   if (variant === 'chip') {
     return (
       <span className={`inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] font-black uppercase tracking-wide ${labelColor} ${className}`}>
         <AiGaugeIcon className={`h-3.5 w-3.5 shrink-0 ${pctColor} ${pulseCls}`} active={aiActive} />
         {title}
-        <span className={`tabular-nums ${pctColor}`}>{pct}%</span>
-        {recent > 0 && <span className={`tabular-nums ${recentColor}`}>(+{recent}% last hour)</span>}
+        <span className={`tabular-nums ${pctColor}`}>{pctText}%</span>
+        {recent > 0 && <span className={`tabular-nums ${recentColor}`}>(+{one(recent)}% last hour)</span>}
       </span>
     )
   }
@@ -261,8 +280,8 @@ export default function MonthlyAiUsageMeter({
           <div className={`flex h-1.5 ${stretch ? 'min-w-0 flex-1' : 'w-14 shrink-0 sm:w-28'} overflow-hidden rounded-full ${trackColor}`}>
             {fill}
           </div>
-          <span className={`shrink-0 text-xs font-black tabular-nums ${pctColor}`}>{pct}%</span>
-          {recentNote && <span className={`hidden shrink-0 whitespace-nowrap text-[9px] font-black sm:inline ${recentColor}`} title={recentNote}>+{recent}% last hr</span>}
+          <span className={`shrink-0 text-xs font-black tabular-nums ${pctColor}`}>{pctText}%</span>
+          {recentNote && <span className={`hidden shrink-0 whitespace-nowrap text-[9px] font-black sm:inline ${recentColor}`} title={recentNote}>+{one(recent)}% last hr</span>}
         </div>
         {/* On a phone the pill is too narrow for the bar, the % and this note on one row - the note
             pushed past the pill's edge (10/20) - so it gets its own line there. */}
