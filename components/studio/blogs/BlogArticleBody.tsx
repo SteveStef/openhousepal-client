@@ -114,8 +114,9 @@ export function visibleBlocks(blocks: BlogBlock[]): BlogBlock[] {
 
 // Fill-in-the-blank text an AI draft (or an unfinished edit) can leave behind: "$___",
 // "[Median sale price for (area)...]", "[insert ...]", "{{name}}", "TBD". 11/01: a published
-// article showed a "My current local numbers" list of these to the public.
-const BLANK = /_{3,}|\[(?:insert|add|enter|your|todo|tbd|placeholder)\b[^\]]*\]|\[[^\]]*\((?:area|date|town|city|price|number|name)\)[^\]]*\]|\{\{[^}]*\}\}|\bTBD\b/i
+// article showed a "My current local numbers" list of these to the public, plus a line that was
+// only a bracketed note ("[What these figures cover: township or mailing address]").
+const BLANK = /^\s*\[[^\]]{3,}\]\s*$|_{3,}|\[(?:insert|add|enter|your|todo|tbd|placeholder)\b[^\]]*\]|\[[^\]]*\((?:area|date|town|city|price|number|name)\)[^\]]*\]|\{\{[^}]*\}\}|\bTBD\b/i
 const TEXT_TYPES = ['heading', 'subheading', 'paragraph', 'quote', 'callout']
 const plainOf = (b: BlogBlock) => String(b.data?.html || b.data?.text || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').trim()
 
