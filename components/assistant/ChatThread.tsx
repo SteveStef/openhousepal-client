@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Bot, User as UserIcon, ExternalLink, Volume2, Pause, Loader2, AlertCircle, ArrowRight } from 'lucide-react'
+import { OhpBot, UserAvatar } from './OhpBot'
+import { ExternalLink, Volume2, Pause, Loader2, AlertCircle, ArrowRight } from 'lucide-react'
 import { AIMessage, AIToolCallRef } from '@/types'
 import AssistantMarkdown from './markdown'
 import ActionCard from './ActionCard'
@@ -96,7 +97,7 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
   }, [autoSpeak, isSending, messages, speak, conversationId])
 
   return (
-    <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-5">
+    <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain px-3 sm:px-6 py-4 sm:py-6 space-y-5">
       {messages.map((msg, idx) => {
         const isUser = msg.role === 'user'
         const extras = ['action', 'choices', 'link', 'made']
@@ -109,11 +110,12 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
         return (
           <div key={msg.id} className={`flex ${isUser ? 'ohp-ai-msg-user justify-end' : 'ohp-ai-msg-bot justify-start'}`}>
             <div className={`flex items-start gap-2.5 max-w-[85%] sm:max-w-[75%] ${isUser ? 'flex-row-reverse' : ''}`}>
-              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                isUser ? 'bg-[#8b7355] text-white' : 'bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-300'
-              }`}>
-                {isUser ? <UserIcon className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-              </div>
+              {/* Their own photo (or initials); the helper is the little OpenHousePal robot (owner, 11/01) */}
+              {isUser ? <UserAvatar size={32} /> : (
+                <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-full bg-[#faf6ec] ring-1 ring-[#C9A24D]/30 dark:bg-zinc-800 dark:ring-[#C9A24D]/25">
+                  <OhpBot size={26} />
+                </span>
+              )}
               <div className="min-w-0">
                 <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed break-words ${
                   isUser
@@ -127,8 +129,8 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
                   <div className="mt-2 flex flex-wrap gap-2">
                     {goLinks.map((l, i) => (
                       <Link key={l.record_id} href={l.href!} style={{ ['--i' as string]: i }}
-                        className="ohp-ai-card-in ohp-ai-press group inline-flex items-center gap-1.5 rounded-xl bg-[#8b7355] px-3.5 py-2 text-sm font-bold text-white shadow-sm shadow-[#8b7355]/30 hover:bg-[#7a6549]">
-                        {l.label || 'Go there'} <ArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5" />
+                        className="ohp-ai-card-in ohp-ai-press group inline-flex max-w-full items-center gap-1.5 rounded-xl bg-[#8b7355] px-3.5 py-2 text-left text-sm font-bold leading-snug text-white shadow-sm shadow-[#8b7355]/30 hover:bg-[#7a6549]">
+                        {l.label || 'Go there'} <ArrowRight className="h-4 w-4 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5" />
                       </Link>
                     ))}
                   </div>
@@ -199,9 +201,9 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
       {isSending && (
         <div className="ohp-ai-msg-bot flex justify-start">
           <div className="flex items-start gap-2.5 max-w-[75%]">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-300">
-              <Bot className="w-4 h-4" />
-            </div>
+            <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-full bg-[#faf6ec] ring-1 ring-[#C9A24D]/30 dark:bg-zinc-800 dark:ring-[#C9A24D]/25">
+              <OhpBot size={26} thinking />
+            </span>
             <div className="rounded-2xl px-4 py-3 bg-gray-50 dark:bg-zinc-800/70 border border-gray-100 dark:border-zinc-800">
               <Thinking />
             </div>

@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react'
 import { User } from '@/types'
 import api from '@/lib/api-service'
-import { getToken } from '@/lib/token'
+import { getToken, setToken, tokenInfo } from '@/lib/token'
 import { setQrOwner } from '@/lib/qr'
 
 interface AuthContextType {
@@ -62,6 +62,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fetchUser()
     }
   }, [fetchUser])
+
+  // Stay signed in while they use it (owner, 11/01: signed out every 24 hours): a Remember-me sign-in
+  // is renewed to a fresh 30 days once it's a day old - on load and when they come back to the tab.
+  const userId = user?.id
+  useEffect(() => {
+    if (!userId) return
+    let busy = false
+    const renew = () => {
+      const info = tokenInfo(getToken())
+      if (busy || !info || !info.remember || info.exp - Date.now() > 29 * 864e5) return
+      busy = true
+      api.auth.refreshSession().then(r => {
+        if (r.success && r.data?.access_token) setToken(r.data.access_token, r.data.days || 30)
+      }).finally(() => { busy = false })
+    }
+    renew()
+    window.addEventListener('focus', renew)
+    return () => window.removeEventListener('focus', renew)
+  }, [userId])
 
   const refreshUser = async () => {
     // Only a first sign-in shows the loading state. Re-checking an agent who's already signed in

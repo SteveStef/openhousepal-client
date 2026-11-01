@@ -502,9 +502,9 @@ function HomePageContent() {
             gradient mesh (varied hue + size + depth) rather than one color repeated. The two
             bottom blobs were removed - at that size/blur they read as a washed-out white/cream
             fog in the bottom corners rather than a deliberate accent. */}
-        <div className="animate-bg-blob-in absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] bg-[#C9A24D]/10 dark:bg-[#C9A24D]/5 rounded-full blur-[120px]" />
-        <div className="animate-bg-blob-in delay-200 absolute top-[18%] right-[-12%] w-[820px] h-[820px] bg-[#111827]/[0.05] dark:bg-[#C9A24D]/5 rounded-full blur-[110px]" />
-        <div className="animate-bg-blob-in delay-400 absolute top-[46%] left-[38%] w-[520px] h-[520px] bg-[#f0d494]/[0.14] dark:bg-[#f0d494]/[0.04] rounded-full blur-[100px]" />
+        <div className="animate-bg-blob-in absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,0.16),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,0.08),transparent)]" />
+        <div className="animate-bg-blob-in delay-200 absolute top-[18%] right-[-12%] w-[820px] h-[820px] rounded-full bg-[radial-gradient(closest-side,rgba(17,24,39,0.08),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,0.08),transparent)]" />
+        <div className="animate-bg-blob-in delay-400 absolute top-[46%] left-[38%] w-[520px] h-[520px] rounded-full bg-[radial-gradient(closest-side,rgba(240,212,148,0.224),transparent)] dark:bg-[radial-gradient(closest-side,rgba(240,212,148,0.064),transparent)]" />
 
         {/* Layer 2 - architectural blueprint grid: a large-scale line grid (not dots), the actual
             "floor plan" texture a real estate site earns, layered under the fine dot grid below so
@@ -554,8 +554,8 @@ function HomePageContent() {
             {/* Layered glow - bigger and doubled-up now that it's the sole visual behind a
                 centered statement, for more depth than a single flat blur. */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] -z-10">
-              <div className="absolute top-0 left-1/4 w-80 h-80 bg-[#C9A24D]/20 rounded-full blur-[100px]"></div>
-              <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-[#111827]/10 dark:bg-[#C9A24D]/10 rounded-full blur-[100px]"></div>
+              <div className="absolute top-0 left-1/4 w-80 h-80 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,0.32),transparent)]"></div>
+              <div className="absolute bottom-0 right-1/4 w-80 h-80 rounded-full bg-[radial-gradient(closest-side,rgba(17,24,39,0.16),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,0.16),transparent)]"></div>
             </div>
 
             {/* A few gold sparkles twinkling around the statement (opacity/scale only - cheap). */}
@@ -837,7 +837,7 @@ function HomePageContent() {
 
                 {/* Visual Glow Backdrop */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[130%] h-[130%] -z-10">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-[#C9A24D]/20 via-transparent to-[#111827]/10 rounded-full blur-[100px]"></div>
+                  <div className="absolute inset-0 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,0.22),rgba(17,24,39,0.06)_60%,transparent)]"></div>
                 </div>
               </div>
             </div>
@@ -872,7 +872,7 @@ function HomePageContent() {
               OpenHousePal enabled Peter Stefanatos to sell $15M+ in his first year in real estate - one of the highest volumes in PA - all through open houses run with the right system, the OpenHousePal System.
             </p>
           </div>
-          <div aria-hidden className={`pointer-events-none absolute -inset-x-10 bottom-0 top-1/3 -z-10 rounded-full bg-[#C9A24D]/25 blur-[90px] transition-opacity duration-1000 ${seenSections.has('story') ? 'opacity-100' : 'opacity-0'}`} />
+          <div aria-hidden className={`pointer-events-none absolute -inset-x-10 bottom-0 top-1/3 -z-10 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,0.4),transparent)] transition-opacity duration-1000 ${seenSections.has('story') ? 'opacity-100' : 'opacity-0'}`} />
           <div className={`relative rounded-[28px] overflow-hidden p-1.5 bg-gradient-to-br from-[#f1d58b]/70 via-white/60 to-[#C9A24D]/50 dark:from-[#C9A24D]/40 dark:via-white/5 dark:to-[#C9A24D]/30 shadow-[0_40px_80px_-30px_rgba(139,115,85,0.6)] transform transition-all duration-1000 delay-500 ${seenSections.has('story') ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           <div className="relative rounded-[22px] overflow-hidden ring-1 ring-black/5 dark:ring-white/10">
             <div className="aspect-video bg-gray-100 dark:bg-gray-900 relative">
@@ -1027,7 +1027,7 @@ function HomePageContent() {
         <SectionSeam />
         <div className="relative">
         {/* Background Accent */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-[#C9A24D]/3 rounded-full blur-[120px] -z-10" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,0.048),transparent)] -z-10" />
         <div className={`relative max-w-3xl mx-auto text-center mb-6 transform transition-all duration-1000 delay-300 ${seenSections.has('pricing') ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           {/* Flanking "Invest in Your Growth" itself (not the section's outer edges) - right-full/
               left-full relative to this narrow heading column puts them right next to the claim,

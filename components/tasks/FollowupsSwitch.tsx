@@ -97,7 +97,8 @@ export default function FollowupsSwitch({ className = '', children }: { classNam
 
 // The same master switch as a compact header control (Follow-ups page), sitting beside Add: a
 // labelled pill - bell + "Follow-ups On/Off" + the toggle - so it's obvious what it switches.
-export function FollowupsHeaderSwitch({ className = '' }: { className?: string }) {
+// phoneSlim: on phones just the label + toggle (no bell, no On/Off word) so it fits one line.
+export function FollowupsHeaderSwitch({ className = '', phoneSlim = false }: { className?: string; phoneSlim?: boolean }) {
   const { enabled, saving, setEnabled } = useFollowupsEnabled()
   const on = enabled !== false
   const toggle = async () => {
@@ -113,19 +114,19 @@ export function FollowupsHeaderSwitch({ className = '' }: { className?: string }
       title={on ? 'Follow-ups are on - we remind you who to reach out to. Click to turn off (e.g. if your CRM already reminds you).' : 'Follow-ups are off. Click to turn them back on.'}
       disabled={enabled === null || saving}
       onClick={toggle}
-      className={`group relative inline-flex items-center gap-2.5 overflow-hidden rounded-xl border py-1.5 pl-2 pr-1.5 text-left transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-70 ${on
+      className={`group relative inline-flex items-center gap-2.5 overflow-hidden rounded-xl border py-1.5 pl-2 pr-1.5 text-left ${phoneSlim ? 'max-sm:gap-1 max-sm:pl-2' : ''} transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-70 ${on
         ? 'border-emerald-500/35 bg-white/85 shadow-[0_10px_24px_-14px_rgba(16,185,129,.8)] dark:border-emerald-400/30 dark:bg-white/[0.06]'
         : 'border-gray-300 bg-white/70 dark:border-white/15 dark:bg-white/[0.04]'} ${className}`}
     >
-      <span className={`relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition ${on ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500 dark:bg-white/10 dark:text-white/50'}`}>
+      <span className={`relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition ${phoneSlim ? 'max-sm:hidden' : ''} ${on ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500 dark:bg-white/10 dark:text-white/50'}`}>
         {on && <span className="absolute inset-0 animate-ping rounded-lg bg-emerald-400/40 [animation-duration:2.4s]" />}
         {on ? <BellRing className="relative h-3.5 w-3.5 group-hover:animate-[ohpRing_.6s_ease-in-out]" /> : <BellOff className="relative h-3.5 w-3.5" />}
       </span>
-      <span className="leading-none">
-        <span className="block whitespace-nowrap text-[9px] font-black uppercase tracking-[0.12em] text-gray-500 dark:text-white/50 sm:tracking-[0.18em]">Follow-ups</span>
-        <span className={`mt-1 block text-xs font-black ${on ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-500 dark:text-white/60'}`}>{enabled === null ? 'Checking…' : on ? 'On' : 'Off'}</span>
+      <span className={`leading-none ${phoneSlim ? 'min-w-0' : ''}`}>
+        <span className={`block whitespace-nowrap text-[9px] font-black uppercase ${phoneSlim ? 'max-sm:whitespace-normal max-sm:leading-[1.2] max-sm:tracking-[0.06em]' : ''} tracking-[0.12em] text-gray-500 dark:text-white/50 sm:tracking-[0.18em]`}>Follow-ups</span>
+        <span className={`mt-1 block text-xs font-black ${phoneSlim ? 'max-sm:hidden' : ''} ${on ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-500 dark:text-white/60'}`}>{enabled === null ? 'Checking…' : on ? 'On' : 'Off'}</span>
       </span>
-      <span className={`relative ml-1 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${on ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700'}`}>
+      <span className={`relative ml-1 inline-flex h-6 w-11 shrink-0 ${phoneSlim ? 'max-sm:ml-auto' : ''} items-center rounded-full transition-colors ${on ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700'}`}>
         <span className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform duration-300 ${on ? 'translate-x-[22px]' : 'translate-x-[3px]'}`} />
         {saving && <Loader2 className="absolute left-1/2 h-3 w-3 -translate-x-1/2 animate-spin text-gray-500" />}
       </span>

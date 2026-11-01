@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Bath, Bed, ChevronLeft, ChevronRight, MapPin, Maximize, Play, X } from 'lucide-react'
-import { resolveMediaUrl } from '@/lib/api-service'
 import { glideRowByCard } from '@/lib/rowScroll'
+import { IMG } from '@/lib/siteImage'
+import BlogPhoto from './BlogPhoto'
 
 // The closing "pitch" an agent picks in the AI writer's Finish step: a gliding row of their own recent
 // sales or listings in the article's area, or a set of videos about the area. Real data only -
@@ -28,6 +29,16 @@ const soldMonth = (d?: string | null) => {
   if (!d) return ''
   const t = Date.parse(d.length === 10 ? `${d}T12:00:00` : d)
   return Number.isNaN(t) ? '' : new Date(t).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
+/** Sold within the last `months` (a missing or unreadable date counts as not recent). */
+export function soldWithinMonths(d: string | null | undefined, months: number): boolean {
+  if (!d) return false
+  const t = Date.parse(d.length === 10 ? `${d}T12:00:00` : d)
+  if (Number.isNaN(t)) return false
+  const cutoff = new Date()
+  cutoff.setMonth(cutoff.getMonth() - months)
+  return t >= cutoff.getTime()
 }
 
 // Same badge colors as the Agent Hub's sales and listings (lib/agentSales getSaleStatusClass) - a
@@ -70,14 +81,24 @@ export function PropertyShowcase({ title, kind, properties, accent = '#C9A24D' }
   const rowRef = useRef<HTMLDivElement>(null)
   const [paused, setPaused] = useState(false)
   const [inView, setInView] = useState(false)
+  // Cards waiting off to the side of the row count as hidden to the browser's lazy loading (the row
+  // clips them), so they'd only start loading as they glide in - grey for a beat. Once the row has
+  // been seen, every card loads.
+  const [seen, setSeen] = useState(false)
   const resume = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const list = properties || []
+  // Sales show newest first, and only say "recent" when every one sold in the last 12 months (11/01
+  // review: June 2025 cards under "Recently sold nearby" next to an October 2026 sale undercut the
+  // article's own "check the sale date" advice). Each card still shows its sold month.
+  const list = kind === 'sales'
+    ? [...(properties || [])].sort((a, b) => String(b.sold_date || '').localeCompare(String(a.sold_date || '')))
+    : properties || []
+  const allRecent = kind !== 'sales' || list.every(p => soldWithinMonths(p.sold_date, 12))
   // Three or fewer sit still, side by side - gliding back and forth over so few looks silly.
   const glide = list.length > 3
   useEffect(() => {
     const el = rowRef.current
     if (!el) return
-    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0.4 })
+    const io = new IntersectionObserver(([e]) => { setInView(e.isIntersecting); if (e.isIntersecting) setSeen(true) }, { threshold: 0.4 })
     io.observe(el)
     return () => io.disconnect()
   }, [list.length])
@@ -95,8 +116,8 @@ export function PropertyShowcase({ title, kind, properties, accent = '#C9A24D' }
   const arrow = 'absolute top-[38%] z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-[#111827] shadow-md transition hover:scale-110 hover:border-[#C9A24D] dark:border-white/10 dark:bg-[#151517]/90 dark:text-white sm:flex'
   return (
     <section className="not-prose my-10">
-      <Eyebrow text={kind === 'sales' ? 'Recently sold nearby' : 'On the market'} accent={accent} />
-      <h3 className="mt-2 font-serif text-2xl font-black leading-tight text-[#111827] dark:text-white">{showcaseTitle(kind, title)}</h3>
+      <Eyebrow text={kind === 'sales' ? (allRecent ? 'Recently sold nearby' : 'Sold nearby') : 'On the market'} accent={accent} />
+      <h3 className="mt-2 font-serif text-2xl font-black leading-tight text-[#111827] dark:text-white">{allRecent ? showcaseTitle(kind, title) : showcaseTitle(kind, title).replace(/^Recent Sales\b/, 'Homes Sold')}</h3>
       {glide ? (
         <div className="relative mt-5">
           <div
@@ -105,7 +126,7 @@ export function PropertyShowcase({ title, kind, properties, accent = '#C9A24D' }
             onMouseEnter={pause} onMouseLeave={() => resumeSoon(600)}
             onTouchStart={pause} onTouchEnd={() => resumeSoon()} onTouchCancel={() => resumeSoon()}
           >
-            {list.map((p, i) => <HomeCard key={p.id || `${p.address}-${i}`} p={p} i={i} kind={kind} accent={accent} className="w-[260px] shrink-0 snap-start sm:w-[280px]" />)}
+            {list.map((p, i) => <HomeCard key={p.id || `${p.address}-${i}`} p={p} i={i} kind={kind} accent={accent} eager={seen} className="w-[260px] shrink-0 snap-start sm:w-[280px]" />)}
           </div>
           <button type="button" onClick={() => nudge(-1)} aria-label="Previous" className={`${arrow} -left-3`}><ChevronLeft className="h-4 w-4" /></button>
           <button type="button" onClick={() => nudge(1)} aria-label="Next" className={`${arrow} -right-3`}><ChevronRight className="h-4 w-4" /></button>
@@ -122,7 +143,7 @@ export function PropertyShowcase({ title, kind, properties, accent = '#C9A24D' }
 // One home, dressed like the Agent Hub's sale cards: the photo in a thin accent frame, the status
 // badge, and the full price with the town and state on the photo; the street, sold month and facts
 // underneath.
-function HomeCard({ p, i, kind, accent, className = '' }: { p: ShowcaseProperty; i: number; kind: 'sales' | 'listings'; accent: string; className?: string }) {
+function HomeCard({ p, i, kind, accent, className = '', eager = false }: { p: ShowcaseProperty; i: number; kind: 'sales' | 'listings'; accent: string; className?: string; eager?: boolean }) {
   const badge = statusBadge(kind, p.status)
   const place = placeOf(p)
   return (
@@ -131,7 +152,7 @@ function HomeCard({ p, i, kind, accent, className = '' }: { p: ShowcaseProperty;
       style={{ background: `linear-gradient(135deg, ${accent}, ${accent}2e 45%, ${accent}aa)` }}>
       <div className="relative overflow-hidden rounded-[20.5px] bg-white dark:bg-[#111316]">
         <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-white/5">
-          {p.image_url && <img src={resolveMediaUrl(p.image_url)} alt={p.address} loading="lazy" className="h-full w-full object-cover transition duration-[1.2s] ease-out group-hover:scale-[1.06]" />}
+          <BlogPhoto src={p.image_url} width={640} widths={IMG.card} sizes="(min-width: 640px) 280px, 70vw" eager={eager} alt={p.address} className="h-full w-full object-cover transition duration-[1.2s] ease-out group-hover:scale-[1.06]" />
           <span className="absolute inset-0 bg-gradient-to-t from-[#0b0f0e]/90 via-[#0b0f0e]/15 to-transparent" />
           <span className={`absolute left-3 top-3 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${badge.cls}`}>{badge.label}</span>
           <span className="absolute inset-x-0 bottom-0 p-4">
@@ -172,7 +193,7 @@ export function VideoShowcase({ title, videos, accent = '#C9A24D', onPlay }: { t
               initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-40px' }} transition={{ duration: 0.5, delay: Math.min(i, 5) * 0.06 }} whileTap={{ scale: 0.98 }}
               className="group relative block overflow-hidden rounded-2xl text-left shadow-[0_24px_50px_-34px_rgba(0,0,0,.7)]">
               <div className="relative aspect-video bg-black">
-                <img src={v.image || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`} alt={v.title || 'Video'} loading="lazy" className="h-full w-full object-cover opacity-90 transition duration-700 group-hover:scale-[1.05] group-hover:opacity-100" />
+                <BlogPhoto src={v.image || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`} width={640} sizes="(min-width: 640px) 50vw, 100vw" alt={v.title || 'Video'} className="h-full w-full object-cover opacity-90 transition duration-700 group-hover:scale-[1.05] group-hover:opacity-100" />
                 <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
                 <span className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-[#111827] shadow-xl transition group-hover:scale-110" style={{ boxShadow: `0 0 0 6px ${accent}55` }}>
                   <Play className="ml-0.5 h-6 w-6 fill-current" />

@@ -20,6 +20,7 @@ import { backdropMotion, useIsPhone, usePagePin, useSheetMotion, useSwipeToClose
 import OhpLoader from '@/components/brand/OhpLoader'
 import { type MetalPalette } from '@/lib/luxeMetals'
 import InviteCard, { coverOf, type InviteCardData } from './InviteCard'
+import { placeNameOf } from './InviteCard'
 import InviteEnvelope from './InviteEnvelope'
 import InviteLuxeOpening, { foilOf, metalOfInvite } from './InviteLuxeOpening'
 import { SERIF, inviteSerif } from './inviteFonts'
@@ -329,12 +330,12 @@ export default function InvitePublicPage({ code, host }: { code: string; host: s
           </motion.div>
 
           {/* Where */}
-          {(inv.place_name || inv.address) && (
+          {(placeNameOf(inv) || inv.address) && (
             <motion.div {...reveal(1)}>
               <Panel t={t}>
                 <Row icon={<MapPin className="h-5 w-5" />} accent={accent} t={t} label="Where">
-                  {inv.place_name && <p className="text-[16px] font-black">{inv.place_name}</p>}
-                  {inv.address && <p className={inv.place_name ? 'text-sm' : 'text-[16px] font-black'} style={inv.place_name ? { color: t.sub } : undefined}>{inv.address}</p>}
+                  {placeNameOf(inv) && <p className="text-[16px] font-black">{placeNameOf(inv)}</p>}
+                  {inv.address && <p className={placeNameOf(inv) ? 'text-sm' : 'text-[16px] font-black'} style={placeNameOf(inv) ? { color: t.sub } : undefined}>{inv.address}</p>}
                   {(details?.township || details?.school_district) && (
                     <p className="mt-0.5 text-[12.5px] font-semibold" style={{ color: t.sub }}>{[details.township ? `${details.township} Township` : null, details.school_district ? `${details.school_district} schools` : null].filter(Boolean).join(' · ')}</p>
                   )}
@@ -343,7 +344,7 @@ export default function InvitePublicPage({ code, host }: { code: string; host: s
                   <LazyMap lat={Number(details.latitude)} lng={Number(details.longitude)} address={inv.address} accent={t.luxe ? t.m!.base : accent} dark={t.dark} />
                 )}
                 {inv.address && (
-                  <button type="button" onClick={() => openDirections(inv.address!, { label: inv.place_name || inv.address! })} data-testid="invite-directions"
+                  <button type="button" onClick={() => openDirections(inv.address!, { label: placeNameOf(inv) || inv.address! })} data-testid="invite-directions"
                     className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-[12px] font-black uppercase tracking-widest transition active:scale-[0.98]"
                     style={{ background: soft(t), color: t.text }}>
                     <Navigation className="h-4 w-4" style={{ color: t.luxe ? t.m!.light : accent }} /> Get directions
@@ -547,7 +548,7 @@ function outlookUrl(inv: PublicInvite, d: InviteDay, link: string) {
   const off = easternOffset(d.date, start)
   const q = new URLSearchParams({ rru: 'addevent', path: '/calendar/action/compose', subject: inv.title,
     startdt: `${d.date}T${start}:00${off}`, enddt: `${d.date}T${end}:00${off}`,
-    location: [inv.place_name, inv.address].filter(Boolean).join(', '), body: [inv.message, link].filter(Boolean).join('\n\n') })
+    location: [placeNameOf(inv), inv.address].filter(Boolean).join(', '), body: [inv.message, link].filter(Boolean).join('\n\n') })
   return `https://outlook.live.com/calendar/0/action/compose?${q.toString()}`
 }
 

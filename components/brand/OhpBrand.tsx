@@ -17,6 +17,8 @@ const CSS = `
 .ohp-wm{display:inline-flex;align-items:baseline;white-space:nowrap;line-height:1;letter-spacing:-0.03em;text-transform:none;font-weight:800}
 .ohp-wm svg{height:.97em;width:auto;overflow:visible;flex:none}
 .ohp-wm .ohp-l{display:inline-block}
+.ohp-wm .ohp-l[data-ch]::before{content:attr(data-ch)}
+.ohp-wm .ohp-name{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .ohp-anim .ohp-l{opacity:0;transform:translateY(.32em);filter:blur(3px);animation:ohpRise .62s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(var(--i) * 55ms)}
 .ohp-anim .ohp-roof,.ohp-anim .ohp-walls{stroke-dasharray:1;stroke-dashoffset:1;animation:ohpDraw .75s cubic-bezier(.65,0,.35,1) .25s forwards}
 .ohp-anim .ohp-walls{animation-delay:.4s}
@@ -57,11 +59,17 @@ export function OhpWordmark({ className = '', animate = false, onDark = false, l
   label?: string
 }) {
   let i = 0
-  const L = (child: React.ReactNode) => <span className="ohp-l" style={{ ['--i' as string]: i++ }}>{child}</span>
+  // The drawn letters are CSS content, not text: the O, H and P are pictures, so as text the logo
+  // read "penouseal" (11/01: an outside review of a published blog flagged the footer as a typo -
+  // that's what Google, screen readers and copy-paste got). The page's text is the hidden full name.
+  const L = (child: React.ReactNode) => typeof child === 'string'
+    ? <span className="ohp-l" data-ch={child} aria-hidden="true" style={{ ['--i' as string]: i++ }} />
+    : <span className="ohp-l" style={{ ['--i' as string]: i++ }}>{child}</span>
   return (
     <span role="img" aria-label={label}
       className={`ohp-brand ohp-wm ${jakarta.className} ${animate ? 'ohp-anim' : ''} ${onDark ? 'ohp-on-dark' : ''} relative ${className}`}>
       <OhpBrandStyle />
+      <span className="ohp-name">{label}</span>
       {L(
         <svg viewBox="0 0 42 46" aria-hidden="true" style={{ marginRight: '0.01em' }}>
           <circle cx="20.5" cy="28.4" r="14.9" fill="none" stroke={INK} strokeWidth={7.2} />

@@ -33,6 +33,8 @@ function LoginContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({})
   const [showPassword, setShowPassword] = useState(false)
+  // Remember me (on by default): stay signed in 30 days, renewed each day the app is used; off = 1 day.
+  const [remember, setRemember] = useState(true)
 
   const [currentSlide, setCurrentSlide] = useState(0)
 
@@ -86,12 +88,13 @@ function LoginContent() {
     
     const { success, data, error } = await api.auth.login({
       email: formData.email,
-      password: formData.password
+      password: formData.password,
+      remember,
     })
 
     if (success && data?.access_token) {
       // Success - save token and update global auth state
-      setToken(data.access_token)
+      setToken(data.access_token, remember ? 30 : 1)
       await refreshUser()
       
       showToast('Login successful! Redirecting...', 'success')
@@ -254,6 +257,8 @@ function LoginContent() {
                   <div className="relative">
                     <input
                       type="checkbox"
+                      checked={remember}
+                      onChange={e => setRemember(e.target.checked)}
                       className="sr-only peer"
                     />
                     <div className="w-5 h-5 border-2 border-gray-200 dark:border-gray-700 rounded peer-checked:bg-[#111827] dark:peer-checked:bg-[#C9A24D] peer-checked:border-[#111827] dark:peer-checked:border-[#C9A24D] transition-all duration-200"></div>

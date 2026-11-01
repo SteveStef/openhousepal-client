@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Bus, GraduationCap, Home, MapPin, Store, Trees, TrendingUp } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/api-service'
+import { IMG, sizedImage, sizedSrcSet } from '@/lib/siteImage'
 
 // "Town Spotlight" - a cinematic section about one town inside an article, built from the same
 // verified Areas research + live Bright MLS numbers the IDX community pages use (snapshotted into
@@ -53,7 +54,7 @@ export default function AreaSpotlightSection({ area, accent = '#C9A24D' }: { are
       <div className="relative aspect-[16/8] overflow-hidden bg-[#111827]">
         <AnimatePresence initial={false}>
           {photos.length > 0 && (
-            <motion.img key={photos[i]?.url} src={photos[i]?.url} alt={`${area.name}, ${area.state}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.9 }} className="spot-ken absolute inset-0 h-full w-full object-cover" />
+            <motion.img key={photos[i]?.url} src={sizedImage(photos[i]?.url, 1080)} srcSet={sizedSrcSet(photos[i]?.url, [...IMG.half]) || undefined} sizes="(min-width: 900px) 900px, 100vw" loading="lazy" decoding="async" alt={`${area.name}, ${area.state}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.9 }} className="spot-ken absolute inset-0 h-full w-full object-cover" />
           )}
         </AnimatePresence>
         <div className="absolute inset-0 bg-[radial-gradient(90%_100%_at_100%_0%,rgba(201,162,77,.32),transparent_55%),linear-gradient(180deg,rgba(11,15,14,.15)_0%,rgba(11,15,14,.35)_45%,rgba(11,15,14,.92)_100%)]" />

@@ -1,7 +1,8 @@
 'use client'
 
 import { Clock, Eye } from 'lucide-react'
-import { resolveMediaUrl } from '@/lib/api-service'
+import { IMG } from '@/lib/siteImage'
+import BlogPhoto from './BlogPhoto'
 import BlogCoverArt from '@/components/BlogCoverArt'
 
 export interface BlogCardProps {
@@ -34,7 +35,7 @@ export default function BlogCard({ title, subtitle, category, publishedAt, viewC
     >
       <div className="pointer-events-none absolute inset-x-6 top-0 z-10 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/70 to-transparent" />
       <div className="aspect-[16/10] overflow-hidden">
-        {imageUrl ? <img src={resolveMediaUrl(imageUrl)} alt="" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /> : <BlogCoverArt category={category} title={title} />}
+        {imageUrl ? <BlogPhoto src={imageUrl} width={640} widths={IMG.card} sizes="(min-width: 640px) 33vw, 100vw" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /> : <BlogCoverArt category={category} title={title} />}
       </div>
       <div className="flex flex-1 flex-col p-5">
         {category && (

@@ -53,7 +53,7 @@ async function createDesign(p: Record<string, any>, user: User | null): Promise<
 
   const messaging = p.headline ? { id: 'custom', headline: String(p.headline) } : situation.messagingVariants?.[0]
   const blocks = template.buildBlocks(situation.propertyAttached ? property : null, messaging, {
-    heroPhoto: situation.propertyAttached ? null : undefined,
+    heroPhoto: situation.propertyAttached ? (p.photo ? String(p.photo) : null) : undefined,
     openHouseDate: longDate(p.open_house_date),
     openHouseTime: p.start_time && p.end_time ? `${timeOfDay(p.start_time)} – ${timeOfDay(p.end_time)}` : timeOfDay(p.start_time),
     qrTarget: situation.propertyAttached ? undefined : 'agent_hub',

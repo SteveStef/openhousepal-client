@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, Clock, Moon, Sun } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
 import { resolveMediaUrl } from '@/lib/api-service'
+import { sizedImage } from '@/lib/siteImage'
 import type { BlogThemeId } from '@/types'
 import { HUB_CLASSIC_ACCENTS, hubAccentOf } from '@/components/agent-hub/HubClassicTheme'
 
@@ -232,15 +233,18 @@ export function BlogThemedArticle({ theme, title, subtitle, category, coverUrl, 
     return () => window.removeEventListener('scroll', onScroll)
   }, [preview])
   const date = publishedAt ? new Date(publishedAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : null
-  const cover = coverUrl ? resolveMediaUrl(coverUrl) : ''
+  // Right-sized through the photo resizer (a raw cover upload can be 0.5-1 MB on a phone).
+  const cover = coverUrl ? sizedImage(resolveMediaUrl(coverUrl), 1200) : ''
   const serif = t.id !== 'modern'
 
   const byline = (
     <div className={`flex items-center gap-3 ${t.id === 'editorial' ? 'justify-center' : ''}`}>
-      {agent.photoUrl && <img src={resolveMediaUrl(agent.photoUrl)} alt={agent.name} className={`${signatureOn ? 'h-14 w-14' : 'h-10 w-10'} rounded-full object-cover ring-2`} style={{ ['--tw-ring-color' as any]: acc }} />}
+      {agent.photoUrl && <img src={sizedImage(resolveMediaUrl(agent.photoUrl), 128)} alt={agent.name} className={`${signatureOn ? 'h-14 w-14' : 'h-10 w-10'} rounded-full object-cover ring-2`} style={{ ['--tw-ring-color' as any]: acc }} />}
       <div className="text-left">
         {signatureOn && <p className="text-[10px] font-black uppercase tracking-[0.25em]" style={{ color: t.id === 'editorial' ? '#6b7280' : acc }}>Written by</p>}
-        <p className={`${signatureOn ? `text-lg ${serif ? 'font-serif' : ''}` : 'text-sm'} font-black`} style={{ color: pal.ink }}>{agent.name}</p>
+        {/* Without the signature line below, the brokerage rides with the name (PA advertising rules
+            generally want the broker shown clearly - 11/01 review). */}
+        <p className={`${signatureOn ? `text-lg ${serif ? 'font-serif' : ''}` : 'text-sm'} font-black`} style={{ color: pal.ink }}>{agent.name}{!signatureOn && agent.brokerage ? <span className="font-bold opacity-60"> · {agent.brokerage}</span> : null}</p>
         {signatureOn && (agent.title || agent.brokerage) && <p className="text-xs font-bold opacity-60" style={{ color: pal.ink }}>{[agent.title, agent.brokerage].filter(Boolean).join(' · ')}</p>}
         <p className="flex flex-wrap items-center gap-1.5 text-xs font-bold opacity-70" style={{ color: pal.ink }}>
           {date && <span>{date}</span>}
@@ -322,7 +326,7 @@ export function BlogThemedArticle({ theme, title, subtitle, category, coverUrl, 
           </div>
 
           {!signatureOn && <div className={`mt-10 flex items-center gap-4 rounded-[24px] border p-5 ${dark ? 'border-white/10 bg-[#141416]' : 'border-black/[0.07] bg-white shadow-[0_20px_44px_-34px_rgba(0,0,0,.4)]'}`}>
-            {agent.photoUrl && <img src={resolveMediaUrl(agent.photoUrl)} alt={agent.name} className="h-14 w-14 rounded-full object-cover" />}
+            {agent.photoUrl && <img src={sizedImage(resolveMediaUrl(agent.photoUrl), 128)} alt={agent.name} className="h-14 w-14 rounded-full object-cover" />}
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.25em]" style={{ color: t.id === 'editorial' ? '#6b7280' : acc }}>Written by</p>
               <p className={`font-black ${serif ? 'font-serif text-lg' : ''}`} style={{ color: pal.ink }}>{agent.name}</p>
@@ -392,7 +396,7 @@ function LuxeArticle({ title, subtitle, category, cover, date, readingTimeMinute
               {subtitle && <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.7 }} className="mt-5 max-w-2xl text-lg font-medium leading-relaxed text-white/75 sm:text-xl">{subtitle}</motion.p>}
               {signatureOn ? (
                 <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.85 }} className="mt-7 flex w-fit max-w-full items-center gap-4 rounded-2xl border border-white/15 bg-white/[0.07] py-3 pl-3 pr-6">
-                  {agent.photoUrl && <img src={resolveMediaUrl(agent.photoUrl)} alt={agent.name} className="h-14 w-14 shrink-0 rounded-full object-cover ring-2 ring-[color:var(--m-base)] ring-offset-2 ring-offset-[#111827]" />}
+                  {agent.photoUrl && <img src={sizedImage(resolveMediaUrl(agent.photoUrl), 128)} alt={agent.name} className="h-14 w-14 shrink-0 rounded-full object-cover ring-2 ring-[color:var(--m-base)] ring-offset-2 ring-offset-[#111827]" />}
                   <div className="min-w-0 text-left">
                     <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[color:var(--m-light)]">Written by</p>
                     <p className="font-serif text-xl font-black leading-tight">{agent.name}</p>
@@ -405,9 +409,9 @@ function LuxeArticle({ title, subtitle, category, cover, date, readingTimeMinute
                 </motion.div>
               ) : (
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.85 }} className="mt-7 inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/[0.08] py-1.5 pl-1.5 pr-5">
-                  {agent.photoUrl && <img src={resolveMediaUrl(agent.photoUrl)} alt={agent.name} className="h-10 w-10 rounded-full object-cover ring-2 ring-[color:var(--m-base)]" />}
+                  {agent.photoUrl && <img src={sizedImage(resolveMediaUrl(agent.photoUrl), 128)} alt={agent.name} className="h-10 w-10 rounded-full object-cover ring-2 ring-[color:var(--m-base)]" />}
                   <div className="text-left">
-                    <p className="text-sm font-black">{agent.name}</p>
+                    <p className="text-sm font-black">{agent.name}{agent.brokerage ? <span className="font-bold text-white/60"> · {agent.brokerage}</span> : null}</p>
                     <p className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-white/60">
                       {date && <span>{date}</span>}
                       {date && readingTimeMinutes ? <span>·</span> : null}
@@ -435,7 +439,7 @@ function LuxeArticle({ title, subtitle, category, cover, date, readingTimeMinute
           {!signatureOn && <div className="relative mt-10 overflow-hidden rounded-[26px] bg-[radial-gradient(120%_140%_at_100%_0%,rgba(var(--m-rgb),.3),transparent_55%),linear-gradient(135deg,#0b0f0e,#111827_55%,#2a2218)] p-6 text-white shadow-[0_30px_60px_-34px_rgba(17,24,39,.9)]">
             <span aria-hidden className="lxa-edge pointer-events-none absolute inset-x-0 top-0 h-px" />
             <div className="flex items-center gap-4">
-              {agent.photoUrl && <img src={resolveMediaUrl(agent.photoUrl)} alt={agent.name} className="h-16 w-16 rounded-full object-cover ring-2 ring-[color:var(--m-base)] ring-offset-2 ring-offset-[#111827]" />}
+              {agent.photoUrl && <img src={sizedImage(resolveMediaUrl(agent.photoUrl), 128)} alt={agent.name} className="h-16 w-16 rounded-full object-cover ring-2 ring-[color:var(--m-base)] ring-offset-2 ring-offset-[#111827]" />}
               <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[color:var(--m-light)]">Written by</p>
                 <p className="font-serif text-2xl font-black">{agent.name}</p>

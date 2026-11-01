@@ -62,25 +62,27 @@ export default function FollowUpsPage() {
             subtitleClassName="max-w-none lg:whitespace-nowrap"
             asideClassName="w-full lg:w-auto lg:self-start lg:-mt-6"
             kickerNote={<span className="normal-case tracking-normal"><CalendarChip /></span>}
+            kickerNoteRightOnPhone
             noMargin
             actions={(
               // Open count, the master on/off switch, then Add. Desktop: Open + Add on top, the
-              // switch on its own row underneath (fits in the header's existing height).
-              <div className="grid grid-cols-[auto_auto_1fr] items-stretch gap-1.5 sm:grid-cols-[auto_auto_auto]">
+              // switch on its own row underneath (fits in the header's existing height). Phones: all
+              // four on ONE line, the switch slimmed to its label + toggle (owner, 11/01).
+              <div className="flex w-full items-stretch gap-1 sm:grid sm:gap-1.5 sm:w-auto sm:grid-cols-[auto_auto_auto]">
                 {!off && openCount != null && (
-                  <div className="order-1 flex items-baseline justify-center gap-1.5 rounded-xl border border-[#C9A24D]/40 bg-white/80 px-2.5 py-2 sm:px-3 dark:border-white/10 dark:bg-white/[0.06]">
+                  <div className="order-1 flex shrink-0 items-baseline justify-center gap-1 rounded-xl border border-[#C9A24D]/40 bg-white/80 px-2 py-2 sm:gap-1.5 sm:px-3 dark:border-white/10 dark:bg-white/[0.06]">
                     <span className="font-serif text-xl font-black leading-none text-[#111827] dark:text-white">{openCount}</span>
                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/50">Open</span>
                   </div>
                 )}
-                {!off && <div className="order-2 flex"><InboxButton label="Inbox" count={unseen} tone="red" idle="gold" onClick={openInbox} title="Every follow-up added in the last two weeks" /></div>}
-                <FollowupsHeaderSwitch className="order-4 col-span-3 w-full !py-1 [&>span:nth-of-type(3)]:ml-auto" />
+                {!off && <div className="order-2 flex shrink-0"><InboxButton label="Inbox" count={unseen} tone="red" idle="gold" onClick={openInbox} title="Every follow-up added in the last two weeks" /></div>}
+                <FollowupsHeaderSwitch phoneSlim className="order-4 min-w-0 !py-1 max-sm:flex-1 sm:col-span-3 sm:w-full [&>span:nth-of-type(3)]:ml-auto" />
                 {!off && <motion.button
                   type="button"
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setAdding(v => !v)}
                   aria-expanded={adding}
-                  className="group relative order-3 inline-flex w-full items-center justify-center gap-1.5 overflow-hidden rounded-xl sm:w-auto bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-3 py-2.5 text-xs font-black uppercase tracking-wide text-[#111827] sm:px-4 shadow-md shadow-[#C9A24D]/30 transition hover:-translate-y-0.5 hover:shadow-lg"
+                  className="group relative order-3 inline-flex shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-3 py-2.5 text-xs font-black uppercase tracking-wide text-[#111827] sm:px-4 shadow-md shadow-[#C9A24D]/30 transition hover:-translate-y-0.5 hover:shadow-lg"
                 >
                   <Plus className={`h-4 w-4 transition-transform duration-200 ${adding ? 'rotate-45' : ''}`} /> Add
                 </motion.button>}

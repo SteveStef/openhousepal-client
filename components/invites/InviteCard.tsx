@@ -43,9 +43,15 @@ export function coverFrame(d: InviteCardData): { w: number; h: number; radius: s
 
 /** What line 2 says when the agent hasn't typed their own (round 8) - the builder pre-fills it:
  *  the town under an address title, else "street, town" (or the place's address). */
-export function autoLineTwo(d: Pick<InviteDraft, 'title' | 'invite_type' | 'place_name' | 'address'>): string {
+export function autoLineTwo(raw: Pick<InviteDraft, 'title' | 'invite_type' | 'place_name' | 'address'>): string {
+  const d = { ...raw, place_name: placeNameOf(raw) }
   const ct = cardTitle(d.title, d.invite_type)
   const parts = (d.address || '').split(',').map(x => x.trim()).filter(Boolean)
+  // the title already says where ("Broker's Open - 239 Windham Dr, Exton") - nothing to repeat (11/01)
+  const n = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (!d.place_name && parts[0] && !ct.isAddress && n(ct.text).includes(n(parts[0]))) {
+    return n(ct.text).includes(n(parts[1] || '')) ? '' : tidyCaps(parts.slice(1, 2).join(', '))
+  }
   if (d.place_name) return tidyCaps(parts.slice(0, 2).join(', '))
   if (ct.isAddress) return tidyCaps(parts.slice(1, 3).join(', '))
   return tidyCaps(parts.slice(0, 2).join(', '))
@@ -57,7 +63,16 @@ export function coverOf(d: Pick<InviteDraft, 'cover_image_url' | 'linked_propert
   return src ? resolveMediaUrl(src) : ''
 }
 
-function parts(d: InviteCardData) {
+/** The place's own name - not when it's only the street again ("239 Windham Dr" as the name of
+ *  239 Windham Dr showed the street twice, owner 11/01). */
+export function placeNameOf(d: Pick<InviteDraft, 'place_name' | 'address'>): string {
+  const n = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const name = (d.place_name || '').trim()
+  return name && n(name.split(',')[0]) !== n((d.address || '').split(',')[0]) ? name : ''
+}
+
+function parts(raw: InviteCardData) {
+  const d = { ...raw, place_name: placeNameOf(raw) }
   const dt = d.event_date ? parseDay(d.event_date) : null
   const street = (d.place_name || d.address || '').split(',')[0]
   const ct = cardTitle(d.title, d.invite_type)
@@ -95,7 +110,8 @@ function parts(d: InviteCardData) {
     titleIsAddress: ct.isAddress,
     /** The street line at the bottom - not when the big title already IS that street, and not when
      *  the agent wrote their own line 2 (round 8 - they chose what the card says). */
-    showStreet: own2 === null && !auto2 && !(ct.isAddress && norm(ct.text) === norm(street)),
+    // (nor when the title already says it - "Broker's Open - 239 Windham Dr, Exton", 11/01)
+    showStreet: own2 === null && !auto2 && !(ct.isAddress && norm(ct.text) === norm(street)) && !(norm(street) && norm(ct.text).includes(norm(street))),
     /** Line 2 under the title: the agent's own words exactly as typed; else the town under an address
      *  title; else (a title the agent wrote) the address - "street, town", the same words the builder's
      *  Line 2 box shows (round 8). */
@@ -209,7 +225,9 @@ export default InviteCard
 /** imgW: about how many real pixels wide the card is drawn - the cover and the agent's photo come
  *  resized to that (WebP, lib/siteImage) instead of the full-size upload (owner, 10/31 - a page of
  *  invite thumbnails was decoding dozens of full-size photos). */
-export function CardFace({ data, shine = true, flat = false, imgW }: { data: InviteCardData; shine?: boolean; flat?: boolean; imgW?: number }) {
+export function CardFace({ data: given, shine = true, flat = false, imgW }: { data: InviteCardData; shine?: boolean; flat?: boolean; imgW?: number }) {
+  // every design reads the cleaned place name (never the street again)
+  const data = { ...given, place_name: placeNameOf(given) }
   const design: InviteDesign = (['classic', 'garden', 'midnight', 'modern'] as const).includes(data.design) ? data.design : 'classic'
   const base = parts(data)
   const p = imgW ? { ...base, cover: sizedImage(base.cover, imgW, 75) } : base
@@ -476,13 +494,13 @@ function Midnight({ d, p, shine }: { d: InviteCardData; p: P; shine: boolean }) 
       )}
       {corner({ left: 12, top: 12 }, 0)}{corner({ right: 12, top: 12 }, 90)}{corner({ right: 12, bottom: 12 }, 180)}{corner({ left: 12, bottom: 12 }, 270)}
       <div className="absolute inset-0 flex flex-col items-center px-9 pb-8" style={{ paddingTop: top }}>
-        {!p.cover && <div className={p.multi ? 'mb-4' : 'mb-6'}><Monogram name={d.hostName} accent={a} size={p.multi ? 76 : 92} dark /></div>}
+        {!p.cover && <div className={p.multi || p.title.length > 26 ? 'mb-4' : 'mb-6'}><Monogram name={d.hostName} accent={a} size={p.multi || p.title.length > 26 ? 72 : 92} dark /></div>}
         <p className={shine ? 'ic-metal-text' : ''} style={{ fontSize: 10, letterSpacing: 4.5, fontWeight: 800, textTransform: 'uppercase', backgroundImage: metal, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', backgroundSize: '200% 100%' }}>{p.eyebrow}</p>
         <div className="mt-2 w-full"><Title text={p.title} size={p.multi ? 26 : 29} color="#f6f1e7" /></div>
         {p.cityUnder && <LineTwo text={p.cityUnder} color="#a8a296" />}
         <span className={p.multi ? 'my-3' : 'my-3.5'} style={{ height: 1.5, width: 90, backgroundImage: metal }} />
         {/* The date(s), large, in the card's open middle (owner, 10/24 round 4) */}
-        <div className="flex w-full flex-1 flex-col items-center justify-center" style={{ minHeight: 0 }}>
+        <div className="flex w-full flex-1 shrink-0 flex-col items-center justify-center">
           {p.multi ? (
             <>
               <p style={{ fontSize: 10, letterSpacing: 3, fontWeight: 800, color: '#a8a296', textTransform: 'uppercase', marginBottom: 3 }}>{NUM_WORD[p.days.length] || `${p.days.length} days`}</p>

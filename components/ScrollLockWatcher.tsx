@@ -17,7 +17,9 @@ function tinted(cs: CSSStyleDeclaration): boolean {
 function isOverlay(el: Element): boolean {
   if (el.closest('[data-scroll-lock="off"]')) return false
   const cs = getComputedStyle(el)
-  if (el.getAttribute('data-scroll-lock') === 'on') return cs.display !== 'none' && cs.visibility !== 'hidden'
+  // 'soft' (the helper's phone sheet): locks scrolling but never pins the page - pinning a long page
+  // full of effects froze an iPhone (owner, 11/01, the homepage)
+  if (el.getAttribute('data-scroll-lock') === 'on' || el.getAttribute('data-scroll-lock') === 'soft') return cs.display !== 'none' && cs.visibility !== 'hidden'
   if (cs.position !== 'fixed' || cs.display === 'none' || cs.visibility === 'hidden' || cs.pointerEvents === 'none' || Number(cs.opacity) === 0) return false
   // page backgrounds sit behind the content - only layers stacked above it count
   const z = parseInt(cs.zIndex, 10)
@@ -52,14 +54,14 @@ export default function ScrollLockWatcher() {
     // that sent a phone to the top of the Showcase and back (10/19).
     let pinned = false
     const body = document.body
-    const apply = (on: boolean) => {
+    const apply = (on: boolean, pin: boolean) => {
       if (on === locked) return
       locked = on
       if (on) {
         const gap = window.innerWidth - html.clientWidth
         html.style.overflow = 'hidden'
         if (gap > 0) html.style.paddingRight = `${gap}px`
-        if (touch && body.style.position !== 'fixed') {
+        if (touch && pin && body.style.position !== 'fixed') {
           pinned = true
           savedY = window.scrollY
           savedPath = window.location.pathname + window.location.search
@@ -87,14 +89,15 @@ export default function ScrollLockWatcher() {
     }
     const check = () => {
       timer = undefined
-      apply(Array.from(document.querySelectorAll(CANDIDATES)).some(isOverlay))
+      const open = Array.from(document.querySelectorAll(CANDIDATES)).filter(el => isOverlay(el as HTMLElement))
+      apply(open.length > 0, open.some(el => (el as HTMLElement).getAttribute('data-scroll-lock') !== 'soft'))
     }
     const schedule = () => { if (timer === undefined) timer = window.setTimeout(check, 60) }
     const mo = new MutationObserver(schedule)
     mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'open', 'aria-modal', 'hidden'] })
     window.addEventListener('resize', schedule)
     check()
-    return () => { mo.disconnect(); window.removeEventListener('resize', schedule); if (timer) clearTimeout(timer); apply(false) }
+    return () => { mo.disconnect(); window.removeEventListener('resize', schedule); if (timer) clearTimeout(timer); apply(false, false) }
   }, [])
   return null
 }

@@ -13,6 +13,8 @@ import { BlogBlock, LinkedProperty } from '@/types'
 import AreaSpotlightSection from './AreaSpotlightSection'
 import { PaymentExample, SourcesList, type PaymentExampleData, type SourcesData } from './ArticleDataBlocks'
 import SignatureSiteCard from './SignatureSiteCard'
+import BlogPhoto from './BlogPhoto'
+import { IMG, sizedImage } from '@/lib/siteImage'
 import { PropertyShowcase, VideoShowcase } from './ShowcaseBlocks'
 import ClosingCta from './ClosingCta'
 
@@ -107,7 +109,41 @@ export function visibleBlocks(blocks: BlogBlock[]): BlogBlock[] {
     if (b.type === 'heading') hiding = !!b.data?.hidden
     if (!hiding) out.push(b)
   }
-  return out
+  return withoutBlanks(out)
+}
+
+// Fill-in-the-blank text an AI draft (or an unfinished edit) can leave behind: "$___",
+// "[Median sale price for (area)...]", "[insert ...]", "{{name}}", "TBD". 11/01: a published
+// article showed a "My current local numbers" list of these to the public.
+const BLANK = /_{3,}|\[(?:insert|add|enter|your|todo|tbd|placeholder)\b[^\]]*\]|\[[^\]]*\((?:area|date|town|city|price|number|name)\)[^\]]*\]|\{\{[^}]*\}\}|\bTBD\b/i
+const TEXT_TYPES = ['heading', 'subheading', 'paragraph', 'quote', 'callout']
+const plainOf = (b: BlogBlock) => String(b.data?.html || b.data?.text || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').trim()
+
+/** A reader never sees a placeholder or a heading with nothing under it: placeholder lines go
+ *  (with the subheading that introduced them), and a heading or subheading left with no content
+ *  before the next one is dropped. */
+function withoutBlanks(blocks: BlogBlock[]): BlogBlock[] {
+  const kept: (BlogBlock | null)[] = []
+  for (const b of blocks) {
+    let next: BlogBlock | null = b
+    let blank = false
+    if (b.type === 'bulleted_list' || b.type === 'numbered_list') {
+      const all: string[] = b.data?.items || []
+      const items = all.filter(t => t?.trim() && !BLANK.test(t))
+      blank = items.length < all.filter(t => t?.trim()).length
+      next = items.length ? (items.length === all.length ? b : { ...b, data: { ...b.data, items } }) : null
+    } else if (TEXT_TYPES.includes(b.type) && (!plainOf(b) || BLANK.test(plainOf(b)))) {
+      blank = !!plainOf(b)
+      next = null
+    }
+    // The subheading right before a removed placeholder only labelled it.
+    if (!next && blank && kept.length && kept[kept.length - 1]?.type === 'subheading') kept[kept.length - 1] = null
+    kept.push(next)
+  }
+  // Subheadings first (one followed by another subheading, a heading or nothing), then headings.
+  const sub = kept.filter((b): b is BlogBlock => !!b)
+    .filter((b, i, all) => b.type !== 'subheading' || (!!all[i + 1] && !['heading', 'subheading'].includes(all[i + 1].type)))
+  return sub.filter((b, i) => b.type !== 'heading' || (!!sub[i + 1] && sub[i + 1].type !== 'heading'))
 }
 
 export default function BlogArticleBody(props: BlogArticleBodyProps) {
@@ -238,14 +274,14 @@ function Block({ block, agent, accentColor, onEvent, onLead, related, relatedHre
     case 'image':
       return data.url ? (
         <figure className="-mx-1 sm:-mx-6">
-          <img src={resolveMediaUrl(data.url)} alt={data.alt || ''} className="w-full rounded-2xl object-cover shadow-[0_24px_50px_-30px_rgba(0,0,0,.5)]" />
+          <BlogPhoto src={data.url} width={1080} widths={IMG.half} sizes="(min-width: 900px) 900px, 100vw" alt={data.alt || ''} className="w-full rounded-2xl bg-gray-100 object-cover shadow-[0_24px_50px_-30px_rgba(0,0,0,.5)] dark:bg-white/5" />
           {data.caption && <figcaption className="mt-2.5 text-center text-sm font-medium italic text-gray-500 dark:text-gray-400">{data.caption}</figcaption>}
         </figure>
       ) : null
     case 'gallery':
       return (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {(data.images || []).map((url: string, i: number) => <img key={i} src={resolveMediaUrl(url)} alt="" className="aspect-square w-full rounded-xl object-cover transition duration-500 hover:scale-[1.02]" />)}
+          {(data.images || []).map((url: string, i: number) => <BlogPhoto key={i} src={url} width={640} widths={IMG.card} sizes="(min-width: 640px) 33vw, 50vw" className="aspect-square w-full rounded-xl bg-gray-100 object-cover transition duration-500 hover:scale-[1.02] dark:bg-white/5" />)}
         </div>
       )
     case 'property_showcase':
@@ -275,7 +311,7 @@ function Block({ block, agent, accentColor, onEvent, onLead, related, relatedHre
     case 'agent_profile': {
       const small = (
         <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
-          {agent.photoUrl && <img src={resolveMediaUrl(agent.photoUrl)} alt={agent.name} className="h-16 w-16 rounded-full object-cover ring-2" style={{ ['--tw-ring-color' as any]: accentColor }} />}
+          {agent.photoUrl && <img src={sizedImage(resolveMediaUrl(agent.photoUrl), 128)} alt={agent.name} className="h-16 w-16 rounded-full object-cover ring-2" style={{ ['--tw-ring-color' as any]: accentColor }} />}
           <div className="min-w-0 flex-1">
             <p className="font-serif text-lg font-black text-[#111827] dark:text-white">{agent.name}</p>
             <p className="text-xs font-bold text-gray-500">{agent.title ? `${agent.title} · ` : ''}{agent.brokerage}</p>
@@ -304,7 +340,7 @@ function Block({ block, agent, accentColor, onEvent, onLead, related, relatedHre
             {related.map(r => (
               <a key={r.slug} href={relatedHref ? relatedHref(r.slug) : '#'} className="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-gray-800 dark:bg-[#151517]">
                 <div className="aspect-[16/10] overflow-hidden bg-gradient-to-br from-[#fbf6ec] to-[#f1e3c2] dark:from-[#1d1810] dark:to-[#111827]">
-                  {r.coverImageUrl && <img src={resolveMediaUrl(r.coverImageUrl)} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />}
+                  <BlogPhoto src={r.coverImageUrl} width={640} widths={IMG.card} sizes="(min-width: 640px) 33vw, 100vw" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                 </div>
                 <div className="p-3">
                   {r.category && <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: accentColor }}>{r.category}</p>}
@@ -366,7 +402,7 @@ function ContactFormCard({ agent, accentColor, onLead, heading, sheet = false, o
         ) : (
           <motion.form key="form" onSubmit={submit} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
             <div className="flex items-center gap-3">
-              {agent.photoUrl && <img src={resolveMediaUrl(agent.photoUrl)} alt={agent.name} className="h-12 w-12 rounded-full object-cover" />}
+              {agent.photoUrl && <img src={sizedImage(resolveMediaUrl(agent.photoUrl), 128)} alt={agent.name} className="h-12 w-12 rounded-full object-cover" />}
               <div className="min-w-0">
                 <p className="font-serif text-xl font-black leading-tight text-[#111827] dark:text-white">{heading}</p>
                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">{agent.name}{agent.brokerage ? ` · ${agent.brokerage}` : ''}</p>
@@ -437,7 +473,7 @@ export function PropertyCardDisplay({ property, size = 'compact', onEvent }: { p
     return (
       <button onClick={() => onEvent?.('property_click', { address: property.address })} className="flex w-full items-center gap-3 overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-[#151517]">
         <div className="h-20 w-24 shrink-0 bg-gray-100 dark:bg-gray-800">
-          {property.image_url ? <img src={resolveMediaUrl(property.image_url)} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Home className="h-5 w-5 text-gray-300" /></div>}
+          {property.image_url ? <BlogPhoto src={property.image_url} width={256} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Home className="h-5 w-5 text-gray-300" /></div>}
         </div>
         <div className="min-w-0 flex-1 p-2">
           <p className="truncate text-sm font-black text-[#111827] dark:text-white">{property.address}</p>
@@ -464,7 +500,7 @@ export function PropertyCardDisplay({ property, size = 'compact', onEvent }: { p
   return (
     <button onClick={() => onEvent?.('property_click', { address: property.address })} className="block w-full overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-gray-800 dark:bg-[#151517]">
       <div className="relative h-56 w-full bg-gray-100 dark:bg-gray-800">
-        {property.image_url ? <img src={resolveMediaUrl(property.image_url)} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Home className="h-8 w-8 text-gray-300" /></div>}
+        {property.image_url ? <BlogPhoto src={property.image_url} width={1080} widths={IMG.half} sizes="(min-width: 900px) 900px, 100vw" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Home className="h-8 w-8 text-gray-300" /></div>}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
         {property.status && (
           <span className={`absolute left-4 top-4 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow-sm ${statusBadgeClass(property.status)}`}>
@@ -523,7 +559,7 @@ function NeighborhoodLinksRow({ links, accentColor, onOpen }: { links: Neighborh
         {links.map(l => (
           <a key={l.slug} href={l.url} target="_blank" rel="noopener" onClick={() => onOpen?.(l.slug)}
             className="group relative flex h-28 items-end overflow-hidden rounded-2xl text-white no-underline shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
-            <span className="absolute inset-0 bg-cover bg-center transition duration-700 group-hover:scale-105" style={{ backgroundImage: l.photo ? `url(${resolveMediaUrl(l.photo)})` : undefined, backgroundColor: '#1f2937' }} />
+            <span className="absolute inset-0 bg-[#1f2937]"><BlogPhoto src={l.photo} width={640} widths={IMG.card} sizes="(min-width: 640px) 380px, 100vw" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" /></span>
             <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
             <span className="relative flex w-full items-end justify-between gap-3 p-4">
               <span className="min-w-0">

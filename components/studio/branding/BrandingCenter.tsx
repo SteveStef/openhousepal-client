@@ -328,15 +328,17 @@ export function BrandColorDock({ look, luxeAllowed, onChange, show }: { look: Br
     <AnimatePresence>
       {show && (
         <motion.div key="dock" initial={{ y: 120 }} animate={{ y: 0, transition: { type: 'spring', stiffness: 380, damping: 36 } }} exit={{ y: 120, transition: { duration: 0.2 } }}
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-[#C9A24D]/25 bg-white/[0.97] pb-[max(0.6rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-16px_40px_-24px_rgba(17,24,39,.5)] dark:border-white/10 dark:bg-[#111113]/[0.97] lg:hidden" data-testid="brand-color-dock">
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-[#C9A24D]/25 bg-white pb-[max(0.6rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-16px_40px_-24px_rgba(17,24,39,.5)] dark:border-white/10 dark:bg-[#111113] lg:hidden" data-testid="brand-color-dock">
           <p className="px-4 text-[9px] font-black uppercase tracking-[0.22em] text-[#8b7355] dark:text-[#e8c97a]">{luxe ? 'Finish' : 'Brand color'} · <span className="normal-case tracking-normal text-gray-500">{luxe ? LUXE_METALS[look.metal].label : brandColorName(look.accent) || 'Custom'}</span></p>
-          <div className="mt-1.5 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* Solid, and everything fits (owner, 11/01: the chips were cut off and the page showed through):
+              the three finishes share the width; the colors scroll with room for the picked one's ring. */}
+          <div className={luxe ? 'mt-1.5 grid grid-cols-3 gap-2 px-4 py-1.5' : 'mt-1 flex gap-2 overflow-x-auto px-4 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}>
             {luxe
               ? BRAND_FINISHES.map(f => {
                   const on = look.metal === f.id
                   return (
                     <button key={f.id} type="button" onClick={() => onChange({ look: { metal: f.id } })} aria-label={f.label}
-                      className={`inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-4 text-xs font-black text-[#111827] transition ${on ? 'ring-[3px] ring-[#C9A24D] ring-offset-2 dark:ring-offset-[#111113]' : ''}`}
+                      className={`inline-flex h-9 min-w-0 items-center justify-center gap-1 rounded-full px-2 text-xs font-black text-[#111827] transition ${on ? 'ring-2 ring-[#111827] ring-offset-2 dark:ring-white dark:ring-offset-[#111113]' : ''}`}
                       style={{ background: `linear-gradient(115deg, ${f.palette.deep}, ${f.palette.base} 35%, ${f.palette.pale} 52%, ${f.palette.light} 62%, ${f.palette.deep})` }}>{on && <Check className="h-3.5 w-3.5" strokeWidth={3.5} />}{f.label}</button>
                   )
                 })

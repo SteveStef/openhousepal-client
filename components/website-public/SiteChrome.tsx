@@ -217,9 +217,11 @@ export function SiteHeader({
       {/* Luxe: a thin metal line glides across the top edge. */}
       {!classic && <span aria-hidden className="ohp-head-sweep pointer-events-none absolute inset-x-0 top-0 h-px" />}
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3 sm:px-6">
-        <a href={`${basePrefix}/`} aria-label="Home" data-ohp-spot="logo" className="flex shrink-0 items-center gap-3">
+        {/* The logo (often the brokerage's) is named for the agent and brokerage - it read "Home" to
+            Google and screen readers, so the page never said "Compass" up top (11/01 review). */}
+        <a href={`${basePrefix}/`} aria-label={`${[agentProfile?.name, agentProfile?.brokerage].filter(Boolean).join(' · ') || siteName} - home`} data-ohp-spot="logo" className="flex shrink-0 items-center gap-3">
           {showLogo ? (
-            <img ref={logoRef} src={resolveMediaUrl(theme.logo_url)} alt={siteName} onError={() => setLogoOk(false)} className={`h-10 w-auto max-w-[150px] object-contain ${dark ? 'brightness-0 invert' : ''}`} />
+            <img ref={logoRef} src={resolveMediaUrl(theme.logo_url)} alt={[agentProfile?.name, agentProfile?.brokerage].filter(Boolean).join(' · ') || siteName} onError={() => setLogoOk(false)} className={`h-10 w-auto max-w-[150px] object-contain ${dark ? 'brightness-0 invert' : ''}`} />
           ) : (
             <span
               className={`flex h-11 w-11 items-center justify-center transition-transform duration-300 hover:scale-105 ${classic ? 'rounded-xl' : 'rounded-xl ring-1 ring-[var(--site-gold)]/30'}`}

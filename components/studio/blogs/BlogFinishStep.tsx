@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Check, ClipboardList, Clapperboard, Home, Link2, MapPin, PenLine, Play, Sparkles, Tag } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/api-service'
 import type { BlogAiContext, BlogAiPropertyRef, BlogBlock } from '@/types'
-import { youtubeIdOf } from './ShowcaseBlocks'
+import { soldWithinMonths, youtubeIdOf } from './ShowcaseBlocks'
 import { BLOG_CTA_FORMS, ctaFormTypeOf } from '@/lib/studio/blogTopics'
 
 // The AI writer's Finish step - after the draft is written, before the editor opens: drop in a
@@ -62,6 +62,17 @@ const inAreas = (city: string | null | undefined, areas: string[]) => {
 export function areaPicks<T extends { city?: string | null }>(items: T[], areas: string[]) {
   const local = areas.length ? items.filter(i => inAreas(i.city, areas)) : []
   return { items: local.length ? local : items, local: local.length > 0 }
+}
+
+// Sales the pitch starts with: the newest ones sold in the last 12 months (11/01 review: 2025 sales
+// under "Recently sold nearby" read as stale) - the newest four if none are that recent.
+const defaultSales = (items: BlogAiPropertyRef[]) => {
+  const recent = items.filter(p => soldWithinMonths(p.sold_date, 12))
+  return (recent.length ? recent : items).slice(0, 4).map(p => p.id)
+}
+const soldLabel = (d?: string | null) => {
+  const t = d ? Date.parse(d.length === 10 ? `${d}T12:00:00` : d) : NaN
+  return Number.isNaN(t) ? '' : `Sold ${new Date(t).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
 }
 
 const placeLabel = (areas: string[]) => {
@@ -232,7 +243,7 @@ export default function BlogFinishStep({ ctx, blocks, areas, value, onChange, ca
             <p className="mb-2 mt-3 text-[10px] font-black uppercase tracking-widest text-gray-400">Show your work above it <span className="normal-case tracking-normal">· optional</span></p>
             <div className="grid gap-2 sm:grid-cols-3">
               {!hasSales && <PitchOption icon={Tag} label={sales.local && place ? `Recent Sales in ${place}` : 'Recent Sales'} count={sales.items.length} on={!!value.sales} disabled={!sales.items.length} empty="Add sales on your Agent Hub"
-                onClick={() => toggle('sales', sales.items.slice(0, 4).map(s => s.id))} />}
+                onClick={() => toggle('sales', defaultSales(sales.items))} />}
               {!hasListings && <PitchOption icon={Home} label={listings.local && place ? `Listings in ${place}` : 'My listings'} count={listings.items.length} on={!!value.listings} disabled={!listings.items.length} empty="No active listings"
                 onClick={() => toggle('listings', listings.items.slice(0, 4).map(s => s.id))} />}
               {!hasVideos && <PitchOption icon={Play} label="Videos about the area" count={hubVideos.length} on={!!value.videos} disabled={!hubVideos.length} empty="Add videos on your Agent Hub"
@@ -244,7 +255,7 @@ export default function BlogFinishStep({ ctx, blocks, areas, value, onChange, ca
         )}
         {already.length > 0 && <p className="mt-2 text-[10px] font-semibold text-gray-400">Already in the article: {already.join(', ')}.</p>}
         <AnimatePresence initial={false}>
-          {value.sales && !hasSales && <PickRow key="s" title="Which sales" items={sales.items} picked={value.sales} onFlip={id => flip('sales', id)} />}
+          {value.sales && !hasSales && <PickRow key="s" title="Which sales" items={sales.items} picked={value.sales} onFlip={id => flip('sales', id)} dated />}
           {value.listings && !hasListings && <PickRow key="l" title="Which listings" items={listings.items} picked={value.listings} onFlip={id => flip('listings', id)} />}
           {value.videos && !hasVideos && (
             <motion.div key="v" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
@@ -294,12 +305,12 @@ function PitchOption({ icon: Icon, label, count, on, disabled, empty, onClick, c
   )
 }
 
-function PickRow({ title, items, picked, onFlip }: { title: string; items: BlogAiPropertyRef[]; picked: string[]; onFlip: (id: string) => void }) {
+function PickRow({ title, items, picked, onFlip, dated = false }: { title: string; items: BlogAiPropertyRef[]; picked: string[]; onFlip: (id: string) => void; dated?: boolean }) {
   return (
     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
       <p className="mt-3 text-[10px] font-black uppercase tracking-widest text-gray-400">{title} <span className="normal-case tracking-normal">· up to 6</span></p>
       <div className="mt-1.5 flex gap-2 overflow-x-auto pb-1">
-        {items.slice(0, 30).map(p => <Thumb key={p.id} img={p.image_url ? resolveMediaUrl(p.image_url) : null} label={p.address} sub={[p.city, p.price ? `$${Math.round(p.price / 1000).toLocaleString()}K` : ''].filter(Boolean).join(' · ')} on={picked.includes(p.id)} onClick={() => onFlip(p.id)} />)}
+        {items.slice(0, 30).map(p => <Thumb key={p.id} img={p.image_url ? resolveMediaUrl(p.image_url) : null} label={p.address} sub={[p.city, p.price ? `$${Math.round(p.price / 1000).toLocaleString()}K` : '', dated ? soldLabel(p.sold_date) : ''].filter(Boolean).join(' · ')} on={picked.includes(p.id)} onClick={() => onFlip(p.id)} />)}
       </div>
     </motion.div>
   )

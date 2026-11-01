@@ -1,6 +1,7 @@
 'use client'
 
-import { Sparkles, ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
+import { OhpBot } from './OhpBot'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
 
 // The helper does things for you and shows you around the app (owner, 10/30) - no "suggested
@@ -23,8 +24,8 @@ export default function AssistantHome({ onPrompt }: AssistantHomeProps) {
     <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-8 sm:py-12">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-2xl bg-[#8b7355] flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-5 h-5 text-white" />
+          <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-2xl bg-[#faf6ec] ring-1 ring-[#C9A24D]/35 dark:bg-zinc-800">
+            <OhpBot size={38} />
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-[#111827] dark:text-white">Good to see you</h1>
         </div>

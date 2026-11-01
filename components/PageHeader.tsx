@@ -8,7 +8,7 @@ import LuxeHero from '@/components/ui/LuxeHero'
 // subtitle, and the page's own buttons/stats on the right. Every tool page that used the old plain
 // header picks this up automatically.
 export default function PageHeader({
-  icon, title, badge, subtitle, actions, backHref, backLabel, noMargin, kicker, tabs, asideClassName, subtitleClassName, kickerNote,
+  icon, title, badge, subtitle, actions, backHref, backLabel, noMargin, kicker, tabs, asideClassName, subtitleClassName, kickerNote, kickerNoteRightOnPhone,
 }: {
   icon: LucideIcon
   title: React.ReactNode
@@ -30,6 +30,7 @@ export default function PageHeader({
   asideClassName?: string
   /** Small inline note/chip right after the kicker. */
   kickerNote?: React.ReactNode
+  kickerNoteRightOnPhone?: boolean
 }) {
   return (
     <LuxeHero
@@ -41,6 +42,7 @@ export default function PageHeader({
       subtitle={subtitle}
       badge={badge}
       kickerNote={kickerNote}
+      kickerNoteRightOnPhone={kickerNoteRightOnPhone}
       backHref={backHref}
       backLabel={backLabel}
       tabs={tabs}

@@ -17,7 +17,8 @@ const SCORE_LABELS: [keyof NonNullable<BlogAiReview['scores']>, string][] = [
 const KIND_LABELS: Record<string, string> = {
   unsupported_claim: 'Unsupported claim', wrong_number: 'Wrong number', stale_data: 'Out-of-date number', wrong_geography: 'Geography',
   fair_housing: 'Fair Housing', school_language: 'School wording', invented_experience: 'Your experience', causation: 'Cause and effect',
-  legal_tax: 'Legal / tax', generic_ai_phrasing: 'Generic wording', repetition: 'Repetition', other: 'Other',
+  legal_tax: 'Legal / tax', generic_ai_phrasing: 'Generic wording', repetition: 'Repetition', placeholder: 'Unfinished text',
+  reader_voice: 'Too technical for readers', other: 'Other',
 }
 
 const fmtDate = (d?: string | null) => {

@@ -5,10 +5,12 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Clock, Newspaper } from 'lucide-react'
-import api, { resolveMediaUrl } from '@/lib/api-service'
+import api from '@/lib/api-service'
 import { PublicBlogSummary } from '@/types'
 import HubFormLauncher from '@/components/agent-hub/HubFormLauncher'
 import BlogCard from '@/components/studio/blogs/BlogCard'
+import BlogPhoto from '@/components/studio/blogs/BlogPhoto'
+import { IMG } from '@/lib/siteImage'
 
 const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '')
 
@@ -105,7 +107,7 @@ export default function PublicBlogListPage() {
             <Link href={`/${params.slug}/blogs/${featured.slug}`} className="group grid overflow-hidden rounded-[28px] border border-[#C9A24D]/25 bg-white shadow-[0_30px_60px_-40px_rgba(139,115,85,.8)] transition hover:-translate-y-1 dark:border-white/10 dark:bg-[#151517] md:grid-cols-[1.25fr_1fr]">
               <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-[#fbf6ec] to-[#f1e3c2] md:aspect-auto md:min-h-[320px] dark:from-[#1d1810] dark:to-[#111827]">
                 {featured.coverImageUrl
-                  ? <img src={resolveMediaUrl(featured.coverImageUrl)} alt="" className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
+                  ? <BlogPhoto src={featured.coverImageUrl} width={1080} widths={IMG.half} sizes="(min-width: 768px) 60vw, 100vw" eager className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
                   : <Newspaper className="absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 text-[#C9A24D]/40" />}
                 <span className="absolute left-4 top-4 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#111827] shadow">Latest</span>
               </div>

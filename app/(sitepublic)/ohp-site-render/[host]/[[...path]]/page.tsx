@@ -894,7 +894,9 @@ async function BlogDetail({ siteId, slug, theme, basePrefix, path }: { siteId: s
             <div className="mt-7 flex items-center gap-3">
               {post.agent_photo_url && <img src={sizedImage(resolveMediaUrl(post.agent_photo_url), 128)} loading="lazy" decoding="async" alt={post.agent_name} className="h-11 w-11 rounded-full object-cover ring-2" style={{ ['--tw-ring-color' as any]: gold }} />}
               <div>
-                <p className="text-sm font-black text-gray-900">{post.agent_name}</p>
+                {/* The brokerage rides with the agent's name at the top (PA advertising rules generally
+                    want it shown clearly - 11/01 review). */}
+                <p className="text-sm font-black text-gray-900">{post.agent_name}{post.agent_brokerage ? <span className="font-bold text-gray-500"> · {post.agent_brokerage}</span> : null}</p>
                 <p className="text-xs font-semibold text-gray-500">
                   {[post.published_at ? formatPostDate(post.published_at) : null, readTime ? `${readTime} min read` : null].filter(Boolean).join(' · ')}
                 </p>

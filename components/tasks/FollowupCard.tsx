@@ -15,6 +15,7 @@ import Link from 'next/link'
 import {
   AlertTriangle, ArrowUpRight, CalendarCheck, CalendarDays, Compass, CalendarClock, Check, CheckSquare, Clock, Copy, Hash, Home,
   Loader2, Mail, MessageCircle, MessageSquare, MoreHorizontal, Pencil, Phone, QrCode, Ticket, Trash2,
+  Undo2,
 } from 'lucide-react'
 import type { AgentTask, PropertyTour, TaskKind } from '@/types'
 import api from '@/lib/api-service'
@@ -351,7 +352,15 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
         </span>
         <div className="ml-auto flex shrink-0 items-center gap-1">
           {done ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400"><Check className="h-3 w-3" strokeWidth={3} /> Done</span>
+            <>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400"><Check className="h-3 w-3" strokeWidth={3} /> Done</span>
+              {/* Checked off by accident - one plain tap brings it back (owner, 11/01: the tick's own
+                  "undo" was only a hover tooltip, invisible on a phone). */}
+              <button type="button" onClick={e => { stop(e); onToggleDone() }} disabled={busy} data-testid="followup-undo"
+                className="ml-1 inline-flex h-7 items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 text-[11px] font-bold text-gray-600 transition hover:border-[#C9A24D] hover:text-[#8b7355] disabled:opacity-60 dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-300 dark:hover:text-[#e8c97a]">
+                {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Undo2 className="h-3 w-3" />} Undo
+              </button>
+            </>
           ) : overdue ? null : t.due_at ? (
             <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold tabular-nums text-gray-500 dark:text-gray-400">
               <Clock className="h-3 w-3" />

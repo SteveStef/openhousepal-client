@@ -25,6 +25,7 @@ export default function CalmLoops({ idleMs = 40000 }: { idleMs?: number }) {
     if (typeof document.getAnimations !== 'function') return
     const rested = new Set<Animation>()
     let idle = false
+    let covered = false   // a pop-up or the helper is open: what's behind it rests (11/01)
     let idleTimer: ReturnType<typeof setTimeout> | null = null
     let sweepTimer: ReturnType<typeof setInterval> | null = null
     let frame = 0
@@ -60,9 +61,20 @@ export default function CalmLoops({ idleMs = 40000 }: { idleMs?: number }) {
     }
     const wake = () => {
       if (idleTimer) clearTimeout(idleTimer)
+      if (covered) return
       idleTimer = setTimeout(goIdle, idleMs)
       if (idle) { idle = false; setResting(false); sweep(); startSweeps() }
     }
+    // ScrollLockWatcher hides <html>'s scrollbar while a pop-up / the helper is open
+    const html = document.documentElement
+    const coverMo = new MutationObserver(() => {
+      const now = html.style.overflow === 'hidden'
+      if (now === covered) return
+      covered = now
+      if (covered) goIdle()
+      else wake()
+    })
+    coverMo.observe(html, { attributes: true, attributeFilter: ['style'] })
     const onScroll = () => {
       wake()
       if (!frame) frame = requestAnimationFrame(sweep)
@@ -78,6 +90,7 @@ export default function CalmLoops({ idleMs = 40000 }: { idleMs?: number }) {
     return () => {
       window.removeEventListener('scroll', onScroll)
       for (const ev of ['pointerdown', 'pointermove', 'touchstart', 'keydown', 'wheel'] as const) window.removeEventListener(ev, wake)
+      coverMo.disconnect()
       if (idleTimer) clearTimeout(idleTimer)
       if (sweepTimer) clearInterval(sweepTimer)
       if (frame) cancelAnimationFrame(frame)
@@ -113,5 +126,12 @@ export function usePlayWhenSeen(ref: RefObject<Element | null>, { keepWhileWatch
     listeners.add(setRest)
     return () => { listeners.delete(setRest) }
   }, [])
-  return seen && (keepWhileWatched || !rest)
+  const [covered, setCovered] = useState(false)
+  useEffect(() => {
+    const html = document.documentElement
+    const mo = new MutationObserver(() => setCovered(html.style.overflow === 'hidden'))
+    mo.observe(html, { attributes: true, attributeFilter: ['style'] })
+    return () => mo.disconnect()
+  }, [])
+  return seen && !covered && (keepWhileWatched || !rest)
 }

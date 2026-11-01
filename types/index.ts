@@ -3035,6 +3035,8 @@ export interface CmaAiEstimate {
   audience_review?: { own_listing: boolean; mode: string; message: string } | null;
   /** Every step from the adjusted comparable sales to the final value, adding up exactly (10/24). */
   value_bridge?: CmaValueBridge | null;
+  /** The home is sold at auction - its list price is the opening bid, not used as value evidence (11/01). */
+  auction_listing?: boolean | null;
   /** HOA / condo fees and the home's earlier MLS listings and sales (10/24). */
   property_record?: CmaPropertyRecord | null;
   // OpenStreetMap road/street classification for the SUBJECT (each comp carries its own on
@@ -3628,6 +3630,8 @@ export interface CmaPublicResponse {
   agent: CmaPublicAgent;
   // Set when the web view should end with the agent's Email Signature card (never the PDF).
   signature_hub_slug?: string | null;
+  // The share slug - the location map is drawn by the server (/api/cma/map/{ref}.png, 11/01).
+  map_ref?: string | null;
   updated_at?: string | null;
 }
 

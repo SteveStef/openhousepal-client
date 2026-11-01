@@ -115,6 +115,8 @@ export default function MonthlyAiUsageMeter({
   stretch = false,
   onlyNearLimit = false,
   slimBelowLimit = false,
+  slimOnly = false,
+  shortLabel = false,
   className = '',
 }: {
   /** 'chat' = the AI helper chat's own "Chat usage" bar (its own allowance, owner 11/01). */
@@ -130,6 +132,10 @@ export default function MonthlyAiUsageMeter({
   onlyNearLimit?: boolean
   /** Below 80% a one-line slim bar (in the chat, updating after each reply); the full bar + upgrade offer from 80%. */
   slimBelowLimit?: boolean
+  /** Only the slim line - nothing at 80%+ (the full bar shows elsewhere then), e.g. the phone chat's swipe tab. */
+  slimOnly?: boolean
+  /** Slim line labelled just "Chat" (a tight spot - the phone chat's swipe tab). */
+  shortLabel?: boolean
   className?: string
 }) {
   const [data, setData] = useState<(MonthlyAiUsage & ChatUsage) | ChatUsage | null>(null)
@@ -171,7 +177,8 @@ export default function MonthlyAiUsageMeter({
   const upgradeHref = upgrade ? `/upgrade-required?tier=${upgrade.tier}&feature=${encodeURIComponent(upgrade.times === 2 ? '2x AI chat' : 'More AI chat')}` : ''
   const upgradeLabel = upgrade ? `Upgrade to ${upgrade.name} for ${upgrade.times === 2 ? '2x' : 'more'} the chat` : ''
   if (onlyNearLimit && !exhausted && !warning) return null
-  const slim = slimBelowLimit && !exhausted && !warning
+  if (slimOnly && (exhausted || warning)) return null
+  const slim = (slimBelowLimit || slimOnly) && !exhausted && !warning
 
   const barColor = exhausted ? 'bg-red-700' : warning ? 'bg-amber-400' : 'bg-[#C9A24D]'
   const fill = (
@@ -248,7 +255,7 @@ export default function MonthlyAiUsageMeter({
     return (
       <div className={`flex items-center gap-2 ${className}`} data-testid="chat-usage-slim" title={`${title} - ${resetsText}`}>
         <AiGaugeIcon className={`h-3 w-3 shrink-0 ${pctColor} ${pulseCls}`} active={aiActive} />
-        <span className={`shrink-0 text-[9px] font-black uppercase tracking-[0.14em] ${labelColor}`}>{title}</span>
+        <span className={`shrink-0 text-[9px] font-black uppercase tracking-[0.14em] ${labelColor}`}>{shortLabel && chat ? 'Chat' : title}</span>
         <div className={`flex h-1 min-w-0 flex-1 overflow-hidden rounded-full ${trackColor}`}>{fill}</div>
         <span className={`shrink-0 text-[10px] font-black tabular-nums ${pctColor}`}>{pctText}%</span>
       </div>

@@ -207,6 +207,8 @@ class ApiService {
   public auth = {
     me: () => this.request<User>('/auth/me'),
 
+    // A fresh 30-day sign-in while they use the app (Remember me) - null when they didn't tick it.
+    refreshSession: () => this.request<{ access_token: string | null; days?: number }>('/auth/refresh', { method: 'POST' }),
     login: (credentials: any) => this.request<{ access_token: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),

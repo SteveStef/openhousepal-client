@@ -46,9 +46,11 @@ export function formatAcresFromSqft(value?: number | null, opts: { long?: boolea
   // An MLS data-entry error, not a lot (523 Sherbrook Dr printed "431 ac", 10/23). The backend drops these
   // on new searches (cma_fact_check.implausible_lot); this covers comps saved before that.
   if (acres > 250) return '—'
+  // Two decimals up to 10 acres - the same figure the write-ups quote (backend lot_acres). One decimal
+  // printed 1.15 acres as "1.2" on the cover while the text said 1.1 (grader 11/01, 719 Beechwood Rd).
   const formatted = acres.toLocaleString('en-US', {
     minimumFractionDigits: acres < 0.1 ? 2 : 0,
-    maximumFractionDigits: acres < 1 ? 2 : 1,
+    maximumFractionDigits: acres < 10 ? 2 : 1,
   })
   return `${formatted} ${opts.long ? 'acres' : 'ac'}`
 }
@@ -729,9 +731,21 @@ export function buildCmaStaticMapUrl(
   subject: { latitude?: number | null; longitude?: number | null },
   comparables: CmaComparable[],
   size: string = '640x360',
+  // Report id or share slug: the server draws the map with its own Google key (/api/cma/map, 11/01) - the
+  // browser key failing (no billing on its project, live 11/01) left a gray box on the PDF's map page.
+  mapRef?: string | null,
 ): string | null {
+  if (subject.latitude == null || subject.longitude == null) return null
+  if (mapRef) {
+    const pins = [`S:${subject.latitude},${subject.longitude}`]
+    sortComparables(comparables).forEach((c, i) => {
+      if (c.latitude == null || c.longitude == null) return
+      pins.push(`${String(i + 1).slice(0, 1)}:${c.latitude},${c.longitude}`)
+    })
+    return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/cma/map/${encodeURIComponent(mapRef)}.png?size=${size}&m=${encodeURIComponent(pins.join('|'))}`
+  }
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY
-  if (!apiKey || subject.latitude == null || subject.longitude == null) return null
+  if (!apiKey) return null
   const markers = [`color:0x111827|label:S|${subject.latitude},${subject.longitude}`]
   sortComparables(comparables).forEach((c, i) => {
     if (c.latitude == null || c.longitude == null) return
@@ -763,6 +777,14 @@ export function buildCompLocationMapUrl(
 // fields only cover old reports. A subject that has already SOLD gets no offer figures at all -
 // the prose already says no live offer strategy applies, and $ "Suggested Offer" tiles next to
 // that sentence contradicted it (seen 10/19 on a mirror-active listing that had closed).
+// The three offer tiles' labels - an auction gets bidding words, since its list price is the opening bid
+// and "Suggested Offer Min" next to an auction read as an offer under list (grader 11/01).
+export function buyerOfferLabels(pricing: CmaPricing): { min: string; max: string; strong: string } {
+  return pricing.ai_estimate?.auction_listing
+    ? { min: 'Opening Bid', max: 'Comfortable Bid', strong: 'Top Bid (Your Limit)' }
+    : { min: 'Suggested Offer Min', max: 'Suggested Offer Max', strong: 'Strong Offer' }
+}
+
 export function buyerOfferFigures(pricing: CmaPricing): { min: number | null; max: number | null; strong: number | null } {
   const est = pricing.ai_estimate
   if (est?.status?.is_closed) return { min: null, max: null, strong: null }
@@ -890,6 +912,9 @@ export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null
   if (buyer && underContract) {
     const d = report.subject?.days_on_market
     callouts.push(`This home is already under contract${d != null ? ` after ${d} days on the market` : ''} - buyers accepted its price quickly, so a backup offer needs to be close to it.`)
+  } else if (buyer && report.pricing?.ai_estimate?.auction_listing) {
+    // An auction has no asking price to negotiate from - its list price is the opening bid (11/01)
+    callouts.push('This home is being sold at auction - its list price is the opening bid, so compare these homes with your top bid, not with that number.')
   } else if (buyer) {
     const pricier = ourPsf ? actives.filter(a => a.price_per_sqft && ourPsf > a.price_per_sqft).length : 0
     if (actives.length >= 2 && pricier > actives.length / 2) {

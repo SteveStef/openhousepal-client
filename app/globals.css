@@ -1798,9 +1798,9 @@ input:-webkit-autofill:active {
 .ohp-rise { animation: ohpRise 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards; animation-delay: calc(var(--i, 0) * 45ms); }
 
 /* ---- AI helper (owner, 10/30): snappy and polished - transform + opacity only, never blur. ---- */
-@keyframes ohpAiPanelIn { 0% { opacity: 0; transform: translateY(14px) scale(0.94); } 100% { opacity: 1; transform: none; } }
-@keyframes ohpAiPanelOut { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(10px) scale(0.96); } }
-@keyframes ohpAiSheetIn { 0% { transform: translateY(100%); } 100% { transform: none; } }
+@keyframes ohpAiPanelIn { 0% { opacity: 0; transform: translate(10px, 22px) scale(0.55); border-radius: 40px; } 55% { opacity: 1; } 75% { transform: translate(0, -3px) scale(1.012); } 100% { opacity: 1; transform: none; } }
+@keyframes ohpAiPanelOut { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translate(10px, 20px) scale(0.6); border-radius: 40px; } }
+@keyframes ohpAiSheetIn { 0% { transform: translateY(100%); } 72% { transform: translateY(-1.2%); } 100% { transform: none; } }
 @keyframes ohpAiSheetOut { 0% { transform: none; } 100% { transform: translateY(100%); } }
 @keyframes ohpAiFade { 0% { opacity: 0; } 100% { opacity: 1; } }
 @keyframes ohpAiFadeOut { 0% { opacity: 1; } 100% { opacity: 0; } }
@@ -1815,15 +1815,33 @@ input:-webkit-autofill:active {
 @keyframes ohpAiReveal { 0% { opacity: 0; transform: scale(0.965); } 100% { opacity: 1; transform: none; } }
 @keyframes ohpAiSparkle { 0% { transform: rotate(0) scale(1); } 50% { transform: rotate(14deg) scale(1.12); } 100% { transform: rotate(0) scale(1); } }
 
-.ohp-ai-panel-in { animation: ohpAiPanelIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) backwards; transform-origin: bottom right; }
-.ohp-ai-panel-out { animation: ohpAiPanelOut 0.15s cubic-bezier(0.4, 0, 1, 1) both; transform-origin: bottom right; }
-.ohp-ai-sheet-in { animation: ohpAiSheetIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) backwards; } /* backwards: once in, a swipe can move it */
-.ohp-ai-sheet-out { animation: ohpAiSheetOut 0.18s cubic-bezier(0.4, 0, 1, 1) both; }
+.ohp-ai-panel-in { animation: ohpAiPanelIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards; transform-origin: calc(100% - 28px) calc(100% - 28px); }
+/* what's inside rises in just after the window opens */
+.ohp-ai-panel-in > *, .ohp-ai-sheet-in > * { animation: ohpAiInsideIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) 0.1s backwards; }
+@keyframes ohpAiInsideIn { 0% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: none; } }
+.ohp-ai-panel-out { animation: ohpAiPanelOut 0.2s cubic-bezier(0.4, 0, 1, 1) both; transform-origin: calc(100% - 28px) calc(100% - 28px); }
+.ohp-ai-sheet-in { animation: ohpAiSheetIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards; } /* backwards: once in, a swipe can move it */
+.ohp-ai-sheet-out { animation: ohpAiSheetOut 0.22s cubic-bezier(0.4, 0, 1, 1) both; }
 .ohp-ai-fade { animation: ohpAiFade 0.2s ease-out backwards; }
 .ohp-ai-fade-out { animation: ohpAiFadeOut 0.15s ease-in both; }
 .ohp-ai-morph { animation: ohpAiMorph 0.2s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 .ohp-ai-fab { animation: ohpAiFabIn 0.26s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; transition: transform 0.15s ease, box-shadow 0.15s ease; }
-.ohp-ai-fab:hover { transform: translateY(-2px) scale(1.05); box-shadow: 0 14px 30px -8px rgba(139, 115, 85, 0.55); }
+.ohp-ai-fab { transition: transform .35s cubic-bezier(.22,1,.36,1), box-shadow .15s ease; }
+.ohp-ai-fab:hover > span:nth-of-type(2), .ohp-ai-fab:hover .ohp-bot { transform: scale(1.06); }
+.ohp-ai-fab > span:nth-of-type(2) { transition: transform .15s ease; }
+/* the little robot on the helper's button + in the chat (OhpBot): blinks now and then, its antenna glows */
+.ohp-ai-fab-ring { background: conic-gradient(from var(--ohp-fab-sweep, 0deg), transparent 0deg, #e8c97a 60deg, #C9A24D 110deg, transparent 170deg, transparent 360deg); animation: ohpAiFabSweep 1.6s linear 0.3s 3; opacity: .95; }
+.ohp-ai-fab:hover .ohp-ai-fab-ring { animation: ohpAiFabSweep 1.2s linear 1; }
+@property --ohp-fab-sweep { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@keyframes ohpAiFabSweep { to { --ohp-fab-sweep: 360deg; } }
+.ohp-bot-eye { transform-box: fill-box; transform-origin: center; animation: ohpBotBlink 5.2s ease-in-out infinite; }
+@keyframes ohpBotBlink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.12); } }
+.ohp-bot-light { animation: ohpBotLight 2.6s ease-in-out infinite; }
+@keyframes ohpBotLight { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+.ohp-bot-thinking .ohp-bot-eyes { animation: ohpBotLook 1.6s ease-in-out infinite; }
+@keyframes ohpBotLook { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-1.4px); } 70% { transform: translateX(1.4px); } }
+.ohp-ai-fab:hover .ohp-bot { animation: ohpBotHop .5s cubic-bezier(.34,1.56,.64,1); }
+@keyframes ohpBotHop { 0%, 100% { transform: none; } 45% { transform: translateY(-3px) rotate(-6deg); } }
 .ohp-ai-fab:hover .ohp-ai-fab-icon { animation: ohpAiSparkle 0.5s ease; }
 .ohp-ai-fab:active { transform: scale(0.94); }
 .ohp-ai-msg-user { animation: ohpAiMsgUser 0.2s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
@@ -1862,6 +1880,7 @@ input:-webkit-autofill:active {
   .ohp-ai-icon-live::before, .ohp-ai-icon-live::after, .ohp-ai-icon-live svg, .ohp-ai-icon-pop { animation: none !important; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .ohp-ai-fab-ring, .ohp-bot-eye, .ohp-bot-light, .ohp-bot-thinking .ohp-bot-eyes, .ohp-ai-fab:hover .ohp-bot, .ohp-ai-panel-in > *, .ohp-ai-sheet-in > *,
   .ohp-ai-panel-in, .ohp-ai-panel-out, .ohp-ai-sheet-in, .ohp-ai-sheet-out, .ohp-ai-fade, .ohp-ai-fade-out, .ohp-ai-morph, .ohp-ai-fab,
   .ohp-ai-msg-user, .ohp-ai-msg-bot, .ohp-ai-card-in, .ohp-ai-dot, .ohp-ai-shimmer, .ohp-ai-check, .ohp-ai-reveal { animation: none !important; }
   .ohp-ai-shimmer { color: #8b7355; }
@@ -2041,3 +2060,15 @@ div[role="button"]:active {
 }
 .ohp-home-glow { box-shadow: 0 0 0 4px #C9A24D; animation: ohpHomeGlow 1.3s ease-in-out 4; }
 @media (prefers-reduced-motion: reduce) { .ohp-home-glow { animation: none; } }
+
+/* A helper card making something (WorkingScene): sparkles orbit the thinking robot, the status line
+   rises in as it changes, a soft bar glides along (11/01). */
+.ohp-work-orbit { animation: ohpWorkOrbit 2.4s linear infinite; }
+.ohp-work-orbit-2 { animation-duration: 3.4s; animation-direction: reverse; }
+@keyframes ohpWorkOrbit { to { transform: rotate(360deg); } }
+.ohp-work-orb { animation: ohpWorkBreathe 2.2s ease-in-out infinite; }
+@keyframes ohpWorkBreathe { 0%, 100% { box-shadow: 0 0 0 0 rgba(201,162,77,.0); } 50% { box-shadow: 0 0 0 5px rgba(201,162,77,.14); } }
+.ohp-work-line { animation: ohpAiInsideIn .4s cubic-bezier(.22,1,.36,1) backwards; }
+.ohp-work-bar { animation: ohpWorkBar 1.6s cubic-bezier(.45,0,.55,1) infinite; }
+@keyframes ohpWorkBar { 0% { transform: translateX(-110%); } 100% { transform: translateX(320%); } }
+@media (prefers-reduced-motion: reduce) { .ohp-work-orbit, .ohp-work-orb, .ohp-work-line, .ohp-work-bar { animation: none !important; } }

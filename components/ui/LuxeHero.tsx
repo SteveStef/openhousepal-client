@@ -17,7 +17,7 @@ import type { LucideIcon } from 'lucide-react'
 // gold aurora, a faint architectural grid, a gold sweep along the top edge, a few twinkling
 // sparkles and a shimmer through the gold title words. All of it stops under reduced-motion.
 export default function LuxeHero({
-  kicker, icon: Icon, title, subtitle, badge, kickerNote, aside, actions, tabs, covers = [], compact = false, className = '', backHref, backLabel, backPhoneOnly = false, asideClassName = 'lg:w-[400px]', actionsClassName = '', centered = false, titleClassName, subtitleClassName,
+  kicker, icon: Icon, title, subtitle, badge, kickerNote, kickerNoteRightOnPhone = false, aside, actions, tabs, covers = [], compact = false, className = '', backHref, backLabel, backPhoneOnly = false, asideClassName = 'lg:w-[400px]', actionsClassName = '', centered = false, titleClassName, subtitleClassName,
 }: {
   kicker: string
   icon?: LucideIcon
@@ -26,6 +26,8 @@ export default function LuxeHero({
   badge?: React.ReactNode
   /** A small live note after the kicker on the same line, set off by a dash (e.g. Dash's "Updated now"). */
   kickerNote?: React.ReactNode
+  /** Phones: the note sits at the right end of the kicker line (no dash) instead of after the kicker. */
+  kickerNoteRightOnPhone?: boolean
   /** Right-hand side next to the title - usually <LuxeStats/> and/or a primary button. */
   aside?: React.ReactNode
   /** A row under the title - quick actions, filters... */
@@ -102,8 +104,9 @@ export default function LuxeHero({
             )}
             {Icon ? <Icon className="h-3.5 w-3.5" /> : <span className="h-px w-8 bg-[#8b7355] dark:bg-[#e8c97a]" />} <span className="whitespace-nowrap">{kicker}</span>
             {/* The dash travels with its note - never left dangling at the end of a line on phones. */}
-            {kickerNote && <span className="flex items-center gap-2"><span aria-hidden className="text-[#C9A24D]/70">-</span><span className="flex items-center gap-1.5 text-[9px] font-black normal-case tracking-[0.12em] text-[#8b7355]/85 dark:text-white/55">{kickerNote}</span></span>}
+            {kickerNote && <span className={`flex items-center gap-2 ${kickerNoteRightOnPhone ? 'max-sm:hidden' : ''}`}><span aria-hidden className="text-[#C9A24D]/70">-</span><span className="flex items-center gap-1.5 text-[9px] font-black normal-case tracking-[0.12em] text-[#8b7355]/85 dark:text-white/55">{kickerNote}</span></span>}
           </p>
+          {kickerNote && kickerNoteRightOnPhone && <span className="-my-1.5 ml-auto flex items-center gap-1.5 text-[9px] font-black normal-case tracking-[0.12em] text-[#8b7355]/85 sm:hidden dark:text-white/55">{kickerNote}</span>}
           {/* Negative margin like the back arrow - a chip or stat pill here never makes the line taller. */}
           {/* Phones: its own single row that slides sideways (never wraps into the title). */}
           {badge && <div className="-my-1.5 flex min-w-0 flex-1 items-center justify-end overflow-x-auto py-0.5 [scrollbar-width:none] max-sm:[&>*]:origin-right max-sm:[&>*]:scale-[0.9] sm:-my-2 sm:flex-none sm:overflow-visible sm:py-0">{badge}</div>}

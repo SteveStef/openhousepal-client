@@ -12,7 +12,7 @@ import {
   buildCmaStaticMapUrl, buildCompLocationMapUrl, competitionHomeAsComparable, clientCompStrength, compDisplayPrice, resolveCmaMarketMetrics, effectiveCompPrice, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange,
   CmaGuidanceSection, cmaGuidanceSections, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, COMP_STATUS_BADGE_STYLE,
   AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_STYLES, STRENGTH_LABEL, STRENGTH_SCALE_STYLES, STRENGTH_STYLES,
-  buyerOfferFigures, basementDisplay, materialIssuesText, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft,
+  buyerOfferFigures, buyerOfferLabels, basementDisplay, materialIssuesText, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft,
 } from '@/lib/cma'
 import { CmaPresentationDocument } from '@/lib/pdfs'
 import { googleMapsLoader } from '@/lib/googleMapsLoader'
@@ -130,6 +130,7 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
   // The backend's locked final valuation is authoritative; legacy fields only support old reports.
   const finalValuation = pricing.ai_estimate?.final_valuation
   const offerFigures = buyerOfferFigures(pricing)
+  const offerLabels = buyerOfferLabels(pricing)
   const authoritativeValue = finalValuation?.value ?? pricing.ai_estimate?.value ?? null
   const authoritativeDom = pricing.ai_estimate?.status?.active_market_days ?? subject.days_on_market
   const suggested = {
@@ -140,7 +141,7 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
   // only runs for a pre-comp_stats report. metricsWeighted === metricsAll (same valuation pool).
   const metricsAll = resolveCmaMarketMetrics(comparables, pricing.ai_estimate)
   const metricsWeighted = metricsAll
-  const mapUrl = buildCmaStaticMapUrl(subject, comparables, '1200x420')
+  const mapUrl = buildCmaStaticMapUrl(subject, comparables, '1200x420', data.map_ref)
 
   const headlineValue = isBuyer
     ? (authoritativeValue != null ? formatMoney(authoritativeValue) : formatMoney(pricing.estimated_fair_value))
@@ -426,9 +427,9 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
             <div className="mt-8 grid grid-cols-2 gap-4 border-t border-white/10 pt-6 print:border-gray-200 sm:grid-cols-4">
               {isBuyer ? (
                 <>
-                  <FinalFact label="Suggested Offer Min" value={offerFigures.min ? formatMoney(offerFigures.min) : null} />
-                  <FinalFact label="Suggested Offer Max" value={offerFigures.max ? formatMoney(offerFigures.max) : null} />
-                  <FinalFact label="Strong Offer" value={offerFigures.strong ? formatMoney(offerFigures.strong) : null} />
+                  <FinalFact label={offerLabels.min} value={offerFigures.min ? formatMoney(offerFigures.min) : null} />
+                  <FinalFact label={offerLabels.max} value={offerFigures.max ? formatMoney(offerFigures.max) : null} />
+                  <FinalFact label={offerLabels.strong} value={offerFigures.strong ? formatMoney(offerFigures.strong) : null} />
                 </>
               ) : (
                 <>
