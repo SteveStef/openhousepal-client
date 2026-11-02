@@ -17,12 +17,12 @@ export function isIOS(): boolean {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 }
 
-async function build(doc: ReactElement): Promise<Blob> {
+export async function build(doc: ReactElement): Promise<Blob> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return pdf(doc as any).toBlob()
 }
 
-function saveBlob(blob: Blob, fileName: string) {
+export function saveBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -34,7 +34,7 @@ function saveBlob(blob: Blob, fileName: string) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 
-function openPlaceholderTab(): Window | null {
+export function openPlaceholderTab(): Window | null {
   const w = window.open('', '_blank')
   if (w) {
     try {
@@ -48,7 +48,7 @@ function openPlaceholderTab(): Window | null {
 
 /** iPhone: hand an already-built PDF over inside the tap. Share sheet first for "save"; a new tab
  *  first for "open" (falling back to the other when the device refuses). */
-function deliverOnIOS(blob: Blob, fileName: string, prefer: 'share' | 'tab'): boolean {
+export function deliverOnIOS(blob: Blob, fileName: string, prefer: 'share' | 'tab'): boolean {
   const file = typeof File !== 'undefined' ? new File([blob], fileName, { type: 'application/pdf' }) : null
   const canShare = !!(file && navigator.canShare?.({ files: [file] }))
   // the file only: iOS "Save to Files" also saved a `title` as a second file named "text" (user, 10/21)

@@ -284,9 +284,9 @@ export default function TasksPanel({
         // Not when this list is already scoped to one lead (it's shown on that lead's own profile).
         clickable={!!t.lead_id && !leadId}
         onOpenLead={() => setOpenLeadId(t.lead_id!)}
-        onToggleDone={() => {
+        onToggleDone={via => {
           setJustDone(prev => { const next = new Set(prev); if (done) next.delete(t.id); else next.add(t.id); return next })
-          if (done) api.tasks.reopen(t.id).then(load).then(() => changedRef.current?.()); else patch(t.id, { completed: true })
+          if (done) api.tasks.reopen(t.id).then(load).then(() => changedRef.current?.()); else patch(t.id, { completed: true, ...(via ? { completed_via: via } : {}) })
         }}
         onSnooze={days => snooze(t, days)}
         onPickDay={ymd => pickDay(t, ymd)}

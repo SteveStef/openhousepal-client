@@ -2133,6 +2133,9 @@ export interface BlogAiReview {
   rules_to_check?: { name: string; source?: string | null }[]
   /** The article's states, when none is a state the agent works in. */
   out_of_area?: string[]
+  /** The engine's own grade against the fixed pass list - its last step before saving. */
+  pass_list?: { id: string; label: string; rule?: string; status: 'pass' | 'fixed' | 'cut' | 'fail'; notes?: string[] }[]
+  nice_to_have?: string[]
 }
 
 export interface BlogListItem {
@@ -2371,6 +2374,8 @@ export interface Lead {
   attention_collection_id?: string | null;
   created_at: string;
   last_contacted_at?: string | null;
+  /** How the agent reached out, oldest first - Texted / Emailed (11/02). */
+  contact_log?: ContactLogEntry[];
   hidden_at?: string | null;
   /** How they first came in, and the latest thing they did (any kind). */
   origin?: LeadMoment | null;
@@ -2649,6 +2654,8 @@ export interface TaskUpdateInput {
   remind_at?: string | null;
   suggested_message?: string | null;
   completed?: boolean;
+  /** with completed: true - the Text / Email button did it (11/02) */
+  completed_via?: 'text' | 'email';
 }
 
 export interface CalendarFeedInfo {
@@ -4427,4 +4434,33 @@ export interface AdminAreaPlaceInput {
   address?: string | null
   description?: string | null
   source_url?: string | null
+}
+
+// Admin -> Tools -> Grading: one agent-made blog or CMA, with the admin's own grade (never shown to agents).
+export interface AdminGradingItem {
+  kind: 'blog' | 'cma'
+  id: string
+  title: string
+  subtitle?: string | null
+  status: string
+  created_at: string
+  updated_at?: string | null
+  agent: { id: string | null; name: string; email: string | null; brokerage: string | null }
+  ai_made: boolean
+  cost_usd?: number | null
+  /** The live page (a published article / a shared CMA), or null. */
+  live_path?: string | null
+  graded: boolean
+  grade: string | null
+  notes: string | null
+  graded_at: string | null
+}
+
+// How the agent reached out to a lead, oldest first (owner, 11/02) - "Texted" / "Emailed" on the
+// Visitors list and the Leads page. via null = a follow-up checked off without its Text / Email button.
+export interface ContactLogEntry {
+  at: string
+  via: 'text' | 'email' | 'call' | null
+  /** What it was: "Showcase pitch", "Open house sign-in follow-up"... null = a plain text / email. */
+  what: string | null
 }

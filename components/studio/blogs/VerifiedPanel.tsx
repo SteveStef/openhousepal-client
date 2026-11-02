@@ -18,7 +18,11 @@ const KIND_LABELS: Record<string, string> = {
   unsupported_claim: 'Unsupported claim', wrong_number: 'Wrong number', stale_data: 'Out-of-date number', wrong_geography: 'Geography',
   fair_housing: 'Fair Housing', school_language: 'School wording', invented_experience: 'Your experience', causation: 'Cause and effect',
   legal_tax: 'Legal / tax', generic_ai_phrasing: 'Generic wording', repetition: 'Repetition', placeholder: 'Unfinished text',
-  reader_voice: 'Too technical for readers', rule_detail: 'Fine print taken out', other: 'Other',
+  reader_voice: 'Too technical for readers', rule_detail: 'Fine print taken out', applicability: 'Depends on the reader', wrong_reader: "Doesn't fit this reader",
+  stat_logic: 'Number misread', count_mismatch: "Numbers don't add up", overstatement: 'Too absolute', condo_townhome: 'Townhome treated as condo',
+  missing_protection: 'Reader protection', grader: 'Pass list fix', pass_facts: 'Fact', pass_place: 'Place', pass_dates: 'Number dates',
+  pass_fine_print: 'Fine print', pass_math: 'Number misread', pass_stories: 'Your experience', pass_protections: 'Reader protection',
+  pass_fit: "Doesn't fit this reader", pass_voice: 'Your voice', pass_next_step: 'Next step', pass_complete: 'Unfinished text', other: 'Other',
 }
 
 const fmtDate = (d?: string | null) => {
@@ -94,6 +98,22 @@ export default function VerifiedPanel({ review, className = '' }: { review: Blog
                 </div>
               )}
 
+              {(review.pass_list || []).length > 0 && (
+                <Section icon={ShieldCheck} title="Pass list (graded before saving)">
+                  {review.pass_list!.map(p => (
+                    <li key={p.id} className="flex items-start justify-between gap-3 text-xs" title={p.rule}>
+                      <span className="font-semibold text-gray-700 dark:text-gray-200">{p.label}</span>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${
+                        p.status === 'fail' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                          : p.status === 'pass' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+                            : 'bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-300'}`}>
+                        {p.status === 'fail' ? 'Check' : p.status === 'pass' ? 'Pass' : p.status === 'cut' ? 'Fixed (cut)' : 'Fixed'}
+                      </span>
+                    </li>
+                  ))}
+                </Section>
+              )}
+
               {openIssues.length > 0 && (
                 <Section icon={AlertTriangle} title="Still needs your eye" tone="warn">
                   {openIssues.map((i, k) => (
@@ -131,7 +151,7 @@ export default function VerifiedPanel({ review, className = '' }: { review: Blog
 
               {(review.out_of_area || []).length > 0 && (
                 <Section icon={AlertTriangle} title="Outside your area">
-                  <li className="text-xs text-gray-600 dark:text-gray-300">These towns are in {review.out_of_area!.join(', ')}, outside where you work. The article doesn't claim local experience there and keeps your closing button - if a reader asks for a showing, you can handle it or refer it to a local agent.</li>
+                  <li className="text-xs text-gray-600 dark:text-gray-300">These towns are in {review.out_of_area!.join(', ')}, outside where you work. The article doesn&apos;t claim local experience there and keeps your closing button - readers can still ask you to start their search, request a showing or a home value.</li>
                 </Section>
               )}
 

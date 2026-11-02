@@ -55,6 +55,23 @@ function useIsPhone() {
   return phone
 }
 
+// Phone keyboard open: the part of the screen still showing (above the keyboard), else null.
+// The sheet is sized to the whole screen, so with the keyboard up the page behind showed between
+// the chat box and the keyboard (owner, 11/01) - while typing the chat fills exactly what's left.
+function useKeyboardSpace(on: boolean) {
+  const [space, setSpace] = useState<{ top: number; height: number } | null>(null)
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!on || !vv) { setSpace(null); return }
+    const fit = () => setSpace(window.innerHeight - vv.height > 120 ? { top: Math.round(vv.offsetTop), height: Math.round(vv.height) } : null)
+    fit()
+    vv.addEventListener('resize', fit)
+    vv.addEventListener('scroll', fit)
+    return () => { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit) }
+  }, [on])
+  return space
+}
+
 export default function AssistantWidget() {
   const { user, isAuthenticated, isLoading: isCheckingAuth } = useAuth()
   const pathname = usePathname()
@@ -82,6 +99,7 @@ export default function AssistantWidget() {
   // Phone: after a link in the chat opened a page, the sheet sits low as a peek (owner, 10/31).
   const [peek, setPeek] = useState(false)
   useEffect(() => { if (!isOpen) { setPeek(false); setDragH(null) } }, [isOpen])
+  const kb = useKeyboardSpace(isPhone && isOpen && !peek)
 
   // Closing plays its exit first (a beat), then unmounts.
   const close = useCallback(() => {
@@ -350,6 +368,8 @@ export default function AssistantWidget() {
       {(big || isPhone) && !peek && (
         <div data-scroll-lock={isPhone ? 'soft' : undefined} className={`fixed inset-0 touch-none bg-black/30 ${closing ? 'ohp-ai-fade-out' : 'ohp-ai-fade'}`} style={{ zIndex: 49 }} onClick={() => (isPhone ? close() : setBig(false))} />
       )}
+      {/* Under the see-through keyboard: the chat's own color, not the page behind it. */}
+      {kb && <div aria-hidden className="fixed inset-x-0 bg-white dark:bg-zinc-900" style={{ top: kb.top + kb.height - 1, height: '100vh', zIndex: 50 }} />}
       <div
         ref={panelRef}
         // Tapping a "Create a Showcase" / "Open it" button inside the chat goes there and the chat
@@ -369,7 +389,9 @@ export default function AssistantWidget() {
         // Phones never pin the page under the sheet, full screen included (it covers it all anyway);
         // pinning mid-swipe made the page jump behind it.
         data-scroll-lock={peek || !(big || isPhone) ? 'off' : isPhone ? 'soft' : 'on'}
-        style={dragH !== null ? { height: dragH, transition: 'none' } : undefined}
+        style={kb
+          ? { top: kb.top, bottom: 'auto', height: kb.height, borderRadius: 0, transition: 'none' }
+          : dragH !== null ? { height: dragH, transition: 'none' } : undefined}
         className={`${frame} ${motionIn} bg-white dark:bg-zinc-900 shadow-2xl shadow-black/20 border border-gray-100 dark:border-zinc-800 flex flex-col overflow-hidden`}
       >
         {isPhone && (
@@ -385,7 +407,8 @@ export default function AssistantWidget() {
           <OhpBot size={26} className="mx-0.5 flex-shrink-0" />
           {/* Always "AI Assistant", the chat's usage bar beside it on the same line (owner, 11/01) */}
           <span className="shrink-0 text-sm font-bold leading-snug text-[#111827] dark:text-white">AI Assistant</span>
-          <MonthlyAiUsageMeter kind="chat" variant="inline" slimOnly shortLabel refreshKey={`${activeConversation?.messages.length || 0}:${isSending}`}
+          {/* ...in its own little pill, like the AI Usage pill on the rest of the site (owner, 11/01) */}
+          <MonthlyAiUsageMeter kind="chat" variant="inline" slimOnly pill refreshKey={`${activeConversation?.messages.length || 0}:${isSending}`}
             className="mx-1.5 min-w-0 flex-1" />
           <span className="flex-1 empty:hidden" />
           {activeConversation && (
@@ -418,7 +441,7 @@ export default function AssistantWidget() {
                     <AssistantHome onPrompt={handleSend} />
                   )}
                 </div>
-                <div className="pb-[env(safe-area-inset-bottom)]">
+                <div className={kb ? undefined : "pb-[env(safe-area-inset-bottom)]"}>
                   {/* The chat's own allowance: a slim line that moves after each reply; near / at the limit the full bar + upgrade offer (11/01) */}
                   {/* (Below 80% it's the slim bar in the top line; near the limit the full bar + upgrade offer shows here too.) */}
                   {activeConversation && <MonthlyAiUsageMeter kind="chat" variant="inline" onlyNearLimit refreshKey={`${activeConversation.messages.length}:${isSending}`} className="px-4 pt-2" />}

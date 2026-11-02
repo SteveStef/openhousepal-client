@@ -102,9 +102,10 @@ export default function PropertySearchPicker({ onSelectFromLookup, onSelectFromL
     return () => { cancelled = true; clearTimeout(t) }
   }, [query, mode])
 
-  const selectAddress = async (address: string) => {
+  // By the listing's own id when the search gave one - an address alone can land on another unit (11/01).
+  const selectAddress = async (address: string, listingKey?: string | null) => {
     setSearching(true)
-    const response = await api.properties.lookup(address)
+    const response = await api.properties.lookup(listingKey ? { listingKey } : address)
     setSearching(false)
     if (response.success && response.data) {
       onSelectFromLookup(response.data)
@@ -174,7 +175,7 @@ export default function PropertySearchPicker({ onSelectFromLookup, onSelectFromL
                       <motion.button
                         key={`${s.address}-${i}`}
                         type="button"
-                        onClick={() => selectAddress(s.address)}
+                        onClick={() => selectAddress(s.address, s.listing_key || s.ListingKey)}
                         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { delay: i * 0.04 } }} exit={{ opacity: 0 }}
                         whileHover={{ x: 3 }}
                         className="flex w-full items-center gap-3 rounded-xl border border-transparent bg-white p-2 text-left transition-colors hover:border-[#C9A24D]/40 dark:bg-[#151517]"
@@ -257,7 +258,7 @@ export default function PropertySearchPicker({ onSelectFromLookup, onSelectFromL
               {suggestions.map((s, i) => (
                 <button
                   key={i}
-                  onClick={() => selectAddress(s.address)}
+                  onClick={() => selectAddress(s.address, s.listing_key || s.ListingKey)}
                   className="flex w-full items-center gap-3 border-b border-gray-50 px-3 py-2.5 text-left last:border-0 hover:bg-[#C9A24D]/10 dark:border-gray-800"
                 >
                   {s.image ? <img src={normalizeImageUrl(s.image || undefined)} alt="" className="h-10 w-12 shrink-0 rounded-lg object-cover" /> : <div className="flex h-10 w-12 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800"><Home className="h-4 w-4 text-gray-300" /></div>}

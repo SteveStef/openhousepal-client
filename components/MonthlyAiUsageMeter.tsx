@@ -117,6 +117,7 @@ export default function MonthlyAiUsageMeter({
   slimBelowLimit = false,
   slimOnly = false,
   shortLabel = false,
+  pill = false,
   className = '',
 }: {
   /** 'chat' = the AI helper chat's own "Chat usage" bar (its own allowance, owner 11/01). */
@@ -136,6 +137,8 @@ export default function MonthlyAiUsageMeter({
   slimOnly?: boolean
   /** Slim line labelled just "Chat" (a tight spot - the phone chat's swipe tab). */
   shortLabel?: boolean
+  /** Slim line in its own little pill, like the site's AI Usage pill (the chat's top bar, owner 11/01). */
+  pill?: boolean
   className?: string
 }) {
   const [data, setData] = useState<(MonthlyAiUsage & ChatUsage) | ChatUsage | null>(null)
@@ -252,12 +255,20 @@ export default function MonthlyAiUsageMeter({
   )
 
   if (slim) {
+    const pillTone = onDark ? 'border-white/15 bg-white/[0.07]' : 'border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-[#1c1c1e]'
     return (
-      <div className={`flex items-center gap-2 ${className}`} data-testid="chat-usage-slim" title={`${title} - ${resetsText}`}>
-        <AiGaugeIcon className={`h-3 w-3 shrink-0 ${pctColor} ${pulseCls}`} active={aiActive} />
-        <span className={`shrink-0 text-[9px] font-black uppercase tracking-[0.14em] ${labelColor}`}>{shortLabel && chat ? 'Chat' : title}</span>
-        <div className={`flex h-1 min-w-0 flex-1 overflow-hidden rounded-full ${trackColor}`}>{fill}</div>
-        <span className={`shrink-0 text-[10px] font-black tabular-nums ${pctColor}`}>{pctText}%</span>
+      <div className={`flex items-center gap-2 ${pill ? `overflow-hidden rounded-xl border px-2 py-1.5 sm:px-2.5 ${pillTone}` : ''} ${className}`} data-testid="chat-usage-slim" title={`${title} - ${resetsText}`}>
+        <AiGaugeIcon className={`${pill ? 'hidden h-3.5 w-3.5 sm:block' : 'h-3 w-3'} shrink-0 ${pctColor} ${pulseCls}`} active={aiActive} />
+        {pill ? (
+          // a phone's top bar is tight next to "AI Assistant" and its buttons - just "Chat" there
+          <span className={`shrink-0 text-[10px] font-black uppercase tracking-wide ${labelColor}`}>
+            <span className="sm:hidden">{chat ? 'Chat' : 'AI'}</span><span className="hidden sm:inline">{chat ? 'Chat Usage' : 'AI Usage'}</span>
+          </span>
+        ) : (
+          <span className={`shrink-0 text-[9px] font-black uppercase tracking-[0.14em] ${labelColor}`}>{shortLabel && chat ? 'Chat' : title}</span>
+        )}
+        <div className={`flex ${pill ? 'h-1.5' : 'h-1'} min-w-0 flex-1 overflow-hidden rounded-full ${trackColor}`}>{fill}</div>
+        <span className={`shrink-0 ${pill ? 'text-xs' : 'text-[10px]'} font-black tabular-nums ${pctColor}`}>{pctText}%</span>
       </div>
     )
   }

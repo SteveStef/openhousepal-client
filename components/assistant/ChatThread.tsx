@@ -1,6 +1,7 @@
 'use client'
 
 import HomeCards from './HomeCards'
+import HostingCards from './HostingCards'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { OhpBot, UserAvatar } from './OhpBot'
@@ -115,16 +116,19 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
     <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain px-3 sm:px-6 py-4 sm:py-6 space-y-5">
       {messages.map((msg, idx) => {
         const isUser = msg.role === 'user'
-        const extras = ['action', 'choices', 'link', 'made', 'homes']
+        const extras = ['action', 'choices', 'link', 'made', 'homes', 'hosting']
         const refs = msg.tool_calls ? dedupeRefs(msg.tool_calls.filter((r) => !extras.includes(r.record_type))) : []
         const actions = (msg.tool_calls || []).filter((r) => r.record_type === 'action')
         const goLinks = (msg.tool_calls || []).filter((r) => r.record_type === 'link' && r.href)
         // Answer choices only while they're still the question - once they've replied, they go.
         const choices = idx === messages.length - 1 && !isSending ? (msg.tool_calls || []).find((r) => r.record_type === 'choices')?.options || [] : []
         const isSpeaking = speakingId === msg.id
+        // Homes to host take the chat's full width - the Discovery rows with their calendars were
+        // squeezed into the reply bubble's width on a phone (owner, 11/01).
+        const wide = (msg.tool_calls || []).some((r) => r.record_type === 'hosting' || (r.record_type === 'action' && (r as any).picker === 'discovery'))
         return (
           <div key={msg.id} className={`flex ${isUser ? 'ohp-ai-msg-user justify-end' : 'ohp-ai-msg-bot justify-start'}`}>
-            <div className={`flex items-start gap-2.5 max-w-[85%] sm:max-w-[75%] ${isUser ? 'flex-row-reverse' : ''}`}>
+            <div className={`flex items-start gap-2.5 ${wide ? 'w-full' : 'max-w-[85%] sm:max-w-[75%]'} ${isUser ? 'flex-row-reverse' : ''}`}>
               {/* Their own photo (or initials); the helper is the little OpenHousePal robot (owner, 11/01) */}
               {isUser ? <UserAvatar size={32} /> : (
                 <OhpBot size={32} className="flex-shrink-0 drop-shadow-sm" />
@@ -140,7 +144,12 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
                 {(msg.tool_calls || []).filter((r) => r.record_type === 'homes' && (r as any).homes?.length).map((r) => (
                   <HomeCards key={r.record_id} homes={(r as any).homes} title={(r as any).title} />
                 ))}
-                {actions.map((a) => <ActionCard key={a.record_id} messageId={msg.id} action={a} />)}
+                {(msg.tool_calls || []).filter((r) => r.record_type === 'hosting' && (r as any).listing_keys?.length).map((r) => (
+                  <div key={r.record_id} className="-ml-[42px]"><HostingCards listingKeys={(r as any).listing_keys} /></div>
+                ))}
+                {actions.map((a) => (a as any).picker === 'discovery'
+                  ? <div key={a.record_id} className="-ml-[42px]"><ActionCard messageId={msg.id} action={a} /></div>
+                  : <ActionCard key={a.record_id} messageId={msg.id} action={a} />)}
                 {goLinks.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {goLinks.map((l, i) => (

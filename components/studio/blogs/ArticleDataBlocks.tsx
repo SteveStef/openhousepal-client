@@ -14,6 +14,7 @@ export type PaymentScenario = {
 export type PaymentExampleData = {
   price: number; price_basis?: string; rate: number; rate_as_of?: string; term_years?: number
   tax_pct?: number | null; tax_basis?: string | null; closing_low: number; closing_high: number
+  limit_known?: boolean; limit_area?: string | null
   scenarios: PaymentScenario[]; as_of?: string; cta_form?: string | null; closing_note?: string | null
 }
 
@@ -32,7 +33,7 @@ export function PaymentExample({ data, accent = '#C9A24D', onAction }: { data: P
     { label: 'Principal & interest', get: s => `${usd(s.principal_interest)}/mo` },
     ...(data.scenarios.some(s => s.tax) ? [{ label: 'Property tax (est.)', get: (s: PaymentScenario) => `${usd(s.tax)}/mo` }] : []),
     { label: 'Mortgage insurance', get: s => (s.mortgage_insurance === 'none' ? 'None' : 'Lender quote') },
-    { label: 'Monthly, before insurance & HOA', get: s => `${usd(s.monthly_before_insurance)}/mo`, strong: true },
+    { label: data.scenarios.some(s => s.tax) ? 'Principal, interest & tax' : 'Principal & interest only', get: s => `${usd(s.monthly_before_insurance)}/mo`, strong: true },
   ]
   return (
     <motion.section initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-60px' }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
@@ -45,6 +46,11 @@ export function PaymentExample({ data, accent = '#C9A24D', onAction }: { data: P
         {data.price_basis && <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-600 dark:text-white/65">{data.price_basis}</p>}
         <p className="mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-full border px-3 py-1 text-[11px] font-bold text-gray-600 dark:text-white/70" style={{ borderColor: `${accent}55` }}>
           {data.term_years || 30}-year fixed at {data.rate.toFixed(2)}%<span className="text-gray-400">·</span>Freddie Mac average{data.rate_as_of ? `, week of ${day(data.rate_as_of)}` : ''}
+        </p>
+        {/* 11/01 grader: readers took the total for a full monthly payment - say what's in it, up front. */}
+        <p className="mt-3 max-w-2xl text-sm font-semibold leading-relaxed text-[#111827] dark:text-white/85">
+          {data.scenarios.some(s => s.tax) ? 'Estimated principal, interest and property tax.' : 'Estimated principal and interest.'}{' '}
+          <span className="font-bold text-gray-500 dark:text-white/55">Not included: homeowners insurance, mortgage insurance and any condo or HOA fee.</span>
         </p>
       </div>
 
@@ -95,7 +101,7 @@ export function PaymentExample({ data, accent = '#C9A24D', onAction }: { data: P
       <div className="flex flex-col gap-4 px-6 pb-6 pt-4 sm:flex-row sm:items-end sm:justify-between sm:px-8 sm:pb-8">
         <p className="max-w-xl text-[11px] leading-relaxed text-gray-400 dark:text-white/45">
           An example, not a quote. Rate is a national average; yours depends on credit, loan type and lender. Property tax {data.tax_basis ? `uses the ${data.tax_basis}` : 'varies by assessment'}; homeowners insurance and any HOA fee are not included. Mortgage insurance applies to conventional loans under 20% down (FHA loans carry it at any down payment; VA loans have none).
-          {data.scenarios.some(s => s.jumbo) ? ' * Above the 2026 conforming loan limit - a jumbo loan with its own rates and rules.' : ''}
+          {data.scenarios.some(s => s.jumbo) ? ` * Above ${data.limit_area ? `${data.limit_area}'s` : 'the county\'s'} 2026 conforming loan limit - a jumbo loan with its own rates and rules. The rate shown is Freddie Mac's average for conforming loans, so ask a lender for a jumbo quote.` : ''}
         </p>
         {onAction && (
           <button type="button" onClick={onAction} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5" style={{ backgroundColor: accent }}>

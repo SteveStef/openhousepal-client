@@ -21,6 +21,7 @@ import SupportInboxPanel from '@/components/admin/SupportInboxPanel'
 import PublicQuestionsPanel from '@/components/admin/PublicQuestionsPanel'
 import CmaLookupPanel from '@/components/admin/CmaLookupPanel'
 import CmaBacktestPanel from '@/components/admin/CmaBacktestPanel'
+import GradingPanel from '@/components/admin/GradingPanel'
 import FeatureFlowsPanel from '@/components/admin/FeatureFlowsPanel'
 import AgentActivityPanel from '@/components/admin/AgentActivityPanel'
 import AgentControlPanel from '@/components/admin/AgentControlPanel'
@@ -141,6 +142,7 @@ export default function AdminShell({ sectionKey, tabKey }: { sectionKey: string;
             {k === 'storage' && <AgentStorageUsagePanel />}
             {k === 'cma' && <CmaLookupPanel />}
             {k === 'cmatest' && <CmaBacktestPanel />}
+            {k === 'grading' && <GradingPanel />}
             {k === 'neighborhoods' && <NeighborhoodsPanel onToast={showToast} />}
             {k === 'flows' && <FeatureFlowsPanel />}
           </motion.div>

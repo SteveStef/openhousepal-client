@@ -187,9 +187,11 @@ export default function ListingPhotoSearch({
     return () => document.removeEventListener('mousedown', onClick)
   }, [])
 
-  const pick = async (address: string) => {
+  // By the listing's own MLS id whenever we have it - looking it up by its address text picked a
+  // different unit in the same condo building (owner, 11/01: chose #605, got #205).
+  const pick = async (address: string, listingKey?: string | null) => {
     setLookingUp(true); setPendingAddr(address); setError(''); setShowSuggestions(false)
-    const { success, data, error: e } = await api.properties.lookup(address)
+    const { success, data, error: e } = await api.properties.lookup(listingKey ? { listingKey } : address)
     if (success && data) {
       onChange(toLinkedProperty(data, address))
       setQuery(''); setSuggestions([])
@@ -264,7 +266,7 @@ export default function ListingPhotoSearch({
               {suggestions.map((s, i) => (
                 <button
                   key={i}
-                  onClick={() => pick(s.address)}
+                  onClick={() => pick(s.address, (s as { listing_key?: string; ListingKey?: string }).listing_key || (s as { ListingKey?: string }).ListingKey)}
                   className="flex w-full items-center gap-3 border-b border-gray-50 px-3 py-2.5 text-left transition last:border-0 hover:bg-[#fbfaf7] dark:border-gray-800 dark:hover:bg-[#1A1A1C]"
                 >
                   <div className="relative h-12 w-14 shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
@@ -302,7 +304,7 @@ export default function ListingPhotoSearch({
           {myListings.map(listing => (
             <button
               key={listing.listing_key}
-              onClick={() => pick(listing.address)}
+              onClick={() => pick(listing.address, listing.listing_key)}
               disabled={lookingUp}
               className="group overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition-colors hover:border-[#C9A24D] disabled:cursor-default dark:border-gray-700 dark:bg-[#151517]"
             >

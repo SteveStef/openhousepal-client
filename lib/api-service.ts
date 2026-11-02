@@ -1,4 +1,4 @@
-import type { MarketingMoments, SiteSeo, ShowingStatus, ShowcaseInbox, EmailPerson, ClientEmailRow, BrandUsage, ShowcaseInviteStatus } from '@/types'
+import type { MarketingMoments, SiteSeo, ShowingStatus, ShowcaseInbox, EmailPerson, ClientEmailRow, BrandUsage, ShowcaseInviteStatus, AdminGradingItem, ContactLogEntry } from '@/types'
 import type { DomainContact, DomainSearch, DomainShop, OneClick, PurchasedDomain } from '@/lib/domainShop'
 import type { HomeSend } from '@/lib/sendHome'
 
@@ -299,7 +299,7 @@ class ApiService {
       const params = new URLSearchParams({ query: address });
       if (opts?.activeOnly) params.set('active_only', 'true');
       if (opts?.excludeRentals) params.set('exclude_rentals', 'true');
-      return this.request<{ results: { address: string, lat: number, lng: number, image?: string | null, status?: string | null, price?: number | null }[] }>(`/api/properties/address?${params.toString()}`);
+      return this.request<{ results: { address: string, listing_key?: string | null, lat: number, lng: number, image?: string | null, status?: string | null, price?: number | null }[] }>(`/api/properties/address?${params.toString()}`);
     },
     // Find ONE home by address (CMA subject picker) - unit numbers in any format, St/Street
     // spellings, town/ZIP after the street; one row per home with its listing key. Backend:
@@ -863,6 +863,21 @@ class ApiService {
     cmaBacktestDelete: (id: string) => this.request<void>(`/admin/cma-backtest/batches/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     cmaBacktestDeleteAllReports: () => this.request<{ deleted: number }>('/admin/cma-backtest/reports', { method: 'DELETE' }),
     cmaBacktestReview: (id: string) => this.request<any>(`/admin/cma-backtest/batches/${encodeURIComponent(id)}/review`),
+
+    // Admin -> Tools -> Grading: every agent's blogs and CMAs, the full item for its PDF, and the admin's grade.
+    gradingItems: (params: { kind?: 'blog' | 'cma'; q?: string; limit?: number } = {}) => {
+      const qs = new URLSearchParams()
+      if (params.kind) qs.set('kind', params.kind)
+      if (params.q) qs.set('q', params.q)
+      if (params.limit) qs.set('limit', String(params.limit))
+      return this.request<{ items: AdminGradingItem[] }>(`/admin/grading/items${qs.toString() ? `?${qs}` : ''}`)
+    },
+    gradingBlog: (id: string) => this.request<any>(`/admin/grading/blog/${encodeURIComponent(id)}`),
+    gradingCma: (id: string) => this.request<any>(`/admin/grading/cma/${encodeURIComponent(id)}`),
+    saveGrade: (kind: 'blog' | 'cma', id: string, body: { graded: boolean; grade?: string | null; notes?: string | null }) =>
+      this.request<{ graded: boolean; grade: string | null; notes: string | null; graded_at: string | null }>(
+        `/admin/grading/${kind}/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body) }
+      ),
 
     lookupCmaReportByCode: (code: string) =>
       this.request<CmaReport & { owner_name?: string | null; owner_email?: string | null }>(
@@ -1945,6 +1960,9 @@ class ApiService {
     },
 
     get: (leadId: string) => this.request<LeadDetail>(`/leads/${leadId}`),
+    // The agent tapped Text / Email outside a follow-up - shows as Texted / Emailed (11/02).
+    contacted: (leadId: string, via: 'text' | 'email' | 'call', what?: string) =>
+      this.request<{ contact_log: ContactLogEntry[] }>(`/leads/${leadId}/contacted`, { method: 'POST', body: JSON.stringify({ via, ...(what ? { what } : {}) }) }),
 
     /** Clear one kind of waiting request from the lead's to-dos (booked it, replied, looked...). */
     setAlerts: (leadId: string, data: Partial<LeadAlerts>) =>
@@ -2634,8 +2652,8 @@ class ApiService {
       this.request<AgentTask>('/tasks', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: TaskUpdateInput) =>
       this.request<AgentTask>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-    complete: (id: string) =>
-      this.request<AgentTask>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify({ completed: true }) }),
+    complete: (id: string, via?: 'text' | 'email') =>
+      this.request<AgentTask>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify({ completed: true, ...(via ? { completed_via: via } : {}) }) }),
     reopen: (id: string) =>
       this.request<AgentTask>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify({ completed: false }) }),
     remove: (id: string) => this.request<null>(`/tasks/${id}`, { method: 'DELETE' }),
@@ -2651,7 +2669,8 @@ class ApiService {
     // One-tap "Mark as done" page linked from calendar events - no login, the code is the key.
     publicGet: (code: string) => this.request<PublicFollowup>(`/public/followups/${encodeURIComponent(code)}`),
     publicText: (code: string) => this.request<PublicFollowupText>(`/public/followups/${encodeURIComponent(code)}/text`),
-    publicDone: (code: string) => this.request<PublicFollowup>(`/public/followups/${encodeURIComponent(code)}/done`, { method: 'POST' }),
+    // via: which button checked it off - "text" / "email" (the lead's Texted / Emailed, 11/02)
+    publicDone: (code: string, via?: 'text' | 'email') => this.request<PublicFollowup>(`/public/followups/${encodeURIComponent(code)}/done`, { method: 'POST', ...(via ? { body: JSON.stringify({ via }) } : {}) }),
     publicUndo: (code: string) => this.request<PublicFollowup>(`/public/followups/${encodeURIComponent(code)}/undo`, { method: 'POST' }),
     publicView: (code: string) => this.request<PublicFollowup>(`/public/followups/${encodeURIComponent(code)}`),
     publicAlerts: (code: string, data: Partial<LeadAlerts>) =>

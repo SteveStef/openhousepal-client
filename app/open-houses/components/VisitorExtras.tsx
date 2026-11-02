@@ -8,7 +8,8 @@ import OhpSwitch from '@/components/ui/OhpSwitch'
 import { useLastValue } from '@/components/ui/windowMotion'
 import { OhpSpinner } from '@/components/brand/OhpLoader'
 import api from '@/lib/api-service'
-import { Copy as CopyIcon, Mail as MailIcon, Phone as PhoneIcon } from 'lucide-react'
+import { Check, Copy as CopyIcon, Mail as MailIcon, Phone as PhoneIcon } from 'lucide-react'
+import type { ContactLogEntry } from '@/types'
 import { MAIL_CHOICE_LABEL, composeHref, mailChoices, openWithFallback, phoneAppLinks, saveMailChoice, savedMailChoice, type MailChoice } from '@/lib/mailCompose'
 import { isPhoneDevice, smsHref } from '@/lib/smsLink'
 import { copyText } from '@/lib/copyText'
@@ -281,26 +282,43 @@ function EventLine({ e, withDay = false }: { e: { kind: string; key: string | nu
   )
 }
 
+// ------------------------------------------------------------------ Texted / Emailed (owner, 11/02)
+/** "Texted" when this guest's lead was ever reached by text, "Emailed" by email - else null. */
+export function reachedBy(visitor: { contact_log?: ContactLogEntry[] | null }, via: 'text' | 'email'): string | null {
+  return (visitor.contact_log || []).some(e => e.via === via) ? (via === 'text' ? 'Texted' : 'Emailed') : null
+}
+
+export function ContactedChip({ label }: { label: string }) {
+  return (
+    <span data-testid="visitor-contacted" className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/25">
+      <Check className="h-2.5 w-2.5" /> {label}
+    </span>
+  )
+}
+
 // ------------------------------------------------------------------ Text / Call / Email (owner, 11/01)
-/** "Hi Jane, it's Peter from the open house at 534 Holly Knoll. Thanks for stopping by the open house!"
- *  then room for the agent's own words, then the usual sign-off ("Thanks," + name | brokerage). */
+/** "Hi Jane, it's Peter from the open house at 534 Holly Knoll. Thanks for stopping by!" then one
+ *  blank line for the agent's own words, then the usual sign-off ("Thanks," + name | brokerage)
+ *  (owner, 11/02: one line of space, not three, and "the open house" only once). */
 export function visitorHello(guestName: string, agent: { first_name?: string; last_name?: string; brokerage?: string } | null | undefined, street: string) {
   const first = (guestName || '').trim().split(/\s+/)[0] || 'there'
   const me = (agent?.first_name || '').trim()
   const at = street ? ` from the open house at ${street}` : ' from the open house'
-  const hello = `Hi ${first}${me ? `, it's ${me}${at}` : ''}. Thanks for stopping by the open house!`
+  const hello = me ? `Hi ${first}, it's ${me}${at}. Thanks for stopping by!` : `Hi ${first}, thanks for stopping by the open house${street ? ` at ${street}` : ''}!`
   const name = [agent?.first_name, agent?.last_name].filter(Boolean).join(' ').trim()
   const line = [name, (agent?.brokerage || '').trim()].filter(Boolean).join(' | ')
-  return `${hello}\n\n\n\n${line ? `Thanks,\n${line}` : ''}`.trimEnd()
+  return `${hello}\n\n${line ? `Thanks,\n${line}` : ''}`.trimEnd()
 }
 
 /** Text (Messages, already addressed and started), Call, and Email - which asks which mail app
- *  every time, last pick first, instead of assuming one (owner: "no one uses the Apple mail app"). */
-export function VisitorReach({ visitor, agent, street, compact = false }: {
+ *  every time, last pick first, instead of assuming one (owner: "no one uses the Apple mail app").
+ *  onContacted: Text tapped / a mail app picked - the guest shows Texted / Emailed (11/02). */
+export function VisitorReach({ visitor, agent, street, compact = false, onContacted }: {
   visitor: { full_name: string; phone?: string | null; email?: string | null }
   agent: { first_name?: string; last_name?: string; brokerage?: string } | null | undefined
   street: string
   compact?: boolean
+  onContacted?: (via: 'text' | 'email') => void
 }) {
   const [mailOpen, setMailOpen] = useState(false)
   const body = visitorHello(visitor.full_name, agent, street)
@@ -310,19 +328,19 @@ export function VisitorReach({ visitor, agent, street, compact = false }: {
   return (
     <>
       <div className={compact ? 'mt-2 flex gap-1.5' : 'grid grid-cols-3 gap-2'} data-testid="visitor-reach">
-        <a href={visitor.phone ? smsHref(visitor.phone, body) : undefined} aria-disabled={!visitor.phone} onClick={e => e.stopPropagation()}
+        <a href={visitor.phone ? smsHref(visitor.phone, body) : undefined} aria-disabled={!visitor.phone} onClick={e => { e.stopPropagation(); if (visitor.phone) onContacted?.('text') }}
           className={`${btn} ${visitor.phone ? '' : off}`} data-testid="visitor-text"><MessageCircle className="h-3.5 w-3.5" /> Text</a>
         <a href={visitor.phone ? `tel:${visitor.phone}` : undefined} aria-disabled={!visitor.phone} onClick={e => e.stopPropagation()}
           className={`${btn} ${visitor.phone ? '' : off}`} data-testid="visitor-call"><PhoneIcon className="h-3.5 w-3.5" /> Call</a>
         <button type="button" disabled={!visitor.email} onClick={e => { e.stopPropagation(); setMailOpen(true) }}
           className={`${btn} ${visitor.email ? '' : off}`} data-testid="visitor-email"><MailIcon className="h-3.5 w-3.5" /> Email</button>
       </div>
-      <MailPicker open={mailOpen} onClose={() => setMailOpen(false)} to={visitor.email || ''} subject={subject} body={body} />
+      <MailPicker open={mailOpen} onClose={() => setMailOpen(false)} to={visitor.email || ''} subject={subject} body={body} onPicked={() => onContacted?.('email')} />
     </>
   )
 }
 
-function MailPicker({ open, onClose, to, subject, body }: { open: boolean; onClose: () => void; to: string; subject: string; body: string }) {
+function MailPicker({ open, onClose, to, subject, body, onPicked }: { open: boolean; onClose: () => void; to: string; subject: string; body: string; onPicked?: () => void }) {
   const [last, setLast] = useState<MailChoice | null>(null)
   const [copied, setCopied] = useState(false)
   useEffect(() => { if (open) { setLast(savedMailChoice()); setCopied(false) } }, [open])
@@ -330,6 +348,7 @@ function MailPicker({ open, onClose, to, subject, body }: { open: boolean; onClo
   const pick = (c: MailChoice) => {
     saveMailChoice(c)
     if (c === 'copy') { copyText(`${subject}\n\n${body}`).catch(() => {}); setCopied(true); window.setTimeout(onClose, 900); return }
+    onPicked?.()  // opened in a mail app - counts as emailed (copying alone doesn't)
     onClose()
     if (phone) { const { href, fallback } = phoneAppLinks(c, to, subject, body); openWithFallback(href, fallback); return }
     const href = composeHref(c, to, subject, body)

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import OhSheet from '@/components/open-house-manager/OhSheet'
 import api from '@/lib/api-service'
+import { contactLabel, contactWhen } from '@/lib/contactLog'
 import { eventDetails, formatPhone } from '@/lib/leadEventDetails'
 import { activityMeta, dialable, exactTime, ORIGIN_META, TONE_CLASSES, timeAgo } from '@/lib/leadActivity'
 import { LeadDetail, LeadEvent, LeadNote, LeadRepresented, LeadShowcase, LeadStatus, LeadTodo } from '@/types'
@@ -189,6 +190,18 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
     api.leads.getNotes(leadId).then(r => { if (r.success && r.data) setNotesList(r.data); setNotesLoading(false) })
   }, [leadId])
 
+  // Text / Email tapped here - shows as Texted / Emailed (owner, 11/02).
+  const reached = (via: 'text' | 'email') => {
+    if (!lead) return
+    const now = new Date().toISOString()
+    setLead({ ...lead, contact_log: [...(lead.contact_log || []), { at: now, via, what: null }], last_contacted_at: now,
+      status: lead.status === 'new' ? 'contacted' : lead.status } as LeadDetail)
+    api.leads.contacted(lead.id, via).then(r => {
+      if (r.success && r.data) setLead(l => (l ? { ...l, contact_log: r.data!.contact_log } as LeadDetail : l))
+      onChanged?.()
+    })
+  }
+
   const applyUpdate = async (data: Parameters<typeof api.leads.update>[1]) => {
     if (!lead) return false
     const previous = lead
@@ -356,13 +369,13 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
                       <a href={`tel:${dialable(lead.phone)}`} className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#111827] px-3 py-2.5 text-xs font-black text-white transition hover:bg-black dark:bg-white dark:text-[#111827] sm:py-2">
                         <Phone className="h-3.5 w-3.5" /> Call
                       </a>
-                      <a href={`sms:${dialable(lead.phone)}`} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs font-black sm:py-2 text-[#111827] transition hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.04] dark:text-white">
+                      <a href={`sms:${dialable(lead.phone)}`} onClick={() => reached('text')} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs font-black sm:py-2 text-[#111827] transition hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.04] dark:text-white">
                         <MessageCircle className="h-3.5 w-3.5" /> Text
                       </a>
                     </>
                   )}
                   {lead.email && (
-                    <a href={`mailto:${lead.email}`} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs font-black sm:py-2 text-[#111827] transition hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.04] dark:text-white">
+                    <a href={`mailto:${lead.email}`} onClick={() => reached('email')} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs font-black sm:py-2 text-[#111827] transition hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.04] dark:text-white">
                       <Mail className="h-3.5 w-3.5" /> Email
                     </a>
                   )}
@@ -624,6 +637,22 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
               {lead.last_contacted_at ? 'Contacted them again' : 'Mark contacted'}
             </button>
             <p className="mt-1.5 text-[10px] font-semibold text-gray-400">Checking off a follow-up does this for you.</p>
+            {/* How you already reached them, newest first (owner, 11/02) */}
+            {(lead.contact_log || []).length > 0 && (
+              <div className="mt-3 border-t border-gray-100 pt-3 dark:border-white/[0.06]" data-testid="lead-contact-log">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">How you reached out</p>
+                <ul className="mt-1.5 space-y-1">
+                  {[...(lead.contact_log || [])].reverse().slice(0, 6).map((e, i) => (
+                    <li key={`${e.at}-${i}`} className="flex items-start justify-between gap-2 text-xs">
+                      <span className="flex min-w-0 items-start gap-1.5 font-semibold text-[#111827] dark:text-white">
+                        <Check className="mt-0.5 h-3 w-3 shrink-0 text-emerald-500" /><span>{contactLabel(e)}</span>
+                      </span>
+                      <span className="shrink-0 text-[11px] font-semibold text-gray-400">{contactWhen(e.at)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="mt-4 flex gap-1.5 border-t border-gray-100 pt-3 dark:border-white/[0.06]">
               {status !== 'hidden' && (
                 <button onClick={() => setStatus('hidden')} disabled={saving} title="Take them off your lists - nothing is deleted"

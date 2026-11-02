@@ -28,14 +28,14 @@ const DoneLeadAlerts = dynamic(() => import('@/components/tasks/DoneLeadAlerts')
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 type Res<T> = { ok: true; data: T } | { ok: false; error: string }
-async function call<T>(path: string, method: 'GET' | 'POST' = 'GET'): Promise<Res<T>> {
+async function call<T>(path: string, method: 'GET' | 'POST' = 'GET', payload?: object): Promise<Res<T>> {
   // Never wait forever (user, 10/24 - the link "tried, failed and nothing ever happened"): a request
   // on a phone just waking up on a weak signal can hang for a minute+ - give up after 9s so the
   // retry below gets its turn.
   const ctl = new AbortController()
   const t = setTimeout(() => ctl.abort(), 9000)
   try {
-    const r = await fetch(`${API}/public/followups/${path}`, { method, headers: { accept: 'application/json' }, cache: 'no-store', signal: ctl.signal })
+    const r = await fetch(`${API}/public/followups/${path}`, { method, headers: { accept: 'application/json', ...(payload ? { 'content-type': 'application/json' } : {}) }, ...(payload ? { body: JSON.stringify(payload) } : {}), cache: 'no-store', signal: ctl.signal })
       .finally(() => clearTimeout(t))
     const body = await r.json().catch(() => null)
     return r.ok ? { ok: true, data: body as T } : { ok: false, error: (body && (body.detail || body.message)) || "That didn't go through - check your connection and tap again." }
@@ -80,7 +80,7 @@ const CSS = `
 
 /** Who this follow-up is about - stays on the page done or not, so their info (and the one-tap
  * "save to contacts", notes included) never goes away with the follow-up. */
-function ContactCard({ code, contact, message }: { code: string; contact: NonNullable<PublicFollowup['contact']>; message?: string }) {
+function ContactCard({ code, contact, message, onText }: { code: string; contact: NonNullable<PublicFollowup['contact']>; message?: string; onText?: () => void }) {
   const [copied, setCopied] = useState(false)
   const copyEmail = () => {
     if (!contact.email) return
@@ -104,7 +104,7 @@ function ContactCard({ code, contact, message }: { code: string; contact: NonNul
       </div>
       <div className="mt-3 flex gap-1.5">
         {contact.phone && <a href={`tel:${contact.phone}`} className={btn}><Phone className="h-4 w-4" /> Call</a>}
-        {contact.phone && <a href={smsHref(contact.phone, message || null)} className={btn}><MessageSquare className="h-4 w-4" /> Text</a>}
+        {contact.phone && <a href={smsHref(contact.phone, message || null)} onClick={onText} className={btn}><MessageSquare className="h-4 w-4" /> Text</a>}
         {contact.email && (
           <button type="button" onClick={copyEmail} className={btn}>
             {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />} {copied ? 'Copied' : 'Copy email'}
@@ -123,7 +123,7 @@ function ContactCard({ code, contact, message }: { code: string; contact: NonNul
 }
 
 /** One of the other follow-ups, in full - slides up over the page. */
-function FollowupSheet({ code, isDone, onToggle, onClose }: { code: string; isDone: boolean; onToggle: () => Promise<void>; onClose: () => void }) {
+function FollowupSheet({ code, isDone, onToggle, onClose }: { code: string; isDone: boolean; onToggle: (via?: 'text') => Promise<void>; onClose: () => void }) {
   const [card, setCard] = useState<FullCard | null>(null)
   const [err, setErr] = useState('')
   const [copied, setCopied] = useState(false)
@@ -185,7 +185,7 @@ function FollowupSheet({ code, isDone, onToggle, onClose }: { code: string; isDo
                     </button>
                     {card.contact?.phone && (
                       // Tapping Text is what checks it off (the same as the tap-to-text page) - opening this never does.
-                      <a href={smsHref(card.contact.phone, card.message)} onClick={() => { if (!isDone) onToggle().catch(() => {}) }}
+                      <a href={smsHref(card.contact.phone, card.message)} onClick={() => { if (!isDone) onToggle('text').catch(() => {}) }}
                         className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] text-[12px] font-black text-[#111827] shadow-sm transition active:scale-[0.97]">
                         <MessageSquare className="h-4 w-4" /> Text {first}
                       </a>
@@ -265,10 +265,11 @@ export default function MarkDonePage() {
 
   // The list stays as first loaded - checking one off just marks it (and allows undo) instead of
   // making it jump out from under the agent's thumb.
-  const toggleOther = async (o: { code: string }) => {
+  const toggleOther = async (o: { code: string }, via?: 'text') => {
     const isDone = doneOthers.has(o.code)
     setBusy(o.code)
-    const r = await call<PublicFollowup>(`${encodeURIComponent(o.code)}/${isDone ? 'undo' : 'done'}`, 'POST')
+    // via: its Text button checked it off - the lead shows "Texted" (11/02)
+    const r = await call<PublicFollowup>(`${encodeURIComponent(o.code)}/${isDone ? 'undo' : 'done'}`, 'POST', !isDone && via ? { via } : undefined)
     if (r.ok) {
       setDoneOthers(prev => {
         const next = new Set(prev)
@@ -331,7 +332,7 @@ export default function MarkDonePage() {
               {failed && <p className="mt-2 text-xs font-bold text-red-600">{failed}</p>}
             </div>
 
-            {task.contact && <div className="dn-up" style={{ animationDelay: '.22s' }}><ContactCard code={code} contact={task.contact} /></div>}
+            {task.contact && <div className="dn-up" style={{ animationDelay: '.22s' }}><ContactCard code={code} contact={task.contact} onText={() => { call(`${encodeURIComponent(code)}/done`, 'POST', { via: 'text' }) }} /></div>}
             {task.contact && task.alerts && (
               <DoneLeadAlerts code={code} alerts={task.alerts} firstName={(task.contact.name || '').trim().split(/\s+/)[0]} delay={0.3} />
             )}
@@ -382,7 +383,7 @@ export default function MarkDonePage() {
           </>
         )}
       </div>
-      {open && <FollowupSheet code={open} isDone={doneOthers.has(open)} onToggle={() => toggleOther({ code: open })} onClose={() => setOpen(null)} />}
+      {open && <FollowupSheet code={open} isDone={doneOthers.has(open)} onToggle={via => toggleOther({ code: open }, via)} onClose={() => setOpen(null)} />}
     </div>
   )
 }

@@ -396,7 +396,7 @@ export function CreateOpenHouseWizard({
             if ((item.image || item.imgSrc || item.img_src || item.ListPictureURL) && (item.status || item.homeStatus || item.home_status || item.MlsStatus) && (item.price || item.ListPrice)) {
               return item
             }
-            const lookup = await api.properties.lookup(item.address)
+            const lookup = await api.properties.lookup(item.listing_key ? { listingKey: item.listing_key } : item.address)
             if (!lookup.success || !lookup.data) return item
             const p: any = lookup.data
             const image = item.image || item.imgSrc || item.img_src || item.ListPictureURL || p.ListPictureURL || p.img_src || p.imgSrc || p.image || (Array.isArray(p.photos) ? p.photos[0] : undefined)

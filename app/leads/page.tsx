@@ -27,6 +27,7 @@ import { formatPhone } from '@/lib/leadEventDetails'
 import Pager from '@/components/ui/Pager'
 import { OhpSpinner } from '@/components/brand/OhpLoader'
 import { PopupPortal, useAnchoredStyle } from '@/components/ui/AnchoredPopup'
+import { contactLabel, contactWhen, lastContact } from '@/lib/contactLog'
 
 // The tabs (user, 10/17): what needs the agent, then everyone without an agent (the default -
 // plus anyone with an agent you left a note on), then the pipeline, then All next to the two side piles.
@@ -609,6 +610,18 @@ const WARMTH_PILL: Record<string, string> = {
   cold: 'bg-gray-100 text-gray-500 dark:bg-white/[0.06] dark:text-gray-400',
 }
 
+/** How they were last reached - "Texted · Showcase pitch", "Emailed" (owner, 11/02). */
+function ContactedPill({ lead }: { lead: Lead }) {
+  const last = lastContact(lead.contact_log)
+  if (!last) return null
+  return (
+    <span data-testid="lead-contacted" title={`Last reached: ${contactLabel(last)}, ${contactWhen(last.at)}`}
+      className="inline-flex max-w-[16rem] items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+      <Check className="h-3 w-3 shrink-0" /><span className="truncate">{contactLabel(last)}</span>
+    </span>
+  )
+}
+
 function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, activeTag = '', inNoAgent = false, onTag, onOpen, onMenu, onStatus, onContacted, onSeen, onDelete, onFavorite }: {
   lead: Lead; busy: boolean; menuOpen: boolean; showRate?: boolean; showWarmth?: boolean; activeTag?: string; onTag?: (t: string) => void
   // On the "No agent" tab, a lead who has an agent is only there because you left a note - say so
@@ -697,6 +710,7 @@ function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, a
             {showRate && lead.email_engagement?.rate != null && (
               <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-black tabular-nums text-sky-700 dark:bg-sky-500/10 dark:text-sky-300"><Mail className="h-3 w-3" /> {lead.email_engagement.rate}% opened</span>
             )}
+            <ContactedPill lead={lead} />
             {(lead.tags || []).slice(0, 3).map(t => (
               <button key={t} type="button" onClick={e => { e.stopPropagation(); onTag?.(activeTag === t ? '' : t) }} title={activeTag === t ? 'Show every tag again' : `Only leads tagged "${t}"`}
                 className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black transition ${activeTag === t ? 'bg-[#C9A24D] text-[#111827]' : 'bg-[#C9A24D]/10 text-[#8b7355] hover:bg-[#C9A24D]/20 dark:text-[#e8c97a]'}`}>
@@ -929,6 +943,7 @@ function PhoneLeadCard({ lead, status, fresh, todos, showRate, showWarmth, activ
             {!lead.heating_up && showWarmth && lead.warmth_level && lead.warmth_level !== 'cold' && (
               <span className={`${pill} ${WARMTH_PILL[lead.warmth_level]}`}><Flame className="h-3 w-3" /> {lead.warmth ?? 0}/100 {WARMTH_LABEL[lead.warmth_level]}</span>
             )}
+            <ContactedPill lead={lead} />
             {(lead.tags || []).slice(0, 3).map(t => (
               <button key={t} type="button" onClick={e => { e.stopPropagation(); onTag?.(activeTag === t ? '' : t) }}
                 className={`${pill} ${activeTag === t ? 'bg-[#C9A24D] text-[#111827]' : 'bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#e8c97a]'}`}><Tag className="h-2.5 w-2.5" /> {t}</button>

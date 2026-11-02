@@ -16,7 +16,7 @@ export default function PropertyLinkPicker({ value, onChange }: { value: LinkedP
   const { user } = useAuth()
   const manualOnly = !hasMlsAccess(user?.plan_tier)
   const [query, setQuery] = useState('')
-  const [suggestions, setSuggestions] = useState<{ address: string; lat: number; lng: number }[]>([])
+  const [suggestions, setSuggestions] = useState<{ address: string; lat: number; lng: number; listing_key?: string | null }[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [isLookingUp, setIsLookingUp] = useState(false)
@@ -180,11 +180,12 @@ export default function PropertyLinkPicker({ value, onChange }: { value: LinkedP
     return () => clearTimeout(timeoutId)
   }, [query, manualOnly])
 
-  const handleSelect = async (address: string) => {
+  // By the listing's own id when the search gave one - an address alone can land on another unit (11/01).
+  const handleSelect = async (address: string, listingKey?: string | null) => {
     setShowSuggestions(false)
     setIsLookingUp(true)
     setError('')
-    const { success, data, error: lookupError } = await api.properties.lookup(address)
+    const { success, data, error: lookupError } = await api.properties.lookup(listingKey ? { listingKey } : address)
     if (success && data) {
       onChange({
         listing_key: data.ListingKey || data.listing_key || undefined,
@@ -383,7 +384,7 @@ export default function PropertyLinkPicker({ value, onChange }: { value: LinkedP
           {suggestions.map((suggestion, index) => (
             <button
               key={index}
-              onClick={() => handleSelect(suggestion.address)}
+              onClick={() => handleSelect(suggestion.address, suggestion.listing_key)}
               className="block w-full border-b border-gray-50 px-4 py-3 text-left text-sm font-semibold last:border-0 hover:bg-[#fbfaf7] dark:border-gray-800 dark:hover:bg-[#1A1A1C]"
             >
               {suggestion.address}

@@ -178,9 +178,9 @@ function CopyButton({ icon: Icon, label, value, title, primary, onCopy }: {
 
 /** "Email": opens their email app with the message written. (Owner, 11/01: no separate copy part -
  *  the card's Copy button already copies the message, and the word fits now.) */
-function EmailPill({ href, first }: { href: string; first: string }) {
+function EmailPill({ href, first, onEmailed }: { href: string; first: string; onEmailed?: () => void }) {
   return (
-    <a href={href} onClick={e => e.stopPropagation()} title={`Email ${first} - opens your email app with the message written`}
+    <a href={href} onClick={e => { e.stopPropagation(); onEmailed?.() }} title={`Email ${first} - opens your email app with the message written, and checks this off`}
       className="flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 overflow-hidden rounded-[10px] border border-gray-200 bg-white px-2 text-[11.5px] font-semibold text-gray-700 shadow-[0_1px_0_rgba(16,24,40,0.04)] transition hover:border-gray-300 hover:bg-gray-50 active:scale-[0.97] dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-200 dark:hover:bg-white/[0.08]">
       <Mail className="h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500" />
       <span className="truncate">Email</span>
@@ -221,7 +221,8 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
   compact?: boolean
   busy?: boolean
   clickable?: boolean
-  onToggleDone: () => void
+  /** via: the Text / Email button did it - the lead shows Texted / Emailed (11/02) */
+  onToggleDone: (via?: 'text' | 'email') => void
   onOpenLead?: () => void
   onSnooze?: (days: number) => void
   // Move it to any day (YYYY-MM-DD, keeps its time of day).
@@ -574,7 +575,7 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
                       when the follow-up has none (e.g. one added from "Suggested from what they just did"). */}
                   {onPhone && lead.phone && (
                     <a href={smsHref(lead.phone, t.suggested_message || `Hi ${first}, `)} title={`Text ${first} - opens Messages${t.suggested_message ? ' with the text written' : ''}, and checks this off`}
-                      onClick={e => { e.stopPropagation(); if (!done) onToggleDone() }}
+                      onClick={e => { e.stopPropagation(); if (!done) onToggleDone('text') }}
                       className="relative flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 overflow-hidden rounded-[10px] bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-2 text-[11.5px] font-bold text-[#111827] shadow-sm shadow-[#C9A24D]/30 transition active:scale-[0.97]">
                       <MessageSquare className="h-3.5 w-3.5 shrink-0" />
                       <span className="truncate">Text</span>
@@ -582,7 +583,7 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
                   )}
                   {lead.email && (src === 'disclosure_request'
                     ? <CopyButton icon={Mail} label="Copy email" value={lead.email} primary title={`Copy ${lead.email} - send them the seller disclosure`} />
-                    : <EmailPill first={first} href={mailHref(lead.email, street ? `Following up - ${street}` : 'Following up', t.suggested_message)} />
+                    : <EmailPill first={first} href={mailHref(lead.email, street ? `Following up - ${street}` : 'Following up', t.suggested_message)} onEmailed={() => { if (!done) onToggleDone('email') }} />
                   )}
                   {t.suggested_message && (
                     <CopyButton icon={Copy} label={onPhone && lead.phone ? 'Copy' : 'Message'} value={t.suggested_message} primary={!(onPhone && lead.phone)} title="Copy the ready-to-send message" />

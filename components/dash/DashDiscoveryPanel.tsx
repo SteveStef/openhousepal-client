@@ -46,7 +46,7 @@ function requestState(r: HostRequest): { tone: PillTone; label: string; icon: Re
 // handful of nearby listings with the same 4-day calendar Manager uses - so "does this one still
 // need a host this weekend" is visible without leaving Dash. Asking to host, the home itself and My
 // Requests all open in windows right here.
-export default function DashDiscoveryPanel({ listings, statuses, hasSearchPreferences, myRequests = [], incomingAsks = 0 }: {
+export default function DashDiscoveryPanel({ listings, statuses, hasSearchPreferences, myRequests = [], incomingAsks = 0, orderKeys, inChat = false }: {
   listings: DiscoveryListing[]
   statuses: Record<string, DiscoveryListingStatus>
   // Whether the agent has ever saved Discovery search preferences - see the matching prop on
@@ -56,6 +56,10 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
   myRequests?: HostRequest[]
   /** Listing agents asking THIS agent to host (team broadcasts / direct asks) not yet answered. */
   incomingAsks?: number
+  /** These homes, in this order (the AI chat's search - newest first), instead of the closest three. */
+  orderKeys?: string[]
+  /** In the AI chat: no Dash height or hosting lists, three homes at a time with See more homes. */
+  inChat?: boolean
 }) {
   const { user } = useAuth()
   const today = todayIso()
@@ -85,9 +89,12 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
     .filter(r => r.status !== 'declined' || (r.responded_at || r.created_at) >= weekAgo)
     .sort((a, b) => (rank[a.status] - rank[b.status]) || String(a.requested_date).localeCompare(String(b.requested_date)))
 
-  const topListings = [...listings]
-    .sort((a, b) => (a.DistanceFromLandmark ?? Infinity) - (b.DistanceFromLandmark ?? Infinity))
-    .slice(0, 3)
+  const [shownCount, setShownCount] = useState(3)
+  const ordered = orderKeys
+    ? orderKeys.map(k => listings.find(l => l.ListingKey === k)).filter((l): l is DiscoveryListing => !!l)
+    : [...listings].sort((a, b) => (a.DistanceFromLandmark ?? Infinity) - (b.DistanceFromLandmark ?? Infinity))
+  const topListings = ordered.slice(0, inChat ? shownCount : 3)
+  const moreLeft = inChat ? ordered.length - topListings.length : 0
 
   const asksBanner = incomingAsks > 0 && (
     <button type="button" onClick={() => setRequests({ focus: null })}
@@ -167,12 +174,12 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
   }
 
   return (
-    <div className={`min-w-0 space-y-4 ${DASH_OPENS_MIN_HEIGHT_CLASS}`}>
-      {asksBanner}
-      {hostingList}
+    <div className={inChat ? 'min-w-0 space-y-3' : `min-w-0 space-y-4 ${DASH_OPENS_MIN_HEIGHT_CLASS}`}>
+      {!inChat && asksBanner}
+      {!inChat && hostingList}
 
       <div>
-        <SectionLabel right={<span className="text-[10px] font-bold text-gray-400">Closest first</span>}>Near you to host</SectionLabel>
+        <SectionLabel right={<span className="text-[10px] font-bold text-gray-400">{orderKeys ? 'Newest first' : 'Closest first'}</span>}>{inChat ? 'Homes to host' : 'Near you to host'}</SectionLabel>
         <div className="space-y-2.5">
           {topListings.map((listing, i) => {
             const opens = statuses[listing.ListingKey]?.scheduled_opens || []
@@ -250,6 +257,13 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
           })}
         </div>
       </div>
+
+      {moreLeft > 0 && (
+        <button type="button" onClick={() => setShownCount(n => n + 3)}
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white py-2 text-[11px] font-black text-[#111827] transition hover:border-[#C9A24D] dark:border-gray-700 dark:bg-white/5 dark:text-white">
+          See more homes <span className="text-gray-400">+{moreLeft}</span>
+        </button>
+      )}
 
       <Link href="/discovery" className="group flex items-center justify-center gap-1.5 rounded-xl border border-[#C9A24D]/25 bg-[#C9A24D]/[0.05] py-2 text-[10.5px] font-black uppercase tracking-wide text-[#8b7355] transition hover:border-[#C9A24D] hover:bg-[#C9A24D] hover:text-white dark:text-[#d7b974] dark:hover:text-[#111827]">
         <Search className="h-3 w-3" /> Browse all of Discovery <ArrowRight className="h-3 w-3 transition group-hover:translate-x-0.5" />

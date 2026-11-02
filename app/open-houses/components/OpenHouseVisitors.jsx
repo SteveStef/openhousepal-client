@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Copy, Check, Mail, Phone, Users, UserCheck, UserPlus, Star, Activity, Pencil, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
-import { VisitorStar, StarShowcaseAsk, PassActivitySheet, VisitorShowcaseSwitch, VisitorReach } from './VisitorExtras'
+import { VisitorStar, StarShowcaseAsk, PassActivitySheet, VisitorShowcaseSwitch, VisitorReach, ContactedChip, reachedBy } from './VisitorExtras'
 import { useToast } from '@/contexts/ToastContext'
 import LuxeHero, { LuxeStats } from '@/components/ui/LuxeHero'
 import { formatPhone } from '@/lib/leadEventDetails'
@@ -62,6 +62,15 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
   // Edit Showcase straight from the guest (owner, 11/01)
   const [editFor, setEditFor] = useState(null)
   const patchVisitor = (id, patch) => setVisitors(prev => prev.map(v => v.id === id ? { ...v, ...patch } : v))
+  // Text / Email tapped for a guest - their lead shows Texted / Emailed here and on the Leads page (11/02).
+  const markContacted = (visitor, via) => {
+    if (!visitor.lead_id) return
+    const entry = { at: new Date().toISOString(), via, what: null }
+    setVisitors(prev => prev.map(v => v.lead_id === visitor.lead_id ? { ...v, contact_log: [...(v.contact_log || []), entry] } : v))
+    api.leads.contacted(visitor.lead_id, via).then(r => {
+      if (r.success && r.data) setVisitors(prev => prev.map(v => v.lead_id === visitor.lead_id ? { ...v, contact_log: r.data.contact_log } : v))
+    })
+  }
   const toggleStar = async (visitor) => {
     if (!visitor.lead_id) return
     const next = !visitor.is_favorite
@@ -161,7 +170,8 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
     return date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })
   }
 
-  const CopyField = ({ field, value, icon: FieldIcon, href, display }) => (
+  // `contacted`: "Texted" / "Emailed" right after the number / email once they were reached that way (11/02).
+  const CopyField = ({ field, value, icon: FieldIcon, href, display, contacted }) => (
     <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300 min-w-0">
       <FieldIcon className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0" />
       {href ? (
@@ -178,6 +188,7 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
       >
         {copiedField === field ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
       </button>
+      {contacted && <ContactedChip label={contacted} />}
     </div>
   )
 
@@ -426,9 +437,9 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
                               </td>
                               <td className="px-4 py-4 lg:px-5 whitespace-nowrap w-1/4">
                                 <div className="flex flex-col space-y-1">
-                                  <CopyField field={`${visitor.id}-email`} value={visitor.email} icon={Mail} href={`mailto:${visitor.email}`} />
-                                  <CopyField field={`${visitor.id}-phone`} value={visitor.phone} icon={Phone} href={`tel:${visitor.phone}`} display={formatPhone(visitor.phone)} />
-                                  <VisitorReach compact visitor={visitor} agent={user} street={ohStreet} />
+                                  <CopyField field={`${visitor.id}-email`} value={visitor.email} icon={Mail} href={`mailto:${visitor.email}`} contacted={reachedBy(visitor, 'email')} />
+                                  <CopyField field={`${visitor.id}-phone`} value={visitor.phone} icon={Phone} href={`tel:${visitor.phone}`} display={formatPhone(visitor.phone)} contacted={reachedBy(visitor, 'text')} />
+                                  <VisitorReach compact visitor={visitor} agent={user} street={ohStreet} onContacted={via => markContacted(visitor, via)} />
                                 </div>
                               </td>
                               <td className="px-4 py-4 lg:px-5 whitespace-nowrap">
@@ -517,12 +528,12 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
                         </div>
 
                         <div className="mx-3.5 flex flex-col gap-1.5 rounded-2xl bg-[#faf9f7] px-3 py-2.5 dark:bg-white/[0.03]">
-                          <CopyField field={`${visitor.id}-email-m`} value={visitor.email} icon={Mail} href={`mailto:${visitor.email}`} />
-                          <CopyField field={`${visitor.id}-phone-m`} value={visitor.phone} icon={Phone} href={`tel:${visitor.phone}`} display={formatPhone(visitor.phone)} />
+                          <CopyField field={`${visitor.id}-email-m`} value={visitor.email} icon={Mail} href={`mailto:${visitor.email}`} contacted={reachedBy(visitor, 'email')} />
+                          <CopyField field={`${visitor.id}-phone-m`} value={visitor.phone} icon={Phone} href={`tel:${visitor.phone}`} display={formatPhone(visitor.phone)} contacted={reachedBy(visitor, 'text')} />
                         </div>
 
                         <div className="mx-3.5 mt-2.5">
-                          <VisitorReach visitor={visitor} agent={user} street={ohStreet} />
+                          <VisitorReach visitor={visitor} agent={user} street={ohStreet} onContacted={via => markContacted(visitor, via)} />
                         </div>
 
                         {visitor.showcase_switchable && (

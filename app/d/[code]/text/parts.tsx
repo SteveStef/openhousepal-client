@@ -173,7 +173,7 @@ export function DesktopTextLayout({ code, data, qr, sentNow, busy, onDone, onSen
   /** Mark as done (the button). */
   onDone: () => void
   /** They emailed from here - checks it off too ("Sent? Checked off."). */
-  onSent: () => void
+  onSent: (via: 'text' | 'email') => void
   onUndo: () => void
 }) {
   const [copied, setCopied] = useState(false)
@@ -268,11 +268,11 @@ export function DesktopTextLayout({ code, data, qr, sentNow, busy, onDone, onSen
                 <div className="max-w-[85%] whitespace-pre-wrap rounded-[22px] rounded-br-md bg-[#0A84FF] px-4 py-3 text-[14px] font-medium leading-relaxed text-white shadow-sm [overflow-wrap:anywhere]">{data.message}</div>
               </div>
               <div className="mt-5 space-y-2">
-                <EmailChooser data={data} onSent={onSent} />
+                <EmailChooser data={data} onSent={() => onSent('email')} />
                 <div className="grid grid-cols-2 gap-2">
                   {data.phone ? (
                     // Messages on a Mac (or any computer with an SMS app) - on a phone, scan the code.
-                    <a href={smsHref(data.phone, data.message)} onClick={onSent}
+                    <a href={smsHref(data.phone, data.message)} onClick={() => onSent('text')}
                       className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-black text-[#111827] transition hover:border-[#C9A24D] dark:border-gray-700 dark:text-white">
                       <MessageSquare className="h-4 w-4 text-[#C9A24D]" /> Text
                     </a>

@@ -82,11 +82,13 @@ export default function TapToTextPage() {
 
   // The real tap: Messages opens from the link itself (the browser needs the tap for that), and the
   // follow-up is checked off in the same moment.
-  const onText = () => {
-    if (!data || data.done) return
+  const onText = (via: 'text' | 'email' = 'text') => {
+    if (!data) return
+    // Already checked off: "Text again" / "Email again" still says how they were reached (11/02).
+    if (data.done) { api.tasks.publicDone(code, via); return }
     setSentNow(true)
     setData({ ...data, done: true })
-    api.tasks.publicDone(code).then(r => { if (r.success && r.data) setData(d => (d ? { ...d, ...r.data!, done: r.data!.done } : d)) })
+    api.tasks.publicDone(code, via).then(r => { if (r.success && r.data) setData(d => (d ? { ...d, ...r.data!, done: r.data!.done } : d)) })
   }
 
   const undo = async () => {
@@ -167,7 +169,7 @@ export default function TapToTextPage() {
                         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Didn&apos;t send it - undo
                       </button>
                       {data.phone && (
-                        <a href={smsHref(data.phone, data.message)} className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-black text-[#8b7355] hover:bg-white dark:text-[#d7b974] dark:hover:bg-white/10">
+                        <a href={smsHref(data.phone, data.message)} onClick={() => onText('text')} className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-black text-[#8b7355] hover:bg-white dark:text-[#d7b974] dark:hover:bg-white/10">
                           <MessageSquare className="h-3.5 w-3.5" /> Text again
                         </a>
                       )}
@@ -182,7 +184,7 @@ export default function TapToTextPage() {
                   <>
                     <div className="flex gap-2">
                       {data.phone ? (
-                        <a href={smsHref(data.phone, data.message)} onClick={onText}
+                        <a href={smsHref(data.phone, data.message)} onClick={() => onText('text')}
                           className="flex flex-[1.35] items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-4 py-4 text-base font-black text-[#111827] shadow-lg shadow-[#C9A24D]/30 transition active:scale-[0.98]">
                           <MessageSquare className="h-5 w-5" /> Text
                         </a>
@@ -226,7 +228,7 @@ export default function TapToTextPage() {
       {data?.email && (
         <MailSheet open={mailSheet} onClose={() => setMailSheet(false)} to={data.email}
           subject={data.email_subject || 'Following up'} body={data.email_body || data.message || ''}
-          connected={data.mail_provider} onSent={onText} />
+          connected={data.mail_provider} onSent={() => onText('email')} />
       )}
     </div>
   )
