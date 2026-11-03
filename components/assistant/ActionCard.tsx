@@ -7,7 +7,7 @@ import api, { resolveMediaUrl } from '@/lib/api-service'
 import { isTouchPhone, saveFile } from '@/lib/mobileShare'
 import { AIToolCallRef } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
-import { runClientAction } from './clientActions'
+import { designProfileMissing, runClientAction } from './clientActions'
 import LinkPreviewCard from './LinkPreviewCard'
 import BrandPick, { type BrandPicks } from './BrandPick'
 import { getTemplatesFor, isCompositionReady } from '@/lib/studio/designTemplates'
@@ -230,11 +230,21 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   const [busy, setBusy] = useState<'confirm' | 'cancel' | null>(null)
   const [fresh, setFresh] = useState(false)  // made just now (not a reopened chat) - bring it into view
   const isDesign = action.client_action === 'create_design' && !!action.payload
+  // What their profile still needs before any ad can be made - said up front, not after Make it (11/02)
+  const [designMissing, setDesignMissing] = useState('')
+  useEffect(() => {
+    if (!isDesign || (action.status && action.status !== 'pending')) return
+    let live = true
+    designProfileMissing(String(action.payload?.format || ''), user).then(m => { if (live) setDesignMissing(m) })
+    return () => { live = false }
+  }, [isDesign, action.status, action.payload?.format, user])
   const [look, setLook] = useState<Look>({ layout: (action.payload?.layout as string) || null, colors: splitColorMode((action.payload?.colors as string) || 'light').base, metal: splitColorMode(action.payload?.colors as string).metal, photo: null, home: null, focal: null })
   const idx = user?.plan_tier === 'IDX' || !!user?.is_admin
   // Branding: the card's swatches start from what they have now (payload.current) - sent as picks on Save.
   const cur = (action.payload?.current || {}) as Record<string, any>
-  const [brand, setBrand] = useState<BrandPicks>({ theme: cur.theme === 'luxe' ? 'luxe' : 'classic', metal: cur.metal || 'gold', dark: !!cur.dark, secondary_color: cur.secondary_color || '#C9A24D' })
+  // A color they named ("navy") starts the card on it, not on what they have now (11/02)
+  const askedColor = ((action.payload?.body || {}) as Record<string, any>).secondary_color as string | undefined
+  const [brand, setBrand] = useState<BrandPicks>({ theme: cur.theme === 'luxe' ? 'luxe' : 'classic', metal: cur.metal || 'gold', dark: !!cur.dark, secondary_color: askedColor || cur.secondary_color || '#C9A24D' })
   const isBrand = action.picker === 'brand'
   // Invites: the four designs, tapped on the card (owner's test, 11/01: it picked Classic for them)
   const isInvite = action.picker === 'invite'
@@ -264,8 +274,34 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   const [blog, setBlog] = useState<BlogPicks>({ topic: blogBody.topic || '', goal: blogBody.goal || '', tone: blogBody.tone || 'warm', length: blogBody.length || 'standard',
     cta: blogBody.cta || 'how_can_i_help', audiences: blogList('audiences'), areas: blogList('areas'), spotlight: true,
     points: [], key_points: blogBody.key_points || '', personal_take: '', facts: '', sale_ids: [], listing_ids: [], video: null })
-  const [form, setForm] = useState<FormPicks>({ background_effects: action.payload?.background_effects !== false, listing_key: (action.payload?.listing_key as string) || null,
-    questions: (((action.payload as any)?.questions || []) as any[]).map(q => ({ label: q.label, type: q.type, options: q.options, required: q.required })) })
+  // A form card reopened later starts from the taps already made on it (saved as they go, below)
+  const formDraft = ((action as any).draft_picks || null) as Partial<FormPicks> | null
+  const [form, setForm] = useState<FormPicks>({ background_effects: formDraft?.background_effects ?? action.payload?.background_effects !== false,
+    listing_key: formDraft && 'listing_key' in formDraft ? formDraft.listing_key ?? null : (action.payload?.listing_key as string) || null,
+    questions: ((formDraft?.questions || (action.payload as any)?.questions || []) as any[]).map(q => ({ label: q.label, type: q.type, options: q.options, required: q.required })) })
+  // A newer card for the same form (they asked for a change) greys this one out right away - the
+  // server marks it replaced too, so a tap here would do nothing (ai_routes._replace_open_form_cards)
+  const formTitle = String(action.payload?.title || '').trim().toLowerCase()
+  useEffect(() => {
+    if (!isForm || (action.status && action.status !== 'pending')) return
+    const on = (e: Event) => {
+      const d = (e as CustomEvent).detail as { id: string; title: string }
+      if (d.id !== action.record_id && d.title === formTitle)
+        setState(s => (s.status === 'pending' ? { ...s, status: 'replaced', message: 'Replaced by the updated card below.' } : s))
+    }
+    window.dispatchEvent(new CustomEvent('ohp-form-card', { detail: { id: action.record_id, title: formTitle } }))
+    window.addEventListener('ohp-form-card', on)
+    return () => window.removeEventListener('ohp-form-card', on)
+  }, [isForm, action.status, action.record_id, formTitle])
+  // ...so when they ask the helper to change question 5, it changes the list they're looking at (11/02)
+  const formSaved = useRef(JSON.stringify(form))
+  useEffect(() => {
+    if (!isForm || state.status !== 'pending') return
+    const now = JSON.stringify(form)
+    if (now === formSaved.current) return
+    const t = setTimeout(() => { formSaved.current = now; api.ai.saveActionDraft(action.record_id, messageId, form as unknown as Record<string, unknown>).catch(() => {}) }, 600)
+    return () => clearTimeout(t)
+  }, [form, isForm, state.status, action.record_id, messageId])
   const picks = isBrand ? brand : isInvite ? invite : isSpotlight ? spot : isCma ? { ai: cmaAi, mode: cmaMode } : isForm ? form : isBlog ? blog : isInviteSend ? inviteSend : isDiscovery ? disc : undefined
   // A Spotlight made just now finishes its own setup right here (amenities, highlights, story, town).
   const [setup, setSetup] = useState<SetupStep[] | null>(null)
@@ -288,6 +324,9 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
       const made = (r.data as any).made as Made
       setFresh(true)
       setState({ status: r.data.status || 'failed', message: r.data.result_message || '', link: r.data.result_link || '', share: (r.data as any).share || null, made })
+      // Same as the editor's Publish / Take down: drop the live page's cached copy, or a taken-down
+      // Spotlight keeps showing (Next never replaces a cached page with the server's "not found").
+      if (r.data.status === 'done' && action.tool === 'publish_spotlight') fetch('/api/website-property-sites/revalidate', { method: 'POST' }).catch(() => {})
       if (r.data.status === 'done' && made?.kind === 'spotlight' && (made as any).site_id) {
         setSetup([])
         const out = await runSpotlightSetup((made as any).site_id, setSetup)
@@ -304,7 +343,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   // could keep tapping options already sent).
   const choosing = pending && busy !== 'confirm'
   const working = !!busy || state.status === 'running' || state.status === 'working' || (!!setup && setup.some(s => s.state === 'run' || s.state === 'wait'))
-  const iconState = working ? 'live' : state.status === 'done' ? 'done' : state.status === 'cancelled' || state.status === 'expired' || state.status === 'failed' ? 'off' : 'idle'
+  const iconState = working ? 'live' : state.status === 'done' ? 'done' : state.status === 'cancelled' || state.status === 'expired' || state.status === 'failed' || state.status === 'replaced' ? 'off' : 'idle'
   return (
     <div className={`ohp-ai-card-in mt-2 w-full rounded-2xl border bg-white p-3.5 text-left shadow-sm transition-colors duration-300 dark:bg-zinc-900 ${
       state.status === 'done' ? 'border-emerald-200 dark:border-emerald-900/50' : working ? 'border-[#C9A24D] shadow-[0_8px_26px_-14px_rgba(201,162,77,.7)]' : 'border-[#C9A24D]/40 dark:border-[#C9A24D]/30'}`} data-testid="ai-action-card">
@@ -322,6 +361,14 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
             </li>
           ))}
         </ul>
+      )}
+      {isDesign && choosing && designMissing && (
+        <div className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2 text-xs font-semibold text-amber-800 dark:bg-amber-900/20 dark:text-amber-300" data-testid="ai-design-missing">
+          <p className="flex items-start gap-1.5"><AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" /> First add {designMissing} to your profile - every ad has to show them.</p>
+          <Link href="/settings" className="group mt-1.5 inline-flex items-center gap-1 font-bold text-[#8b7355] dark:text-[#C9A24D]">
+            Add them in Settings <ArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
+          </Link>
+        </div>
       )}
       {isDesign && choosing && <DesignPick payload={action.payload as Record<string, any>} look={look} onLook={setLook} idx={idx} />}
       {isBrand && choosing && (
@@ -351,8 +398,8 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             onClick={() => act('confirm')}
-            disabled={!!busy || (isInviteSend && !inviteSend.lead_ids.length)}
-            className="ohp-ai-press inline-flex min-w-[7rem] flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#8b7355] px-3 py-2 text-sm font-bold text-white shadow-sm shadow-[#8b7355]/30 hover:bg-[#7a6549] disabled:opacity-60"
+            disabled={!!busy || (isInviteSend && !inviteSend.lead_ids.length) || (isDesign && !!designMissing)}
+            className="ohp-ai-press inline-flex min-w-[7rem] flex-auto items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-[#8b7355] px-3 py-2 text-sm font-bold text-white shadow-sm shadow-[#8b7355]/30 hover:bg-[#7a6549] disabled:opacity-60"
           >
             {busy === 'confirm' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             {isInviteSend ? inviteSendLabel(inviteSend) : (action.confirm_label || 'Confirm')}
@@ -360,7 +407,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
           <button
             onClick={() => act('cancel')}
             disabled={!!busy}
-            className="ohp-ai-press inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="ohp-ai-press inline-flex flex-auto items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
           >
             <X className="h-4 w-4" /> Cancel
           </button>

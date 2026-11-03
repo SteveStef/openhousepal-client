@@ -135,6 +135,8 @@ function factItem(key: string, raw: any): FactItem | null {
   if (raw === undefined || raw === null || raw === '') return null
   const num = Number(String(raw).replace(/,/g, ''))
   const isNum = !Number.isNaN(num) && String(raw).trim() !== ''
+  // A land lot's "0 baths" / "0 beds" printed on the ad (11/02) - a zero count is no fact at all
+  if (isNum && num <= 0 && key !== 'property_type') return null
   switch (key) {
     case 'beds': return { key, value: String(raw), label: isNum && num === 1 ? 'Bed' : 'Beds' }
     case 'baths': return { key, value: String(raw), label: isNum && num === 1 ? 'Bath' : 'Baths' }
@@ -353,7 +355,9 @@ function buildContent(blocks: DesignBlock[], ctx: DesignCanvasContext): Content 
     if (b.type === 'facts') {
       const fields: string[] = b.data?.fields?.length ? b.data.fields : [...DEFAULT_FACT_FIELDS]
       const items = fields.map(key => factItem(key, fieldValue(b, key, (property as any)?.[key]))).filter(Boolean) as FactItem[]
-      if (items.length) details.push({ kind: 'facts', id: b.id, items, o })
+      // Land (no beds / baths / sq ft): its acreage is the fact worth showing
+      const lot = !items.length && (property as any)?.lot_size ? factItem('lot_size', (property as any).lot_size) : null
+      if (items.length || lot) details.push({ kind: 'facts', id: b.id, items: items.length ? items : [lot as FactItem], o })
     } else if (b.type === 'open_house_details') {
       const date = String(fieldValue(b, 'date', b.data?.date || '') || '').trim()
       const time = String(fieldValue(b, 'time', b.data?.time || '') || '').trim()

@@ -509,7 +509,9 @@ function QuestionBrandBar({ branding, property, accent }: { branding?: FormRunne
           </motion.div>
         )}
       </div>
-      <div className="flex h-full min-w-0 flex-col justify-center gap-1.5 p-2 text-left">
+      {/* Street + price + chips must fit the 72px card - with gap-1.5/p-2 they ran ~4px over and the
+          street was cut in half at the top (11/02) */}
+      <div className="flex h-full min-w-0 flex-col justify-center gap-1 px-2 py-1.5 text-left">
         <p className="truncate text-xs font-black leading-tight text-[#0B0B0B] dark:text-white">{property.address}</p>
         <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
           <p className="text-base font-black leading-none tracking-tight text-[#0B0B0B] dark:!text-white">

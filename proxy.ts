@@ -79,7 +79,8 @@ export async function proxy(request: NextRequest) {
 async function appHostResponse(request: NextRequest): Promise<NextResponse> {
   // The admin's town page preview (app/admin/town-preview) draws an IDX page, so it gets the same
   // "no dashboard chrome" signal as a public site page. Only the look - the data is admin-only.
-  if (request.nextUrl.pathname.startsWith('/admin/town-preview/')) {
+  // Same for the helper's form preview (app/assistant/form-preview): a guest's form in a phone frame.
+  if (request.nextUrl.pathname.startsWith('/admin/town-preview/') || request.nextUrl.pathname === '/assistant/form-preview') {
     const previewHeaders = new Headers(request.headers)
     previewHeaders.set('x-ohp-public-site', '1')
     return NextResponse.next({ request: { headers: previewHeaders } })

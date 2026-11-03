@@ -484,6 +484,9 @@ function Midnight({ d, p, shine }: { d: InviteCardData; p: P; shine: boolean }) 
     <span className="absolute" style={{ ...pos, width: 26, height: 26, borderTop: `1.5px solid ${a}`, borderLeft: `1.5px solid ${a}`, transform: `rotate(${rot}deg)` }} />
   )
   const top = p.cover ? (p.multi ? 150 : 176) : (p.multi ? 50 : 70)
+  // A two-line title (~20+ characters at this size) or a venue + street underneath needs the smaller
+  // monogram, or the agent's line at the bottom is cut off (a 25-character title + venue, 11/02).
+  const compact = p.multi || p.title.length > 18 || !!(p.street && p.showStreet && p.rest && !p.cityUnder && !p.ownLine2)
   return (
     <div className="absolute inset-0" style={{ background: '#0e1118' }}>
       {p.cover && (
@@ -494,7 +497,7 @@ function Midnight({ d, p, shine }: { d: InviteCardData; p: P; shine: boolean }) 
       )}
       {corner({ left: 12, top: 12 }, 0)}{corner({ right: 12, top: 12 }, 90)}{corner({ right: 12, bottom: 12 }, 180)}{corner({ left: 12, bottom: 12 }, 270)}
       <div className="absolute inset-0 flex flex-col items-center px-9 pb-8" style={{ paddingTop: top }}>
-        {!p.cover && <div className={p.multi || p.title.length > 26 ? 'mb-4' : 'mb-6'}><Monogram name={d.hostName} accent={a} size={p.multi || p.title.length > 26 ? 72 : 92} dark /></div>}
+        {!p.cover && <div className={compact ? 'mb-4' : 'mb-6'}><Monogram name={d.hostName} accent={a} size={compact ? 72 : 92} dark /></div>}
         <p className={shine ? 'ic-metal-text' : ''} style={{ fontSize: 10, letterSpacing: 4.5, fontWeight: 800, textTransform: 'uppercase', backgroundImage: metal, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', backgroundSize: '200% 100%' }}>{p.eyebrow}</p>
         <div className="mt-2 w-full"><Title text={p.title} size={p.multi ? 26 : 29} color="#f6f1e7" /></div>
         {p.cityUnder && <LineTwo text={p.cityUnder} color="#a8a296" />}

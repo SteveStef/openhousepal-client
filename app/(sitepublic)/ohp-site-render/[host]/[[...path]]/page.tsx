@@ -64,11 +64,14 @@ interface ResolveResponse {
 // not two. `path` is passed through so the backend hydrates ONLY the page actually being
 // requested - see public_site_routes.resolve_site / content_adapters.hydrate_page_blocks.
 async function resolveSite(host: string, path: string): Promise<ResolveResponse | null> {
-  const res = await fetch(`${INTERNAL_API_URL}/public/sites/resolve?host=${encodeURIComponent(host)}&path=${encodeURIComponent(path)}`, {
+  // soft=1: "not found" comes back as a 200 so it's cached too - Next never replaces a cached
+  // answer with a 404, which kept a switched-off site showing until the next deploy.
+  const res = await fetch(`${INTERNAL_API_URL}/public/sites/resolve?host=${encodeURIComponent(host)}&path=${encodeURIComponent(path)}&soft=1`, {
     next: { revalidate: 30 },
   })
   if (!res.ok) return null
-  return res.json()
+  const data = await res.json()
+  return data?.not_found ? null : data
 }
 
 // Single Property Websites - a completely separate resolver/table (see
@@ -80,11 +83,12 @@ async function resolveSite(host: string, path: string): Promise<ResolveResponse 
 async function resolvePropertySite(host: string, path: string): Promise<PropertySiteResolveResponse | null> {
   // Tagged so publishing from the editor refreshes the live page at once (see
   // app/api/website-property-sites/revalidate) instead of after the 30s cache window.
-  const res = await fetch(`${INTERNAL_API_URL}/public/property-sites/resolve?host=${encodeURIComponent(host)}&path=${encodeURIComponent(path)}`, {
+  const res = await fetch(`${INTERNAL_API_URL}/public/property-sites/resolve?host=${encodeURIComponent(host)}&path=${encodeURIComponent(path)}&soft=1`, {
     next: { revalidate: 30, tags: ['property-sites'] },
   })
   if (!res.ok) return null
-  return res.json()
+  const data = await res.json()
+  return data?.not_found ? null : data
 }
 
 function findPage(resolved: ResolveResponse, path?: string[]) {

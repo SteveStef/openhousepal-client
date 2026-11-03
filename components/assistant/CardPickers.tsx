@@ -6,7 +6,7 @@
 // AI or manual, a form's background and home). Every preview draws with the app's real renderers.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  BarChart3, Bell, CalendarCheck, Check, ChevronDown, ClipboardList, Globe, Handshake, Home, Image as ImageIcon, LifeBuoy, Mail, MapPin, MessageSquare,
+  BarChart3, Bell, CalendarCheck, Check, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Eye, Globe, Handshake, Home, Image as ImageIcon, LifeBuoy, Mail, MapPin, MessageSquare,
   Move, Newspaper, Palette, PartyPopper, Plus, Settings2, Sparkles, Star, UserRound, X, type LucideIcon,
 } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
@@ -18,7 +18,7 @@ import { getSituation } from '@/lib/studio/designSituations'
 import { getTemplatesFor, isCompositionReady } from '@/lib/studio/designTemplates'
 import { designAgentFrom, SAMPLE_DESIGN_AGENT } from '@/lib/studio/designAgent'
 import { fetchLinkedProperty } from '@/components/studio/PropertySelector'
-import { BRAND_COLORS, type BrandLook } from '@/lib/brandKit'
+import { BRAND_COLORS, brandFormLook, type BrandLook } from '@/lib/brandKit'
 import type { SetupStep } from '@/components/property-sites/spotlight/autoSetup'
 import { OhpBot } from './OhpBot'
 
@@ -331,10 +331,82 @@ export type FormQuestion = { label: string; type?: string; options?: string[]; r
 export type FormPicks = { background_effects: boolean; listing_key: string | null; questions: FormQuestion[] }
 const Q_LABEL: Record<string, string> = { short_text: 'Short answer', long_text: 'Long answer', select: 'Pick one', multi_select: 'Pick any', number: 'Number',
   currency: 'Dollar amount', date: 'Date', time: 'Time', email: 'Email', phone: 'Phone' }
+type CardHome = { listing_key: string; address: string; city: string; state?: string | null; price?: number | null; beds?: number | null; baths?: number | null; sqft?: number | null; status?: string | null; photo?: string | null }
+
+// Name, email and phone open every new form (the server adds them), so the agent's own questions
+// are Q4 onward - the same numbers the preview shows and the helper is told.
+const CORE_QS = [
+  { id: 'core_name', type: 'short_text', label: 'Full name', required: true },
+  { id: 'core_email', type: 'email', label: 'Email', required: true },
+  { id: 'core_phone', type: 'phone', label: 'Phone', required: true },
+]
+export const FIRST_OWN_Q = CORE_QS.length + 1
+
+/** The form as a guest sees it on a phone, one screen at a time (owner, 11/02): the real form screen
+ *  in a phone-width frame (app/assistant/form-preview), so a phone layout shows even on a computer. */
+function FormPreview({ title, questions, home, backgroundEffects, at, onAt }: {
+  title: string; questions: FormQuestion[]; home: CardHome | null; backgroundEffects: boolean; at: number; onAt: (i: number) => void
+}) {
+  const { user, agent, kit } = useAgentBits()
+  const frame = useRef<HTMLIFrameElement>(null)
+  const box = useRef<HTMLDivElement>(null)
+  const [ready, setReady] = useState(false)
+  const [w, setW] = useState(300)
+  const all = useMemo(() => [...CORE_QS, ...questions.map((q, i) => ({ id: `q${i}`, type: q.type || 'short_text', label: q.label, required: !!q.required, options: q.options?.length ? q.options : null }))]
+    .map(q => ({ ...q, locked: false })), [questions])
+  const screens = useMemo(() => ['welcome', ...all.map(q => q.id), 'thankyou'], [all])
+  const i = Math.min(at, screens.length - 1)
+  const luxeOk = user?.plan_tier === 'IDX' || !!user?.is_admin
+  useEffect(() => {
+    const on = (e: MessageEvent) => { if (e.origin === window.location.origin && e.data?.type === 'ohp-form-preview-ready' && e.source === frame.current?.contentWindow) setReady(true) }
+    window.addEventListener('message', on)
+    return () => window.removeEventListener('message', on)
+  }, [])
+  useEffect(() => {
+    const el = box.current
+    if (!el) return
+    const ro = new ResizeObserver(([e]) => setW(e.contentRect.width))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  useEffect(() => {
+    if (!ready) return
+    frame.current?.contentWindow?.postMessage({ type: 'ohp-form-preview', data: {
+      questions: all, focus: screens[i], backgroundEffects, look: brandFormLook(kit, luxeOk),
+      branding: { title, agentName: agent.agentName || 'Your Name', agentBrokerage: agent.agentBrokerage || '', agentPhotoUrl: agent.agentPhotoUrl, agentTitle: agent.agentTitle },
+      linkedProperty: home ? { listing_key: home.listing_key, address: home.address, city: home.city, state: home.state, price: home.price, beds: home.beds, baths: home.baths,
+        sqft: home.sqft, status: home.status, image_url: home.photo } : null,
+    } }, window.location.origin)
+  }, [ready, all, screens, i, backgroundEffects, kit, luxeOk, title, agent, home])
+  // A 390 x 700 phone, scaled down to the card
+  const PW = 390, PH = 700
+  const s = Math.min(0.74, w / PW)
+  const label = i === 0 ? 'Welcome screen' : i === screens.length - 1 ? 'Thank-you screen' : `Question ${i} of ${all.length}`
+  const arrow = 'ohp-ai-press grid h-8 w-8 place-items-center rounded-full bg-white text-[#111827] shadow-sm ring-1 ring-black/5 disabled:opacity-30 dark:bg-zinc-900 dark:text-white dark:ring-white/10'
+  return (
+    <div ref={box} className="mb-2.5" data-testid="ai-form-preview">
+      <div className="mx-auto overflow-hidden rounded-[22px] bg-[#FAFAF7] shadow-md ring-[5px] ring-[#111827] dark:ring-zinc-700" style={{ width: PW * s, height: PH * s }}>
+        <iframe ref={frame} src="/assistant/form-preview" title={`Preview of ${title}`} tabIndex={-1}
+          className="pointer-events-none origin-top-left border-0" style={{ width: PW, height: PH, transform: `scale(${s})` }} />
+      </div>
+      <div className="mt-2 flex items-center justify-center gap-3">
+        <button type="button" onClick={() => onAt(i - 1)} disabled={i === 0} aria-label="Previous screen" className={arrow}><ChevronLeft className="h-4 w-4" strokeWidth={3} /></button>
+        <span className="min-w-[8.5rem] text-center text-[11.5px] font-black text-[#111827] dark:text-white" data-testid="ai-form-preview-label">{label}</span>
+        <button type="button" onClick={() => onAt(i + 1)} disabled={i === screens.length - 1} aria-label="Next screen" className={arrow}><ChevronRight className="h-4 w-4" strokeWidth={3} /></button>
+      </div>
+      <p className="mt-1.5 text-center text-[10.5px] font-semibold leading-snug text-gray-500 dark:text-zinc-400">
+        {`Want a change? Tell me, like “make question ${FIRST_OWN_Q + 1} a pick-one with Yes / No”.`}
+      </p>
+    </div>
+  )
+}
 
 export function FormPick({ payload, picks, onPicks }: { payload: Record<string, any>; picks: FormPicks; onPicks: (p: FormPicks) => void }) {
-  const homes = (payload.homes || []) as { listing_key: string; address: string; city: string; photo?: string | null }[]
+  const homes = (payload.homes || []) as CardHome[]
   const steps = useSteps(homes.length ? ['questions', 'background', 'home'] : ['questions', 'background'])
+  // A card that replaced one they asked to change opens its preview on the change (ai_routes._replace_open_form_cards)
+  const [at, setAt] = useState(typeof payload.focus_q === 'number' ? FIRST_OWN_Q + payload.focus_q : 0)
+  const [preview, setPreview] = useState(true)
   // The questions as taps too (owner, 11/01): what the helper suggested (tap to drop), common ones
   // to add, and their own typed in. Name, email and phone are always on the form already.
   const has = (b: FormQuestion) => picks.questions.some(q => q.label.toLowerCase() === b.label.toLowerCase())
@@ -347,11 +419,22 @@ export function FormPick({ payload, picks, onPicks }: { payload: Record<string, 
   return (
     <div className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-form-pick">
       <CardStep id="questions" n={1} title="Questions" summary={`${picks.questions.length} + name, email, phone`} steps={steps}>
-        <p className="mb-2 text-[11px] font-semibold text-gray-500 dark:text-zinc-400">Name, email and phone are always on the form.</p>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400">Questions 1-3 are always name, email and phone.</p>
+          <button type="button" onClick={() => setPreview(v => !v)} aria-expanded={preview} data-testid="ai-form-preview-toggle"
+            className="ohp-ai-press inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[10.5px] font-black text-[#8b7355] ring-1 ring-[#C9A24D]/40 dark:bg-zinc-900 dark:text-[#e8c97a]">
+            <Eye className="h-3 w-3" strokeWidth={3} /> {preview ? 'Hide preview' : 'Preview'}
+          </button>
+        </div>
+        {preview && (
+          <FormPreview title={String(payload.title || 'Your form')} questions={picks.questions} backgroundEffects={picks.background_effects}
+            home={homes.find(h => h.listing_key === picks.listing_key) || null} at={at} onAt={setAt} />
+        )}
         <ol className="flex flex-col gap-1.5" data-testid="ai-form-questions">
           {picks.questions.map((q, i) => (
-            <li key={`${q.label}-${i}`} className="ohp-ai-card-in flex items-start gap-2 rounded-xl bg-white px-2.5 py-2 ring-1 ring-black/5 dark:bg-zinc-900 dark:ring-white/10">
-              <span className="mt-px grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#C9A24D]/15 text-[10px] font-black text-[#8b7355] dark:text-[#e8c97a]">{i + 1}</span>
+            <li key={`${q.label}-${i}`} className={`ohp-ai-card-in flex items-start gap-2 rounded-xl bg-white px-2.5 py-2 ring-1 dark:bg-zinc-900 ${preview && at === FIRST_OWN_Q + i ? 'ring-[#C9A24D]' : 'ring-black/5 dark:ring-white/10'}`}>
+              <button type="button" onClick={() => { setPreview(true); setAt(FIRST_OWN_Q + i) }} aria-label={`Preview question ${FIRST_OWN_Q + i}`} title="See it in the preview"
+                className="ohp-ai-press mt-px grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#C9A24D]/15 text-[10px] font-black text-[#8b7355] dark:text-[#e8c97a]">{FIRST_OWN_Q + i}</button>
               <span className="min-w-0 flex-1">
                 <span className="block text-[12.5px] font-bold leading-snug text-[#111827] dark:text-white">{q.label}</span>
                 <span className="mt-1 flex flex-wrap items-center gap-1">

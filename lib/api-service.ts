@@ -2117,6 +2117,10 @@ class ApiService {
       this.request<{ status: string; result_message?: string; result_link?: string }>(`/ai/actions/${actionId}/confirm`, { method: 'POST', body: JSON.stringify({ message_id: messageId, ...(picks ? { picks } : {}) }) }),
 
 
+    // A waiting card's taps so far (a form's questions) - kept so the helper changes what they see.
+    saveActionDraft: (actionId: string, messageId: string, picks: Record<string, unknown>) =>
+      this.request<{ saved: boolean }>(`/ai/actions/${actionId}/draft`, { method: 'POST', body: JSON.stringify({ message_id: messageId, picks }) }),
+
     clientActionResult: (actionId: string, messageId: string, out: { ok: boolean; message: string; link?: string; made?: Record<string, unknown> }) =>
       this.request<{ status: string; result_message?: string; result_link?: string; made?: { kind: string; title?: string; design_id?: string; is_print?: string } }>(`/ai/actions/${actionId}/client-result`, { method: 'POST', body: JSON.stringify({ message_id: messageId, ...out }) }),
 

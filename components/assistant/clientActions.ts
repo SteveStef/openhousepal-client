@@ -28,16 +28,24 @@ function longDate(iso?: string): string {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 }
 
+/** What the agent's profile still lacks for this design ("your headshot and your mobile number"),
+ *  or '' - the design card checks it as soon as it shows (11/02: it only said so after Make it). */
+export async function designProfileMissing(formatId: string, user: User | null): Promise<string> {
+  const format = getDesignFormat(formatId)
+  const hub = await api.agentHub.getMine().catch(() => null)
+  const labels = profileGaps(designAgentFrom(user, hub?.success ? hub.data : null), !!format?.isPrint).map(g => g.label.toLowerCase())
+  return labels.length > 1 ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}` : labels[0] || ''
+}
+
 async function createDesign(p: Record<string, any>, user: User | null): Promise<ClientResult> {
   const situation = getSituation(p.situation)
   const format = getDesignFormat(p.format)
   if (!situation || !format || !situation.formats.includes(p.format)) return { ok: false, message: "That kind of design isn't available." }
 
   // The Studio's advertising rule: nothing gets made until the profile has what every ad must show.
-  const hub = await api.agentHub.getMine().catch(() => null)
-  const gaps = profileGaps(designAgentFrom(user, hub?.success ? hub.data : null), !!format.isPrint)
-  if (gaps.length) {
-    return { ok: false, message: `Your profile needs ${gaps.map(g => g.label.toLowerCase()).join(', ')} first - every ad has to show it.` }
+  const missing = await designProfileMissing(p.format, user)
+  if (missing) {
+    return { ok: false, message: `Add ${missing} to your profile first - every ad has to show them.`, link: '/settings' }
   }
 
   let property: LinkedProperty | null = null

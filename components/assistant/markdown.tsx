@@ -10,6 +10,14 @@ import { Fragment, ReactNode } from 'react'
 // but if it does anyway, this is a defensive backstop, not a trust boundary: it stops an
 // unexpected scheme (e.g. "javascript:") from ever reaching an href.
 const SAFE_LINK_SCHEME = /^(https?:|tel:|mailto:)/i
+// ...and a web link only to OpenHousePal itself: a reply can repeat text a stranger typed (a form
+// answer, a comment), so "[Open Settings](https://evil.example)" must never become a real link (11/03).
+const ownSite = (url: string) => {
+  try {
+    const h = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'https://openhousepal.com').hostname
+    return h === 'openhousepal.com' || h.endsWith('.openhousepal.com') || (typeof window !== 'undefined' && h === window.location.hostname)
+  } catch { return false }
+}
 
 function renderInline(line: string): ReactNode[] {
   const parts = line.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g)
@@ -18,7 +26,7 @@ function renderInline(line: string): ReactNode[] {
       return <strong key={i} className="font-bold">{part.slice(2, -2)}</strong>
     }
     const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
-    if (linkMatch && SAFE_LINK_SCHEME.test(linkMatch[2])) {
+    if (linkMatch && SAFE_LINK_SCHEME.test(linkMatch[2]) && (!/^https?:/i.test(linkMatch[2]) || ownSite(linkMatch[2]))) {
       const isExternal = linkMatch[2].startsWith('http')
       return (
         <a
