@@ -2730,6 +2730,8 @@ export interface StatSummaryEntry {
   current: number;
   previous: number;
   percent: number;
+  /** The last 30 days, oldest first - the card's little trend line. */
+  spark?: number[];
 }
 
 export type StatSummary = Record<StatMetric, StatSummaryEntry>;
@@ -2737,12 +2739,24 @@ export type StatSummary = Record<StatMetric, StatSummaryEntry>;
 export interface StatDailyPoint {
   date: string;
   count: number;
+  /** Rate stats: that day's finished / viewed, so a range's rate is sum(num) / sum(den). */
+  num?: number | null;
+  den?: number | null;
 }
 
 export interface StatHistory {
   metric: string;
   joined_at: string;
   daily: StatDailyPoint[];
+  /** What the stat reads against (Agent Hub taps vs visitors...). */
+  companion?: { metric: string; label: string; daily: StatDailyPoint[] } | null;
+}
+
+/** What a stat was made of in a date range - which forms, posts, open houses, lead sources. */
+export interface StatBreakdown {
+  title: string | null;
+  items: { label: string; count: number; num?: number; den?: number }[];
+  more?: number;
 }
 
 // ---- CMA (Comparative Market Analysis) ----

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { AnimatePresence } from 'framer-motion'
+import { useId, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import AnimatedNumber from '@/components/ui/AnimatedNumber'
 import StatDetailModal from './StatDetailModal'
 import { StatMetric, StatSummaryEntry } from '@/types'
@@ -25,14 +25,44 @@ interface StatCardProps {
 
 // vs the 30 days before. From zero, a percent means nothing ("+100%" for 1 or for 50), so it
 // reads "New"; nothing either time reads "-".
-function changeLabel(entry: { current: number; previous: number; percent: number }): string {
+function changeLabel(entry: { current: number; previous: number; percent: number }, isPercent?: boolean): string {
   if (!entry.previous) return entry.current ? 'New' : '-'
+  // From a small start a percent is silly (+1925%) - the difference reads better (11/03, same as the pop-up)
+  if (entry.previous < 10 || Math.abs(entry.percent) >= 300) {
+    const diff = entry.current - entry.previous
+    return diff ? `${diff > 0 ? '+' : '-'}${Math.abs(diff).toLocaleString()}${isPercent ? ' pts' : ''}` : '0'
+  }
   return formatPercentChange(entry.percent)
 }
 
 function formatPercentChange(percent: number): string {
   if (percent === 0) return '0%'
   return `${percent > 0 ? '+' : ''}${percent}%`
+}
+
+// The last 30 days as a little line under the number - quiet or climbing at a glance, before
+// anyone taps in (owner, 11/03). Draws itself in on load.
+function Sparkline({ values }: { values: number[] }) {
+  const id = useId()
+  if (values.length < 2) return null
+  const W = 100, H = 24
+  const max = Math.max(...values, 1)
+  const pts = values.map((v, i) => [(i / (values.length - 1)) * W, H - 2 - (v / max) * (H - 4)] as const)
+  const line = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(2)},${y.toFixed(2)}`).join(' ')
+  const quiet = !values.some(Boolean)
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="mt-1.5 block h-5 w-full overflow-visible lg:h-6" aria-hidden>
+      <defs>
+        <linearGradient id={`sp${id}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#C9A24D" stopOpacity="0.32" />
+          <stop offset="100%" stopColor="#C9A24D" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {!quiet && <motion.path d={`${line} L${W},${H} L0,${H} Z`} fill={`url(#sp${id})`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5, duration: 0.6 }} />}
+      <motion.path d={line} fill="none" stroke={quiet ? 'currentColor' : '#C9A24D'} strokeWidth="1.6" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round"
+        className={quiet ? 'text-gray-200 dark:text-white/10' : ''} initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 0.15 }} />
+    </svg>
+  )
 }
 
 export default function StatCard({ metric, label, shortLabel, icon: Icon, entry, isPercent, compact, chip }: StatCardProps) {
@@ -52,7 +82,7 @@ export default function StatCard({ metric, label, shortLabel, icon: Icon, entry,
           {/* Phones: icon + number only - the word never gets cut off (owner, 10/24); the icon says what it is. */}
           <span className="hidden text-[9px] font-black uppercase tracking-[0.14em] text-gray-400 sm:inline">{label}</span>
           <span className="text-sm font-black tabular-nums text-[#111827] dark:text-white"><AnimatedNumber value={entry.current} />{isPercent ? '%' : ''}</span>
-          <span className={`text-[10px] font-black ${tone}`}>{changeLabel(entry)}</span>
+          <span className={`text-[10px] font-black ${tone}`}>{changeLabel(entry, isPercent)}</span>
         </button>
         <AnimatePresence>{open && <StatDetailModal metric={metric} label={label} isPercent={isPercent} onClose={() => setOpen(false)} />}</AnimatePresence>
       </>
@@ -74,8 +104,9 @@ export default function StatCard({ metric, label, shortLabel, icon: Icon, entry,
         </div>
         <div className={`flex min-w-0 items-baseline justify-between gap-x-1.5 ${compact ? 'mt-0.5 sm:mt-1 lg:mt-2' : 'mt-1 lg:mt-2'}`}>
           <p className={`min-w-0 truncate font-black leading-none text-[#111827] dark:text-white ${compact ? 'text-sm sm:text-xl lg:text-2xl' : 'text-xl lg:text-2xl'}`}><AnimatedNumber value={entry.current} />{isPercent ? '%' : ''}</p>
-          <p className={`shrink-0 font-black leading-none ${compact ? 'text-[8px] sm:text-[10px] lg:text-xs' : 'text-[10px] lg:text-xs'} ${tone}`}>{changeLabel(entry)}</p>
+          <p className={`shrink-0 font-black leading-none ${compact ? 'text-[8px] sm:text-[10px] lg:text-xs' : 'text-[10px] lg:text-xs'} ${tone}`}>{changeLabel(entry, isPercent)}</p>
         </div>
+        {entry.spark && <Sparkline values={entry.spark} />}
       </button>
       <AnimatePresence>{open && <StatDetailModal metric={metric} label={label} isPercent={isPercent} onClose={() => setOpen(false)} />}</AnimatePresence>
     </>

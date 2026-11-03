@@ -88,6 +88,14 @@ export default function SupportInboxPanel({ onRead }: { onRead?: () => void }) {
     fetchTickets()
   }, [fetchTickets])
 
+  // /admin/inbox/support?ticket=<id> - the "check this Help ticket" follow-up on the owner's calendar
+  // opens straight to that ticket (11/03)
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('ticket')
+    if (id) openTicket(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Short-poll the ticket list so a new/replied agent ticket shows up (unread dot, updated_at,
   // status) without the admin having to leave and come back - same pattern as the agent-facing
   // /settings/help inbox's own list poll.

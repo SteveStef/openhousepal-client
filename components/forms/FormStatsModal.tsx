@@ -9,9 +9,10 @@
 // Series colours were validated for colour-blind separation in both themes (dataviz validator,
 // all-pairs): Views blue, Submitted gold, Dropped off magenta.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { createPortal } from 'react-dom'
+import { AnimatePresence, motion, useDragControls } from 'framer-motion'
 import {
-  AlertTriangle, ArrowRight, Clock, Eye, Globe, Laptop, Link2, Loader2, MousePointerClick, QrCode,
+  AlertTriangle, ArrowRight, Clock, Eye, Globe, Laptop, Link2, MousePointerClick, QrCode,
   Send, Smartphone, Tablet, UserCheck, X,
 } from 'lucide-react'
 import { FormStats, FormSplitRow } from '@/types'
@@ -208,7 +209,8 @@ function Activity({ daily }: { daily: NonNullable<FormStats['daily']> }) {
           <span key={s.key} className="flex items-center gap-1.5"><span className="h-[3px] w-4 rounded-full" style={{ background: `var(${s.v})` }} />{s.label}</span>
         ))}
       </div>
-      <div ref={ref} className="relative touch-none" onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
+      {/* a tap picks a day on a phone; up/down swipes still scroll the sheet (11/03) */}
+      <div ref={ref} className="relative touch-pan-y" onPointerDown={onMove} onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
         {empty ? (
           <p className="flex h-[190px] items-center justify-center text-xs font-semibold text-gray-400">No visits in this range yet.</p>
         ) : width > 0 && (
@@ -472,9 +474,24 @@ export function FormStatsContent({
       </div>
 
       {isLoading && !stats ? (
-        <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
+        <div className="space-y-3" aria-hidden>
+          <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-5">{[0, 1, 2, 3, 4].map(i => <div key={i} className="ohp-skeleton h-24 rounded-2xl" />)}</div>
+          <div className="ohp-skeleton h-64 rounded-2xl" />
+        </div>
       ) : !stats ? (
         <p className="py-16 text-center text-sm font-semibold text-gray-400">Couldn&apos;t load stats.</p>
+      ) : !stats.totalViews && !stats.totalCompletions ? (
+        // Nobody opened it in this range - one friendly card, not five zeros and empty charts (owner, 11/03)
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          className="rounded-3xl border border-[#C9A24D]/25 bg-gradient-to-b from-[#fbf8f1] to-white px-6 py-12 text-center dark:from-white/[0.04] dark:to-transparent">
+          <motion.div initial={{ scale: 0.6, rotate: -8 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 16, delay: 0.1 }}
+            className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8c97a]"><Eye className="h-6 w-6" /></motion.div>
+          <p className="mt-4 font-serif text-xl font-black text-[#111827] dark:text-white">No visits {days ? `in the last ${rangeLabel}` : 'yet'}</p>
+          <p className="mx-auto mt-1.5 max-w-sm text-[13px] font-medium leading-snug text-gray-500 dark:text-gray-400">Share the form&apos;s link, or put its QR code on a flyer or mailer - every visit, start and finish shows up here as it happens.</p>
+          {days !== 0 && (
+            <button type="button" onClick={() => setDays(0)} className="mt-5 rounded-full bg-[#111827] px-4 py-2 text-[12px] font-black text-white transition hover:-translate-y-0.5 dark:bg-white dark:text-[#111827]">Show all time</button>
+          )}
+        </motion.div>
       ) : (
         <div className={`space-y-4 transition-opacity ${isLoading ? 'opacity-60' : ''}`}>
           {/* KPIs */}
@@ -512,7 +529,7 @@ export function FormStatsContent({
           </AnimatePresence>
 
           <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr]">
-            <Card title="Activity" hint="Views, submissions and drop-offs by day - hover any day">
+            <Card title="Activity" hint="Views, submissions and drop-offs by day - tap or hover a day">
               <Activity daily={stats.daily || []} />
             </Card>
             <Card title="How far people get" hint="From opening the form to pressing Submit">
@@ -615,23 +632,49 @@ export default function FormStatsModal({
     }).catch(() => {})
     return () => { alive = false }
   }, [formId])
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-gray-200 bg-[#f7f6f2] p-5 shadow-2xl dark:border-gray-800 dark:bg-[#0B0B0B] sm:p-6">
+  // A sheet from the bottom on a phone (pull the grab bar down to close), a card on a computer - same
+  // as every stat pop-up (11/03)
+  const [wide, setWide] = useState(true)
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 640px)')
+    const on = () => setWide(mq.matches)
+    on(); mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  const drag = useDragControls()
+  const sheet = !wide
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  if (!mounted) return null
+  // On top of everything (a portal) - inside the page, the page's own cards drew over the phone sheet (11/03)
+  return createPortal(
+    <motion.div className={`fixed inset-0 z-[200] flex bg-black/60 ${sheet ? 'items-end' : 'items-center justify-center p-4'}`} onClick={onClose}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
+      <motion.div onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={`${title} stats`}
+        initial={sheet ? { y: '100%' } : { opacity: 0, y: 26, scale: 0.98 }} animate={sheet ? { y: 0 } : { opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: 'spring', stiffness: 330, damping: 34 }}
+        drag={sheet ? 'y' : false} dragControls={drag} dragListener={false} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0, bottom: 0.5 }}
+        onDragEnd={(_, i) => { if (i.offset.y > 120 || i.velocity.y > 600) onClose() }}
+        className={`relative w-full overflow-y-auto overscroll-contain bg-[#f7f6f2] shadow-2xl dark:bg-[#0B0B0B] ${sheet
+          ? 'max-h-[92dvh] rounded-t-[28px] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3'
+          : 'max-h-[90vh] max-w-5xl rounded-[28px] border border-[#C9A24D]/20 p-6 dark:border-gray-800'}`}>
+        <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D] to-transparent" />
+        {sheet && <div onPointerDown={e => drag.start(e)} className="-mx-4 -mt-3 mb-1 flex cursor-grab touch-none justify-center pb-2 pt-3" aria-hidden><span className="h-1.5 w-10 rounded-full bg-gray-300 dark:bg-white/20" /></div>}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-lg font-black tracking-tight text-[#111827] dark:text-white">Stats</p>
-            <p className="truncate text-xs font-semibold text-gray-400">{title}</p>
+            <p className="text-[10.5px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974]">Form stats</p>
+            <p className="mt-0.5 truncate font-serif text-[24px] font-black leading-tight text-[#111827] dark:text-white">{title}</p>
             {campaignOptions.length > 0 && <div className="mt-2"><ScopePicker options={campaignOptions} value={scope} onChange={setScope} /></div>}
           </div>
-          <button onClick={onClose} className="shrink-0 rounded-full p-2 text-gray-400 transition hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" aria-label="Close">
-            <X className="h-5 w-5" />
+          <button onClick={onClose} className="shrink-0 rounded-full border border-gray-200 p-2 text-gray-400 transition hover:rotate-90 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/10" aria-label="Close">
+            <X className="h-4 w-4" />
           </button>
         </div>
         <div className="mt-5">
           <FormStatsContent formId={formId} campaignId={scope} />
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>,
+    document.body
   )
 }
