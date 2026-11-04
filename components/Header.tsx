@@ -189,8 +189,11 @@ export default function Header({ mode = 'app' }: HeaderProps) {
     }
   }, [mode, isAuthenticated])
 
-  const showcasesAccess = getNavFeatureAccess(user?.plan_tier, 'showcases')
-  const idxAccess = getNavFeatureAccess(user?.plan_tier, 'idx_website')
+  // No plan yet (checkout): an agent who signed up "not in Bright MLS" (no MLS ID) is on the
+  // No-MLS track, so Bright-only items stay hidden instead of showing greyed and locked.
+  const navTier = user?.plan_tier || (user && !user.is_admin && !user.mls_id ? 'NO_MLS' : user?.plan_tier)
+  const showcasesAccess = getNavFeatureAccess(navTier, 'showcases')
+  const idxAccess = getNavFeatureAccess(navTier, 'idx_website')
   const { listingAgentCount, hostCount } = useOpenHouseActionCounts()
   // + guests' disclosure / second-tour requests still waiting on the agent (10/25 - they're answered on Opens).
   const openRequestsCount = useOpenRequestsCount()
@@ -230,6 +233,8 @@ export default function Header({ mode = 'app' }: HeaderProps) {
     { href: '/discovery', label: 'Discovery', icon: Search, feature: 'discovery', iconClass: 'ohp-icon-assemble-search' },
     { href: '/open-houses/my-listings', label: 'Manager', icon: Building2, feature: 'my_listings' },
   ]
+  // No-MLS agents only have "My Opens" - no drop-down (or chevron) for a single item.
+  const hasOpensMenu = hasCoreAccess && openHousesSubNav.filter(item => !item.feature || getNavFeatureAccess(navTier, item.feature).visible).length > 1
   const studioSubNav: { href: string; label: string; icon: ComponentType<{ className?: string }>; feature?: NavFeatureKey; iconClass?: string }[] = [
     { href: '/studio/site', label: 'Agent Hub', icon: Link2, feature: 'agent_hub' },
     { href: '/studio/forms', label: 'Forms & Invites', icon: ClipboardList, iconClass: 'ohp-icon-assemble-forms' },
@@ -261,7 +266,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
   type MobileSection = { key: string; label: string; icon: ComponentType<{ className?: string }>; href: string; on: boolean; badge?: number; tiles: MobileTile[]; dimmed?: boolean }
   const gateHref = (href: string) => (!user?.is_admin && !hasValidSubscription(user) ? '/checkout' : href)
   const navTile = (item: { href: string; label: string; icon: ComponentType<{ className?: string }>; feature?: NavFeatureKey }, extra: Partial<MobileTile> = {}): MobileTile | null => {
-    const access = item.feature ? getNavFeatureAccess(user?.plan_tier, item.feature) : { visible: true, locked: false, upgradeHref: '' }
+    const access = item.feature ? getNavFeatureAccess(navTier, item.feature) : { visible: true, locked: false, upgradeHref: '' }
     if (!access.visible) return null
     return { href: access.locked ? access.upgradeHref : gateHref(item.href), label: item.label, icon: item.icon, locked: access.locked, on: pathname === item.href, ...extra }
   }
@@ -286,7 +291,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
     mobileSections.push({
       key: 'opens', label: 'Open Houses', icon: Home, href: gateHref('/open-houses'), dimmed: dim,
       on: pathname.startsWith('/open-houses') || pathname.startsWith('/discovery'), badge: pendingHostRequestCount,
-      tiles: hasCoreAccess ? openHousesSubNav.map(item => navTile(item, {
+      tiles: hasOpensMenu ? openHousesSubNav.map(item => navTile(item, {
         badge: item.href === '/open-houses/my-listings' ? listingAgentCount : item.href === '/discovery' ? hostCount : openRequestsCount,
         wide: item.href === '/open-houses',
       })).filter(isTile) : [],
@@ -497,15 +502,15 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                             {pendingHostRequestCount > 9 ? '9+' : pendingHostRequestCount}
                           </span>
                         )}
-                        <ChevronDown className="ml-1 w-3 h-3 text-gray-400 transition-transform duration-200 group-hover/opens:rotate-180" />
+                        {hasOpensMenu && <ChevronDown className="ml-1 w-3 h-3 text-gray-400 transition-transform duration-200 group-hover/opens:rotate-180" />}
                         {(pathname.startsWith('/open-houses') || pathname.startsWith('/discovery')) && <motion.div layoutId="headerNavUnderline" className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full" transition={{ type: 'spring', stiffness: 500, damping: 35 }} />}
                         <span className="ohp-grow-underline" style={{ '--ohp-grow-w': 'calc(100% - 1.5rem)' } as CSSProperties} />
                       </Link>
-                      {hasCoreAccess && (
+                      {hasOpensMenu && (
                         <div className="invisible absolute left-0 top-full z-[60] w-52 pt-2 opacity-0 transition-all duration-150 group-hover/opens:visible group-hover/opens:opacity-100">
                           <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151517] p-1.5 shadow-2xl">
                             {openHousesSubNav.map(item => {
-                              const access = item.feature ? getNavFeatureAccess(user?.plan_tier, item.feature) : { visible: true, locked: false, upgradeHref: '' }
+                              const access = item.feature ? getNavFeatureAccess(navTier, item.feature) : { visible: true, locked: false, upgradeHref: '' }
                               if (!access.visible) return null
                               // Same counts driving the "Opens" tab's own badge, broken out per
                               // sub-item so hovering shows exactly where the pending item lives -
@@ -642,7 +647,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                         <div className="invisible absolute left-0 top-full z-[60] w-52 pt-2 opacity-0 transition-all duration-150 group-hover/studio:visible group-hover/studio:opacity-100">
                           <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151517] p-1.5 shadow-2xl">
                             {studioSubNav.map(item => {
-                              const access = item.feature ? getNavFeatureAccess(user?.plan_tier, item.feature) : { visible: true, locked: false, upgradeHref: '' }
+                              const access = item.feature ? getNavFeatureAccess(navTier, item.feature) : { visible: true, locked: false, upgradeHref: '' }
                               if (!access.visible) return null
                               return (
                                 <Link

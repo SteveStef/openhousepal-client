@@ -125,13 +125,14 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
         const isSpeaking = speakingId === msg.id
         // Homes to host take the chat's full width - the Discovery rows with their calendars were
         // squeezed into the reply bubble's width on a phone (owner, 11/01).
-        const wide = (msg.tool_calls || []).some((r) => r.record_type === 'hosting' || (r.record_type === 'action' && (r as any).picker === 'discovery'))
+        // Same for a form's card - its questions and answer choices need the room (owner, 11/03).
+        const wide = (msg.tool_calls || []).some((r) => r.record_type === 'hosting' || (r.record_type === 'action' && ['discovery', 'form'].includes((r as any).picker)))
         return (
           <div key={msg.id} className={`flex ${isUser ? 'ohp-ai-msg-user justify-end' : 'ohp-ai-msg-bot justify-start'}`}>
             <div className={`flex items-start gap-2.5 ${wide ? 'w-full' : 'max-w-[85%] sm:max-w-[75%]'} ${isUser ? 'flex-row-reverse' : ''}`}>
               {/* Their own photo (or initials); the helper is the little OpenHousePal robot (owner, 11/01) */}
               {isUser ? <UserAvatar size={32} /> : (
-                <OhpBot size={32} className="flex-shrink-0 drop-shadow-sm" />
+                <OhpBot size={32} className={`flex-shrink-0 drop-shadow-sm ${wide ? 'hidden sm:block' : ''}`} />
               )}
               <div className="min-w-0">
                 <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed break-words ${

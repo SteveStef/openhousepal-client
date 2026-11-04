@@ -58,16 +58,47 @@ function useIsPhone() {
 // Phone keyboard open: the part of the screen still showing (above the keyboard), else null.
 // The sheet is sized to the whole screen, so with the keyboard up the page behind showed between
 // the chat box and the keyboard (owner, 11/01) - while typing the chat fills exactly what's left.
+// Newer iPhones (iOS 26) shrink window.innerHeight along with the keyboard, so "innerHeight minus
+// what's showing" missed the keyboard and the page showed again under the chat box (owner, 11/03).
+// Now: a text box is in use and the screen showing is well short of its full height (the tallest
+// seen with no keyboard). When the keyboard goes away the page is put back where it was - iOS left
+// it scrolled, so the sheet looked like it dropped.
 function useKeyboardSpace(on: boolean) {
   const [space, setSpace] = useState<{ top: number; height: number } | null>(null)
   useEffect(() => {
     const vv = window.visualViewport
     if (!on || !vv) { setSpace(null); return }
-    const fit = () => setSpace(window.innerHeight - vv.height > 120 ? { top: Math.round(vv.offsetTop), height: Math.round(vv.height) } : null)
+    const typing = () => { const el = document.activeElement as HTMLElement | null; return !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable) }
+    let full = Math.max(window.innerHeight, vv.height)
+    let openAt: number | null = null
+    const fit = () => {
+      const t = typing()
+      if (!t) full = Math.max(full, window.innerHeight, vv.height)
+      const open = (t && full - vv.height > 120) || window.innerHeight - vv.height > 120
+      if (open) {
+        if (openAt === null) openAt = window.scrollY
+        setSpace({ top: Math.round(vv.offsetTop), height: Math.round(vv.height) })
+      } else {
+        setSpace(null)
+        if (openAt !== null) {
+          const y = openAt
+          openAt = null
+          requestAnimationFrame(() => window.scrollTo(window.scrollX, y))
+          setTimeout(() => { if (!typing()) window.scrollTo(window.scrollX, y) }, 350)
+        }
+      }
+    }
     fit()
     vv.addEventListener('resize', fit)
     vv.addEventListener('scroll', fit)
-    return () => { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit) }
+    // focus changes don't always resize the screen right away
+    const later = () => setTimeout(fit, 60)
+    document.addEventListener('focusin', later)
+    document.addEventListener('focusout', later)
+    return () => {
+      vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit)
+      document.removeEventListener('focusin', later); document.removeEventListener('focusout', later)
+    }
   }, [on])
   return space
 }

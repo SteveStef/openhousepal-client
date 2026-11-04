@@ -95,6 +95,11 @@ type NumericTextMeta = {
 
 const NUMERIC_TEXT_FIELD_RE = /\b(price|budget|value|worth|sq\s*ft|sqft|square\s*(foot|feet|footage)|footage)\b/i
 
+// Short answers sit two to a row even on a phone (owner, 11/03: "Garage / Yard" each on its own long
+// row wasted the screen); longer ones get a row each until the screen is wide enough.
+const choiceGrid = (options?: string[] | null) => ((options || []).length > 1 && (options || []).every(o => o.length <= 20)
+  ? 'grid-cols-2' : 'min-[420px]:grid-cols-2')
+
 function shouldFormatNumericText(field: NumericTextMeta): boolean {
   return NUMERIC_TEXT_FIELD_RE.test([
     field.id,
@@ -1026,7 +1031,7 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
 
   if (question.type === 'select') {
     return (
-      <div className="grid gap-2.5 min-[420px]:grid-cols-2">
+      <div className={`grid gap-2.5 ${choiceGrid(question.options)}`}>
         {(question.options || []).map((option, optionIndex) => {
           const selected = textValue === option
           return (
@@ -1036,7 +1041,7 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
               whileTap={{ scale: 0.97 }}
               // One tap answers it and moves on - no Continue needed for a single choice.
               onClick={() => { setAnswer(question.id, option); opts.onChoose?.(question.id) }}
-              className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 text-left text-sm font-bold transition-colors ${
+              className={`flex items-center justify-between gap-2 rounded-2xl border-2 px-4 py-3.5 text-left text-sm font-bold transition-colors ${
                 selected
                   ? 'text-[#0B0B0B] dark:text-white'
                   : 'border-gray-200 bg-white text-[#0B0B0B] hover:border-gray-300 dark:border-gray-700 dark:bg-[#151517] dark:text-white'
@@ -1085,7 +1090,7 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
 
   if (question.type === 'multi_select') {
     return (
-      <div className="grid gap-2.5 min-[420px]:grid-cols-2">
+      <div className={`grid gap-2.5 ${choiceGrid(question.options)}`}>
         {(question.options || []).map((option, optionIndex) => {
           const selected = arrayValue.includes(option)
           return (
@@ -1096,7 +1101,7 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
                 const next = selected ? arrayValue.filter(item => item !== option) : [...arrayValue, option]
                 setAnswer(question.id, next)
               }}
-              className={`flex items-center justify-between rounded-2xl border-2 px-5 py-4 text-left text-sm font-bold transition-all ${
+              className={`flex items-center justify-between gap-2 rounded-2xl border-2 px-4 py-3.5 text-left text-sm font-bold transition-all ${
                 selected
                   ? 'text-[#0B0B0B] dark:text-white'
                   : 'border-gray-200 bg-white text-[#0B0B0B] hover:border-gray-300 dark:border-gray-700 dark:bg-[#151517] dark:text-white'

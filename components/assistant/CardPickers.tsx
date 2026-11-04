@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart3, Bell, CalendarCheck, Check, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Eye, Globe, Handshake, Home, Image as ImageIcon, LifeBuoy, Mail, MapPin, MessageSquare,
-  Move, Newspaper, Palette, PartyPopper, Plus, Settings2, Sparkles, Star, UserRound, X, type LucideIcon,
+  Lock, Move, Newspaper, Palette, PartyPopper, Plus, Send, Settings2, Sparkles, Star, Trash2, UserRound, X, type LucideIcon,
 } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
@@ -105,7 +105,7 @@ export function CardStep({ id, n, title, summary, steps, children }: {
       </button>
       <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
         <div className="min-h-0 overflow-hidden">
-          <div className="px-2.5 pb-2.5">{children}</div>
+          <div className="px-2 pb-2 sm:px-2.5 sm:pb-2.5">{children}</div>
         </div>
       </div>
     </div>
@@ -344,8 +344,8 @@ export const FIRST_OWN_Q = CORE_QS.length + 1
 
 /** The form as a guest sees it on a phone, one screen at a time (owner, 11/02): the real form screen
  *  in a phone-width frame (app/assistant/form-preview), so a phone layout shows even on a computer. */
-function FormPreview({ title, questions, home, backgroundEffects, at, onAt }: {
-  title: string; questions: FormQuestion[]; home: CardHome | null; backgroundEffects: boolean; at: number; onAt: (i: number) => void
+function FormPreview({ title, questions, home, backgroundEffects, at }: {
+  title: string; questions: FormQuestion[]; home: CardHome | null; backgroundEffects: boolean; at: number
 }) {
   const { user, agent, kit } = useAgentBits()
   const frame = useRef<HTMLIFrameElement>(null)
@@ -378,105 +378,181 @@ function FormPreview({ title, questions, home, backgroundEffects, at, onAt }: {
         sqft: home.sqft, status: home.status, image_url: home.photo } : null,
     } }, window.location.origin)
   }, [ready, all, screens, i, backgroundEffects, kit, luxeOk, title, agent, home])
-  // A 390 x 700 phone, scaled down to the card
   const PW = 390, PH = 700
-  const s = Math.min(0.74, w / PW)
-  const label = i === 0 ? 'Welcome screen' : i === screens.length - 1 ? 'Thank-you screen' : `Question ${i} of ${all.length}`
-  const arrow = 'ohp-ai-press grid h-8 w-8 place-items-center rounded-full bg-white text-[#111827] shadow-sm ring-1 ring-black/5 disabled:opacity-30 dark:bg-zinc-900 dark:text-white dark:ring-white/10'
+  // A 390 x 700 phone, a little smaller now that the card shows one question under it (11/03)
+  const s = Math.min(0.62, w / PW)
   return (
     <div ref={box} className="mb-2.5" data-testid="ai-form-preview">
       <div className="mx-auto overflow-hidden rounded-[22px] bg-[#FAFAF7] shadow-md ring-[5px] ring-[#111827] dark:ring-zinc-700" style={{ width: PW * s, height: PH * s }}>
         <iframe ref={frame} src="/assistant/form-preview" title={`Preview of ${title}`} tabIndex={-1}
           className="pointer-events-none origin-top-left border-0" style={{ width: PW, height: PH, transform: `scale(${s})` }} />
       </div>
-      <div className="mt-2 flex items-center justify-center gap-3">
-        <button type="button" onClick={() => onAt(i - 1)} disabled={i === 0} aria-label="Previous screen" className={arrow}><ChevronLeft className="h-4 w-4" strokeWidth={3} /></button>
-        <span className="min-w-[8.5rem] text-center text-[11.5px] font-black text-[#111827] dark:text-white" data-testid="ai-form-preview-label">{label}</span>
-        <button type="button" onClick={() => onAt(i + 1)} disabled={i === screens.length - 1} aria-label="Next screen" className={arrow}><ChevronRight className="h-4 w-4" strokeWidth={3} /></button>
-      </div>
-      <p className="mt-1.5 text-center text-[10.5px] font-semibold leading-snug text-gray-500 dark:text-zinc-400">
-        {`Want a change? Tell me, like “make question ${FIRST_OWN_Q + 1} a pick-one with Yes / No”.`}
-      </p>
     </div>
   )
 }
 
-export function FormPick({ payload, picks, onPicks }: { payload: Record<string, any>; picks: FormPicks; onPicks: (p: FormPicks) => void }) {
+export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy }: {
+  payload: Record<string, any>; picks: FormPicks; onPicks: (p: FormPicks) => void; onOpenEditor?: () => void; busy?: boolean
+  onRevise?: (instruction: string, at: number | null) => Promise<{ ok: boolean; message: string; focus?: number }>
+}) {
   const homes = (payload.homes || []) as CardHome[]
   const steps = useSteps(homes.length ? ['questions', 'background', 'home'] : ['questions', 'background'])
-  // A card that replaced one they asked to change opens its preview on the change (ai_routes._replace_open_form_cards)
+  const title = String(payload.title || 'Your form')
+  // One screen at a time, the same screens as the preview (owner, 11/03): welcome, name/email/phone
+  // (greyed - nothing to change), their questions, thank-you. A card that replaced one they asked to
+  // change opens on that question (ai_routes._replace_open_form_cards).
   const [at, setAt] = useState(typeof payload.focus_q === 'number' ? FIRST_OWN_Q + payload.focus_q : 0)
   const [preview, setPreview] = useState(true)
-  // The questions as taps too (owner, 11/01): what the helper suggested (tap to drop), common ones
-  // to add, and their own typed in. Name, email and phone are always on the form already.
-  const has = (b: FormQuestion) => picks.questions.some(q => q.label.toLowerCase() === b.label.toLowerCase())
+  const last = picks.questions.length + CORE_QS.length + 1
+  const i = Math.min(at, last)
+  const own = i >= FIRST_OWN_Q && i < last ? i - FIRST_OWN_Q : null
+  const q = own !== null ? picks.questions[own] : null
+  const core = i >= 1 && i < FIRST_OWN_Q ? CORE_QS[i - 1] : null
+  // "What should change or be added?" (owner, 11/03): the card itself changes - the preview and this
+  // screen update right here and it moves to the changed (or first added) question. No new card.
+  const [fix, setFix] = useState('')
+  const [fixing, setFixing] = useState(false)
+  const [fixNote, setFixNote] = useState<{ ok: boolean; text: string } | null>(null)
+  const sendFix = async () => {
+    const t = fix.trim()
+    if (!t || fixing || !onRevise) return
+    setFixing(true); setFixNote(null)
+    const r = await onRevise(t, own)
+    setFixing(false)
+    if (r.ok) { setFix(''); if (typeof r.focus === 'number') setAt(FIRST_OWN_Q + r.focus) }
+    setFixNote({ ok: r.ok, text: r.message })
+  }
+  useEffect(() => { if (!fixing) setFixNote(n => (n?.ok ? n : null)) }, [i]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Adding: what the helper suggested, common ones for this kind of form, or their own typed in.
+  const has = (b: FormQuestion) => picks.questions.some(x => x.label.toLowerCase() === b.label.toLowerCase())
   const ideas = ((payload.ideas || []) as FormQuestion[]).filter(b => !has(b))
   const bank = ((payload.bank || []) as FormQuestion[]).filter(b => !has(b) && !ideas.some(d => d.label.toLowerCase() === b.label.toLowerCase()))
+  const [adding, setAdding] = useState(false)
   const [more, setMore] = useState(false)
-  const [own, setOwn] = useState('')
-  const addOwn = () => { const t = own.trim(); if (!t) return; onPicks({ ...picks, questions: [...picks.questions, { label: t, type: 'short_text' }] }); setOwn('') }
+  const [mine, setMine] = useState('')
+  const add = (b: FormQuestion) => { onPicks({ ...picks, questions: [...picks.questions, b] }); setAt(FIRST_OWN_Q + picks.questions.length) }
+  const addMine = () => { const t = mine.trim(); if (!t) return; add({ label: t, type: 'short_text' }); setMine('') }
   const home = homes.find(h => h.listing_key === picks.listing_key)
+  const screenName = i === 0 ? 'Welcome screen' : i === last ? 'Thank-you screen' : `Question ${i} of ${last - 1}`
+  const navBtn = 'ohp-ai-press inline-flex items-center gap-1 rounded-full px-3.5 py-2 text-[12px] font-black disabled:opacity-30'
   return (
-    <div className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-form-pick">
+    <div className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-1.5 sm:p-2.5 dark:bg-zinc-800/50" data-testid="ai-form-pick">
+      {onOpenEditor && (
+        <div className="flex items-center gap-2 rounded-xl bg-white px-2.5 py-2 ring-1 ring-black/5 dark:bg-zinc-900 dark:ring-white/10">
+          <p className="min-w-0 flex-1 text-[11.5px] font-semibold leading-snug text-gray-600 dark:text-zinc-300">Rather edit it in the full form editor?</p>
+          <button type="button" onClick={onOpenEditor} disabled={busy} data-testid="ai-form-open-editor"
+            className="ohp-ai-press inline-flex shrink-0 items-center gap-1 rounded-full bg-[#111827] px-3 py-1.5 text-[11px] font-black text-white disabled:opacity-50 dark:bg-[#C9A24D] dark:text-[#111827]">
+            Open in Forms <ChevronRight className="h-3.5 w-3.5" strokeWidth={3} />
+          </button>
+        </div>
+      )}
       <CardStep id="questions" n={1} title="Questions" summary={`${picks.questions.length} + name, email, phone`} steps={steps}>
         <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400">Questions 1-3 are always name, email and phone.</p>
+          <span className="text-[12px] font-black text-[#111827] dark:text-white" data-testid="ai-form-preview-label">{screenName}</span>
           <button type="button" onClick={() => setPreview(v => !v)} aria-expanded={preview} data-testid="ai-form-preview-toggle"
             className="ohp-ai-press inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[10.5px] font-black text-[#8b7355] ring-1 ring-[#C9A24D]/40 dark:bg-zinc-900 dark:text-[#e8c97a]">
             <Eye className="h-3 w-3" strokeWidth={3} /> {preview ? 'Hide preview' : 'Preview'}
           </button>
         </div>
-        {preview && (
-          <FormPreview title={String(payload.title || 'Your form')} questions={picks.questions} backgroundEffects={picks.background_effects}
-            home={homes.find(h => h.listing_key === picks.listing_key) || null} at={at} onAt={setAt} />
-        )}
-        <ol className="flex flex-col gap-1.5" data-testid="ai-form-questions">
-          {picks.questions.map((q, i) => (
-            <li key={`${q.label}-${i}`} className={`ohp-ai-card-in flex items-start gap-2 rounded-xl bg-white px-2.5 py-2 ring-1 dark:bg-zinc-900 ${preview && at === FIRST_OWN_Q + i ? 'ring-[#C9A24D]' : 'ring-black/5 dark:ring-white/10'}`}>
-              <button type="button" onClick={() => { setPreview(true); setAt(FIRST_OWN_Q + i) }} aria-label={`Preview question ${FIRST_OWN_Q + i}`} title="See it in the preview"
-                className="ohp-ai-press mt-px grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#C9A24D]/15 text-[10px] font-black text-[#8b7355] dark:text-[#e8c97a]">{FIRST_OWN_Q + i}</button>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[12.5px] font-bold leading-snug text-[#111827] dark:text-white">{q.label}</span>
-                <span className="mt-1 flex flex-wrap items-center gap-1">
-                  <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[9.5px] font-black uppercase tracking-wide text-gray-500 dark:bg-zinc-800 dark:text-zinc-400">{Q_LABEL[q.type || 'short_text'] || 'Answer'}</span>
-                  {(q.options || []).map(o => <span key={o} className="rounded-full border border-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:border-zinc-700 dark:text-zinc-300">{o}</span>)}
-                </span>
-              </span>
-              <button type="button" aria-label={`Take off: ${q.label}`} title="Take it off"
-                onClick={() => onPicks({ ...picks, questions: picks.questions.filter((_, k) => k !== i) })}
-                className="ohp-ai-press grid h-6 w-6 shrink-0 place-items-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-zinc-800">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </li>
-          ))}
-        </ol>
-        {/* Ideas made for this form, then common ones for this kind of form (owner, 11/01) */}
-        {[{ title: 'Ideas for this form', list: ideas }, { title: 'Common ones', list: more ? bank : bank.slice(0, 3) }].filter(g => g.list.length).map(g => (
-          <div key={g.title} className="mt-2.5">
-            <p className="mb-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#C9A24D]">{g.title}</p>
-            <div className="flex flex-col gap-1" data-testid={g.title === 'Common ones' ? 'ai-form-bank' : 'ai-form-ideas'}>
-              {g.list.map(b => (
-                <button key={b.label} type="button" onClick={() => onPicks({ ...picks, questions: [...picks.questions, b] })}
-                  className="ohp-ai-press flex items-center gap-2 rounded-lg border border-dashed border-[#C9A24D]/50 bg-white/70 px-2.5 py-1.5 text-left hover:border-[#C9A24D] dark:bg-zinc-900/60">
-                  <Plus className="h-3.5 w-3.5 shrink-0 text-[#C9A24D]" strokeWidth={3} />
-                  <span className="min-w-0 flex-1 text-[12px] font-semibold leading-snug text-gray-700 dark:text-zinc-200">{b.label}</span>
-                  <span className="shrink-0 text-[9.5px] font-black uppercase tracking-wide text-gray-400">{Q_LABEL[b.type || 'short_text'] || ''}</span>
+        {preview && <FormPreview title={title} questions={picks.questions} backgroundEffects={picks.background_effects} home={home || null} at={i} />}
+        {/* This screen: greyed when there's nothing to change, else the question with its fix bar */}
+        <div className="ohp-ai-card-in rounded-xl bg-[#faf7f0]/60 p-2 ring-1 ring-black/5 sm:p-2.5 dark:bg-zinc-800/40 dark:ring-white/10" key={i} data-testid="ai-form-screen">
+          {q ? (
+            <>
+              <div className="flex items-start gap-2">
+                <span className="mt-px grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#C9A24D]/15 text-[10px] font-black text-[#8b7355] dark:text-[#e8c97a]">{i}</span>
+                <p className="min-w-0 flex-1 text-[13px] font-bold leading-snug text-[#111827] dark:text-white">{q.label}</p>
+                <button type="button" aria-label={`Take off: ${q.label}`} title="Take it off"
+                  onClick={() => onPicks({ ...picks, questions: picks.questions.filter((_, k) => k !== own) })}
+                  className="ohp-ai-press -mr-1 -mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-zinc-800">
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
-              ))}
+              </div>
+              {/* Answer choices share a line when they fit */}
+              <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[9.5px] font-black uppercase tracking-wide text-gray-500 dark:bg-zinc-800 dark:text-zinc-400">{Q_LABEL[q.type || 'short_text'] || 'Answer'}</span>
+                {(q.options || []).map(o => <span key={o} className="rounded-full border border-gray-200 px-2 py-0.5 text-[10.5px] font-semibold text-gray-600 dark:border-zinc-700 dark:text-zinc-300">{o}</span>)}
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center gap-2 text-gray-400 dark:text-zinc-500">
+              <Lock className="h-3.5 w-3.5 shrink-0" />
+              <p className="text-[12px] font-semibold leading-snug">
+                {core ? `${core.label} - every form asks this. Nothing to change here.`
+                  : i === 0 ? 'The welcome screen shows your name, photo and the form’s title. Nothing to change here.'
+                  : 'The thank-you screen. You can change its words later in the form editor.'}
+              </p>
             </div>
-            {g.title === 'Common ones' && bank.length > 3 && (
-              <button type="button" onClick={() => setMore(m => !m)} className="mt-1 text-[11px] font-black text-[#8b7355] dark:text-[#e8c97a]">
-                {more ? 'Show fewer' : `+ ${bank.length - 3} more`}
-              </button>
-            )}
-          </div>
-        ))}
-        <div className="mt-2.5 flex gap-1.5">
-          <input value={own} onChange={e => setOwn(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOwn() } }} placeholder="Type your own question"
-            className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-800 outline-none focus:border-[#C9A24D] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
-          <button type="button" onClick={addOwn} disabled={!own.trim()} className="rounded-xl bg-[#111827] px-3 text-[11px] font-black text-white disabled:opacity-40 dark:bg-[#C9A24D] dark:text-[#111827]">Add</button>
+          )}
         </div>
-        <div className="mt-2.5"><StepDone onDone={() => steps.done('questions')} /></div>
+        {/* One line for any change or addition - the card updates right here (owner, 11/03) */}
+        {onRevise && (
+          <div className="mt-2" data-testid="ai-form-fix">
+            <div className="flex gap-1.5">
+              <input value={fix} onChange={e => setFix(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); sendFix() } }} disabled={fixing}
+                placeholder={q ? 'What should change or be added?' : 'Add a question - just say it'}
+                className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[13px] font-medium text-gray-800 outline-none focus:border-[#C9A24D] disabled:opacity-60 sm:text-xs dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+              <button type="button" onClick={sendFix} disabled={!fix.trim() || fixing} aria-label="Make the change"
+                className="ohp-ai-press grid w-10 shrink-0 place-items-center rounded-xl bg-[#8b7355] text-white disabled:opacity-40">
+                {fixing ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <Send className="h-4 w-4" />}
+              </button>
+            </div>
+            {fixing && <p className="mt-1 text-[11px] font-semibold text-gray-500 dark:text-zinc-400">Changing it...</p>}
+            {!fixing && fixNote && <p className={`mt-1 text-[11px] font-semibold ${fixNote.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`} data-testid="ai-form-fix-note">{fixNote.text}</p>}
+          </div>
+        )}
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <button type="button" onClick={() => setAt(i - 1)} disabled={i === 0} className={`${navBtn} bg-white text-[#111827] ring-1 ring-black/10 dark:bg-zinc-900 dark:text-white dark:ring-white/10`}>
+            <ChevronLeft className="h-4 w-4" strokeWidth={3} /> Back
+          </button>
+          {/* Every screen as a dot - tap to jump; name/email/phone and the welcome/thank-you ones are grey */}
+          <div className="flex min-w-0 flex-wrap justify-center gap-[3px]">
+            {Array.from({ length: last + 1 }, (_, k) => (
+              <button key={k} type="button" onClick={() => setAt(k)} aria-label={k === 0 ? 'Welcome screen' : k === last ? 'Thank-you screen' : `Question ${k}`}
+                className={`h-1.5 rounded-full transition-all ${k === i ? 'w-3.5 bg-[#C9A24D]' : k >= FIRST_OWN_Q && k < last ? 'w-1.5 bg-[#C9A24D]/40' : 'w-1.5 bg-gray-300 dark:bg-zinc-600'}`} />
+            ))}
+          </div>
+          {i < last ? (
+            <button type="button" onClick={() => setAt(i + 1)} className={`${navBtn} bg-[#111827] text-white dark:bg-[#C9A24D] dark:text-[#111827]`} data-testid="ai-form-next">
+              Next <ChevronRight className="h-4 w-4" strokeWidth={3} />
+            </button>
+          ) : (
+            <StepDone onDone={() => steps.done('questions')} />
+          )}
+        </div>
+        <button type="button" onClick={() => setAdding(v => !v)} aria-expanded={adding} data-testid="ai-form-add-toggle"
+          className="ohp-ai-press mt-2.5 inline-flex items-center gap-1 text-[11.5px] font-black text-[#8b7355] dark:text-[#e8c97a]">
+          <Plus className="h-3.5 w-3.5" strokeWidth={3} /> {adding ? 'Hide question ideas' : 'Add a question'}
+        </button>
+        {adding && (
+          <>
+            {/* Ideas made for this form, then common ones for this kind of form - short ones share a line */}
+            {[{ title: 'Ideas for this form', list: ideas }, { title: 'Common ones', list: more ? bank : bank.slice(0, 3) }].filter(g => g.list.length).map(g => (
+              <div key={g.title} className="mt-2">
+                <p className="mb-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#C9A24D]">{g.title}</p>
+                <div className="flex flex-wrap gap-1" data-testid={g.title === 'Common ones' ? 'ai-form-bank' : 'ai-form-ideas'}>
+                  {g.list.map(b => (
+                    <button key={b.label} type="button" onClick={() => add(b)} title={Q_LABEL[b.type || 'short_text'] || undefined}
+                      className="ohp-ai-press inline-flex max-w-full items-center gap-1.5 rounded-full border border-dashed border-[#C9A24D]/50 bg-white/70 py-1 pl-2 pr-2.5 text-left hover:border-[#C9A24D] dark:bg-zinc-900/60">
+                      <Plus className="h-3 w-3 shrink-0 text-[#C9A24D]" strokeWidth={3} />
+                      <span className="min-w-0 text-[11.5px] font-semibold leading-snug text-gray-700 dark:text-zinc-200">{b.label}</span>
+                    </button>
+                  ))}
+                </div>
+                {g.title === 'Common ones' && bank.length > 3 && (
+                  <button type="button" onClick={() => setMore(m => !m)} className="mt-1 text-[11px] font-black text-[#8b7355] dark:text-[#e8c97a]">
+                    {more ? 'Show fewer' : `+ ${bank.length - 3} more`}
+                  </button>
+                )}
+              </div>
+            ))}
+            <div className="mt-2 flex gap-1.5">
+              <input value={mine} onChange={e => setMine(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addMine() } }} placeholder="Your own question"
+                className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[13px] font-medium text-gray-800 outline-none focus:border-[#C9A24D] sm:text-xs dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+              <button type="button" onClick={addMine} disabled={!mine.trim()} className="rounded-xl bg-[#111827] px-3 text-[11px] font-black text-white disabled:opacity-40 dark:bg-[#C9A24D] dark:text-[#111827]">Add</button>
+            </div>
+          </>
+        )}
       </CardStep>
       <CardStep id="background" n={2} title="Background" summary={picks.background_effects ? 'Moving' : 'Still'} steps={steps}>
       <button type="button" role="switch" aria-checked={picks.background_effects} onClick={() => { onPicks({ ...picks, background_effects: !picks.background_effects }); steps.picked('background') }}

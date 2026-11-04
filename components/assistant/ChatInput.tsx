@@ -43,6 +43,14 @@ function getSpeechRecognition(): (new () => SpeechRecognitionLike) | null {
 
 export default function ChatInput({ onSend, disabled, maxChars = 12000, placeholder, onUserSpeaking, onStartCall }: ChatInputProps) {
   const [value, setValue] = useState('')
+  // The box grows with what's typed so it all shows (owner, 11/03), up to 40% of the screen.
+  const boxRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    const el = boxRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight + 2}px`
+  }, [value])
   const [isListening, setIsListening] = useState(false)
   const [voiceSupported, setVoiceSupported] = useState(false)
   const [showMicChoice, setShowMicChoice] = useState(false)
@@ -231,8 +239,9 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
           onKeyDown={handleKeyDown}
           placeholder={isListening ? 'Listening...' : placeholder || 'Ask me anything...'}
           rows={1}
-          className="flex-1 resize-none rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/60 px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/50 focus:border-[#C9A24D]/50 transition-all max-h-32"
-          style={{ minHeight: '48px', scrollbarGutter: 'stable' }}
+          ref={boxRef}
+          className="flex-1 resize-none rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/60 px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/50 focus:border-[#C9A24D]/50 transition-[box-shadow,border-color]"
+          style={{ minHeight: '48px', maxHeight: '40vh', scrollbarGutter: 'stable' }}
           // Never switched off while a reply is coming (owner, 10/31): a disabled box drops the
           // cursor, so typing the next message needed a tap back in. They can type ahead; only
           // sending waits (handleSend checks disabledRef).

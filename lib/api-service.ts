@@ -2121,6 +2121,11 @@ class ApiService {
     saveActionDraft: (actionId: string, messageId: string, picks: Record<string, unknown>) =>
       this.request<{ saved: boolean }>(`/ai/actions/${actionId}/draft`, { method: 'POST', body: JSON.stringify({ message_id: messageId, picks }) }),
 
+    // A form card's "What should change or be added?" line - the card changes in place (11/03)
+    reviseFormCard: (actionId: string, messageId: string, body: { instruction: string; at: number | null; picks: Record<string, unknown> }) =>
+      this.request<{ questions: { label: string; type?: string; options?: string[]; required?: boolean }[]; focus: number; note: string }>(
+        `/ai/actions/${actionId}/revise-form`, { method: 'POST', body: JSON.stringify({ message_id: messageId, ...body }) }),
+
     clientActionResult: (actionId: string, messageId: string, out: { ok: boolean; message: string; link?: string; made?: Record<string, unknown> }) =>
       this.request<{ status: string; result_message?: string; result_link?: string; made?: { kind: string; title?: string; design_id?: string; is_print?: string } }>(`/ai/actions/${actionId}/client-result`, { method: 'POST', body: JSON.stringify({ message_id: messageId, ...out }) }),
 

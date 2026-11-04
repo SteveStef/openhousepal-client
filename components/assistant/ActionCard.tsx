@@ -306,6 +306,30 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   // A Spotlight made just now finishes its own setup right here (amenities, highlights, story, town).
   const [setup, setSetup] = useState<SetupStep[] | null>(null)
 
+  // "Rather edit it in the full form editor?" (owner, 11/03): the form is made from the card as it is
+  // and opens in the Forms page's editor. The card is then done, so a tap here later can never make
+  // a second copy or undo what they finished there.
+  const openInForms = async () => {
+    setBusy('confirm')
+    const r = await api.ai.confirmAction(action.record_id, messageId, form as unknown as Record<string, unknown>)
+    setBusy(null)
+    if (!r.success || !r.data) return
+    const link = r.data.result_link || ''
+    setState({ status: r.data.status || 'failed', share: null, link,
+      message: r.data.status === 'done' ? 'Made - it opened in the Forms editor. Changes you make there are the real form.' : r.data.result_message || '' })
+    if (r.data.status === 'done' && link) window.dispatchEvent(new CustomEvent('ohp:navigate', { detail: link }))
+  }
+
+  // The card's "What should change or be added?" line - its questions change in place (11/03)
+  const reviseForm = async (instruction: string, at: number | null) => {
+    const r = await api.ai.reviseFormCard(action.record_id, messageId, { instruction, at, picks: form as unknown as Record<string, unknown> })
+    if (!r.success || !r.data) return { ok: false, message: r.error || r.message || "Couldn't make that change - try again." }
+    const next = { ...form, questions: r.data.questions.map(q => ({ label: q.label, type: q.type, options: q.options, required: q.required })) }
+    formSaved.current = JSON.stringify(next)  // already saved on the card by the server
+    setForm(next)
+    return { ok: true, message: r.data.note, focus: r.data.focus }
+  }
+
   const act = async (kind: 'confirm' | 'cancel') => {
     setBusy(kind)
     const r = kind === 'confirm'
@@ -343,9 +367,9 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   // could keep tapping options already sent).
   const choosing = pending && busy !== 'confirm'
   const working = !!busy || state.status === 'running' || state.status === 'working' || (!!setup && setup.some(s => s.state === 'run' || s.state === 'wait'))
-  const iconState = working ? 'live' : state.status === 'done' ? 'done' : state.status === 'cancelled' || state.status === 'expired' || state.status === 'failed' || state.status === 'replaced' ? 'off' : 'idle'
+  const iconState = working ? 'live' : state.status === 'done' ? 'done' : state.status === 'cancelled' || state.status === 'expired' || state.status === 'failed' || state.status === 'replaced' || state.status === 'stale' ? 'off' : 'idle'
   return (
-    <div className={`ohp-ai-card-in mt-2 w-full rounded-2xl border bg-white p-3.5 text-left shadow-sm transition-colors duration-300 dark:bg-zinc-900 ${
+    <div className={`ohp-ai-card-in mt-2 w-full rounded-2xl border bg-white p-2.5 sm:p-3.5 text-left shadow-sm transition-colors duration-300 dark:bg-zinc-900 ${
       state.status === 'done' ? 'border-emerald-200 dark:border-emerald-900/50' : working ? 'border-[#C9A24D] shadow-[0_8px_26px_-14px_rgba(201,162,77,.7)]' : 'border-[#C9A24D]/40 dark:border-[#C9A24D]/30'}`} data-testid="ai-action-card">
       <div className="flex items-center gap-3">
         <CardIcon tool={action.tool} state={iconState} />
@@ -379,7 +403,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
       )}
       {isSpotlight && choosing && <SpotlightPick payload={action.payload as Record<string, any>} picks={spot} onPicks={setSpot} />}
       {isCma && choosing && <CmaPick payload={action.payload as Record<string, any>} ai={cmaAi} onAi={setCmaAi} mode={cmaMode} onMode={setCmaMode} />}
-      {isForm && choosing && <FormPick payload={action.payload as Record<string, any>} picks={form} onPicks={setForm} />}
+      {isForm && choosing && <FormPick payload={action.payload as Record<string, any>} picks={form} onPicks={setForm} onOpenEditor={openInForms} onRevise={reviseForm} busy={!!busy} />}
       {isDiscovery && choosing && <DiscoveryPick payload={action.payload as Record<string, any>} picks={disc} onPicks={setDisc} />}
       {isInviteSend && choosing && <InviteSendPick payload={action.payload as Record<string, any>} picks={inviteSend} onPicks={setInviteSend} />}
       {isKit && choosing && <KitPick payload={action.payload as Record<string, any>} picks={kit} onPicks={setKit} />}
