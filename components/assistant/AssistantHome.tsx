@@ -1,11 +1,12 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
+import api from '@/lib/api-service'
 import { OhpBot } from './OhpBot'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
 
-// The helper does things for you and shows you around the app (owner, 10/30) - no "suggested
-// actions" about clients here: the daily briefing, the Dash and alerts already cover that.
+// Shown until their own ideas load (GET /ai/suggestions, 11/04), or if those can't.
 const SUGGESTED_PROMPTS = [
   'How do I set up my Agent Hub?',
   'Make me a Just Listed post for my newest listing',
@@ -20,6 +21,14 @@ interface AssistantHomeProps {
 }
 
 export default function AssistantHome({ onPrompt }: AssistantHomeProps) {
+  // Picked from their own account - a new listing with no Spotlight, form answers to recap,
+  // follow-ups waiting (owner, 11/04). The list above shows until they arrive, or if they can't.
+  const [prompts, setPrompts] = useState(SUGGESTED_PROMPTS)
+  useEffect(() => {
+    let live = true
+    api.ai.getSuggestions().then(r => { if (live && r.success && r.data?.suggestions?.length) setPrompts(r.data.suggestions) }).catch(() => {})
+    return () => { live = false }
+  }, [])
   return (
     <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-8 sm:py-12">
       <div className="max-w-2xl mx-auto">
@@ -33,7 +42,7 @@ export default function AssistantHome({ onPrompt }: AssistantHomeProps) {
 
         <p className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-zinc-500 mb-3">Try asking</p>
         <div className="grid sm:grid-cols-2 gap-2">
-          {SUGGESTED_PROMPTS.map((prompt, i) => (
+          {prompts.map((prompt, i) => (
             <button
               key={prompt}
               onClick={() => onPrompt(prompt)}

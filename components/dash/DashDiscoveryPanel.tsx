@@ -1,9 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Bath, Bed, CalendarCheck, CalendarPlus, Clock, Hand, Maximize, MessageSquareReply, Search, XCircle } from 'lucide-react'
+import { ArrowRight, Bath, Bed, CalendarCheck, CalendarPlus, ChevronDown, Clock, Hand, Info, Maximize, MessageSquareReply, Search, XCircle } from 'lucide-react'
 import api from '@/lib/api-service'
 import RequestToHostModal from '@/components/open-house-manager/RequestToHostModal'
 import EmailHostFlow from '@/components/open-house-manager/EmailHostFlow'
@@ -72,6 +72,20 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
   const [emailing, setEmailing] = useState<DiscoveryListing | null>(null)
   const [viewing, setViewing] = useState<string | null>(null)
   const [requests, setRequests] = useState<{ focus: string | null } | null>(null)
+  // In the chat (owner, 11/04: "so long"): every home folds to one line - photo, address, open dates -
+  // and tapping one opens its weekend calendar (one at a time). In a wide chat the calendar sits on the
+  // same line as the home, after the address. Wide goes by the chat's own width, not the screen's.
+  const [openKey, setOpenKey] = useState<string | null>(null)
+  const boxRef = useRef<HTMLDivElement>(null)
+  const [boxW, setBoxW] = useState(0)
+  useEffect(() => {
+    const el = boxRef.current
+    if (!inChat || !el) return
+    const ro = new ResizeObserver(([e]) => setBoxW(e.contentRect.width))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [inChat])
+  const wideChat = inChat && boxW >= 640
   const ask = (listing: DiscoveryListing, date?: string) => {
     if ((listing as { AgentOnPlatform?: boolean }).AgentOnPlatform === false) {
       setEmailing(listing)
@@ -174,7 +188,7 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
   }
 
   return (
-    <div className={inChat ? 'min-w-0 space-y-3' : `min-w-0 space-y-4 ${DASH_OPENS_MIN_HEIGHT_CLASS}`}>
+    <div ref={boxRef} className={inChat ? 'min-w-0 space-y-3' : `min-w-0 space-y-4 ${DASH_OPENS_MIN_HEIGHT_CLASS}`}>
       {!inChat && asksBanner}
       {!inChat && hostingList}
 
@@ -193,6 +207,22 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
             const notYet = hostingNote(window)
             const hostingDate = hostingMine ? ('scheduled_date' in hostingMine ? hostingMine.scheduled_date : (hostingMine as HostRequest).requested_date) : null
             const go = () => setViewing(listing.ListingKey)
+            const folded = inChat && openKey !== listing.ListingKey
+            const calendar = (
+              <WeekendCalendarCards
+                opens={opens}
+                onCellClick={(cell, open) => (open ? go() : ask(listing, cell.date))}
+                size="sm"
+                filledClickable={false}
+                emptyCellTitle="Click to request hosting this date"
+                viewerId={user?.id}
+                othersMuted
+                pendingDates={pendingDates}
+                pendingLabel="Requested"
+                pendingTitle="You asked to host this date - waiting on the listing agent"
+                hostingWindow={window}
+              />
+            )
             return (
               <motion.div
                 key={listing.ListingKey}
@@ -203,7 +233,10 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
                   hostingMine ? 'border-emerald-300 dark:border-emerald-500/30' : 'border-gray-200 hover:border-[#C9A24D]/50 dark:border-gray-800'}`}
               >
                 {hostingMine && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-emerald-300 to-emerald-500" />}
-                <button type="button" onClick={go} className="flex w-full min-w-0 items-center gap-3 text-left">
+                <div className={wideChat && !folded ? 'flex min-w-0 items-center gap-3' : undefined}>
+                <button type="button" onClick={inChat ? () => setOpenKey(k => (k === listing.ListingKey ? null : listing.ListingKey)) : go}
+                  aria-expanded={inChat ? !folded : undefined} data-testid={inChat ? 'ai-host-home' : undefined}
+                  className={`flex min-w-0 items-center gap-3 text-left ${wideChat && !folded ? 'w-[42%] shrink-0' : 'w-full'}`}>
                   <ListingCover
                     src={listing.Image}
                     price={listing.Price || null}
@@ -230,23 +263,17 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
                         : <Pill tone="muted">Fully hosted</Pill>}
                     </div>
                   </div>
+                  {inChat && <ChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${folded ? '' : 'rotate-180'}`} />}
                 </button>
-                <div className="mt-2">
-                  <WeekendCalendarCards
-                    opens={opens}
-                    onCellClick={(cell, open) => (open ? go() : ask(listing, cell.date))}
-                    size="sm"
-                    filledClickable={false}
-                    emptyCellTitle="Click to request hosting this date"
-                    viewerId={user?.id}
-                    othersMuted
-                    pendingDates={pendingDates}
-                    pendingLabel="Requested"
-                    pendingTitle="You asked to host this date - waiting on the listing agent"
-                    hostingWindow={window}
-                  />
+                {wideChat && !folded && <div className="min-w-0 flex-1">{calendar}</div>}
                 </div>
-                {!hostingMine && openDays > 0 && (
+                {!folded && !wideChat && <div className="mt-2">{calendar}</div>}
+                {inChat && !folded && (
+                  <button type="button" onClick={go} className="mt-1.5 inline-flex items-center gap-1 text-[10.5px] font-black text-[#8b7355] hover:underline dark:text-[#d7b974]">
+                    <Info className="h-3 w-3" /> Home details
+                  </button>
+                )}
+                {!folded && !hostingMine && openDays > 0 && (
                   <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => ask(listing)}
                     className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#111827] py-2.5 text-[11px] font-black uppercase tracking-widest text-white shadow-[0_10px_24px_-14px_rgba(17,24,39,.9)] transition hover:-translate-y-0.5 dark:bg-white dark:text-[#111827]">
                     <CalendarPlus className="h-3.5 w-3.5" /> Request to host

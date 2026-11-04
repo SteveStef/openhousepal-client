@@ -26,6 +26,7 @@ import { DashboardView } from './components/DashboardView'
 import { DetailView } from './components/DetailView'
 import type { BulkAction } from '@/components/showcases/ShowcaseSelectBar'
 import ShowcaseActivityInbox from './components/ShowcaseActivityInbox'
+import NewMatchesInbox from './components/NewMatchesInbox'
 import { CreateCollectionModal, type ShowcaseClientInfo } from './components/CreateCollectionModal'
 import { copyText } from '@/lib/copyText'
 
@@ -96,6 +97,13 @@ function ShowcaseContent() {
   // Header inboxes - tour requests still waiting on the agent + client activity, across Showcases.
   const [inbox, setInbox] = useState<ShowcaseInbox>({ tours: [], activity: [], unread_activity: 0 })
   const [isActivityInboxOpen, setIsActivityInboxOpen] = useState(false)
+  // The New Matches mailbox; ?new=1 opens it (the AI helper's button).
+  const [isNewMatchesOpen, setIsNewMatchesOpen] = useState(false)
+  const [newMatchCount, setNewMatchCount] = useState(0)
+  useEffect(() => {
+    api.collections.getNewMatches().then(r => { if (r.success && r.data) setNewMatchCount(r.data.count) }).catch(() => {})
+  }, [])
+  useEffect(() => { if (searchParams.get('new') === '1') setIsNewMatchesOpen(true) }, [searchParams])
   const [deleteAlsoRemoves, setDeleteAlsoRemoves] = useState<string[] | null>(null)
   const [deleteModalState, setDeleteModalState] = useState<{ isOpen: boolean, collection: Collection | null }>({
     isOpen: false,
@@ -1133,6 +1141,8 @@ function ShowcaseContent() {
           unreadActivityCount={inbox.unread_activity}
           onOpenTourInbox={handleOpenTourInbox}
           onOpenActivityInbox={handleOpenActivityInbox}
+          newMatchCount={newMatchCount}
+          onOpenNewMatches={() => setIsNewMatchesOpen(true)}
         />
         </motion.div>
       )}
@@ -1149,6 +1159,9 @@ function ShowcaseContent() {
         isLoading={isLoadingTours}
         subtitle={toursCollectionId ? undefined : `${collectionTours.filter(t => !t.confirmed_date && !t.is_completed).length} waiting on you, from every Showcase`}
       />
+
+      <NewMatchesInbox isOpen={isNewMatchesOpen} onChanged={setNewMatchCount}
+        onClose={() => { setIsNewMatchesOpen(false); fetchCollections() }} />
 
       <ShowcaseActivityInbox
         isOpen={isActivityInboxOpen}

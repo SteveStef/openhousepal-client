@@ -2,7 +2,7 @@
 
 import { Check, Lock, QrCode } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/api-service'
-import { CardStep, StepDone, useSteps } from './CardPickers'
+import { CardStep, OPTION_GRID, PickShell, StepDone, useSteps } from './CardPickers'
 
 // An Open House Kit from the chat (owner, 11/01: the core feature it couldn't do). The kit maker's own
 // choices as steps - which home, the cover photo, the kit's pieces, what happens after a guest signs
@@ -54,9 +54,8 @@ export function KitPick({ payload, picks, onPicks }: { payload: Record<string, a
   const pieces = ['Sign-in QR', 'Flyer', picks.similar && 'Similar Homes', picks.cheatSheet && 'Cheat Sheet'].filter(Boolean) as string[]
   const after = [picks.autoShowcase && 'Showcases', picks.guestPass && 'Guest Pass', picks.followupsMode !== 'off' && 'Follow-ups'].filter(Boolean) as string[]
   return (
-    <div className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-kit-pick">
-      {/* the flyer's cover, redrawn as they pick */}
-      {home && (
+    <PickShell testid="ai-kit-pick" side={280} preview={home ? (
+      /* the flyer's cover, redrawn as they pick */
         <div className="relative mx-auto aspect-[4/3] w-full max-w-[260px] overflow-hidden rounded-xl bg-[#111827] shadow-[0_14px_30px_-16px_rgba(0,0,0,.6)] ring-1 ring-black/10" data-testid="ai-kit-preview">
           {cover && <img key={cover} src={resolveMediaUrl(cover)} alt="" className="ohp-ai-fade absolute inset-0 h-full w-full object-cover" />}
           <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
@@ -67,10 +66,10 @@ export function KitPick({ payload, picks, onPicks }: { payload: Record<string, a
           </span>
           <span className="absolute bottom-2.5 right-2.5 grid h-8 w-8 place-items-center rounded-lg bg-white text-[#111827] shadow"><QrCode className="h-5 w-5" /></span>
         </div>
-      )}
+    ) : undefined}>
       {homes.length > 1 && (
         <CardStep id="home" n={n('home')} title="Home" summary={home?.street} steps={steps}>
-          <div className="space-y-1.5" data-testid="ai-kit-homes">
+          <div className={OPTION_GRID} data-testid="ai-kit-homes">
             {homes.map(h => {
               const on = h.listing_key === picks.listing_key
               return (
@@ -109,7 +108,7 @@ export function KitPick({ payload, picks, onPicks }: { payload: Record<string, a
         </CardStep>
       )}
       <CardStep id="pieces" n={n('pieces')} title="In the kit" summary={pieces.join(', ')} steps={steps}>
-        <div className="space-y-1.5">
+        <div className={OPTION_GRID}>
           <Row on locked sub="Guests scan it to sign in - every kit has it">QR sign-in sheet</Row>
           <Row on locked sub="With your cover photo and the home's details">Flyer</Row>
           <Row on={picks.similar} onClick={() => set({ similar: !picks.similar })} sub={home?.own ? 'Off at your own listing by default - homes like it nearby' : 'Homes like it nearby, picked for you'}>Similar Homes sheet</Row>
@@ -118,18 +117,18 @@ export function KitPick({ payload, picks, onPicks }: { payload: Record<string, a
         <div className="mt-2.5"><StepDone onDone={() => steps.done('pieces')} /></div>
       </CardStep>
       <CardStep id="guests" n={n('guests')} title="After they sign in" summary={after.join(', ') || 'Nothing'} steps={steps}>
-        <div className="space-y-1.5">
+        <div className={OPTION_GRID}>
           <Row on={picks.autoShowcase} onClick={() => set({ autoShowcase: !picks.autoShowcase })} sub="Guests without an agent get homes like this one, emailed as they come up">Build each guest a Showcase</Row>
           <Row on={picks.guestPass} onClick={() => set({ guestPass: !picks.guestPass })} sub="Their own page for this home - photos, details and a second-visit button">Guest Pass</Row>
         </div>
         <p className="mb-1.5 mt-2.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#C9A24D]">Follow-ups for each guest</p>
-        <div className="space-y-1.5">
+        <div className={OPTION_GRID}>
           {([['on', 'On', 'Added to Follow-ups and your calendar'], ['no_calendar', 'Not on my calendar', 'In Follow-ups only'], ['off', 'Off', 'No follow-ups for this open house']] as const).map(([id, name, sub]) => (
             <Row key={id} round on={picks.followupsMode === id} onClick={() => set({ followupsMode: id })} sub={sub}>{name}</Row>
           ))}
         </div>
         <div className="mt-2.5"><StepDone onDone={() => steps.done('guests')} /></div>
       </CardStep>
-    </div>
+    </PickShell>
   )
 }

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { Check, Link2, Play, Plus, Star } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/api-service'
 import { youtubeIdOf } from '@/components/studio/blogs/ShowcaseBlocks'
-import { CardStep, StepDone, useSteps } from './CardPickers'
+import { CardStep, OPTION_GRID, StepDone, useSteps } from './CardPickers'
 
 // The Blogs page's AI writer interview, as the chat card's steps (owner, 11/01: "exactly how it would
 // be if you were actually on the blog ... sections, collapsible when they're done ... questions
@@ -99,13 +99,13 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
     <div className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-blog-pick">
       <CardStep id="topic" n={n('topic')} title="Topic" summary={picks.topic} steps={steps}>
         <Label>The angle</Label>
-        <div className="space-y-1.5" data-testid="ai-blog-angles">
+        <div className={OPTION_GRID} data-testid="ai-blog-angles">
           {angles.map(a => <Check2 key={a} round on={picks.topic === a} onClick={() => set({ topic: a })} sub={a === given ? 'What you asked for' : undefined}>{a}</Check2>)}
         </div>
         {goals.length > 0 && (
           <>
             <Label>What readers walk away with</Label>
-            <div className="space-y-1.5" data-testid="ai-blog-goals">
+            <div className={OPTION_GRID} data-testid="ai-blog-goals">
               {goals.map(g => <Check2 key={g} round on={picks.goal === g} onClick={() => set({ goal: picks.goal === g ? '' : g })}>{g}</Check2>)}
             </div>
           </>
@@ -136,7 +136,7 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
 
       <CardStep id="points" n={n('points')} title="Key points" summary={picks.points.length ? `${picks.points.length} to cover` : 'Optional'} steps={steps}>
         <Label>Check what it should cover</Label>
-        <div className="space-y-1.5" data-testid="ai-blog-points">
+        <div className={OPTION_GRID} data-testid="ai-blog-points">
           {pointIdeas.map(p => <Check2 key={p} on={picks.points.includes(p)} onClick={() => set({ points: toggle(picks.points, p, 12) })}>{p}</Check2>)}
         </div>
         <div className="mt-1.5 flex gap-1.5">
@@ -156,7 +156,7 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
           {sales.length > 0 && (
             <>
               <Label>Your sales · up to {MAX_SALES}</Label>
-              <div className="space-y-1.5" data-testid="ai-blog-sales">
+              <div className={OPTION_GRID} data-testid="ai-blog-sales">
                 {salesSorted.slice(0, moreSales).map((x, i) => (
                   <Check2 key={x.id} on={picks.sale_ids.includes(x.id)} onClick={() => set({ sale_ids: toggle(picks.sale_ids, x.id, MAX_SALES) })}
                     sub={[x.city, money(x.price), x.date ? `Sold ${x.date}` : ''].filter(Boolean).join(' · ')}>
@@ -176,7 +176,7 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
           {listings.length > 0 && (
             <>
               <Label>Your active listings (shown as home cards)</Label>
-              <div className="space-y-1.5">
+              <div className={OPTION_GRID}>
                 {listings.map(l => (
                   <Check2 key={l.id} on={picks.listing_ids.includes(l.id)} onClick={() => set({ listing_ids: toggle(picks.listing_ids, l.id, 6) })}
                     sub={[l.city, money(l.price), l.beds ? `${l.beds} bd` : ''].filter(Boolean).join(' · ')}>
@@ -232,11 +232,11 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
 
       <CardStep id="style" n={n('style')} title="Style" summary={styleSummary} steps={steps}>
         <Label>Tone</Label>
-        <div className="space-y-1.5">
+        <div className={OPTION_GRID}>
           {BLOG_TONES.map(([id, name, hint]) => <Check2 key={id} round on={picks.tone === id} onClick={() => set({ tone: id })} sub={hint}>{name}</Check2>)}
         </div>
         <Label>Length</Label>
-        <div className="space-y-1.5">
+        <div className={OPTION_GRID}>
           {BLOG_LENGTHS.map(([id, name, words]) => <Check2 key={id} round on={picks.length === id} onClick={() => set({ length: id })} sub={[words, pctText(id)].filter(Boolean).join(' · ')}>{name}</Check2>)}
         </div>
         <Label>What readers tap at the end</Label>

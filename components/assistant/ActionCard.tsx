@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Check, Loader2, X, AlertTriangle, ArrowRight, Download } from 'lucide-react'
+import { Check, ChevronRight, Loader2, X, AlertTriangle, ArrowRight, Download } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { isTouchPhone, saveFile } from '@/lib/mobileShare'
 import { AIToolCallRef } from '@/types'
@@ -17,7 +17,7 @@ import { BlogPick, type BlogPicks } from './BlogPick'
 import { KitPick, kitStart, type KitPicks } from './KitPick'
 import { DiscoveryPick, discoveryStart, type DiscoveryPicks } from './DiscoveryPick'
 import { InviteSendPick, inviteSendInitial, inviteSendLabel, type InviteSendPicks } from './InviteSendPick'
-import { WorkingScene, CardIcon, CardStep, StepDone, CmaPick, DesignLivePreview, BrandLivePreview, FormPick, SetupSteps, SpotlightPick, useDesignProperty, useSteps, type FormPicks, type SpotlightPicks } from './CardPickers'
+import { WorkingScene, CardIcon, CardStep, StepDone, CmaPick, DesignLivePreview, BrandLivePreview, FormPick, OPTION_GRID, PickShell, SetupSteps, SpotlightPick, useDesignProperty, useSteps, type FormPicks, type SpotlightPicks } from './CardPickers'
 import { joinColorMode, splitColorMode } from '@/lib/studio/designColors'
 import { LUXE_METALS, LUXE_METAL_ORDER, type LuxeMetal } from '@/lib/luxeMetals'
 import { runSpotlightSetup, type SetupStep } from '@/components/property-sites/spotlight/autoSetup'
@@ -120,13 +120,14 @@ function DesignPick({ payload: given, look, onLook, idx }: { payload: Record<str
   // every step folded (after the photo, or by hand): the picture grows and can be dragged
   const big = steps.open === null
   return (
-    <div className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-design-pick">
-      {/* how it will look, redrawn as they tap (owner, 11/01) - the Studio's own renderer */}
+    <PickShell testid="ai-design-pick" side={300} preview={
+      /* how it will look, redrawn as they tap (owner, 11/01) - the Studio's own renderer */
       <DesignLivePreview payload={payload} layout={layout} colors={joinColorMode(look.colors, look.metal)} property={property} photo={photo}
         focal={look.focal} onFocal={f => onLook({ ...look, focal: f })} big={big} />
+    }>
       {homes.length > 1 && (
         <CardStep id="home" n={n('home')} title="Home" summary={(payload.address || '').split(',')[0]} steps={steps}>
-          <div className="flex flex-col gap-1.5" data-testid="ai-design-homes">
+          <div className={OPTION_GRID} data-testid="ai-design-homes">
             {homes.map(h => {
               const on = h.listing_key === payload.listing_key
               return (
@@ -212,12 +213,28 @@ function DesignPick({ payload: given, look, onLook, idx }: { payload: Record<str
           </div>
         </CardStep>
       )}
-    </div>
+    </PickShell>
   )
 }
 
 // Something the helper SET UP for the agent (10/30) - nothing happens until they tap Confirm.
 // The server keeps the status, so a reload shows Done / Cancelled, never a second Confirm.
+// Which cards can hand off to their feature's own editor (owner, 11/03), and how. Kits already open
+// on the Open Houses page; sending, settings switches and follow-ups have no editor to hand off to.
+type EditorHandoff = { mode: 'make' | 'move'; page: string; ask: string; button: string; href?: string }
+function editorFor(action: AIToolCallRef): EditorHandoff | null {
+  const make = (page: string, ask: string, button: string): EditorHandoff => ({ mode: 'make', page, ask, button })
+  if (action.picker === 'form') return make('the Forms editor', 'Rather edit it in the full form editor?', 'Open in Forms')
+  if (action.picker === 'spotlight') return make('the Spotlight editor', 'Rather finish it in the full Spotlight editor?', 'Open in Spotlight')
+  if (action.picker === 'invite') return make('the invite editor', 'Rather finish it in the full invite editor?', 'Open in Invites')
+  if (action.picker === 'cma') return make('your CMA', 'Rather work on it on the CMA page?', 'Open the CMA')
+  if (action.client_action === 'create_design') return make('Studio', 'Rather fine-tune it in the Studio editor?', 'Open in Studio')
+  if (action.tool === 'create_showcase') return make('Showcases', 'Rather set it up on the Showcases page?', 'Open in Showcases')
+  if (action.picker === 'brand') return { mode: 'move', page: 'the Branding page', ask: 'Rather pick on the Branding page?', button: 'Open Branding', href: '/studio/brand-kit' }
+  if (action.picker === 'blog') return { mode: 'move', page: 'the Blogs page', ask: 'Rather write it yourself on the Blogs page?', button: 'Open Blogs', href: '/studio/blogs?new=1' }
+  return null
+}
+
 export default function ActionCard({ messageId, action }: { messageId: string; action: AIToolCallRef }) {
   const { user } = useAuth()
   const [state, setState] = useState<{ status: string; message: string; link: string; made?: Made; share?: AIToolCallRef['share'] }>({
@@ -306,20 +323,6 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   // A Spotlight made just now finishes its own setup right here (amenities, highlights, story, town).
   const [setup, setSetup] = useState<SetupStep[] | null>(null)
 
-  // "Rather edit it in the full form editor?" (owner, 11/03): the form is made from the card as it is
-  // and opens in the Forms page's editor. The card is then done, so a tap here later can never make
-  // a second copy or undo what they finished there.
-  const openInForms = async () => {
-    setBusy('confirm')
-    const r = await api.ai.confirmAction(action.record_id, messageId, form as unknown as Record<string, unknown>)
-    setBusy(null)
-    if (!r.success || !r.data) return
-    const link = r.data.result_link || ''
-    setState({ status: r.data.status || 'failed', share: null, link,
-      message: r.data.status === 'done' ? 'Made - it opened in the Forms editor. Changes you make there are the real form.' : r.data.result_message || '' })
-    if (r.data.status === 'done' && link) window.dispatchEvent(new CustomEvent('ohp:navigate', { detail: link }))
-  }
-
   // The card's "What should change or be added?" line - its questions change in place (11/03)
   const reviseForm = async (instruction: string, at: number | null) => {
     const r = await api.ai.reviseFormCard(action.record_id, messageId, { instruction, at, picks: form as unknown as Record<string, unknown> })
@@ -330,7 +333,8 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
     return { ok: true, message: r.data.note, focus: r.data.focus }
   }
 
-  const act = async (kind: 'confirm' | 'cancel') => {
+  const act = async (kind: 'confirm' | 'cancel'): Promise<{ status: string; link: string }> => {
+    let end = { status: 'failed', link: '' }
     setBusy(kind)
     const r = kind === 'confirm'
       ? await api.ai.confirmAction(action.record_id, messageId, picks as Record<string, unknown> | undefined)
@@ -343,11 +347,13 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
       const out = await runClientAction(data.client_action, { ...(data.payload || {}), ...picked }, user)
       const saved = await api.ai.clientActionResult(action.record_id, messageId, out)
       setFresh(true)
-      setState({ status: saved.data?.status || (out.ok ? 'done' : 'failed'), message: saved.data?.result_message || out.message, link: saved.data?.result_link || out.link || '', made: (saved.data as any)?.made || (out.made as Made) })
+      end = { status: saved.data?.status || (out.ok ? 'done' : 'failed'), link: saved.data?.result_link || out.link || '' }
+      setState({ ...end, message: saved.data?.result_message || out.message, made: (saved.data as any)?.made || (out.made as Made) })
     } else if (r.success && r.data) {
       const made = (r.data as any).made as Made
       setFresh(true)
-      setState({ status: r.data.status || 'failed', message: r.data.result_message || '', link: r.data.result_link || '', share: (r.data as any).share || null, made })
+      end = { status: r.data.status || 'failed', link: r.data.result_link || '' }
+      setState({ ...end, message: r.data.result_message || '', share: (r.data as any).share || null, made })
       // Same as the editor's Publish / Take down: drop the live page's cached copy, or a taken-down
       // Spotlight keeps showing (Next never replaces a cached page with the server's "not found").
       if (r.data.status === 'done' && action.tool === 'publish_spotlight') fetch('/api/website-property-sites/revalidate', { method: 'POST' }).catch(() => {})
@@ -360,6 +366,29 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
       setState({ status: 'failed', message: r.error || 'Something went wrong - nothing was changed.', link: '' })
     }
     setBusy(null)
+    return end
+  }
+
+  // "Rather do it in the full editor?" (owner, 11/03: every feature where it makes sense). 'make': the
+  // card makes it as it is now, then its own editor opens. 'move': nothing is made here (Branding is
+  // just a page of settings; a blog post would start a paid AI write) - the card closes so a tap later
+  // can't overwrite what they do on the page, and the page opens.
+  const editor = editorFor(action)
+  const openInEditor = async () => {
+    if (!editor) return
+    if (editor.mode === 'move') {
+      setBusy('cancel')
+      await api.ai.cancelAction(action.record_id, messageId)
+      setBusy(null)
+      setState({ status: 'cancelled', message: `Moved to ${editor.page} - finish it there.`, link: editor.href || '' })
+      window.dispatchEvent(new CustomEvent('ohp:navigate', { detail: editor.href }))
+      return
+    }
+    const end = await act('confirm')
+    if ((end.status === 'done' || end.status === 'working') && end.link) {
+      setState(st => ({ ...st, message: `Made - it opened in ${editor.page}. Changes you make there are the real thing.` }))
+      window.dispatchEvent(new CustomEvent('ohp:navigate', { detail: end.link }))
+    }
   }
 
   const pending = state.status === 'pending'
@@ -396,14 +425,22 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
       )}
       {isDesign && choosing && <DesignPick payload={action.payload as Record<string, any>} look={look} onLook={setLook} idx={idx} />}
       {isBrand && choosing && (
-        <div className="mt-3 space-y-2">
-          <BrandLivePreview picks={brand} />
+        <PickShell testid="ai-brand-shell" side={300} preview={<BrandLivePreview picks={brand} />}>
           <BrandPick picks={brand} onPicks={setBrand} idx={idx} notUsing={((action.payload as any)?.current?.not_using || []) as string[]} />
-        </div>
+        </PickShell>
       )}
       {isSpotlight && choosing && <SpotlightPick payload={action.payload as Record<string, any>} picks={spot} onPicks={setSpot} />}
       {isCma && choosing && <CmaPick payload={action.payload as Record<string, any>} ai={cmaAi} onAi={setCmaAi} mode={cmaMode} onMode={setCmaMode} />}
-      {isForm && choosing && <FormPick payload={action.payload as Record<string, any>} picks={form} onPicks={setForm} onOpenEditor={openInForms} onRevise={reviseForm} busy={!!busy} />}
+      {editor && choosing && !isForm && (
+        <div className="mt-2.5 flex items-center gap-2 rounded-xl bg-[#faf7f0] px-2.5 py-2 ring-1 ring-black/5 dark:bg-zinc-800/50 dark:ring-white/10" data-testid="ai-open-editor-bar">
+          <p className="min-w-0 flex-1 text-[11.5px] font-semibold leading-snug text-gray-600 dark:text-zinc-300">{editor.ask}</p>
+          <button type="button" onClick={openInEditor} disabled={!!busy || (isDesign && !!designMissing)} data-testid="ai-open-editor"
+            className="ohp-ai-press inline-flex shrink-0 items-center gap-1 rounded-full bg-[#111827] px-3 py-1.5 text-[11px] font-black text-white disabled:opacity-50 dark:bg-[#C9A24D] dark:text-[#111827]">
+            {editor.button} <ChevronRight className="h-3.5 w-3.5" strokeWidth={3} />
+          </button>
+        </div>
+      )}
+      {isForm && choosing && <FormPick payload={action.payload as Record<string, any>} picks={form} onPicks={setForm} onOpenEditor={openInEditor} onRevise={reviseForm} busy={!!busy} />}
       {isDiscovery && choosing && <DiscoveryPick payload={action.payload as Record<string, any>} picks={disc} onPicks={setDisc} />}
       {isInviteSend && choosing && <InviteSendPick payload={action.payload as Record<string, any>} picks={inviteSend} onPicks={setInviteSend} />}
       {isKit && choosing && <KitPick payload={action.payload as Record<string, any>} picks={kit} onPicks={setKit} />}

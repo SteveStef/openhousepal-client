@@ -162,6 +162,8 @@ interface DashboardViewProps {
   unreadActivityCount: number;
   onOpenTourInbox: () => void;
   onOpenActivityInbox: () => void;
+  newMatchCount: number;
+  onOpenNewMatches: () => void;
 }
 
 export const DashboardView = memo(function DashboardView({
@@ -183,6 +185,8 @@ export const DashboardView = memo(function DashboardView({
   unreadActivityCount,
   onOpenTourInbox,
   onOpenActivityInbox,
+  newMatchCount,
+  onOpenNewMatches,
 }: DashboardViewProps) {
   const [searchTerm, setSearchTerm] = useState('')
   // Active = awake Showcases; Inactive = asleep (no new matches, no emails) - user, 10/22.
@@ -371,6 +375,8 @@ export const DashboardView = memo(function DashboardView({
             </div>
             </ExpandOnFocus>
             {([
+              { key: 'new', label: 'New', icon: Sparkles, count: newMatchCount, onClick: onOpenNewMatches,
+                title: "Homes you haven't looked at yet, from every Showcase", on: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-300', dot: 'bg-emerald-500' },
               { key: 'tours', label: 'Tours', icon: Calendar, count: pendingTourCount, onClick: onOpenTourInbox,
                 title: 'Tour requests waiting on you, from every Showcase', on: 'border-red-200 bg-red-50 text-red-600 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300', dot: 'bg-red-500' },
               { key: 'activity', label: 'Activity', icon: Inbox, count: unreadActivityCount, onClick: onOpenActivityInbox,

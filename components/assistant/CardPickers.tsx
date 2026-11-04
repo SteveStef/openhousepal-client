@@ -88,6 +88,37 @@ export function useSteps(ids: string[], start?: string | null) {
   return { open, picked, toggle, done, closeAll, isOpen: (id: string) => open === id }
 }
 
+// A card's cream box (owner, 11/04: "desktop full open view should have more thoughtful layouts"):
+// in a wide chat (the computer's big window) the preview sits on the left and the steps on the right;
+// in a narrow one (a phone, the corner panel) they stack. Goes by the card's own width, not the screen's.
+export function PickShell({ testid, preview, side = 280, children }: { testid: string; preview?: React.ReactNode; side?: number; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [w, setW] = useState(0)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(([e]) => setW(e.contentRect.width))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const wide = !!preview && w >= 600
+  return (
+    <div ref={ref} className="group/pick mt-3 rounded-xl bg-[#faf7f0] p-1.5 sm:p-2.5 dark:bg-zinc-800/50" data-testid={testid} data-wide={wide ? 'yes' : 'no'}>
+      {wide ? (
+        <div className="grid items-start gap-4" style={{ gridTemplateColumns: `${side}px minmax(0,1fr)` }}>
+          <div className="sticky top-2 min-w-0">{preview}</div>
+          <div className="min-w-0 space-y-2">{children}</div>
+        </div>
+      ) : (
+        <div className="space-y-2">{preview}{children}</div>
+      )}
+    </div>
+  )
+}
+
+/** A list of choices: one per row on a phone, two or three across when there's room. */
+export const OPTION_GRID = 'grid gap-1.5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr))]'
+
 export function CardStep({ id, n, title, summary, steps, children }: {
   id: string; n: number; title: string; summary?: React.ReactNode; steps: ReturnType<typeof useSteps>; children: React.ReactNode
 }) {
@@ -195,7 +226,7 @@ export function DesignLivePreview({ payload, layout, colors, property, photo, fo
     setLive(null)
   }
   return (
-    <div className={`relative mx-auto transition-[width] duration-300 ease-out ${big ? 'w-[min(260px,100%)]' : 'w-[150px]'}`}>
+    <div className={`relative mx-auto transition-[width] duration-300 ease-out ${big ? 'w-[min(260px,100%)]' : 'w-[150px] group-data-[wide=yes]/pick:w-[min(260px,100%)]'}`}>
       <div ref={box} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
         className={`overflow-hidden rounded-lg shadow-[0_10px_24px_-12px_rgba(0,0,0,.45)] ring-1 ring-black/10 ${canDrag ? 'cursor-grab touch-none select-none active:cursor-grabbing' : ''}`}
         data-testid="ai-design-preview" data-focal={shown ? `${shown.x},${shown.y}` : ''}>
@@ -249,8 +280,8 @@ export function SpotlightPick({ payload, picks, onPicks }: { payload: Record<str
   const steps = useSteps(['look', 'color'])
   const colorName = SPOT_COLORS.find(c => c.color.toLowerCase() === color.toLowerCase())?.label || 'Your color'
   return (
-    <div className="mt-3 space-y-3 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-spotlight-pick">
-      {/* the front page, small: their photo, address and price, in the look + color picked */}
+    <PickShell testid="ai-spotlight-pick" side={300} preview={
+      /* the front page, small: their photo, address and price, in the look + color picked */
       <div className={`relative h-[150px] overflow-hidden rounded-xl ring-1 ring-black/10 ${luxe ? 'bg-[#0d0d0f]' : 'bg-[#f7f3ea]'}`}>
         {pv.photo && <img src={resolveMediaUrl(pv.photo)} alt="" className={`absolute inset-0 h-full w-full object-cover ${luxe ? '' : 'h-[62%]'}`} />}
         <div className={`absolute inset-0 ${luxe ? 'bg-gradient-to-t from-black/85 via-black/25 to-black/5' : 'bg-gradient-to-t from-[#f7f3ea] via-[#f7f3ea]/10 to-transparent'}`} />
@@ -265,6 +296,7 @@ export function SpotlightPick({ payload, picks, onPicks }: { payload: Record<str
           </div>
         </div>
       </div>
+    }>
       <CardStep id="look" n={1} title="Look" summary={luxe ? 'Luxe' : 'Editorial'} steps={steps}>
         <div className="flex flex-wrap gap-1.5">
           {[['cinematic_luxury', 'Luxe'], ['editorial_estate', 'Editorial']].map(([id, name]) => (
@@ -287,7 +319,7 @@ export function SpotlightPick({ payload, picks, onPicks }: { payload: Record<str
         </div>
       </CardStep>
       {changed && <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">This is your brand color - your hub, forms and website change with it.</p>}
-    </div>
+    </PickShell>
   )
 }
 
@@ -311,7 +343,7 @@ export function CmaPick({ payload, ai, onAi, mode, onMode }: { payload: Record<s
   return (
     <div className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-cma-pick">
       <CardStep id="who" n={1} title="Who it's for" summary={mode === 'buyer' ? 'Buyer / Offer' : 'Seller / Listing'} steps={steps}>
-        <div className="space-y-1.5">
+        <div className={OPTION_GRID}>
           {choice(mode !== 'buyer', 'Seller / Listing', 'What their home should list for', () => { onMode('listing'); steps.picked('who') }, 'ai-cma-seller')}
           {choice(mode === 'buyer', 'Buyer / Offer', 'What to offer on a home they want', () => { onMode('buyer'); steps.picked('who') }, 'ai-cma-buyer')}
         </div>
@@ -435,8 +467,20 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
   const home = homes.find(h => h.listing_key === picks.listing_key)
   const screenName = i === 0 ? 'Welcome screen' : i === last ? 'Thank-you screen' : `Question ${i} of ${last - 1}`
   const navBtn = 'ohp-ai-press inline-flex items-center gap-1 rounded-full px-3.5 py-2 text-[12px] font-black disabled:opacity-30'
+  // A wide chat (computer, big window) puts a small preview on the left and the steps on the right
+  // (owner, 11/04: the preview took the whole card). Goes by the card's own width.
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [cardW, setCardW] = useState(0)
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([e]) => setCardW(e.contentRect.width))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const wide = cardW >= 600
   return (
-    <div className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-1.5 sm:p-2.5 dark:bg-zinc-800/50" data-testid="ai-form-pick">
+    <div ref={wrapRef} className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-1.5 sm:p-2.5 dark:bg-zinc-800/50" data-testid="ai-form-pick">
       {onOpenEditor && (
         <div className="flex items-center gap-2 rounded-xl bg-white px-2.5 py-2 ring-1 ring-black/5 dark:bg-zinc-900 dark:ring-white/10">
           <p className="min-w-0 flex-1 text-[11.5px] font-semibold leading-snug text-gray-600 dark:text-zinc-300">Rather edit it in the full form editor?</p>
@@ -448,13 +492,32 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
       )}
       <CardStep id="questions" n={1} title="Questions" summary={`${picks.questions.length} + name, email, phone`} steps={steps}>
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-[12px] font-black text-[#111827] dark:text-white" data-testid="ai-form-preview-label">{screenName}</span>
+          <span className="text-[13.5px] font-black text-[#111827] dark:text-white" data-testid="ai-form-preview-label">{screenName}</span>
           <button type="button" onClick={() => setPreview(v => !v)} aria-expanded={preview} data-testid="ai-form-preview-toggle"
             className="ohp-ai-press inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[10.5px] font-black text-[#8b7355] ring-1 ring-[#C9A24D]/40 dark:bg-zinc-900 dark:text-[#e8c97a]">
             <Eye className="h-3 w-3" strokeWidth={3} /> {preview ? 'Hide preview' : 'Preview'}
           </button>
         </div>
-        {preview && <FormPreview title={title} questions={picks.questions} backgroundEffects={picks.background_effects} home={home || null} at={i} />}
+        {/* Every screen as a numbered step - tap to jump. Theirs are gold, name/email/phone and the
+            welcome / thank-you screens grey; the one they're on is filled (owner, 11/04: dots too thin to see). */}
+        <div className="mb-2 flex flex-wrap gap-1" data-testid="ai-form-steps">
+          {Array.from({ length: last + 1 }, (_, k) => {
+            const on = k === i, mine = k >= FIRST_OWN_Q && k < last
+            return (
+              <button key={k} type="button" onClick={() => setAt(k)} aria-current={on ? 'step' : undefined}
+                aria-label={k === 0 ? 'Welcome screen' : k === last ? 'Thank-you screen' : `Question ${k}`}
+                className={`ohp-ai-press grid h-6 min-w-[1.5rem] place-items-center rounded-full px-1 text-[10.5px] font-black transition ${on
+                  ? 'bg-[#111827] text-white ring-2 ring-[#C9A24D] ring-offset-1 ring-offset-white dark:bg-[#C9A24D] dark:text-[#111827] dark:ring-offset-zinc-900'
+                  : mine ? 'bg-[#C9A24D]/15 text-[#8b7355] ring-1 ring-[#C9A24D]/40 dark:text-[#e8c97a]'
+                  : 'bg-gray-100 text-gray-400 dark:bg-zinc-800 dark:text-zinc-500'}`}>
+                {k === 0 ? <Home className="h-3 w-3" strokeWidth={3} /> : k === last ? <Check className="h-3 w-3" strokeWidth={3.5} /> : k}
+              </button>
+            )
+          })}
+        </div>
+        <div className={preview && wide ? 'grid grid-cols-[200px_minmax(0,1fr)] items-start gap-4' : undefined}>
+        {preview && <div className={wide ? 'sticky top-2' : undefined}><FormPreview title={title} questions={picks.questions} backgroundEffects={picks.background_effects} home={home || null} at={i} /></div>}
+        <div className="min-w-0">
         {/* This screen: greyed when there's nothing to change, else the question with its fix bar */}
         <div className="ohp-ai-card-in rounded-xl bg-[#faf7f0]/60 p-2 ring-1 ring-black/5 sm:p-2.5 dark:bg-zinc-800/40 dark:ring-white/10" key={i} data-testid="ai-form-screen">
           {q ? (
@@ -505,13 +568,6 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
           <button type="button" onClick={() => setAt(i - 1)} disabled={i === 0} className={`${navBtn} bg-white text-[#111827] ring-1 ring-black/10 dark:bg-zinc-900 dark:text-white dark:ring-white/10`}>
             <ChevronLeft className="h-4 w-4" strokeWidth={3} /> Back
           </button>
-          {/* Every screen as a dot - tap to jump; name/email/phone and the welcome/thank-you ones are grey */}
-          <div className="flex min-w-0 flex-wrap justify-center gap-[3px]">
-            {Array.from({ length: last + 1 }, (_, k) => (
-              <button key={k} type="button" onClick={() => setAt(k)} aria-label={k === 0 ? 'Welcome screen' : k === last ? 'Thank-you screen' : `Question ${k}`}
-                className={`h-1.5 rounded-full transition-all ${k === i ? 'w-3.5 bg-[#C9A24D]' : k >= FIRST_OWN_Q && k < last ? 'w-1.5 bg-[#C9A24D]/40' : 'w-1.5 bg-gray-300 dark:bg-zinc-600'}`} />
-            ))}
-          </div>
           {i < last ? (
             <button type="button" onClick={() => setAt(i + 1)} className={`${navBtn} bg-[#111827] text-white dark:bg-[#C9A24D] dark:text-[#111827]`} data-testid="ai-form-next">
               Next <ChevronRight className="h-4 w-4" strokeWidth={3} />
@@ -553,6 +609,8 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
             </div>
           </>
         )}
+        </div>
+        </div>
       </CardStep>
       <CardStep id="background" n={2} title="Background" summary={picks.background_effects ? 'Moving' : 'Still'} steps={steps}>
       <button type="button" role="switch" aria-checked={picks.background_effects} onClick={() => { onPicks({ ...picks, background_effects: !picks.background_effects }); steps.picked('background') }}

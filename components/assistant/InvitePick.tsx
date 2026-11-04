@@ -5,7 +5,7 @@ import InviteCard from '@/components/invites/InviteCard'
 import { resolveMediaUrl } from '@/lib/api-service'
 import { BRAND_COLOR_GROUPS } from '@/lib/brandKit'
 import { LUXE_METALS, LUXE_METAL_ORDER } from '@/lib/luxeMetals'
-import { CardStep, useSteps } from './CardPickers'
+import { CardStep, OPTION_GRID, PickShell, useSteps } from './CardPickers'
 
 // An invite made from the chat (owner, 11/01: "buttons with steps ... instead of so much text", the
 // Luxe / Classic choice, and a mini preview): the Forms & Invites builder's own choices as taps -
@@ -63,8 +63,9 @@ export function InvitePick({ payload, picks, onPicks }: { payload: Record<string
   }
 
   return (
-    <div className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-invite-pick">
-      <div className="pointer-events-none mx-auto w-[150px]" data-testid="ai-invite-preview"><InviteCard data={card as any} width={150} shine={false} /></div>
+    <PickShell testid="ai-invite-pick" side={200} preview={
+      <div className="pointer-events-none mx-auto w-[150px] origin-top group-data-[wide=yes]/pick:scale-[1.25] group-data-[wide=yes]/pick:mb-12" data-testid="ai-invite-preview"><InviteCard data={card as any} width={150} shine={false} /></div>
+    }>
       <CardStep id="kind" n={n('kind')} title="What kind" summary={kindLabel} steps={steps}>
         <div className="flex flex-wrap gap-1.5">
           {KINDS.map(([id, label]) => <button key={id} type="button" onClick={() => set({ kind: id }, 'kind')} aria-pressed={picks.kind === id} className={chip(picks.kind === id)}>{label}</button>)}
@@ -72,7 +73,7 @@ export function InvitePick({ payload, picks, onPicks }: { payload: Record<string
       </CardStep>
       {showHome && (
         <CardStep id="home" n={n('home')} title="Home" summary={home ? home.address : 'None'} steps={steps}>
-          <div className="flex flex-col gap-1.5">
+          <div className={OPTION_GRID}>
             {homes.map(h => {
               const on = h.listing_key === picks.listing_key
               return (
@@ -148,6 +149,6 @@ export function InvitePick({ payload, picks, onPicks }: { payload: Record<string
           ) })}
         </div>
       </CardStep>
-    </div>
+    </PickShell>
   )
 }

@@ -16,7 +16,7 @@
 //           and disabled={!!busy || (isInviteSend && !inviteSend.lead_ids.length)}
 import { useMemo, useState } from 'react'
 import { Check, Mail, PartyPopper, Search, X } from 'lucide-react'
-import { CardStep, StepDone, useSteps } from './CardPickers'
+import { CardStep, OPTION_GRID, StepDone, useSteps } from './CardPickers'
 
 export type InviteSendPicks = { lead_ids: string[] }
 type Row = { id: string; name: string; email?: string | null; tag: string; sub?: string; why?: string; invited?: string; agent?: boolean }
@@ -150,7 +150,7 @@ export function InviteSendPick({ payload, picks, onPicks }: { payload: Record<st
             <button type="button" onClick={() => set([])} className="ml-auto text-[11px] font-bold text-gray-500 underline-offset-2 hover:underline dark:text-zinc-400">Clear</button>
           )}
         </div>
-        <div className="mt-1.5 max-h-[320px] space-y-1.5 overflow-y-auto overscroll-contain pr-0.5" data-testid="ai-invite-send-list">
+        <div className={`mt-1.5 max-h-[320px] overflow-y-auto overscroll-contain pr-0.5 sm:max-h-[420px] ${OPTION_GRID}`} data-testid="ai-invite-send-list">
           {match.slice(0, shown).map(r => <Person key={r.id} r={r} on={picked.has(r.id)} onClick={() => toggle(r.id)} />)}
           {match.length > shown && (
             <button type="button" onClick={() => setShown(s => s + PAGE)}

@@ -1,7 +1,7 @@
 'use client'
 
 import { Check, Home, MapPin, UserRound, X } from 'lucide-react'
-import { CardStep, StepDone, useSteps } from './CardPickers'
+import { CardStep, OPTION_GRID, StepDone, useSteps } from './CardPickers'
 
 // The agent's Discovery search, set up from the chat (owner, 11/01: "if they have not set a filter yet
 // ... make that filter for them in discovery, and it saves"): where to center it (their listings, their
@@ -55,7 +55,7 @@ export function DiscoveryPick({ payload, picks, onPicks }: { payload: Record<str
         </span>
       </div>
       <CardStep id="center" n={1} title="Center" summary={picks.center.split(',')[0]} steps={steps}>
-        <div className="space-y-1.5" data-testid="ai-discovery-centers">
+        <div className={OPTION_GRID} data-testid="ai-discovery-centers">
           {centers.map(c => {
             const on = c.label === picks.center
             const Icon = c.kind === 'town' ? MapPin : Home
@@ -110,7 +110,7 @@ export function DiscoveryPick({ payload, picks, onPicks }: { payload: Record<str
               <button key={m} type="button" aria-pressed={picks.agent_mode === m} onClick={() => set({ agent_mode: m })} className={`${chipCls(picks.agent_mode === m)} w-full`}>{l}</button>
             ))}
           </div>
-          <div className="space-y-1.5" data-testid="ai-discovery-agents">
+          <div className={OPTION_GRID} data-testid="ai-discovery-agents">
             {known.map(n => {
               const on = picks.agents.includes(n)
               return (

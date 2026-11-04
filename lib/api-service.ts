@@ -1113,6 +1113,9 @@ class ApiService {
         body: JSON.stringify(data),
       }),
 
+    // The New Matches mailbox (11/04): homes the agent hasn't looked at. Reading clears nothing.
+    getNewMatches: () => this.request<{ count: number; items: import('@/components/showcases/MatchBits').MatchHome[] }>('/collections/new-matches'),
+
     trackPropertyView: (collectionId: string, propertyId: string) =>
       this.request(`/collections/${collectionId}/properties/${propertyId}/view`, {
         method: 'POST',
@@ -1973,6 +1976,8 @@ class ApiService {
 
     update: (leadId: string, data: { name?: string; email?: string; phone?: string; status?: LeadStatus; represented?: LeadRepresented; tags?: string[]; notes?: string; mark_contacted?: boolean; is_favorite?: boolean }) =>
       this.request<LeadDetail>(`/leads/${leadId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    // The 3 newest homes in their Showcase, seen or not (11/04).
+    recentMatches: (leadId: string) => this.request<{ homes: import('@/components/showcases/MatchBits').MatchHome[] }>(`/leads/${leadId}/recent-matches`),
     // The open house Visitors window's Showcase switch, on their lead (11/01).
     openHouseShowcase: (leadId: string) => this.request<import('@/components/leads/LeadOpenHouseShowcase').LeadOhShowcase>(`/leads/${leadId}/open-house-showcase`),
     /** After an email change: can "Send them a new invitation?" be offered (and the open-house one)? */
@@ -2120,6 +2125,9 @@ class ApiService {
     // A waiting card's taps so far (a form's questions) - kept so the helper changes what they see.
     saveActionDraft: (actionId: string, messageId: string, picks: Record<string, unknown>) =>
       this.request<{ saved: boolean }>(`/ai/actions/${actionId}/draft`, { method: 'POST', body: JSON.stringify({ message_id: messageId, picks }) }),
+
+    // The chat start screen's "Try asking", from their own account (11/04) - no AI
+    getSuggestions: () => this.request<{ suggestions: string[] }>('/ai/suggestions'),
 
     // A form card's "What should change or be added?" line - the card changes in place (11/03)
     reviseFormCard: (actionId: string, messageId: string, body: { instruction: string; at: number | null; picks: Record<string, unknown> }) =>

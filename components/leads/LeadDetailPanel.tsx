@@ -27,6 +27,7 @@ import { copyText } from '@/lib/copyText'
 import LuxeSelect from '@/components/ui/LuxeSelect'
 import MotionModal from '@/components/ui/MotionModal'
 import { useLeadOhShowcase, LeadOhShowcaseSwitch, LeadOhShowcaseState } from './LeadOpenHouseShowcase'
+import LeadRecentMatches from './LeadRecentMatches'
 import QuickEditShowcase from '@/components/showcases/QuickEditShowcase'
 import { InviteLine, SendInviteButton } from '@/components/showcases/ShowcaseInvite'
 
@@ -512,7 +513,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
             showcases={(lead.showcases || []).map(s => ({ id: s.id, name: s.name }))} initialId={editShowcase} onSaved={() => reload()} />
 
           {/* On a phone their Showcase comes before the long history (the side column is last). */}
-          <div className="space-y-4 lg:hidden"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={setEditShowcase} who={lead} /></div>
+          <div className="space-y-4 lg:hidden"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={setEditShowcase} who={lead} leadId={leadId} /></div>
 
           {/* ── emails we sent them: opened / clicked, and whether automatic ones are on, weekly or off (and why) */}
           {lead.email && <LeadEmailCard email={lead.email} initial={lead.email_engagement} />}
@@ -565,7 +566,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
 
         {/* ── side: their Showcase, open houses, tags, notes, record */}
         <div className="min-w-0 space-y-4 sm:space-y-5">
-          <div className="hidden space-y-4 lg:block sm:space-y-5"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={setEditShowcase} who={lead} /></div>
+          <div className="hidden space-y-4 lg:block sm:space-y-5"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={setEditShowcase} who={lead} leadId={leadId} /></div>
 
           {!!lead.open_houses?.length && (
             <Card>
@@ -834,16 +835,17 @@ function ViewsRow({ items, open, onToggle }: { items: LeadEvent[]; open: boolean
 // Their Showcase in one card (owner, 11/01): the open house on/off switch sits on top of the card for
 // the Showcase it controls (or the first one); with no Showcase yet the card is just the switch.
 type Who = { name?: string | null; email?: string | null }
-function ShowcaseCards({ showcases, oh, onCopy, onEdit, who }: { showcases: LeadShowcase[]; oh: LeadOhShowcaseState; onCopy: (text: string, what: string) => void; onEdit: (id: string) => void; who: Who }) {
+function ShowcaseCards({ showcases, oh, onCopy, onEdit, who, leadId }: { leadId: string; showcases: LeadShowcase[]; oh: LeadOhShowcaseState; onCopy: (text: string, what: string) => void; onEdit: (id: string) => void; who: Who }) {
   if (!showcases.length) {
     if (!oh.show) return null
     return <Card><SectionTitle>Their Showcase</SectionTitle><LeadOhShowcaseSwitch oh={oh} withLink /></Card>
   }
   const withSwitch = (oh.show && (showcases.find(s => s.id === oh.data?.showcase_id) || showcases[0]).id) || null
-  return <>{showcases.map(sc => <ShowcaseCard key={sc.id} sc={sc} who={who} onCopy={onCopy} onEdit={() => onEdit(sc.id)} top={sc.id === withSwitch ? <LeadOhShowcaseSwitch oh={oh} /> : null} />)}</>
+  return <>{showcases.map((sc, i) => <ShowcaseCard key={sc.id} sc={sc} who={who} onCopy={onCopy} onEdit={() => onEdit(sc.id)} top={sc.id === withSwitch ? <LeadOhShowcaseSwitch oh={oh} /> : null}
+    bottom={i === 0 ? <LeadRecentMatches leadId={leadId} /> : null} />)}</>
 }
 
-function ShowcaseCard({ sc, who, onCopy, onEdit, top }: { sc: LeadShowcase; who: Who; onCopy: (text: string, what: string) => void; onEdit?: () => void; top?: React.ReactNode }) {
+function ShowcaseCard({ sc, who, onCopy, onEdit, top, bottom }: { bottom?: React.ReactNode; sc: LeadShowcase; who: Who; onCopy: (text: string, what: string) => void; onEdit?: () => void; top?: React.ReactNode }) {
   // Did their invite email reach them (owner, 11/01)? When and whether they opened it are in the
   // Emails card; here it's sent or not, with Send invite (again).
   const [invite, setInvite] = useState(sc.invite || null)
@@ -886,6 +888,7 @@ function ShowcaseCard({ sc, who, onCopy, onEdit, top }: { sc: LeadShowcase; who:
           <SendInviteButton collectionId={sc.id} invite={invite} name={who.name} email={who.email} homes={sc.home_count} size="full" onSent={setInvite} />
         </div>
       )}
+      {bottom}
     </Card>
   )
 }

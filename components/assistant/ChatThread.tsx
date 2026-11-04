@@ -125,8 +125,8 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
         const isSpeaking = speakingId === msg.id
         // Homes to host take the chat's full width - the Discovery rows with their calendars were
         // squeezed into the reply bubble's width on a phone (owner, 11/01).
-        // Same for a form's card - its questions and answer choices need the room (owner, 11/03).
-        const wide = (msg.tool_calls || []).some((r) => r.record_type === 'hosting' || (r.record_type === 'action' && ['discovery', 'form'].includes((r as any).picker)))
+        // Every card with choices on it (a design, invite, Spotlight, form...) takes the chat's full width - on a computer the preview then sits beside the steps (owner, 11/03-11/04).
+        const wide = (msg.tool_calls || []).some((r) => r.record_type === 'hosting' || (r.record_type === 'action' && !!((r as any).picker || (r as any).client_action)))
         return (
           <div key={msg.id} className={`flex ${isUser ? 'ohp-ai-msg-user justify-end' : 'ohp-ai-msg-bot justify-start'}`}>
             <div className={`flex items-start gap-2.5 ${wide ? 'w-full' : 'max-w-[85%] sm:max-w-[75%]'} ${isUser ? 'flex-row-reverse' : ''}`}>
@@ -134,7 +134,7 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
               {isUser ? <UserAvatar size={32} /> : (
                 <OhpBot size={32} className={`flex-shrink-0 drop-shadow-sm ${wide ? 'hidden sm:block' : ''}`} />
               )}
-              <div className="min-w-0">
+              <div className={wide ? "min-w-0 flex-1" : "min-w-0"}>
                 <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed break-words ${
                   isUser
                     ? 'bg-[#8b7355] text-white whitespace-pre-wrap'
@@ -146,10 +146,10 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
                   <HomeCards key={r.record_id} homes={(r as any).homes} title={(r as any).title} />
                 ))}
                 {(msg.tool_calls || []).filter((r) => r.record_type === 'hosting' && (r as any).listing_keys?.length).map((r) => (
-                  <div key={r.record_id} className="-ml-[42px]"><HostingCards listingKeys={(r as any).listing_keys} /></div>
+                  <div key={r.record_id} className="sm:-ml-[42px]"><HostingCards listingKeys={(r as any).listing_keys} /></div>
                 ))}
                 {actions.map((a) => (a as any).picker === 'discovery'
-                  ? <div key={a.record_id} className="-ml-[42px]"><ActionCard messageId={msg.id} action={a} /></div>
+                  ? <div key={a.record_id} className="sm:-ml-[42px]"><ActionCard messageId={msg.id} action={a} /></div>
                   : <ActionCard key={a.record_id} messageId={msg.id} action={a} />)}
                 {goLinks.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">
