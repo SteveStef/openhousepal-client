@@ -788,8 +788,10 @@ input:-webkit-autofill:active {
   background-color: transparent !important;
 }
 
-.dark .paypal-button-container iframe {
-  color-scheme: dark !important;
+/* PayPal's button page is light. If the iframe's color-scheme differs from it (dark site),
+   the browser paints an opaque white backdrop behind the buttons - keep them matched. */
+.paypal-button-container iframe {
+  color-scheme: light !important;
 }
 
 /* Agent Hub dark mode follows the main app palette. */

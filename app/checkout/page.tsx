@@ -122,6 +122,7 @@ function CheckoutContent() {
   // IDX never has a free trial; the others fall back to the standard trial until PayPal answers.
   const trialDays = billedByUs ? 0 : terms ? terms.trial_days : (selectedPlan?.tier === 'IDX' || appliedCode ? 0 : TRIAL_PERIOD_DAYS)
   const hasTrial = trialDays > 0
+  const trialEndText = new Date(Date.now() + trialDays * 86400000).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
 
   const applyCode = (data: CheckoutCode) => {
     const tier = (data.plan_tier in PRICING_PLANS ? data.plan_tier : 'PREMIUM') as PlanTierId
@@ -190,11 +191,27 @@ function CheckoutContent() {
           
           {/* Header Section */}
           <div className="text-center mb-16">
-            <h1 className="text-5xl font-black text-[#0B0B0B] dark:text-white mb-6 tracking-tight uppercase">
-              Finalize <span className="text-[#C9A24D]">Account</span>
+            <h1 className="text-4xl sm:text-5xl font-black text-[#0B0B0B] dark:text-white mb-6 tracking-tight uppercase text-balance">
+              {registrationStep === 'pricing' ? <>Finalize <span className="text-[#C9A24D]">Account</span></>
+                : billedByUs || !hasTrial ? <>Activate <span className="text-[#C9A24D]">{selectedPlan?.name}</span></>
+                : <>Start Your <span className="text-[#C9A24D]">Free Trial</span></>}
             </h1>
-            <p className="text-xl text-[#6B7280] dark:text-gray-400 font-light max-w-2xl mx-auto leading-relaxed">
-              Pick your plan to switch your account on. {inBright ? 'Every plan except IDX starts' : 'Both plans start'} with a <span className="text-[#111827] dark:text-white font-medium italic underline decoration-[#C9A24D]/30 underline-offset-4">{TRIAL_PERIOD_DAYS}-day free trial</span>.
+            <p className="text-lg sm:text-xl text-[#6B7280] dark:text-gray-400 font-light max-w-2xl mx-auto leading-relaxed">
+              {registrationStep === 'pricing' ? (
+                <>
+                  Pick your plan to switch your account on.<br className="hidden md:block" />{' '}
+                  {inBright ? 'Every plan except IDX starts' : 'Both plans start'} with a <span className="text-[#111827] dark:text-white font-medium italic underline decoration-[#C9A24D]/30 underline-offset-4">{TRIAL_PERIOD_DAYS}-day free trial</span>.
+                </>
+              ) : billedByUs ? (
+                <>Your code switches your account on right away.</>
+              ) : hasTrial ? (
+                <>
+                  Nothing to pay today. Your first charge is on <span className="text-[#111827] dark:text-white font-medium">{trialEndText}</span>.<br className="hidden md:block" />{' '}
+                  Cancel before then and you won&apos;t pay a thing.
+                </>
+              ) : (
+                <>One last step - finish with PayPal and your account switches on.</>
+              )}
             </p>
           </div>
 
@@ -306,6 +323,12 @@ function CheckoutContent() {
                       <span className="text-[#6B7280] dark:text-gray-500 font-bold uppercase tracking-wider">Free Trial</span>
                       <span className="text-[#111827] dark:text-white font-black">{hasTrial ? `${trialDays} Days` : 'None'}</span>
                     </div>
+                    {hasTrial && (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-[#6B7280] dark:text-gray-500 font-bold uppercase tracking-wider">Due Today</span>
+                        <span className="text-green-600 dark:text-green-400 font-black">$0.00</span>
+                      </div>
+                    )}
                     <div className="pt-4 border-t border-gray-50 dark:border-gray-800 flex justify-between items-baseline">
                       <span className="text-[#111827] dark:text-white font-black text-xs uppercase tracking-widest">{billedByUs ? 'Your Price' : hasTrial ? 'Post-Trial Price' : 'Monthly Price'}</span>
                       <div className="text-right">
@@ -337,7 +360,7 @@ function CheckoutContent() {
 
               {/* Right Column: Payment (3/5) */}
               <div className="md:col-span-3">
-                <div className="bg-white dark:bg-[#1A1A1C] rounded-[2.5rem] p-10 shadow-2xl border border-gray-100 dark:border-gray-700 relative overflow-hidden transition-colors duration-300">
+                <div className="bg-white dark:bg-[#1A1A1C] rounded-[2.5rem] p-6 sm:p-10 shadow-2xl border border-gray-100 dark:border-gray-700 relative overflow-hidden transition-colors duration-300">
                   <div className="absolute inset-0 bg-gradient-to-br from-[#FAFAF7]/50 via-white/30 to-[#FAFAF7]/50 dark:from-[#111827] dark:via-[#1a1a1e] dark:to-[#111827] opacity-50 z-0"></div>
                   
                   <div className="relative z-10">
@@ -354,10 +377,10 @@ function CheckoutContent() {
                       </div>
                     </div>
                     
-                    <div className="bg-[#FAFAF7] dark:bg-black/20 rounded-[2rem] p-8 mb-8 border border-gray-100 dark:border-white/5 ">
+                    <div className="bg-[#FAFAF7] dark:bg-black/20 rounded-[2rem] p-4 sm:p-8 mb-8 border border-gray-100 dark:border-white/5">
                       <p className="text-center text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-[0.3em] mb-8">{billedByUs ? 'Billed directly by OpenHousePal' : 'Pay securely with PayPal'}</p>
                       
-                      <div className="rounded-xl overflow-hidden shadow-sm">
+                      <div>
                         {billedByUs ? (
                           <div className="text-center">
                             <p className="mb-6 text-sm font-medium leading-relaxed text-[#6B7280] dark:text-gray-400">
@@ -376,7 +399,7 @@ function CheckoutContent() {
                           // The plan's PayPal ID isn't configured on this server - say so plainly
                           // instead of letting PayPal fail with a vague error.
                           <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-center text-sm font-semibold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-300">
-                            The {selectedPlan?.name} plan isn&apos;t available to sign up for just yet. Please pick another plan or email support.
+                            {selectedPlan?.name} isn&apos;t available to sign up for just yet. Please pick another plan or email support.
                           </div>
                         ) : (
                         <PayPalScriptProvider options={paypalOptions}>
