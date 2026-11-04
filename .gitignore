@@ -4,3 +4,9 @@ node_modules/
 .git
 .env
 .prod.env
+
+# Dev logs, build caches and an unused video - kept on the computer, never in the repo (11/03)
+*.log
+*.tsbuildinfo
+.tsbuildcache/
+public/Comp_1_R2.mp4
