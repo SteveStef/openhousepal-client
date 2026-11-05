@@ -28,7 +28,7 @@ const NO_HEADER_PATHS = [
 
 export function isPublicAgentPage(pathname: string | null | undefined): boolean {
   return Boolean(
-    pathname?.match(/^\/(?!admin(?:\/|$)|agent-hub$|activity$|dash$|leads(?:\/|$)|studio(?:\/|$)|assistant(?:\/|$)|login$|register$|forgot-password$|reset-password$|open-house(?:\/|$)|open-houses(?:\/|$)|privacy$|terms$|unsubscribe$|checkout$|discovery$|broker-authorization$|showcase(?:s)?(?:\/|$)|settings(?:\/|$)|setup$|upgrade-required$)[^/]+(?:\/[^/]+)?\/?$/) ||
+    pathname?.match(/^\/(?!tools(?:\/|$)|resources(?:\/|$)|brokerages$|pricing$|idx-websites$|faq$|about$|admin(?:\/|$)|agent-hub$|activity$|dash$|leads(?:\/|$)|studio(?:\/|$)|assistant(?:\/|$)|login$|register$|forgot-password$|reset-password$|open-house(?:\/|$)|open-houses(?:\/|$)|privacy$|terms$|unsubscribe$|checkout$|discovery$|broker-authorization$|showcase(?:s)?(?:\/|$)|settings(?:\/|$)|setup$|upgrade-required$)[^/]+(?:\/[^/]+)?\/?$/) ||
     // A public article (/{hub}/blogs/{slug}) - never the Studio's own blog editor (/studio/blogs/{id}).
     pathname?.match(/^\/(?!studio\/)[^/]+\/blogs\/[^/]+\/?$/) ||
     pathname?.startsWith('/AgentHub/')
@@ -43,6 +43,6 @@ export function hasAppHeader(pathname: string | null | undefined): boolean {
 /** The agent's working pages - these open behind the logo loader until their data is in. The
  * homepage and the legal pages are marketing, not app. */
 export function isGatedAppPage(pathname: string | null | undefined): boolean {
-  if (!pathname || pathname === '/' || pathname === '/privacy' || pathname === '/terms') return false
+  if (!pathname || ['/', '/privacy', '/terms', '/tools', '/pricing', '/idx-websites', '/faq', '/about', '/resources', '/brokerages'].includes(pathname) || /^\/(tools|resources)\//.test(pathname)) return false
   return hasAppHeader(pathname)
 }

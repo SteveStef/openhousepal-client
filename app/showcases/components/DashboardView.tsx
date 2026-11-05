@@ -779,7 +779,7 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
         )}
         <motion.button whileTap={{ scale: 0.85 }} onClick={stop(() => onFavoriteToggle(collection.id))}
           aria-pressed={!!collection.favoritedAt} title={collection.favoritedAt ? 'Starred - click to unstar' : 'Star it: stays at the top and never falls asleep'}
-          className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full shadow-md backdrop-blur-0 transition-colors ${collection.favoritedAt ? 'bg-[#C9A24D] text-white' : 'bg-white/90 text-gray-400 hover:text-[#C9A24D] dark:bg-[#151517]/90'}`}>
+          className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full shadow-md transition-colors ${collection.favoritedAt ? 'bg-[#C9A24D] text-white' : 'bg-white/90 text-gray-400 hover:text-[#C9A24D] dark:bg-[#151517]/90'}`}>
           <Star size={15} fill={collection.favoritedAt ? 'currentColor' : 'none'} strokeWidth={2.5} />
         </motion.button>
       </div>

@@ -539,7 +539,7 @@ function PagePreview({ d, version }: { d: AdminAreaDetail; version: string }) {
 function SaveBar({ dirty, saving, onUndo, onSave, label = 'Save' }: { dirty: boolean; saving: boolean; onUndo: () => void; onSave: () => void; label?: string }) {
   if (!dirty && !saving) return null
   return (
-    <div className="sticky bottom-3 z-10 mt-4 flex flex-col gap-2 rounded-2xl border border-[#C9A24D]/40 bg-white/95 p-3 shadow-lg backdrop-blur-sm sm:flex-row-reverse sm:items-center sm:justify-end sm:gap-4 dark:bg-[#151517]/95">
+    <div className="sticky bottom-3 z-10 mt-4 flex flex-col gap-2 rounded-2xl border border-[#C9A24D]/40 bg-white/95 p-3 shadow-lg sm:flex-row-reverse sm:items-center sm:justify-end sm:gap-4 dark:bg-[#151517]/95">
       <p className="text-xs font-black text-[#8b7355] dark:text-[#e8c97a]">You have changes that aren&apos;t saved yet.</p>
       <div className="grid grid-cols-2 gap-2 sm:flex">
         <button onClick={onUndo} disabled={saving} className={BTN_SOFT}><Undo2 className="h-4 w-4" /> Undo</button>

@@ -219,7 +219,7 @@ function Laptop({ luxe, children }: { luxe: boolean; children: React.ReactNode }
       <div className="relative mx-auto h-4 rounded-b-[18px]" style={{ width: SCREEN_W + 80, background: 'linear-gradient(180deg,#c8ccd2,#8d9198)' }}>
         <div className="absolute left-1/2 top-0 h-1.5 w-28 -translate-x-1/2 rounded-b-lg bg-black/25" />
       </div>
-      <div className={`mx-auto h-3 rounded-[50%] blur-md ${luxe ? 'bg-black/60' : 'bg-black/25'}`} style={{ width: SCREEN_W }} />
+      <div className={`mx-auto h-3 rounded-[50%] ${luxe ? 'bg-[radial-gradient(closest-side,rgba(0,0,0,.6),transparent)]' : 'bg-[radial-gradient(closest-side,rgba(0,0,0,.25),transparent)]'}`} style={{ width: SCREEN_W }} />
     </div>
   )
 }

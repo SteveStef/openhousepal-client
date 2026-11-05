@@ -39,8 +39,8 @@ function UpgradeRequiredContent() {
     <div className="min-h-screen flex flex-col bg-[#FAFAF7] dark:bg-[#0B0B0B] overflow-hidden relative transition-colors duration-300">
       {/* Sophisticated Background Architecture */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] bg-[#C9A24D]/5 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[800px] h-[800px] bg-[#111827]/5 dark:bg-[#C9A24D]/5 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-screen" />
+        <div className="absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] bg-[radial-gradient(closest-side,rgba(201,162,77,.05),transparent)] rounded-full" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[800px] h-[800px] bg-[radial-gradient(closest-side,rgba(17,24,39,.05),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.05),transparent)] rounded-full" />
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/pinstripe-light.png')] opacity-[0.03] dark:opacity-[0.01] mix-blend-overlay"></div>
       </div>
 
@@ -50,7 +50,7 @@ function UpgradeRequiredContent() {
               label, but still well short of the original's full-height centered stack. */}
           <div className="text-center mb-10 max-w-2xl mx-auto">
             <div className="relative mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#C9A24D]/10 text-[#C9A24D] shadow-sm border border-[#C9A24D]/20">
-              <div className="absolute -inset-2.5 -z-10 rounded-3xl bg-[#C9A24D]/25 blur-xl animate-glow-pulse" />
+              <div className="absolute inset-0 -z-10 rounded-3xl shadow-[0_0_24px_10px_rgba(201,162,77,.25)] animate-glow-pulse" />
               <Lock className="w-8 h-8" strokeWidth={1.5} />
             </div>
             <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.3em] text-[#C9A24D]">Unlock More</span>

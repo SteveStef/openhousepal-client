@@ -170,8 +170,8 @@ export default function LeaveReviewPage() {
       <style>{REVIEW_CSS}</style>
       {/* Page-wide ambient gold light + slowly drifting real-estate outlines, like the luxe headers */}
       <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="rv-drift-a absolute -left-24 top-1/3 h-96 w-96 rounded-full bg-[#C9A24D]/15 blur-3xl" />
-        <div className="rv-drift-b absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-[#f3d9a0]/30 blur-3xl dark:bg-[#8b6a2b]/15" />
+        <div className="rv-drift-a absolute -left-24 top-1/3 h-96 w-96 rounded-full" style={{ background: 'radial-gradient(closest-side, rgba(201,162,77,.2), transparent)' }} />
+        <div className="rv-drift-b absolute -right-24 bottom-0 h-96 w-96 rounded-full" style={{ background: 'radial-gradient(closest-side, rgba(201,162,77,.16), transparent)' }} />
         <Home className="rv-float absolute left-[6%] top-[58%] hidden h-28 w-28 text-[#C9A24D]/[0.12] sm:block" strokeWidth={0.8} />
         <KeyRound className="rv-float-b absolute right-[7%] top-[46%] hidden h-24 w-24 text-[#C9A24D]/[0.12] sm:block" strokeWidth={0.8} />
       </div>
@@ -313,14 +313,14 @@ export default function LeaveReviewPage() {
               </motion.div>
             ) : (
               <motion.div key="done" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
-                {/* Success - gold check draws itself in, a little burst of gold around it */}
+                {/* Success - a green check draws itself in, a little burst of gold around it */}
                 <div className="relative flex flex-col items-center text-center">
                   {GOLD_BITS.map((b, k) => (
                     <motion.span key={k} aria-hidden className="pointer-events-none absolute left-1/2 top-7 h-1.5 w-1.5 rounded-full bg-[#C9A24D]"
                       initial={{ x: 0, y: 0, opacity: 1, scale: 1 }} animate={{ x: b[0], y: b[1], opacity: 0, scale: 0.4 }} transition={{ duration: 1.1, delay: 0.15, ease: 'easeOut' }} />
                   ))}
                   <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 16 }}
-                    className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#e8c97a] via-[#C9A24D] to-[#8b6a2b] text-white shadow-[0_14px_30px_-12px_rgba(201,162,77,.9)]">
+                    className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white">
                     <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
                       <motion.path d="M5 12.5l4.5 4.5L19 7.5" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.45, delay: 0.25 }} />
                     </svg>

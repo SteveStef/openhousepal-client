@@ -81,6 +81,8 @@ interface FormBuilderModalProps {
   onRemoveQuestion: (questionId: string) => void
   onReorderQuestions: (draggedQuestionId: string, targetQuestionId: string) => void
   onSave: () => Promise<void>
+  /** Where people go after the thank-you. */
+  onUpdateRedirect?: (mode: string, url: string | null) => void
   onResetToDefault?: () => Promise<void>
   saveStatus: 'idle' | 'saving' | 'saved' | 'error'
   showPropertyLink: boolean
@@ -89,7 +91,7 @@ interface FormBuilderModalProps {
 }
 
 export default function FormBuilderModal({
-  isOpen, form, onClose, onUpdateField, onToggleBranding, onToggleRedirectToAgentHub, onToggleRedirectToShowcase, isDirty, onDiscard, hubLook, brandLook, luxeAllowed, onUpdateLook, onApplyLookToAll, onTogglePropertyPhotoCarousel, onToggleBackgroundEffects, onToggleWelcomeTextEffects, onUpdateBrandingLayout, onUpdateLinkedProperty,
+  isOpen, form, onClose, onUpdateRedirect, onUpdateField, onToggleBranding, onToggleRedirectToAgentHub, onToggleRedirectToShowcase, isDirty, onDiscard, hubLook, brandLook, luxeAllowed, onUpdateLook, onApplyLookToAll, onTogglePropertyPhotoCarousel, onToggleBackgroundEffects, onToggleWelcomeTextEffects, onUpdateBrandingLayout, onUpdateLinkedProperty,
   onUpdateQuestion, onAddQuestion, onRemoveQuestion, onReorderQuestions, onSave, onResetToDefault, saveStatus, showPropertyLink, branding, defaultDescription,
 }: FormBuilderModalProps) {
   const [selectedBlockId, setSelectedBlockId] = useState<BlockId>('welcome')
@@ -411,7 +413,7 @@ export default function FormBuilderModal({
 
                 <EffectsSettings form={form} onToggleBackground={onToggleBackgroundEffects} onToggleWelcome={onToggleWelcomeTextEffects} />
 
-                <AfterSubmitSettings form={form} hubAvailable={hasAgentHubAccess(user?.plan_tier)} onToggleHub={onToggleRedirectToAgentHub} onToggleShowcase={onToggleRedirectToShowcase} />
+                <AfterSubmitSettings onUpdateRedirect={onUpdateRedirect} form={form} hubAvailable={hasAgentHubAccess(user?.plan_tier)} onToggleHub={onToggleRedirectToAgentHub} onToggleShowcase={onToggleRedirectToShowcase} />
 
                 {showPropertyLink && (
                   <div>
@@ -492,13 +494,14 @@ export default function FormBuilderModal({
                 </label>
 
                 {/* The Agent Hub one only on plans with a public Agent Hub page - elsewhere there's nowhere to send them. */}
-                <AfterSubmitSettings form={form} hubAvailable={hasAgentHubAccess(user?.plan_tier)} onToggleHub={onToggleRedirectToAgentHub} onToggleShowcase={onToggleRedirectToShowcase} />
+                <AfterSubmitSettings onUpdateRedirect={onUpdateRedirect} form={form} hubAvailable={hasAgentHubAccess(user?.plan_tier)} onToggleHub={onToggleRedirectToAgentHub} onToggleShowcase={onToggleRedirectToShowcase} />
               </div>
             )}
 
             {selectedQuestion && (
               <QuestionEditor
                 question={selectedQuestion}
+                questions={form.questions}
                 onUpdate={(updates) => onUpdateQuestion(selectedQuestion.id, updates)}
               />
             )}
@@ -546,7 +549,96 @@ export default function FormBuilderModal({
   )
 }
 
-function QuestionEditor({ question, onUpdate }: { question: FormQuestion; onUpdate: (updates: Partial<FormQuestion>) => void }) {
+// A fork (owner, 11/04): this question only shows when an earlier pick-one question got certain
+// answers. Everything else about forks already worked - the guest's form, the saving, the premade forms.
+function ForkEditor({ question, questions, onUpdate }: { question: FormQuestion; questions: FormQuestion[]; onUpdate: (updates: Partial<FormQuestion>) => void }) {
+  const at = questions.findIndex(q => q.id === question.id)
+  const earlier = questions.slice(0, at).filter(q => (q.type === 'select' || q.type === 'multi_select') && (q.options || []).some(option => option.trim()))
+  const dep = question.depends_on || null
+  // The rule's parent has to come first, or nobody would ever see this question. Saved as it is, the
+  // server clears the rule (clean_question_forks) - so say so, on locked questions too.
+  const parentAt = dep ? questions.findIndex(q => q.id === dep.question_id || (q.fields || []).some(field => field.id === dep.question_id)) : -1
+  if (dep && (parentAt === -1 || parentAt >= at)) {
+    const parent = parentAt === -1 ? null : questions[parentAt]
+    return (
+      <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-500/40 dark:bg-amber-500/10" data-testid="form-fork-warning">
+        <p className="text-sm font-black text-[#111827] dark:text-white">Nobody would see this question</p>
+        <p className="mt-1 text-xs font-semibold leading-5 text-gray-600 dark:text-gray-300">
+          {parent ? `It only shows after "${parent.label}", but it now comes before that question. Move it below, or ask everyone.` : 'The question it follows isn\u2019t on this form any more. Ask everyone, or pick a new one after that.'}
+          {' '}If you save it like this, it will be asked of everyone.
+        </p>
+        <button type="button" onClick={() => onUpdate({ depends_on: null })} data-testid="form-fork-ask-everyone"
+          className="mt-3 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-black text-[#111827] transition hover:border-[#C9A24D] dark:border-amber-500/40 dark:bg-[#0F0F11] dark:text-white">
+          Ask everyone
+        </button>
+      </div>
+    )
+  }
+  if (question.locked || !earlier.length) return null
+  const on = earlier.find(q => q.id === dep?.question_id) || null
+  const toggle = (value: string) => {
+    if (!dep) return
+    const values = dep.values.includes(value) ? dep.values.filter(v => v !== value) : [...dep.values, value]
+    if (values.length) onUpdate({ depends_on: { ...dep, values } })
+  }
+  return (
+    <div className="rounded-xl border border-gray-200 bg-[#fbfaf7] p-4 dark:border-gray-700 dark:bg-[#151517]" data-testid="form-fork">
+      <p className="text-xs font-black uppercase tracking-widest text-gray-400">Only ask this when</p>
+      <select value={on?.id || ''} data-testid="form-fork-question"
+        onChange={(event) => { const q = earlier.find(x => x.id === event.target.value); onUpdate({ depends_on: q ? { question_id: q.id, values: [(q.options || []).find(option => option.trim()) as string] } : null }) }}
+        className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0F0F11] dark:text-white">
+        <option value="">Always ask this question</option>
+        {earlier.map(q => <option key={q.id} value={q.id}>{q.label}</option>)}
+      </select>
+      {on && (
+        <>
+          <p className="mt-3 text-xs font-semibold text-gray-500 dark:text-gray-400">is answered with</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {(on.options || []).filter(option => option.trim()).map(option => (
+              <button key={option} type="button" onClick={() => toggle(option)} aria-pressed={dep?.values.includes(option)} data-testid="form-fork-answer"
+                className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${dep?.values.includes(option) ? 'border-[#C9A24D] bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8c97a]' : 'border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-[#0F0F11] dark:text-gray-300'}`}>
+                {option}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function QuestionEditor({ question, questions, onUpdate }: { question: FormQuestion; questions: FormQuestion[]; onUpdate: (updates: Partial<FormQuestion>) => void }) {
+  if (question.type === 'contact_group' && !question.locked) {
+    const fields = question.fields || []
+    const setFields = (next: typeof fields) => onUpdate({ fields: next })
+    return (
+      <div className="mx-auto max-w-lg space-y-5">
+        <label className="block">
+          <span className="text-xs font-black uppercase tracking-widest text-gray-400">Page heading</span>
+          <input value={question.label} onChange={(event) => onUpdate({ label: event.target.value })}
+            className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0F0F11] dark:text-white" />
+        </label>
+        <div>
+          <p className="text-xs font-black uppercase tracking-widest text-gray-400">Questions on this page</p>
+          <div className="mt-2 space-y-2">
+            {fields.map((field, k) => (
+              <div key={field.id} className="flex items-center gap-2">
+                <input value={field.label} onChange={(event) => setFields(fields.map((f, i) => (i === k ? { ...f, label: event.target.value } : f)))}
+                  className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0F0F11] dark:text-white" />
+                <button type="button" disabled={fields.length <= 2} onClick={() => setFields(fields.filter((_, i) => i !== k))} aria-label={`Take off ${field.label}`}
+                  className="rounded-lg px-2 py-2 text-xs font-bold text-gray-400 hover:text-red-600 disabled:opacity-30">Remove</button>
+              </div>
+            ))}
+          </div>
+          {fields.length < 6 && (
+            <button type="button" onClick={() => setFields([...fields, { id: `f_${Date.now().toString(36)}`, type: 'short_text', label: 'New question', required: false }])}
+              className="mt-2 text-xs font-black text-[#8b7355] dark:text-[#e8c97a]">+ Add a question to this page</button>
+          )}
+        </div>
+        <ForkEditor question={question} questions={questions} onUpdate={onUpdate} />
+      </div>
+    )
+  }
   if (question.type === 'contact_group') {
     return (
       <div className="mx-auto max-w-lg space-y-5">
@@ -554,6 +646,7 @@ function QuestionEditor({ question, onUpdate }: { question: FormQuestion; onUpda
         <div className="rounded-xl border border-gray-200 bg-[#fbfaf7] p-4 text-sm text-gray-500 dark:border-gray-700 dark:bg-[#151517] dark:text-gray-400">
           This is a core contact block. It shows several fields together on one screen: {(question.fields || []).map(field => field.label).join(', ')}.
         </div>
+        <ForkEditor question={question} questions={questions} onUpdate={onUpdate} />
       </div>
     )
   }
@@ -565,6 +658,7 @@ function QuestionEditor({ question, onUpdate }: { question: FormQuestion; onUpda
 
   return (
     <div className="mx-auto max-w-lg space-y-5">
+      <ForkEditor question={question} questions={questions} onUpdate={onUpdate} />
       <label className="block">
         <span className="text-xs font-black uppercase tracking-widest text-gray-400">{question.type === 'statement' ? 'Headline' : 'Question label'}</span>
         <input
@@ -627,28 +721,33 @@ function QuestionEditor({ question, onUpdate }: { question: FormQuestion; onUpda
               <div key={optionIndex} className="flex items-center gap-2">
                 <input
                   value={option}
+                  disabled={question.locked}
                   onChange={(event) => {
                     const next = [...(question.options || [])]
                     next[optionIndex] = event.target.value
                     onUpdate({ options: next })
                   }}
                   placeholder={`Choice ${optionIndex + 1}`}
-                  className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-[#fbfaf7] px-3 py-2 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white"
+                  className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-[#fbfaf7] px-3 py-2 text-sm font-semibold outline-none focus:border-[#C9A24D] disabled:text-gray-400 dark:border-gray-700 dark:bg-[#151517] dark:text-white"
                 />
-                <button
-                  onClick={() => onUpdate({ options: (question.options || []).filter((_, i) => i !== optionIndex) })}
-                  className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                {!question.locked && (
+                  <button
+                    onClick={() => onUpdate({ options: (question.options || []).filter((_, i) => i !== optionIndex) })}
+                    className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             ))}
-            <button
-              onClick={() => onUpdate({ options: [...(question.options || []), ''] })}
-              className="inline-flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-xs font-black text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-400"
-            >
-              <Plus className="h-3.5 w-3.5" /> Add choice
-            </button>
+            {!question.locked && (
+              <button
+                onClick={() => onUpdate({ options: [...(question.options || []), ''] })}
+                className="inline-flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-xs font-black text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-400"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add choice
+              </button>
+            )}
           </div>
         </div>
       )}

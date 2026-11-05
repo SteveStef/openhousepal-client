@@ -493,8 +493,8 @@ function MediaResultPage() {
                       </div>
                     </div>
                     <div className="relative mx-auto min-h-[380px] w-full max-w-3xl overflow-hidden rounded-xl border-2 border-[#C9A24D]/50 sm:aspect-[16/10] sm:min-h-0" style={{ boxShadow: '0 0 44px -10px rgba(201,162,77,0.5)' }}>
-                      <img src={current.source_photo_url} alt="" className="absolute inset-0 h-full w-full scale-105 object-cover blur-[2px] brightness-[0.5]" draggable={false} />
-                      <div className="pointer-events-none absolute inset-x-0 h-1/3" style={{ animation: 'ohpScan 2.1s cubic-bezier(.4,0,.2,1) infinite', background: 'linear-gradient(180deg,transparent,rgba(230,199,122,0.5) 45%,rgba(255,255,255,0.8) 50%,rgba(230,199,122,0.5) 55%,transparent)', filter: 'blur(2px)' }} />
+                      <img src={current.source_photo_url} alt="" className="absolute inset-0 h-full w-full scale-105 object-cover brightness-[0.5]" draggable={false} />
+                      <div className="pointer-events-none absolute inset-x-0 h-1/3" style={{ animation: 'ohpScan 2.1s cubic-bezier(.4,0,.2,1) infinite', background: 'linear-gradient(180deg,transparent,rgba(230,199,122,0.5) 45%,rgba(255,255,255,0.8) 50%,rgba(230,199,122,0.5) 55%,transparent)' }} />
                       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 px-6 text-center">
                         <div className="relative flex h-11 w-11 items-center justify-center">
                           <span className="absolute inset-0 rounded-full bg-[#C9A24D]/40" style={{ animation: 'ohpGlow 1.6s ease-in-out infinite' }} />
@@ -522,17 +522,17 @@ function MediaResultPage() {
                   {videoShots && videoShots.photos.length > 1 ? (
                     <div className="absolute inset-0 flex">
                       {videoShots.photos.map((src, i) => (
-                        <img key={i} src={src} alt="" className="h-full flex-1 scale-105 object-cover blur-[2px] brightness-[0.5]" draggable={false} />
+                        <img key={i} src={src} alt="" className="h-full flex-1 scale-105 object-cover brightness-[0.5]" draggable={false} />
                       ))}
                     </div>
                   ) : current.source_photo_url ? (
-                    <img src={current.source_photo_url} alt="" className="absolute inset-0 h-full w-full scale-105 object-cover blur-[2px] brightness-[0.5]" draggable={false} />
+                    <img src={current.source_photo_url} alt="" className="absolute inset-0 h-full w-full scale-105 object-cover brightness-[0.5]" draggable={false} />
                   ) : (
                     <div className="absolute inset-0 bg-gradient-to-br from-[#111827] via-[#172033] to-[#4a3820]" />
                   )}
                   <div
                     className="pointer-events-none absolute inset-x-0 h-1/3"
-                    style={{ animation: 'ohpScan 2.1s cubic-bezier(.4,0,.2,1) infinite', background: 'linear-gradient(180deg,transparent,rgba(230,199,122,0.5) 45%,rgba(255,255,255,0.8) 50%,rgba(230,199,122,0.5) 55%,transparent)', filter: 'blur(2px)' }}
+                    style={{ animation: 'ohpScan 2.1s cubic-bezier(.4,0,.2,1) infinite', background: 'linear-gradient(180deg,transparent,rgba(230,199,122,0.5) 45%,rgba(255,255,255,0.8) 50%,rgba(230,199,122,0.5) 55%,transparent)' }}
                   />
                   <div className="relative z-10 flex flex-col items-center gap-3.5">
                     <div className="relative flex h-11 w-11 items-center justify-center">

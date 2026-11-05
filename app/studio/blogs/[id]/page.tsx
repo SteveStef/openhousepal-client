@@ -496,7 +496,7 @@ function BlogEditorPageInner() {
         tags: next.tags, blocks: next.blocks, linked_properties: next.linked_properties,
         seo_title: next.seo_title, meta_description: next.meta_description, focus_keyword: next.focus_keyword,
         social_title: next.social_title, social_description: next.social_description, social_image_url: next.social_image_url,
-        is_indexed: next.is_indexed, luxe_metal: next.luxe_metal || undefined,
+        is_indexed: next.is_indexed, luxe_metal: next.luxe_metal || undefined, accent_color: next.accent_color || undefined,
       })
       setSaveStatus(response.success ? 'saved' : 'error')
       if (response.success) {

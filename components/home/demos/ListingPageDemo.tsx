@@ -166,7 +166,7 @@ export default function ListingPageDemo() {
       <BrowserFrame url={url} progress={progress}>
         <style>{CSS}</style>
         <div className="relative h-[420px] overflow-hidden bg-gradient-to-br from-[#0b0f0e] via-[#111827] to-[#2a2218] px-6 pt-7">
-          <span className="pointer-events-none absolute -right-16 -top-20 h-60 w-60 rounded-full bg-[#C9A24D]/25 blur-3xl" />
+          <span className="pointer-events-none absolute -right-16 -top-20 h-60 w-60 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.38),transparent)]" />
           <p className="sp-rise flex items-center gap-2 text-[8px] font-black uppercase tracking-[0.3em] text-[#e8c97a]"><span className="h-px w-6 bg-[#C9A24D]" />Spotlight Pages · New</p>
           <h4 className="sp-rise mt-1.5 font-serif text-[22px] font-black leading-tight text-white" style={{ animationDelay: '80ms' }}>Which home gets <em className="font-light text-[#e8c97a]">the spotlight?</em></h4>
           <div className="mt-4 grid grid-cols-[1.35fr_1fr_1fr] gap-2.5">
@@ -207,7 +207,7 @@ export default function ListingPageDemo() {
         <style>{CSS}</style>
         <div className="relative flex h-[420px] flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-[#0b0f0e] via-[#111827] to-[#2a2218] text-center text-white">
           <Image src={L.hero} alt="" fill className="sp-zoom object-cover opacity-20" unoptimized />
-          <span className="pointer-events-none absolute h-72 w-72 rounded-full bg-[#C9A24D]/25 blur-3xl sp-glow" />
+          <span className="pointer-events-none absolute h-72 w-72 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.38),transparent)] sp-glow" />
           <div className="relative flex h-28 w-28 items-center justify-center">
             <span className="sp-orbit absolute inset-0 rounded-full border border-dashed border-[#C9A24D]/50" />
             {[0, 72, 144, 216, 288].map(d => <span key={d} className="sp-orbit absolute inset-0" style={{ animationDelay: `-${d / 60}s` }}><Sparkles className="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 text-[#f3dfa8]" /></span>)}
@@ -388,7 +388,7 @@ export default function ListingPageDemo() {
         <div className="flex h-[420px] flex-col bg-[#f7f5f1] p-4 dark:bg-[#0B0B0B]">
           <StepBar active={Math.min(done, EDITOR_STEPS.length - 1)} done={done} />
           <div className="relative mt-3 flex flex-1 gap-3 overflow-hidden rounded-2xl bg-gradient-to-br from-[#0b0f0e] via-[#111827] to-[#2a2218] p-4 text-white">
-            <span className="pointer-events-none absolute -right-10 -top-14 h-44 w-44 rounded-full bg-[#C9A24D]/30 blur-3xl" />
+            <span className="pointer-events-none absolute -right-10 -top-14 h-44 w-44 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.44),transparent)]" />
             <div className="relative w-[46%] shrink-0 overflow-hidden rounded-xl ring-1 ring-white/15">
               <Image src={L.hero} alt="" fill className="sp-zoom object-cover" unoptimized />
               <span className="absolute inset-0 bg-gradient-to-t from-black/85 to-transparent" />

@@ -4,7 +4,10 @@ import { useMemo, useState } from 'react'
 import { Check, Link2, Play, Plus, Star } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/api-service'
 import { youtubeIdOf } from '@/components/studio/blogs/ShowcaseBlocks'
-import { CardStep, OPTION_GRID, StepDone, useSteps } from './CardPickers'
+import { BLOG_THEMES, CLASSIC_BLOG_ACCENTS, blogTheme } from '@/components/studio/blogs/BlogThemes'
+import { LUXE_METALS, LUXE_METAL_ORDER, type LuxeMetal } from '@/lib/luxeMetals'
+import { CardStep, OPTION_GRID, PickShell, StepDone, chip, useSteps } from './CardPickers'
+import { PhotoDrop } from './PhotoDrop'
 
 // The Blogs page's AI writer interview, as the chat card's steps (owner, 11/01: "exactly how it would
 // be if you were actually on the blog ... sections, collapsible when they're done ... questions
@@ -15,7 +18,11 @@ export type BlogPicks = {
   audiences: string[]; areas: string[]; spotlight: boolean
   points: string[]; key_points: string; personal_take: string; facts: string
   sale_ids: string[]; listing_ids: string[]; video: { url: string; title?: string } | null
+  // the article's look and where it shows (owner, 11/05)
+  theme: string; luxe_metal: string; accent_color: string | null; category: string; cover: string | null
+  agent_hub_visible: boolean; agent_hub_featured: boolean; idx_visible: boolean; use_signature_card: boolean
 }
+const CATEGORIES = ['Buyers', 'Sellers', 'Market Updates', 'Neighborhoods', 'Homeownership', 'Luxury', 'Investments', 'Open Houses', 'Local Guides', 'New Construction', 'Real Estate News']
 type Sale = { id: string; address: string; city: string; price?: number | null; date?: string; photo?: string | null }
 type Listing = { id: string; address: string; city?: string; price?: number | null; beds?: number; baths?: number; image_url?: string | null }
 type Video = { id: string; title?: string; url: string; image?: string | null; kind?: string }
@@ -55,7 +62,7 @@ const Label = ({ children }: { children: React.ReactNode }) => (
 const inputCls = 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-800 outline-none focus:border-[#C9A24D] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100'
 
 export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, any>; picks: BlogPicks; onPicks: (p: BlogPicks) => void }) {
-  const opts = (payload.options || {}) as { areas?: string[]; area_cards?: Record<string, string>; sales?: Sale[]; listings?: Listing[]; videos?: Video[]; angles?: string[]; goals?: string[]; point_ideas?: string[] }
+  const opts = (payload.options || {}) as { areas?: string[]; area_cards?: Record<string, string>; sales?: Sale[]; listings?: Listing[]; videos?: Video[]; angles?: string[]; goals?: string[]; point_ideas?: string[]; luxe_ok?: boolean; idx_ok?: boolean }
   const given = String((payload.body || {}).topic || '')
   const angles = Array.from(new Set([given, ...(opts.angles || [])].filter(Boolean)))
   const goals = opts.goals || []
@@ -64,7 +71,7 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
   const sales = opts.sales || []
   const listings = opts.listings || []
   const videos = (opts.videos || []).filter(v => youtubeIdOf(v.url))
-  const ids = ['topic', 'readers', 'points', ...(sales.length || listings.length ? ['homes'] : []), 'video', 'style']
+  const ids = ['topic', 'readers', 'points', ...(sales.length || listings.length ? ['homes'] : []), 'video', 'style', 'look', 'cover', 'where']
   const steps = useSteps(ids)
   const n = (id: string) => ids.indexOf(id) + 1
   const set = (p: Partial<BlogPicks>) => onPicks({ ...picks, ...p })
@@ -95,8 +102,23 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
   const styleSummary = [BLOG_TONES.find(t => t[0] === picks.tone)?.[1], BLOG_LENGTHS.find(l => l[0] === picks.length)?.[1]].filter(Boolean).join(' · ')
   const homesPicked = picks.sale_ids.length + picks.listing_ids.length
 
+  const look = blogTheme(picks.theme)
+  const ink = picks.theme === 'luxe' ? picks.accent_color || look.accent : picks.theme === 'luxe_plus' ? LUXE_METALS[picks.luxe_metal as LuxeMetal].base : look.accent
+  const covers = Array.from(new Set([...(picks.cover ? [picks.cover] : []), ...listings.map(l => l.image_url).filter(Boolean) as string[], ...sales.slice(0, 6).map(x => x.photo).filter(Boolean) as string[]])).slice(0, 10)
+  const where = [picks.agent_hub_visible && 'Agent Hub', picks.idx_visible && opts.idx_ok && 'IDX site'].filter(Boolean).join(', ') || 'Hidden'
   return (
-    <div className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-blog-pick">
+    <PickShell testid="ai-blog-pick" side={280} preview={
+      /* the article's top, in the look picked */
+      <div className="overflow-hidden rounded-xl ring-1 ring-black/10" style={{ background: look.paper, color: look.ink }} data-testid="ai-blog-preview">
+        <div className="relative h-[90px] group-data-[wide=yes]/pick:h-[150px]" style={{ background: `linear-gradient(135deg, ${ink}, ${look.bg})` }}>
+          {picks.cover && <img src={resolveMediaUrl(picks.cover)} alt="" className="h-full w-full object-cover" />}
+        </div>
+        <div className="p-2.5">
+          <p className="text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: ink }}>{picks.category || 'Article'}</p>
+          <p className="mt-1 line-clamp-3 text-[14px] font-semibold leading-snug" style={{ fontFamily: picks.theme === 'modern' ? 'system-ui, sans-serif' : 'Georgia, serif' }}>{picks.topic}</p>
+        </div>
+      </div>
+    }>
       <CardStep id="topic" n={n('topic')} title="Topic" summary={picks.topic} steps={steps}>
         <Label>The angle</Label>
         <div className={OPTION_GRID} data-testid="ai-blog-angles">
@@ -245,9 +267,57 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
         </div>
         <div className="mt-2.5"><StepDone onDone={() => steps.done('style')} /></div>
       </CardStep>
+
+      <CardStep id="look" n={n('look')} title="Its look" summary={look.label} steps={steps}>
+        <div className={OPTION_GRID} data-testid="ai-blog-themes">
+          {BLOG_THEMES.filter(t => !t.idx || opts.luxe_ok).map(t => <Check2 key={t.id} round on={picks.theme === t.id} onClick={() => set({ theme: t.id })} sub={t.blurb}>{t.label}</Check2>)}
+        </div>
+        {picks.theme === 'luxe' && (
+          <div className="mt-2 flex flex-wrap gap-1.5" data-testid="ai-blog-colors">
+            {CLASSIC_BLOG_ACCENTS.slice(0, 14).map((c: { color: string; label: string }) => {
+              const on = (picks.accent_color || look.accent).toLowerCase() === c.color.toLowerCase()
+              return <button key={c.color} type="button" title={c.label} aria-label={c.label} aria-pressed={on} onClick={() => set({ accent_color: c.color })}
+                className={`ohp-ai-press grid h-7 w-7 place-items-center rounded-full ring-1 ring-black/10 ${on ? 'ring-2 ring-[#111827] ring-offset-2 dark:ring-white dark:ring-offset-zinc-900' : ''}`} style={{ background: c.color }}>{on && <Check className="h-3.5 w-3.5 text-white drop-shadow" strokeWidth={3} />}</button>
+            })}
+          </div>
+        )}
+        {picks.theme === 'luxe_plus' && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {LUXE_METAL_ORDER.map(m => <button key={m} type="button" onClick={() => set({ luxe_metal: m })} aria-pressed={picks.luxe_metal === m} className={chip(picks.luxe_metal === m)}>{LUXE_METALS[m].label}</button>)}
+          </div>
+        )}
+        <Label>Category</Label>
+        <div className="flex flex-wrap gap-1.5">
+          {CATEGORIES.map(c => <button key={c} type="button" onClick={() => set({ category: picks.category === c ? '' : c })} aria-pressed={picks.category === c} className={chip(picks.category === c)}>{c}</button>)}
+        </div>
+        <div className="mt-2.5"><StepDone onDone={() => steps.done('look')} /></div>
+      </CardStep>
+
+      <CardStep id="cover" n={n('cover')} title="Cover photo" summary={picks.cover ? 'Picked' : 'Made for you'} steps={steps}>
+        <PhotoDrop compact testid="ai-blog-cover" onPhoto={p => set({ cover: p.url })} />
+        {covers.length > 0 && (
+          <div className="mt-2 grid grid-cols-[repeat(auto-fill,minmax(5rem,1fr))] gap-1.5" data-testid="ai-blog-covers">
+            {covers.map((src, i) => { const on = picks.cover === src; return (
+              <button key={src} type="button" onClick={() => set({ cover: on ? null : src })} aria-pressed={on} aria-label={`Cover ${i + 1}`} className={`ohp-ai-press aspect-[4/3] overflow-hidden rounded-lg ring-1 ring-black/10 ${on ? 'ring-2 ring-[#C9A24D] ring-offset-1 dark:ring-offset-zinc-900' : 'opacity-85 hover:opacity-100'}`}>
+                <img src={resolveMediaUrl(src)} alt="" loading="lazy" className="h-full w-full object-cover" />
+              </button>
+            ) })}
+          </div>
+        )}
+        <div className="mt-2.5"><StepDone onDone={() => steps.done('cover')} /></div>
+      </CardStep>
+
+      <CardStep id="where" n={n('where')} title="Where it shows" summary={where} steps={steps}>
+        <div className={OPTION_GRID}>
+          <Check2 on={picks.agent_hub_visible} onClick={() => set({ agent_hub_visible: !picks.agent_hub_visible })}>On my Agent Hub</Check2>
+          <Check2 on={picks.agent_hub_featured} onClick={() => set({ agent_hub_featured: !picks.agent_hub_featured })}>Featured on my Agent Hub</Check2>
+          {opts.idx_ok && <Check2 on={picks.idx_visible} onClick={() => set({ idx_visible: !picks.idx_visible })}>On my IDX site</Check2>}
+          <Check2 on={picks.use_signature_card} onClick={() => set({ use_signature_card: !picks.use_signature_card })}>End with my email signature</Check2>
+        </div>
+      </CardStep>
       {typeof pct[picks.length] === 'number' && (
         <p className="px-0.5 text-[11px] font-semibold text-gray-500 dark:text-zinc-400">Uses {pctText(picks.length)} allowance · saved as a draft - nothing is published until you say so</p>
       )}
-    </div>
+    </PickShell>
   )
 }

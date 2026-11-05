@@ -116,6 +116,9 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
     <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain px-3 sm:px-6 py-4 sm:py-6 space-y-5">
       {messages.map((msg, idx) => {
         const isUser = msg.role === 'user'
+        // A photo they dropped in is kept as a note in the message; here it's the picture.
+        const photos = isUser ? Array.from(msg.content.matchAll(/\[Photo attached: (\S+?)\]/g)).map(m => m[1]) : []
+        const words = isUser ? msg.content.replace(/\n?\[Photo attached: \S+?\]/g, '').trim() : msg.content
         const extras = ['action', 'choices', 'link', 'made', 'homes', 'hosting']
         const refs = msg.tool_calls ? dedupeRefs(msg.tool_calls.filter((r) => !extras.includes(r.record_type))) : []
         const actions = (msg.tool_calls || []).filter((r) => r.record_type === 'action')
@@ -135,13 +138,20 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
                 <OhpBot size={32} className={`flex-shrink-0 drop-shadow-sm ${wide ? 'hidden sm:block' : ''}`} />
               )}
               <div className={wide ? "min-w-0 flex-1" : "min-w-0"}>
+                {photos.length > 0 && (
+                  <div className="mb-1.5 flex flex-wrap justify-end gap-1.5" data-testid="ai-message-photos">
+                    {photos.map(src => <img key={src} src={src} alt="Your photo" className="max-h-44 max-w-full rounded-2xl object-cover ring-1 ring-black/10" />)}
+                  </div>
+                )}
+                {(words && !(photos.length && words === "Here's a photo.")) && (
                 <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed break-words ${
                   isUser
                     ? 'bg-[#8b7355] text-white whitespace-pre-wrap'
                     : 'bg-gray-50 dark:bg-zinc-800/70 text-gray-800 dark:text-zinc-100 border border-gray-100 dark:border-zinc-800'
                 }`}>
-                  {isUser ? msg.content : <AssistantMarkdown content={msg.content} />}
+                  {isUser ? words : <AssistantMarkdown content={msg.content} />}
                 </div>
+                )}
                 {(msg.tool_calls || []).filter((r) => r.record_type === 'homes' && (r as any).homes?.length).map((r) => (
                   <HomeCards key={r.record_id} homes={(r as any).homes} title={(r as any).title} />
                 ))}

@@ -504,7 +504,7 @@ export default function BlogAiWriter({
       >
         {/* Header */}
         <div className="relative shrink-0 overflow-hidden border-b border-gray-100 bg-gradient-to-r from-[#111827] via-[#172033] to-[#4a3820] px-5 pb-4 pt-6 dark:border-gray-800 sm:px-6 sm:py-4">
-          <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-[#C9A24D]/30 blur-2xl" />
+          <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.3),transparent)]" />
           {/* Phones: the pull-down handle */}
           <span aria-hidden className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-white/25 sm:hidden" />
           <div className="relative flex items-center justify-between gap-3">
@@ -839,7 +839,7 @@ export default function BlogAiWriter({
               <style>{'@keyframes blogInk{from{width:0}to{width:var(--w)}}@keyframes blogPen{0%,100%{transform:translate(0,0) rotate(-8deg)}50%{transform:translate(6px,-3px) rotate(-14deg)}}'}</style>
               {/* A page writing itself - lines ink in, one after another, as the stages tick by. */}
               <div className="relative mb-6 overflow-hidden rounded-2xl border border-[#C9A24D]/30 bg-gradient-to-br from-[#fffdf8] to-[#fbf3df] p-5 shadow-[0_20px_44px_-30px_rgba(201,162,77,.8)] dark:border-white/10 dark:from-[#151517] dark:to-[#1d1810]">
-                <div className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-[#C9A24D]/25 blur-2xl" />
+                <div className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.25),transparent)]" />
                 <p className="relative text-[9px] font-black uppercase tracking-[0.25em] text-[#8b7355] dark:text-[#e8c97a]">{initialCategory || 'Your article'}</p>
                 <p className="relative mt-1 line-clamp-2 font-serif text-xl font-black leading-tight text-[#111827] dark:text-white">{topic || 'Your article'}</p>
                 <div className="relative mt-4 space-y-2">

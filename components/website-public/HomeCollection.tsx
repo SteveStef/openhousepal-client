@@ -58,15 +58,15 @@ export default function HomeCollection({ listings, theme, basePrefix = '', onQui
     <Reveal key="lead-tile" className="h-full">
       <a href={`${basePrefix}/create-showcase`}
         className={`group relative flex h-full min-h-[340px] flex-col justify-between overflow-hidden p-7 text-white transition duration-500 hover:-translate-y-1.5 ${luxe ? 'rounded-[26px]' : 'rounded-2xl'}`}
-        style={{ background: luxe
-          ? `radial-gradient(120% 90% at 100% 0%, rgba(var(--site-accent-rgb),.45), transparent 60%), radial-gradient(90% 80% at 0% 100%, rgba(var(--site-accent-rgb),.22), transparent 60%), ${theme.primary_color}`
-          : 'radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.18), transparent 55%), linear-gradient(150deg, var(--site-accent), var(--site-accent-deep))' }}>
+        style={luxe
+          ? { background: `radial-gradient(120% 90% at 100% 0%, rgba(var(--site-accent-rgb),.45), transparent 60%), radial-gradient(90% 80% at 0% 100%, rgba(var(--site-accent-rgb),.22), transparent 60%), ${theme.primary_color}` }
+          : { background: 'radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.18), transparent 55%), linear-gradient(150deg, var(--site-accent), color-mix(in srgb, var(--site-accent) 86%, #000))', color: 'var(--site-on-accent)' }}>
         <span aria-hidden className="pointer-events-none absolute inset-0 opacity-[.08]" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,.9) 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
-        <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: 'rgba(255,255,255,.12)' }}><BellRing className="h-6 w-6" style={{ color: luxe ? 'var(--site-accent-light)' : '#fff' }} /></span>
+        <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl" style={{ backgroundColor: 'rgba(255,255,255,.12)' }}><BellRing className="h-6 w-6" style={{ color: luxe ? 'var(--site-accent-light)' : 'inherit' }} /></span>
         <span className="relative">
-          <span className="text-[10px] font-black uppercase tracking-[0.28em]" style={{ color: luxe ? 'var(--site-accent-light)' : 'rgba(255,255,255,.75)' }}>Free · private</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.28em]" style={{ color: luxe ? 'var(--site-accent-light)' : 'inherit' }}>Free · private</span>
           <span className={`mt-2 block text-[26px] leading-tight ${luxe ? `font-black ${serif}` : 'font-extrabold tracking-tight'}`}>Get homes like these before anyone else</span>
-          <span className="mt-2 block text-sm text-white/70">Tell me what you love - you&apos;ll get your own private page that finds new matches the minute they list.</span>
+          <span className={`mt-2 block text-sm ${luxe ? 'text-white/70' : ''}`}>Tell me what you love - you&apos;ll get your own private page that finds new matches the minute they list.</span>
         </span>
         <span className={`relative inline-flex w-fit items-center gap-2 px-5 py-3 text-sm font-black transition group-hover:gap-3 ${luxe ? 'rounded-full' : 'rounded-xl'}`} style={luxe ? { backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' } : { backgroundColor: '#fff', color: 'var(--site-accent-deep)' }}>
           Create my free Showcase <ArrowRight className="h-4 w-4" />
@@ -101,7 +101,7 @@ export default function HomeCollection({ listings, theme, basePrefix = '', onQui
             <button type="button" onClick={() => { setTown(null); setLimit(pageSize) }} className={`shrink-0 border px-4 py-2 text-xs font-black transition ${luxe ? 'rounded-full' : 'rounded-lg'}`} style={chip(!town)}>All towns</button>
             {towns.map(t => (
               <button key={t.name} type="button" onClick={() => { setTown(t.name); setLimit(pageSize) }} className={`shrink-0 border px-4 py-2 text-xs font-black transition ${luxe ? 'rounded-full' : 'rounded-lg'}`} style={chip(town === t.name)}>
-                {t.name} <span className="ml-1 opacity-60">{t.n}</span>
+                {t.name} <span className="ohp-keep-solid ml-1 opacity-60">{t.n}</span>
               </button>
             ))}
           </div>

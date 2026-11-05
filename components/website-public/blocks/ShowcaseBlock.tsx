@@ -12,7 +12,7 @@ export default function ShowcaseBlock({ data, theme, basePrefix = '' }: { data: 
   return (
     <section className="mx-auto max-w-4xl px-6 py-16 sm:py-20">
       <div className="rounded-3xl border-2 px-8 py-14 text-center" style={{ borderColor: `${theme.secondary_color}40`, backgroundColor: `${theme.secondary_color}0a` }}>
-        <p className="text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: theme.secondary_color }}>Curated For You</p>
+        <p className="text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent)' }}>Curated For You</p>
         <h2 className={`mt-2 text-3xl font-black sm:text-4xl ${fontClass(theme.heading_font, 'font-serif')}`} style={{ color: 'var(--site-heading)' }}>
           {/* Never the Showcase's own name - Showcases are usually made for one client, and their
               name would show on the public home page (10/27 audit). */}

@@ -27,7 +27,7 @@ import BlockEditorPanel from './BlockEditorPanel'
 import { PREVIEW_FX_CSS } from './previewFx'
 import ThemePanel from './ThemePanel'
 import DomainsPanel from './DomainsPanel'
-import { LinkDomainShortcut } from '@/components/settings/IdxDomainCard'
+import { IdxFeatureSwitch, LinkDomainShortcut } from '@/components/settings/IdxDomainCard'
 import AreasPanel from './AreasPanel'
 import FeaturedSettingsPanel from './FeaturedSettingsPanel'
 import HeaderHomesPanel from './HeaderHomesPanel'
@@ -976,7 +976,7 @@ Your website is built from your Agent Hub, so these parts will show up blank. Pu
           {activeTab === 'reviews' && <ReviewsSettingsPanel onShowingChange={onReviewsShowing} onSwitch={onReviewsSwitch} onMinRatingChange={onReviewsMinRating} siteUrl={siteUrl} />}
           {activeTab === 'areas' && <AreasPanel onChange={onAreasChange} />}
           {activeTab === 'search' && <SearchAppearancePanel seo={seo} onChange={setSeo} pages={[homePage, ...otherPages]} defaults={seoDefaults} focusKey={seoFocus} onFocusKey={setSeoFocus} data={seoData} onPreview={setSeoPreviewPage} />}
-          {activeTab === 'domains' && <><LinkDomainShortcut /><DomainsPanel subdomainSlug={site.subdomain_slug} bare /></>}
+          {activeTab === 'domains' && <><IdxFeatureSwitch /><LinkDomainShortcut /><DomainsPanel subdomainSlug={site.subdomain_slug} bare /></>}
         </section>
 
         {/* Live preview - the exact same header/footer chrome + block renderer components the

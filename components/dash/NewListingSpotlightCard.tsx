@@ -64,7 +64,7 @@ export default function NewListingSpotlightCard({ className = '' }: { className?
                 : <div className="h-full w-full bg-[radial-gradient(120%_160%_at_100%_0%,rgba(201,162,77,.3),transparent_55%),linear-gradient(135deg,#0b0f0e,#111827_60%,#2a2218)]" />}
               <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0b0f0e] via-[#0b0f0e]/35 to-transparent" />
               <span className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-card-shimmer" />
-              <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-[#0b0f0e]/70 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#e8c97a] ring-1 ring-[#C9A24D]/40 backdrop-blur-sm">
+              <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-[#0b0f0e]/70 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#e8c97a] ring-1 ring-[#C9A24D]/40">
                 <Sparkles className="h-3 w-3" /> New listing{l.days_on_market != null ? ` · ${l.days_on_market === 0 ? 'today' : `${l.days_on_market}d ago`}` : ''}
               </span>
               <span className="absolute inset-x-3 bottom-2.5 block">
@@ -72,7 +72,7 @@ export default function NewListingSpotlightCard({ className = '' }: { className?
                 {l.city && <span className="block text-[11px] font-bold text-white/70">{[l.city, l.state].filter(Boolean).join(', ')}{l.price ? ` · $${Number(l.price).toLocaleString('en-US')}` : ''}</span>}
               </span>
             </Link>
-            <button onClick={() => dismiss(l.listing_key)} aria-label="Dismiss" className="absolute right-2.5 top-2.5 rounded-full bg-[#0b0f0e]/60 p-1.5 text-white/70 backdrop-blur-sm transition hover:text-white">
+            <button onClick={() => dismiss(l.listing_key)} aria-label="Dismiss" className="absolute right-2.5 top-2.5 rounded-full bg-[#0b0f0e]/60 p-1.5 text-white/70 transition hover:text-white">
               <X className="h-4 w-4" />
             </button>
             <div className="flex items-center gap-3 px-3 pb-3 pt-2.5">

@@ -95,7 +95,7 @@ function AgentAvatar({ profile, siteName, href, size = 'h-9 w-9', ring = 'ring-w
       {profile?.photo_url ? (
         <img src={sizedImage(resolveMediaUrl(profile.photo_url), 256)} loading="lazy" decoding="async" alt={profile.name || siteName} className={`${size} ${shape} object-cover ring-2 ${ring} transition duration-500 group-hover:scale-105`} />
       ) : (
-        <span className={`flex ${size} ${shape} items-center justify-center text-[11px] font-black ring-2 ${ring}`} style={onDark ? { backgroundColor: 'rgba(255,255,255,.12)', color: '#fff' } : { backgroundColor: theme.secondary_color, color: 'var(--site-on-accent)' }}>
+        <span className={`flex ${size} ${shape} items-center justify-center text-[11px] font-black ring-2 ${ring}`} style={onDark ? { backgroundColor: 'rgba(255,255,255,.12)', color: '#fff' } : { backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>
           {initials(profile?.name || siteName)}
         </span>
       )}
@@ -211,7 +211,7 @@ export function SiteHeader({
       className={`${preview ? 'sticky' : 'fixed inset-x-0'} top-0 z-50 transition-all duration-500 ${
         dark
           ? 'border-b border-transparent bg-transparent'
-          : classic ? 'border-b border-[var(--site-line)] bg-[var(--site-bg)]/95 ' : 'border-b border-[var(--site-gold)]/15 bg-[var(--site-cream)] shadow-[0_1px_20px_rgba(17,24,39,0.08)]'
+          : classic ? 'border-b border-[var(--site-line)] bg-[var(--site-bg)]' : 'border-b border-[var(--site-gold)]/15 bg-[var(--site-cream)] shadow-[0_1px_20px_rgba(17,24,39,0.08)]'
       }`}
     >
       {mine && <style>{MINE_TAB_CSS}</style>}
@@ -226,7 +226,7 @@ export function SiteHeader({
           ) : (
             <span
               className={`flex h-11 w-11 items-center justify-center transition-transform duration-300 hover:scale-105 ${classic ? 'rounded-xl' : 'rounded-xl ring-1 ring-[var(--site-gold)]/30'}`}
-              style={classic ? { backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' } : { backgroundColor: theme.primary_color, color: theme.secondary_color }}
+              style={classic ? { backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' } : { backgroundColor: theme.primary_color, color: 'var(--site-accent)' }}
             >
               <HomeIcon className="h-5 w-5" />
             </span>
@@ -258,7 +258,7 @@ export function SiteHeader({
                 {!classic && (
                   <span
                     className={`absolute inset-x-3 -bottom-0.5 h-0.5 origin-left transition-transform duration-300 group-hover:scale-x-100 ${active ? 'scale-x-100' : 'scale-x-0'}`}
-                    style={{ backgroundColor: theme.secondary_color }}
+                    style={{ backgroundColor: 'var(--site-accent)' }}
                   />
                 )}
               </a>

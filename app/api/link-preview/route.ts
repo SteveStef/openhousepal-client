@@ -8,7 +8,12 @@ const BASE = process.env.NEXT_PUBLIC_OHP_BASE_DOMAIN || 'openhousepal.com'
 
 function target(raw: string, req: NextRequest): URL | null {
   try {
-    if (raw.startsWith('/') && !raw.startsWith('//')) return new URL(raw, req.nextUrl.origin)
+    // A page on this app. On the live server req.nextUrl.origin is the container's inside address,
+    // which it can't reach, so every path came back 502 and the card sat blank (owner, 11/04).
+    if (raw.startsWith('/') && !raw.startsWith('//')) {
+      const local = /^(localhost|127\.0\.0\.1)(:|$)/.test(req.headers.get('host') || '')
+      return new URL(raw, local ? req.nextUrl.origin : `https://${BASE}`)
+    }
     const u = new URL(raw)
     if (!/^https?:$/.test(u.protocol)) return null
     const h = u.hostname.toLowerCase()

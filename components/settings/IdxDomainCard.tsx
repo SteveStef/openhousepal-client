@@ -204,6 +204,12 @@ export default function IdxDomainCard({ children, linkDomain }: { children?: Rea
 
 // The IDX website on/off switch - Settings -> IDX Website (top card). Off = the public site isn't
 // served at all and every link falls back to openhousepal.com; on = back exactly as published.
+/** The same switch on the IDX feature's own Domain tab - one saved setting, so both always agree. */
+export function IdxFeatureSwitch() {
+  const linkDomain = useLinkDomain()
+  return <div className="mb-3"><IdxSiteSwitch linkDomain={linkDomain} /></div>
+}
+
 export function IdxSiteSwitch({ linkDomain }: { linkDomain: LinkDomainHook }) {
   const { state, saving, error, setSiteEnabled } = linkDomain
   const on = state?.site_enabled !== false
@@ -217,7 +223,8 @@ export function IdxSiteSwitch({ linkDomain }: { linkDomain: LinkDomainHook }) {
       <DomainWarningSheet open={askOff} onClose={() => setAskOff(false)} onConfirm={() => setSiteEnabled(false)}
         title="Turn off your IDX website?" subtitle="Nothing is deleted"
         points={[
-          { text: <>Your IDX website stops opening on all your addresses{state?.custom_domain ? <> (including <b className="font-mono">{state.custom_domain}</b>)</> : null} - visitors see a &quot;not available&quot; page.</> },
+          { text: <>Your IDX website stops opening - visitors to your free address see a &quot;not available&quot; page.</> },
+          ...(state?.custom_domain ? [{ text: <><b className="font-mono">{state.custom_domain}</b> keeps working and shows your Agent Hub by itself, with no website around it.</>, tone: 'ok' as const }] : []),
           { text: <>Every new QR code, Guest Pass, Showcase, form and copied link uses <b>openhousepal.com</b> instead.</> },
           { text: <>Your Agent Hub, open houses, leads and the rest of your plan keep working as usual.</>, tone: 'ok' },
           { text: <>Your pages and settings are kept - switch it back on any time and it&apos;s back exactly as published.</>, tone: 'ok' },

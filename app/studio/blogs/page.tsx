@@ -200,7 +200,7 @@ function BlogsDashboardInner() {
                 ) : (
                   // No photo yet - a cover drawn in the article's own theme, with its title.
                   <div className="relative flex h-full w-full flex-col justify-end p-4" style={{ background: darkCover ? (look.id === 'midnight' ? 'linear-gradient(135deg,#0b0f0e,#111827 60%,#2a2218)' : '#111827') : 'linear-gradient(135deg,#fffdf8,#fbf6ec 55%,#f1e3c2)' }}>
-                    <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-[#C9A24D]/30 blur-2xl" />
+                    <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.3),transparent)]" />
                     <Newspaper className={`absolute right-4 top-4 h-6 w-6 ${darkCover ? 'text-[#e8c97a]/50' : 'text-[#C9A24D]/50'}`} />
                     <p className={`relative text-[10px] font-black uppercase tracking-[0.3em] ${darkCover ? 'text-[#e8c97a]' : 'text-[#8b7355]'}`}>{look.label} article</p>
                     <p className={`relative font-serif text-2xl font-black italic leading-tight ${darkCover ? 'text-white' : 'text-[#111827]'}`}>{blog.category || 'Your story'}</p>

@@ -13,8 +13,8 @@
 //  - ?preview=1, ?idx_light / ?idx_return (the own-domain frame), ?embed=1;
 //  - a visit coming from the agent's own domain (an older browser's frame without Sec-Fetch-Dest);
 //  - paths that have no matching page there, and whenever the lookup fails or is slow (fail open).
-// 307 (temporary), never cached: if the agent disconnects or switches the domain off, the old link
-// stops forwarding within CACHE_MS - a 301/308 would stay stuck in visitors' browsers.
+// 308 so Google moves to the domain, sent no-store so it's never cached: if the agent disconnects or
+// switches the domain off, the old link stops forwarding within CACHE_MS.
 
 const INTERNAL_API_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/

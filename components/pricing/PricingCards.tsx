@@ -37,7 +37,7 @@ export function FeatureTile({ group, dark = false }: { group: PricingFeatureGrou
       <div className={`relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d] ${group.desc ? 'group-hover:[transform:rotateY(180deg)]' : ''}`}>
         {/* Front */}
         <div className={`absolute inset-0 flex flex-col justify-center overflow-hidden rounded-xl border p-3 shadow-[0_8px_20px_-12px_rgba(0,0,0,0.25)] [backface-visibility:hidden] ${dark ? 'border-white/10 bg-gradient-to-br from-white/[0.09] to-white/[0.03]' : 'border-gray-100 bg-gradient-to-br from-gray-50 to-white dark:border-gray-800 dark:from-white/5 dark:to-white/[0.02]'}`}>
-          <div className="absolute -right-3 -top-3 h-10 w-10 rounded-full bg-[#C9A24D]/20 blur-lg animate-glow-pulse" />
+          <div className="absolute -right-3 -top-3 h-10 w-10 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.35),transparent)] animate-glow-pulse" />
           <div className="absolute bottom-0 left-0 h-0.5 w-full bg-gradient-to-r from-[#C9A24D] via-[#f1d58b] to-[#C9A24D]" />
           <div className="relative flex items-center gap-2.5">
             <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${dark ? 'bg-[#C9A24D]/20' : 'bg-[#C9A24D]/15'}`}>
@@ -74,7 +74,7 @@ export function SpotlightFeatureCard({ group, dark = false, alwaysShow = false }
   if (alwaysShow) {
     return (
       <div className={`group relative overflow-hidden rounded-xl border p-3.5 transition-all duration-300 hover:-translate-y-0.5 ${dark ? 'border-[#C9A24D]/20 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-[#C9A24D]/[0.06] shadow-[0_10px_24px_-16px_rgba(0,0,0,0.5)] hover:shadow-[0_16px_32px_-14px_rgba(201,162,77,0.35)]' : 'border-[#C9A24D]/35 bg-gradient-to-br from-[#111827] via-[#172033] to-[#4a3820] shadow-[0_14px_32px_-16px_rgba(201,162,77,0.65)] hover:shadow-[0_22px_48px_-14px_rgba(201,162,77,0.85)]'}`}>
-        <div className={`absolute -right-6 -top-6 h-20 w-20 rounded-full blur-xl ${dark ? 'bg-[#C9A24D]/10' : 'bg-[#C9A24D]/25 animate-glow-pulse'}`} />
+        <div className={`absolute -right-6 -top-6 h-20 w-20 rounded-full ${dark ? 'bg-[radial-gradient(closest-side,rgba(201,162,77,.18),transparent)]' : 'bg-[radial-gradient(closest-side,rgba(201,162,77,.26),transparent)]'}`} />
         <div className={`absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r ${dark ? 'from-[#C9A24D]/40 via-[#f1d58b]/40 to-[#C9A24D]/40' : 'from-[#C9A24D] via-[#f1d58b] to-[#C9A24D]'}`} />
         {group.ai && <AiCorner dim={dark} />}
         <div className="relative flex items-center gap-2.5">
@@ -95,7 +95,7 @@ export function SpotlightFeatureCard({ group, dark = false, alwaysShow = false }
       <div className={`relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d] ${group.desc ? 'group-hover:[transform:rotateY(180deg)]' : ''}`}>
         {/* Front */}
         <div className={`absolute inset-0 overflow-hidden rounded-xl border p-3.5 shadow-[0_14px_32px_-16px_rgba(201,162,77,0.65)] transition-shadow duration-300 group-hover:shadow-[0_22px_48px_-14px_rgba(201,162,77,0.85)] [backface-visibility:hidden] ${dark ? 'border-[#C9A24D]/45 bg-gradient-to-br from-white/[0.15] via-white/[0.08] to-[#C9A24D]/15' : 'border-[#C9A24D]/35 bg-gradient-to-br from-[#111827] via-[#172033] to-[#4a3820]'}`}>
-          <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[#C9A24D]/25 blur-xl animate-glow-pulse transition-transform duration-500 group-hover:scale-125" />
+          <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.4),transparent)] animate-glow-pulse transition-transform duration-500 group-hover:scale-125" />
           <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
           <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-[#C9A24D] via-[#f1d58b] to-[#C9A24D]" />
           {group.ai && <AiCorner />}
@@ -310,7 +310,7 @@ export function IdxPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Select I
   return (
     <div className={`relative rounded-[2rem] border-2 border-[#C9A24D] shadow-[0_25px_70px_-15px_rgba(201,162,77,0.55)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} transition-all flex flex-col h-full`}>
       <span className="absolute -top-3.5 left-1/2 z-20 -translate-x-1/2">
-        <span className="absolute -inset-1.5 rounded-full bg-[#C9A24D]/50 blur-md animate-glow-pulse" />
+        <span className="absolute -inset-1.5 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.75),transparent)] animate-glow-pulse" />
         <span className="relative flex items-center gap-1.5 rounded-full border border-[#C9A24D]/60 bg-gradient-to-r from-[#0B0B0B] via-[#172033] to-[#0B0B0B] px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#f1d58b] shadow-[0_10px_24px_-8px_rgba(0,0,0,0.55)]">
           <Sparkles className="h-3 w-3 text-[#C9A24D]" />
           Full Website
@@ -334,7 +334,7 @@ export function IdxPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Select I
           {/* Flagship callout - the headline reason to pay for IDX - leads the list, with AI
               Property Media right beneath it as the second-billed highlight. */}
           <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0B0B0B] via-[#172033] to-[#4a3820] p-5 border border-[#C9A24D]/60 shadow-[0_18px_50px_-12px_rgba(201,162,77,0.55)] transition-shadow duration-300 hover:shadow-[0_18px_60px_-8px_rgba(201,162,77,0.75)]">
-            <div className="absolute -top-10 -right-10 w-36 h-36 bg-[#C9A24D]/35 rounded-full blur-2xl" />
+            <div className="absolute -top-10 -right-10 w-36 h-36 bg-[radial-gradient(closest-side,rgba(201,162,77,.5),transparent)] rounded-full" />
             <div className="pointer-events-none absolute inset-y-0 w-1/5 -skew-x-12 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-shimmer-mini" />
             <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-[#C9A24D] via-[#f1d58b] to-[#C9A24D]" />
             <div className="relative mb-4 flex items-center justify-between gap-3">
@@ -452,7 +452,7 @@ export function ProNoMlsPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Sel
   return (
     <div className={`relative rounded-[2rem] border-2 border-[#C9A24D] shadow-[0_25px_70px_-15px_rgba(201,162,77,0.55)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} transition-all flex flex-col`}>
       <span className="absolute -top-3.5 left-1/2 z-20 -translate-x-1/2">
-        <span className="absolute -inset-1.5 rounded-full bg-[#C9A24D]/50 blur-md animate-glow-pulse" />
+        <span className="absolute -inset-1.5 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.75),transparent)] animate-glow-pulse" />
         <span className="relative flex items-center gap-1.5 rounded-full border border-[#C9A24D]/60 bg-gradient-to-r from-[#0B0B0B] via-[#172033] to-[#0B0B0B] px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#f1d58b] shadow-[0_10px_24px_-8px_rgba(0,0,0,0.55)]">
           <Sparkles className="h-3 w-3 text-[#C9A24D]" />
           Most Popular

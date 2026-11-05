@@ -233,7 +233,7 @@ function PublishedArticle() {
           </div>
 
           <div className="relative mt-2.5 overflow-hidden rounded-xl bg-gradient-to-br from-[#0b0f0e] via-[#111827] to-[#2a2218] p-2.5 text-white">
-            <span className="absolute -right-4 -top-6 h-16 w-16 rounded-full bg-[#C9A24D]/30 blur-xl" />
+            <span className="absolute -right-4 -top-6 h-16 w-16 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.44),transparent)]" />
             <div className="relative flex items-center gap-2">
               <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full ring-2 ring-[#C9A24D]"><NextImage src={AGENT.photo} alt="" fill className="object-cover object-[50%_18%]" unoptimized /></div>
               <div>

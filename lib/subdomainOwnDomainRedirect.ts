@@ -6,7 +6,7 @@
 //    (GET /public/sites/subdomain/<slug>/own-domain = the owner_links rule behind every shared link);
 //  - only plain top-level page visits (never iframes, Studio previews, RSC/prefetch fetches, POSTs,
 //    ?preview / ?embed, files like robots.txt or sitemap.xml);
-//  - 307 + no-store, so switching the domain off stops the forward within a minute;
+//  - 308 so Google moves to the domain, + no-store so switching it off stops the forward within a minute;
 //  - any doubt, error or slow lookup = no redirect (the free address just keeps working).
 
 const INTERNAL_API_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'

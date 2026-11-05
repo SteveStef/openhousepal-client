@@ -1451,7 +1451,7 @@ class ApiService {
     deleteSubmission: (submissionId: string) =>
       this.request<null>(`/agent-hub/forms/submissions/${submissionId}`, { method: 'DELETE' }),
 
-    updateForm: (formId: string, data: Partial<Pick<AgentFormConfig, 'title' | 'headline' | 'subtitle' | 'description' | 'questions' | 'success_heading' | 'success_message' | 'accent_color' | 'show_branding' | 'dark_mode' | 'redirect_to_agent_hub' | 'redirect_to_showcase' | 'property_photo_carousel' | 'background_effects' | 'welcome_text_effects' | 'branding_layout' | 'linked_property' | 'look_mode' | 'look_theme' | 'luxe_metal'>>) =>
+    updateForm: (formId: string, data: { expected_updated_at?: string | null; redirect_mode?: string | null; redirect_url?: string | null } & Partial<Pick<AgentFormConfig, 'title' | 'headline' | 'subtitle' | 'description' | 'questions' | 'success_heading' | 'success_message' | 'accent_color' | 'show_branding' | 'dark_mode' | 'redirect_to_agent_hub' | 'redirect_to_showcase' | 'property_photo_carousel' | 'background_effects' | 'welcome_text_effects' | 'branding_layout' | 'linked_property' | 'look_mode' | 'look_theme' | 'luxe_metal'>>) =>
       this.request<AgentFormConfig>(`/agent-hub/forms/${formId}`, {
         method: 'PUT',
         body: JSON.stringify(data),
@@ -1796,6 +1796,8 @@ class ApiService {
 
     getPublicBaseUrl: () => this.request<{ base_url: string; is_idx_site?: boolean }>('/studio/sites/me/public-base-url'),
 
+    checkAddress: (slug: string) => this.request<{ slug: string; available: boolean; owned_by_current_user: boolean; message: string | null }>(`/studio/sites/me/address/check?slug=${encodeURIComponent(slug)}`),
+    changeAddress: (slug: string) => this.request<{ subdomain_slug: string; old_subdomain: string | null }>('/studio/sites/me/address', { method: 'PUT', body: JSON.stringify({ slug }) }),
     getLinkDomain: () => this.request<LinkDomainState>('/studio/sites/me/link-domain'),
     setLinkDomain: (useOwnDomain: boolean) =>
       this.request<LinkDomainState>('/studio/sites/me/link-domain', {
@@ -1895,7 +1897,7 @@ class ApiService {
 
     get: (blogId: string) => this.request<Blog>(`/studio/blogs/${blogId}`),
 
-    update: (blogId: string, data: Partial<Pick<Blog, 'title' | 'subtitle' | 'cover_image_url' | 'category' | 'theme' | 'tags' | 'blocks' | 'linked_properties' | 'seo_title' | 'meta_description' | 'focus_keyword' | 'social_title' | 'social_description' | 'social_image_url' | 'is_indexed' | 'luxe_metal'>>) =>
+    update: (blogId: string, data: Partial<Pick<Blog, 'title' | 'subtitle' | 'cover_image_url' | 'category' | 'theme' | 'tags' | 'blocks' | 'linked_properties' | 'seo_title' | 'meta_description' | 'focus_keyword' | 'social_title' | 'social_description' | 'social_image_url' | 'is_indexed' | 'luxe_metal' | 'accent_color'>>) =>
       this.request<Blog>(`/studio/blogs/${blogId}`, { method: 'PUT', body: JSON.stringify(data) }),
 
     updateStatus: (blogId: string, statusValue: Blog['status'], scheduledAt?: string) =>
@@ -2113,7 +2115,16 @@ class ApiService {
 
     getHelperStatus: () => this.request<{ enabled: boolean; voice: boolean }>('/ai/helper/status'),
     // Chats where the helper finished something while they were away (an AI CMA) - the chat button's count (11/01).
-    unread: () => this.request<{ conversations: string[]; working?: { key: string; kind: string; id: string; label: string; at: string; stage?: string | null }[] }>('/ai/unread'),
+    unread: () => this.request<{ conversations: string[]; working?: { key: string; kind: string; id: string; label: string; at: string; stage?: string | null; media?: string }[];
+      news?: { id: string; text: string; ok: boolean; link?: string | null; link_label?: string; conversation_id?: string | null; at: string }[] }>('/ai/unread'),
+    // Finished-job notices shown once at the top of the chat, then never again (11/05)
+    newsSeen: (ids: string[]) => this.request<{ ok: boolean }>('/ai/news/seen', { method: 'POST', body: JSON.stringify({ ids }) }),
+    // A photo dropped into the chat or onto a card (11/05)
+    uploadAttachment: (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      return this.request<{ id: string; url: string; png_url?: string | null }>('/ai/attachments', { method: 'POST', body: formData });
+    },
     progress: () => this.request<{ label: string | null }>('/ai/progress'),
     markRead: (conversationId: string) => this.request<{ conversations: string[] }>(`/ai/unread/${conversationId}/read`, { method: 'POST' }),
 
@@ -2147,10 +2158,10 @@ class ApiService {
     deleteConversation: (conversationId: string) =>
       this.request<{ success: boolean }>(`/ai/conversations/${conversationId}`, { method: 'DELETE' }),
 
-    sendMessage: (conversationId: string, message: string, voiceMode?: boolean) =>
+    sendMessage: (conversationId: string, message: string, voiceMode?: boolean, attachments?: string[]) =>
       this.request<AISendMessageResponse>(`/ai/conversations/${conversationId}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ message, voice_mode: !!voiceMode }),
+        body: JSON.stringify({ message, voice_mode: !!voiceMode, ...(attachments?.length ? { attachments } : {}) }),
       }),
 
     getInsights: () => this.request<AIInsightsResponse>('/ai/insights'),

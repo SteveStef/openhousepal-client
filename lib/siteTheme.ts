@@ -136,31 +136,68 @@ export function normalizeSiteTheme<T extends Partial<SiteTheme>>(theme: T): T {
   }
   const accent = theme.secondary_color || ''
   const ok = /^#[0-9a-f]{6}$/i.test(accent) && !isMetalHex(accent) && accent.toLowerCase() !== '#ffffff'
-  return { ...theme, secondary_color: ok ? accent : CLASSIC_DEFAULT_ACCENT }
+  return { ...theme, secondary_color: ok ? accent : CLASSIC_DEFAULT_ACCENT, primary_color: classicInk(theme.primary_color) }
+}
+
+// Classic is a light page: the brand ink is its heading color and the panel behind white text, so a
+// light one can't be used as saved. A white Brand Kit main color (fine on Luxe's dark look) turned
+// every heading, menu row and button white on white. Luxe keeps the saved ink untouched.
+const CLASSIC_INK = '#111827'
+// The darkest of Classic's light surfaces and the lightest of its dark ones (site-theme.css) - a
+// color that clears these clears every surface in that mode.
+const CLASSIC_LIGHT_SURFACE = '#f6f7f9'
+const CLASSIC_DARK_SURFACE = '#1f232d'
+
+function classicInk(primary: string | null | undefined): string {
+  return primary && hexToRgb(primary) && contrastRatio(primary, CLASSIC_LIGHT_SURFACE) >= 4.5 ? primary : CLASSIC_INK
+}
+
+/** `text` if it reads on `bg`, else the opposite of it - the on-accent color for any accent. */
+function legibleOn(text: string, bg: string): string {
+  if (contrastRatio(text, bg) >= 3) return text
+  return luminance(text) > 0.4 ? CLASSIC_INK : '#ffffff'
 }
 
 export function siteThemeVars(rawTheme: Partial<SiteTheme> | null | undefined): SiteThemeVars {
   const theme = rawTheme ? normalizeSiteTheme(rawTheme) : rawTheme
   const luxe = siteTemplate(theme) === 'luxe'
   const metal = LUXE_METALS[siteLuxeMetal(theme)]
-  const accent = theme?.secondary_color || '#C9A24D'
+  const savedAccent = theme?.secondary_color || '#C9A24D'
+  // Classic: an accent too pale to see on the page takes its nearest visible shade, in every place
+  // it's used (a very light yellow headline or icon vanished on white). Luxe's metals stay exact.
+  const accent = luxe ? savedAccent : readableOn(savedAccent, CLASSIC_LIGHT_SURFACE, 3.5)
   const primary = theme?.primary_color || '#111827'
   const accentRgb = hexToRgb(accent) || [201, 162, 77]
   const primaryRgb = hexToRgb(primary) || [17, 24, 39]
   const accentLight = luxe ? metal.light : mix(accent, [255, 255, 255], 0.38)
   const accentDeep = luxe ? metal.deep : mix(accent, [0, 0, 0], 0.32)
   const accentPale = luxe ? metal.pale : mix(accent, [255, 255, 255], 0.84)
-  const onAccent = isLightColor(accent) ? '#111827' : '#ffffff'
+  const onAccentBase = isLightColor(accent) ? '#111827' : '#ffffff'
+  const onAccent = luxe ? onAccentBase : legibleOn(onAccentBase, accent)
   // Dark mode: a dark accent (navy, charcoal...) would vanish on a dark page - visitors who switch
   // to dark get a lighter tint of it instead (site-theme.css swaps these in under data-mode=dark).
-  const rgb = hexToRgb(accent) || [201, 162, 77]
+  // Worked out from the color the agent saved, so a pale accent stays pale on a dark page.
+  const rgb = hexToRgb(savedAccent) || [201, 162, 77]
   const lum = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255
-  const accentOnDark = lum < 0.42 ? mix(accent, [255, 255, 255], 0.5) : accent
+  const accentTint = lum < 0.42 ? mix(savedAccent, [255, 255, 255], 0.5) : savedAccent
+  const accentOnDark = luxe ? accentTint : readableOn(accentTint, CLASSIC_DARK_SURFACE, 3.5)
+  // The lightened tint sits mid-tone, so dark text reads better on it than white.
+  const onAccentDarkBase = isLightColor(accentOnDark) || accentOnDark !== savedAccent ? '#0f172a' : '#ffffff'
+  const onAccentDark = luxe ? onAccentDarkBase : legibleOn(onAccentDarkBase, accentOnDark)
+  // Classic's brand-ink panels stay dark in light mode too: the accent inside one (.ohp-ink-panel in
+  // site-theme.css) is measured against that panel, not the page.
+  const accentOnPanel = readableOn(accentOnDark, primary, 3)
+  const panelVars: Record<string, string> = luxe ? {} : {
+    '--site-accent-panel': accentOnPanel,
+    '--site-accent-panel-rgb': (hexToRgb(accentOnPanel) || accentRgb).join(','),
+    '--site-accent-text-panel': readableOn(accentOnDark, primary),
+    '--site-on-accent-panel': legibleOn(onAccentDarkBase, accentOnPanel),
+  }
   const style = {
     '--site-accent-dm': accentOnDark,
     '--site-accent-dm-rgb': (hexToRgb(accentOnDark) || rgb).join(','),
-    // The lightened tint sits mid-tone, so dark text reads better on it than white.
-    '--site-on-accent-dm': isLightColor(accentOnDark) || accentOnDark !== accent ? '#0f172a' : '#ffffff',
+    '--site-on-accent-dm': onAccentDark,
+    ...panelVars,
     // The metal set (Luxe) - the same --m-* names the hub and signature stylesheets read.
     '--m-base': luxe ? metal.base : accent, '--m-light': accentLight, '--m-deep': accentDeep, '--m-mid': luxe ? metal.mid : accent, '--m-pale': accentPale,
     '--m-rgb': luxe ? metal.rgb : accentRgb.join(','), '--m-light-rgb': luxe ? metal.lightRgb : (hexToRgb(accentLight) || accentRgb).join(','),
@@ -174,7 +211,7 @@ export function siteThemeVars(rawTheme: Partial<SiteTheme> | null | undefined): 
     // agent's color, nudged until it reads (AA) on this look's light or dark surfaces. Dark mode
     // swaps in the -dm value (site-theme.css).
     '--site-accent-text': readableOn(accent, luxe ? '#f3f1ea' : '#f6f7f9'),
-    '--site-accent-text-dm': readableOn(accentOnDark, luxe ? '#16161b' : '#191c25'),
+    '--site-accent-text-dm': readableOn(accentOnDark, luxe ? '#16161b' : CLASSIC_DARK_SURFACE),
     '--site-on-accent': onAccent,
     '--site-primary': primary,
     '--site-primary-rgb': primaryRgb.join(','),

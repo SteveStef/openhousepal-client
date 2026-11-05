@@ -181,8 +181,8 @@ function CheckoutContent() {
     <div className="min-h-screen flex flex-col bg-[#FAFAF7] dark:bg-[#0B0B0B] relative overflow-hidden transition-colors duration-300">
       {/* Sophisticated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] bg-[#C9A24D]/5 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[800px] h-[800px] bg-[#111827]/5 dark:bg-[#C9A24D]/5 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-screen" />
+        <div className="absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] bg-[radial-gradient(closest-side,rgba(201,162,77,.05),transparent)] rounded-full" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[800px] h-[800px] bg-[radial-gradient(closest-side,rgba(17,24,39,.05),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.05),transparent)] rounded-full" />
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/pinstripe-light.png')] opacity-[0.03] dark:opacity-[0.01] mix-blend-overlay"></div>
       </div>
 

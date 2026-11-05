@@ -1,12 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { BarChart3, Newspaper, Sparkles } from 'lucide-react'
+import { BarChart3, Clapperboard, Globe, Newspaper, Sparkles } from 'lucide-react'
 
 // What the helper is still making (an AI CMA, a blog post), right under the chat's top bar - it stays
 // put while they keep talking, about this or anything else (owner, 11/01: "a nice little loading bar
 // that doesn't go away ... so the person can see that it's actually loading and what the progress is").
-export type WorkingJob = { key: string; kind: string; id: string; label: string; at: string; stage?: string | null }
+export type WorkingJob = { key: string; kind: string; id: string; label: string; at: string; stage?: string | null; media?: string }
 
 // A blog reports its real stage; a CMA has none, so it moves with time (about 4 minutes) and waits at
 // 92% until it's really done - the strip never claims 100% before the finished message.
@@ -17,12 +17,16 @@ const BLOG_STAGES: Record<string, [number, string]> = {
 const KIND: Record<string, { what: string; icon: typeof Sparkles; secs: number }> = {
   cma: { what: 'CMA', icon: BarChart3, secs: 240 },
   blog: { what: 'Blog post', icon: Newspaper, secs: 330 },
+  spotlight: { what: 'Spotlight', icon: Globe, secs: 60 },
+  media: { what: 'AI media', icon: Clapperboard, secs: 60 },
 }
 
 function progress(job: WorkingJob, now: number): [number, string] {
   const secs = Math.max(0, (now - new Date(job.at).getTime()) / 1000)
   const k = KIND[job.kind]
-  const byTime = Math.min(92, 6 + (86 * secs) / (k?.secs || 240))
+  const byTime = Math.min(92, 6 + (86 * secs) / (job.media === 'video' ? 300 : k?.secs || 240))
+  if (job.kind === 'spotlight') return [byTime, byTime < 50 ? 'Writing the highlights and the story' : 'Writing about the town']
+  if (job.kind === 'media') return [byTime, job.media === 'video' ? 'Making your video' : 'Working on your photo']
   if (job.kind === 'blog' && job.stage && BLOG_STAGES[job.stage]) {
     const [pct, words] = BLOG_STAGES[job.stage]
     return [Math.max(pct - 14, Math.min(pct, byTime)), words]

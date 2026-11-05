@@ -212,7 +212,7 @@ function ProviderCard({ name, mark, recommended, blurb, status, busy, onConnect,
   const expired = !!status?.needs_reconnect
   return (
     <div className={`group relative flex flex-col overflow-hidden rounded-3xl border bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-30px_rgba(139,115,85,.6)] dark:bg-[#121214] sm:p-6 ${connected && !expired ? 'border-emerald-300/70 dark:border-emerald-400/25' : expired ? 'border-amber-300 dark:border-amber-400/30' : 'border-gray-200 dark:border-white/[0.07]'}`}>
-      {connected && !expired && <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-emerald-300/20 blur-3xl" />}
+      {connected && !expired && <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-[radial-gradient(closest-side,rgba(110,231,183,.2),transparent)]" />}
       <div className="relative flex items-start gap-3">
         <span className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 shadow-sm transition group-hover:rotate-[-4deg] dark:border-white/10">{mark}</span>
         <div className="min-w-0 flex-1">

@@ -78,11 +78,11 @@ export default function FeaturedPageClient({ siteId, theme, basePrefix, heroPool
             of the site instead of looking like a one-off design. */}
         <div className="relative mx-auto max-w-3xl text-center">
           <div className="mb-2 flex items-center justify-center gap-3">
-            <Sparkles className="h-4 w-4 shrink-0" style={{ color: theme.secondary_color }} />
-            <span className="h-px w-8" style={{ backgroundColor: theme.secondary_color }} />
-            <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: theme.secondary_color }}>Featured Collection</span>
-            <span className="h-px w-8" style={{ backgroundColor: theme.secondary_color }} />
-            <Sparkles className="h-4 w-4 shrink-0" style={{ color: theme.secondary_color }} />
+            <Sparkles className="h-4 w-4 shrink-0" style={{ color: 'var(--site-accent)' }} />
+            <span className="h-px w-8" style={{ backgroundColor: 'var(--site-accent)' }} />
+            <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent)' }}>Featured Collection</span>
+            <span className="h-px w-8" style={{ backgroundColor: 'var(--site-accent)' }} />
+            <Sparkles className="h-4 w-4 shrink-0" style={{ color: 'var(--site-accent)' }} />
           </div>
           <h1 className={`ohp-site-heading text-xl font-black leading-[1.1] text-white sm:text-3xl ${fontClass(theme.heading_font, 'font-serif')}`}>
             Exceptional <span className="ohp-text-shimmer">Homes</span>

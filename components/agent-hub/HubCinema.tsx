@@ -232,7 +232,7 @@ const CINEMA_CSS = `
 @keyframes hcSeam { to { transform: skewX(-13deg) translateX(440%); } }
 .hc-overlay { position: absolute; inset: 0; }
 .hc-rise { opacity: 0; animation: hcRise .75s cubic-bezier(.22,.61,.36,1) forwards; }
-@keyframes hcRise { from { opacity: 0; transform: translateY(12px); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes hcRise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; filter: none; } }
 .hc-prog { position: absolute; left: 14px; right: 14px; bottom: 9px; z-index: 10; display: flex; gap: 4px; }
 .hc-prog button { position: relative; display: block; height: 3px; flex: 1; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.22); padding: 0; border: 0; }
 .hc-prog button::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; bottom: -8px; }

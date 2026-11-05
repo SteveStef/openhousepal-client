@@ -278,7 +278,7 @@ function PropertySitesPage() {
           <div className="mx-auto min-h-full max-w-4xl px-3 py-4 sm:px-4 sm:py-8">
             <div className="sp-pop rounded-3xl bg-white shadow-2xl dark:bg-[#151517]">
               <div className="relative overflow-hidden rounded-t-3xl bg-gradient-to-br from-[#0f1a17] via-[#111827] to-[#3a2c14] px-6 pb-6 pt-6 text-white sm:px-8">
-                <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-[#C9A24D]/30 blur-3xl" />
+                <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.3),transparent)]" />
                 <button onClick={closeCreate} className="absolute right-4 top-4 rounded-xl p-2 text-white/60 hover:bg-white/10 hover:text-white" aria-label="Close"><X className="h-5 w-5" /></button>
                 <p className="relative text-[10px] font-black uppercase tracking-[0.3em] text-[#e8c97a]">New Listing Spotlight</p>
                 <h2 className="relative mt-2 font-serif text-3xl font-black leading-tight sm:text-4xl">Which home gets the spotlight?</h2>

@@ -51,7 +51,7 @@ export default function IncompleteSettingsModal() {
   return createPortal(
     <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/55 p-4">
       <div className="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-[#C9A24D]/30 bg-white shadow-2xl dark:border-white/10 dark:bg-[#151517]">
-        <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[#e8c97a]/35 blur-3xl dark:bg-[#C9A24D]/15" />
+        <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(232,201,122,.35),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.15),transparent)]" />
         <div className="relative p-7 text-center">
           <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-[22px] bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] ring-1 ring-[#C9A24D]/40"><Sparkles className="h-7 w-7" /></span>
           <h3 className="mt-5 font-serif text-[28px] font-black leading-tight tracking-tight text-[#111827] dark:text-white">{done === 0 ? <>Let&apos;s set up <em className="text-[#C9A24D]">your account</em></> : <>Let&apos;s <em className="text-[#C9A24D]">finish</em> your setup</>}</h3>

@@ -159,7 +159,7 @@ export default function CommunitiesBlock({ data, theme, basePrefix = '' }: { dat
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
             <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: onPanel ? 'var(--site-accent)' : theme.primary_color }}>
+              <span className="ohp-ink-panel flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: onPanel ? 'var(--site-accent)' : theme.primary_color }}>
                 <Crown className="h-4 w-4" style={{ color: onPanel ? theme.primary_color : 'var(--site-accent)' }} />
               </span>
               <span className="h-px w-6" style={{ backgroundColor: 'var(--site-accent)' }} />

@@ -7,6 +7,7 @@ import { SiteDomain } from '@/types'
 import { copyText } from '@/lib/copyText'
 import { ohpHostUrl } from '@/lib/publicResourceLinks'
 import DomainSetupGuide from './DomainSetupGuide'
+import WarningConfirmModal from '@/components/WarningConfirmModal'
 import OldLinksPanel from './OldLinksPanel'
 import OneClickConnect from '@/components/domains/OneClickConnect'
 import BuyDomain, { PurchasedDomainCard, useDomainShop } from '@/components/domains/BuyDomain'
@@ -90,7 +91,7 @@ function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHos
 
   return (
     <div className={`relative overflow-hidden rounded-2xl border p-3.5 transition-colors ${live ? 'border-emerald-300 bg-gradient-to-br from-white via-emerald-50/60 to-[#f3fbf6] shadow-[0_14px_36px_-22px_rgba(16,185,129,.55)] dark:border-emerald-500/35 dark:from-[#101814] dark:via-[#0f1a15] dark:to-emerald-500/[0.10]' : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-[#151517]'}`}>
-      {live && <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-emerald-400/20 blur-2xl" />}
+      {live && <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-[radial-gradient(closest-side,rgba(52,211,153,.2),transparent)]" />}
       <div className="relative flex items-start gap-2.5">
         <span className={`relative mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl ${live ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'bg-[#FAFAF7] text-[#8b7355] dark:bg-white/[0.06] dark:text-[#e8c97a]'}`}>
           {live ? <Lock className="h-4 w-4" /> : <Globe2 className="h-4 w-4" />}
@@ -239,8 +240,64 @@ function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHos
 
 /** `back` = where one-click connect / PayPal send the agent afterwards ('website' | 'settings' | 'setup').
  *  `startWith` opens on "I already have one" or "Get a new one". `hideFree` drops the free-address card (setup shows its own). */
-export default function DomainsPanel({ subdomainSlug, bare = false, back = 'website', startWith = 'have', hideFree = false, hideTabs = false, onChanged }: {
+// Changing the free address (owner, 11/04): the old one forwards here, like a hub link. One control
+// in the IDX feature's Domain tab and the setup flow; Settings links to the Domain tab with `href`.
+export function ChangeAddress({ slug, href, onSaved }: { slug: string; href?: string; onSaved?: (slug: string) => void }) {
+  const [open, setOpen] = useState(false)
+  useEffect(() => { if (!href && new URLSearchParams(window.location.search).get('address') === '1') setOpen(true) }, [href])
+  const [value, setValue] = useState(slug)
+  const [busy, setBusy] = useState(false)
+  const [state, setState] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
+  const [note, setNote] = useState('Check availability before saving.')
+  const [warn, setWarn] = useState(false)
+  const check = async () => {
+    setState('checking'); setNote('Checking...')
+    const r = await api.sites.checkAddress(value)
+    if (!r.success || !r.data) { setState('taken'); setNote(r.error || "Couldn't check right now."); return }
+    setValue(r.data.slug)
+    if (r.data.owned_by_current_user) { setState('idle'); setNote('This is already your address.'); return }
+    setState(r.data.available ? 'available' : 'taken')
+    setNote(r.data.available ? 'This address is available.' : r.data.message || 'That address is already being used.')
+  }
+  const save = async () => {
+    setWarn(false); setBusy(true)
+    const r = await api.sites.changeAddress(value)
+    if (r.success && r.data) {
+      if (onSaved) { onSaved(r.data.subdomain_slug); setOpen(false); setBusy(false); setState('idle'); setNote('Check availability before saving.') } else window.location.reload()
+      return
+    }
+    setState('taken'); setNote(r.error || r.message || "Couldn't change it - try again.")
+    setBusy(false)
+  }
+  const linkCls = 'relative mt-2 inline-block text-[12px] font-black text-[#8b7355] underline underline-offset-2 dark:text-[#e8c97a]'
+  if (href) return <a href={href} data-testid="site-address-change" className={linkCls}>Change my link</a>
+  if (!open) return <button type="button" onClick={() => setOpen(true)} data-testid="site-address-change" className={linkCls}>Change my link</button>
+  return (
+    <div className="relative mt-2 space-y-2 rounded-xl bg-white/90 p-2.5 dark:bg-black/30">
+      <div className="flex items-center gap-1.5">
+        <input value={value} onChange={e => { setValue(e.target.value.toLowerCase().replace(/\s+/g, '-')); setState('idle'); setNote('Check availability before saving.') }} aria-label="New address" data-testid="site-address-input"
+          className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2.5 py-2 font-mono text-[13px] font-bold text-[#111827] outline-none focus:border-[#C9A24D] dark:border-white/10 dark:bg-black/30 dark:text-white" />
+        <span className="shrink-0 font-mono text-[11px] font-bold text-gray-500 dark:text-white/55">.{OHP_BASE_DOMAIN}</span>
+      </div>
+      <p data-testid="site-address-note" className={`text-[12px] font-bold ${state === 'available' ? 'text-emerald-600 dark:text-emerald-400' : state === 'taken' ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-white/55'}`}>{note}</p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={check} disabled={state === 'checking' || !value.trim()} data-testid="site-address-check" className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12px] font-black text-[#111827] disabled:opacity-40 dark:border-white/15 dark:bg-transparent dark:text-white">Check</button>
+        <button type="button" onClick={() => setWarn(true)} disabled={busy || state !== 'available'} data-testid="site-address-save" className="inline-flex items-center gap-1.5 rounded-lg bg-[#111827] px-3 py-2 text-[12px] font-black text-white disabled:opacity-40 dark:bg-[#C9A24D] dark:text-[#111827]">
+          {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save address
+        </button>
+        <button type="button" onClick={() => { setOpen(false); setValue(slug); setState('idle'); setNote('Check availability before saving.') }} className="rounded-lg px-3 py-2 text-[12px] font-bold text-gray-500 dark:text-white/60">Cancel</button>
+      </div>
+      <WarningConfirmModal isOpen={warn} onClose={() => setWarn(false)} onConfirm={save} title="Change your website address?"
+        message="Pick a name you'll keep. Your current address keeps working after this change and forwards to the new one, so anything you've already shared (business cards, your email signature, social bios, printed QR codes) still opens your website, and nobody else can take it. But only your most recent old address keeps working: change it again and the one before it stops working, and anyone can claim it."
+        confirmText="Yes, change my address" isLoading={busy} />
+    </div>
+  )
+}
+
+export default function DomainsPanel({ subdomainSlug, bare = false, back = 'website', startWith = 'have', hideFree = false, hideTabs = false, onChanged, changeHref }: {
   subdomainSlug: string; bare?: boolean; back?: string; startWith?: 'have' | 'buy'; hideFree?: boolean
+  /** Settings: "Change my link" opens the IDX feature's Domain tab instead of changing it here. */
+  changeHref?: string
   /** the setup step's own big cards already chose "have" or "buy" - no second set of tabs */
   hideTabs?: boolean; onChanged?: () => void
 }) {
@@ -295,7 +352,7 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
   // The free OpenHousePal address - never removable, keeps working even if a custom domain breaks.
   const freeCard = hideFree ? null : (
     <div className={`${bare && !ownDefaultHost ? '' : ownDefaultHost ? 'mt-5 ' : 'mt-3 '}relative overflow-hidden rounded-2xl border p-3.5 ${ownDefaultHost ? 'border-gray-200 bg-[#FAFAF7] dark:border-white/10 dark:bg-white/[0.03]' : 'border-[#C9A24D]/30 bg-gradient-to-br from-[#fffdf8] via-[#fbf6ec] to-[#f4ead7] dark:border-white/10 dark:from-[#0b0f0e] dark:via-[#111827] dark:to-[#1d1810]'}`}>
-        {!ownDefaultHost && <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-[#C9A24D]/20 blur-2xl" />}
+        {!ownDefaultHost && <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.2),transparent)]" />}
         <div className="relative flex items-center justify-between gap-2">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]">OpenHousePal address</p>
           <div className="flex shrink-0 items-center gap-1.5">
@@ -323,6 +380,7 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
         </div>
+        <ChangeAddress slug={subdomainSlug} href={changeHref} />
         <p className="relative mt-2 text-[11px] font-semibold text-gray-500 dark:text-white/50">{ownDefaultHost
           ? <>Still works - visitors who open it are sent to {ownDefaultHost}.</>
           : 'Always available, even if a custom domain has an issue.'}</p>

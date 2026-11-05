@@ -49,15 +49,43 @@ export function SettingSwitch({ on, onToggle, icon, title, blurb, disabled = fal
 /** Where the visitor goes after the thank-you screen. Showcase forms: their new Showcase (on by
  *  default) and/or the Agent Hub (off by default on the Showcase form) - the Showcase wins when
  *  one was built; the Agent Hub catches everyone else. */
-export function AfterSubmitSettings({ form, hubAvailable, onToggleHub, onToggleShowcase }: {
+/** Where the thank-you sends people, the same choices as the AI chat's form card (owner, 11/04). */
+function RedirectPicker({ form, hubAvailable, onChange }: { form: AgentFormConfig; hubAvailable: boolean; onChange: (mode: string, url: string | null) => void }) {
+  const linked = !!form.linked_property
+  const choices: [string, string][] = [
+    ...(linked ? [['property', 'That home'] as [string, string]] : []),
+    ...(hubAvailable ? [['agent_hub', 'My Agent Hub'] as [string, string]] : []),
+    ['website', 'My website'], ['none', 'Stay on the thank-you'], ['custom', 'My own link'],
+  ]
+  const mode = form.redirect_mode || (form.redirect_to_agent_hub && hubAvailable ? 'agent_hub' : 'none')
+  return (
+    <div data-testid="form-after">
+      <div className="flex flex-wrap gap-1.5">
+        {choices.map(([m, label]) => (
+          <button key={m} type="button" aria-pressed={mode === m} onClick={() => onChange(m, m === 'custom' ? form.redirect_url || '' : null)} data-after={m}
+            className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${mode === m ? 'border-[#C9A24D] bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8c97a]' : 'border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-[#0F0F11] dark:text-gray-300'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {mode === 'custom' && (
+        <input value={form.redirect_url || ''} onChange={(event) => onChange('custom', event.target.value)} placeholder="yourwebsite.com/page" inputMode="url" data-testid="form-after-url"
+          className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0F0F11] dark:text-white" />
+      )}
+    </div>
+  )
+}
+
+export function AfterSubmitSettings({ form, hubAvailable, onToggleHub, onToggleShowcase, onUpdateRedirect }: {
   form: AgentFormConfig
   hubAvailable: boolean
   onToggleHub: () => void
   onToggleShowcase?: () => void
+  onUpdateRedirect?: (mode: string, url: string | null) => void
 }) {
   const buildsShowcase = SHOWCASE_BUILDING_FORMS.has(form.form_type)
   const showcaseOn = form.redirect_to_showcase !== false
-  if (!buildsShowcase && !hubAvailable) return null
+  if (!buildsShowcase && !hubAvailable && !onUpdateRedirect) return null
   return (
     <div className="space-y-2.5">
       <p className="text-xs font-black uppercase tracking-widest text-gray-400">After they submit</p>
@@ -66,7 +94,8 @@ export function AfterSubmitSettings({ form, hubAvailable, onToggleHub, onToggleS
           title="Open their new Showcase"
           blurb={form.form_type === 'showcase_request' ? 'The Showcase their answers just built opens right after the thank-you.' : 'When their answers build a Showcase (a buyer without an agent), it opens right after the thank-you.'} />
       )}
-      {hubAvailable && (
+      {onUpdateRedirect && <RedirectPicker form={form} hubAvailable={hubAvailable} onChange={onUpdateRedirect} />}
+      {hubAvailable && !onUpdateRedirect && (
         <SettingSwitch on={!!form.redirect_to_agent_hub} onToggle={onToggleHub} icon={<Globe className="h-4 w-4" />}
           title="Go to my Agent Hub"
           blurb={buildsShowcase && showcaseOn ? 'For anyone who didn\'t get a Showcase - a few seconds after the thank-you.' : 'A few seconds after the thank-you, they land on your Agent Hub.'} />
@@ -79,7 +108,7 @@ export function EffectsSettings({ form, onToggleBackground, onToggleWelcome }: {
   return (
     <div className="space-y-2.5">
       <SettingSwitch on={form.background_effects !== false} onToggle={onToggleBackground} icon={<Sparkles className="h-4 w-4" />}
-        title="Background effects" blurb="Soft animated graphics (floating cards, glow, grid) behind the form." />
+        title="Background effects" blurb="A quiet street of homes under a soft sky, in your color." />
       <SettingSwitch on={form.welcome_text_effects !== false} onToggle={onToggleWelcome} icon={<Type className="h-4 w-4" />}
         title="Welcome text effects" blurb="The welcome title, words and Start button glide in one after another." />
     </div>

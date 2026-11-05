@@ -411,8 +411,8 @@ export default function OpenHouseKitDemo() {
           // button. The property photo it auto-pulls once a listing is selected appears right in this
           // same screen, not as a separate slide.
           <div key="address" className="relative w-[360px] flex-shrink-0 max-sm:w-full animate-fadeIn text-center overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_30px_60px_-30px_rgba(0,0,0,.45)] dark:border-gray-800 dark:bg-[#151517] p-6">
-            <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#C9A24D]/10 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-[#111827]/5 dark:bg-white/5 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.16),transparent)] pointer-events-none" />
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full bg-[radial-gradient(closest-side,rgba(17,24,39,.08),transparent)] dark:bg-[radial-gradient(closest-side,rgba(255,255,255,.08),transparent)] pointer-events-none" />
             <h3 className="relative text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-[#8b7355] to-gray-900 dark:from-white dark:via-[#C9A24D] dark:to-gray-200 mb-1.5">Create Your Open House Kit</h3>
             <p className="relative text-[10px] text-gray-400 dark:text-gray-500 mb-4 font-light">Enter a property address to instantly generate a QR code, flyer, and sign-in form.</p>
             <div className="relative flex items-center rounded-full bg-gray-50 dark:bg-[#0B0B0B] border-2 border-[#C9A24D] p-1 shadow-sm">

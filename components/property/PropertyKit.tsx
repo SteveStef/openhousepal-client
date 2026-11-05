@@ -422,7 +422,7 @@ export function PropertyPhotos({ home, extraBadges, split = 'lg', className = ''
         onTouchEnd={e => { if (touchX.current === null) return; const d = e.changedTouches[0].clientX - touchX.current; touchX.current = null; if (Math.abs(d) > 40) go(d < 0 ? 1 : -1) }}
       >
         <button type="button" onClick={() => setViewer(index)} className="absolute inset-0 block cursor-zoom-in" aria-label="Open photos full screen">
-          <img src={sizedImage(photos[index], 64)} alt="" aria-hidden className={`absolute inset-0 hidden h-full w-full scale-110 object-cover blur-xl ${wide === 'md' ? 'md:block' : 'lg:block'}`} />
+          <img src={sizedImage(photos[index], 64)} alt="" aria-hidden className={`absolute inset-0 hidden h-full w-full scale-110 object-cover ${wide === 'md' ? 'md:block' : 'lg:block'}`} />
           {index !== under && <img src={sizedImage(photos[under], 1200)} alt="" aria-hidden className={`absolute left-0 top-0 w-full object-cover object-left-bottom ${sharpH}`} />}
           <img
             key={index}

@@ -461,7 +461,7 @@ export function FormsStep({ ctx }: { ctx: StepCtx }) {
           <div className="space-y-4">
             <SubHead sub="For every form you have now - and any form you make later.">Every form</SubHead>
             <QuestionCard icon={Sparkles} testId="forms-animated" on={defaults.animated.value} onChange={v => setDefault('animated', v)} title="Make my forms animated"
-              blurb="A soft moving background and the welcome words gliding in. Off: calm and still." />
+              blurb="A quiet street of homes behind the form and the welcome words gliding in. Off: calm and still." />
             <QuestionCard icon={UserRound} testId="forms-branding" on={defaults.show_branding.value} onChange={v => setDefault('show_branding', v)} title="Show my agent branding on my forms"
               blurb="Your photo, name and brokerage on the first screen, so people know who they’re talking to." />
             {redirect && (

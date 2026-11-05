@@ -68,10 +68,10 @@ export default function BlogPostsBlock({ data, theme, basePrefix = '' }: { data:
       <div className="flex flex-wrap items-end justify-between gap-6">
         <div>
           <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: theme.primary_color }}>
-              <Newspaper className="h-4 w-4" style={{ color: gold }} />
+            <span className="ohp-ink-panel flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: theme.primary_color }}>
+              <Newspaper className="h-4 w-4" style={{ color: 'var(--site-accent)' }} />
             </span>
-            <span className="h-px w-6" style={{ backgroundColor: gold }} />
+            <span className="h-px w-6" style={{ backgroundColor: 'var(--site-accent)' }} />
             <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent-text)' }}>Journal</span>
           </div>
           <h2 className={`mt-3 text-4xl font-black leading-[1.1] sm:text-5xl ${serif}`} style={{ color: 'var(--site-heading)' }}>
@@ -89,10 +89,10 @@ export default function BlogPostsBlock({ data, theme, basePrefix = '' }: { data:
           <div className="absolute inset-0">{cover(lead)}</div>
           {lead.cover_image_url && <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />}
           <div className="absolute inset-x-0 bottom-0 p-7 sm:p-9">
-            {lead.category && <span className="inline-block rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: gold, color: theme.primary_color }}>{lead.category}</span>}
+            {lead.category && <span className="inline-block rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-accent-ink)' }}>{lead.category}</span>}
             <p className={`mt-3 max-w-xl text-3xl font-black leading-tight text-white ${serif}`}>{lead.title}</p>
             {lead.subtitle && <p className="mt-2 line-clamp-2 max-w-lg text-sm text-white/75">{lead.subtitle}</p>}
-            <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-widest" style={{ color: gold }}>
+            <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-widest" style={{ color: 'var(--site-accent)' }}>
               Read the story <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
             </span>
           </div>

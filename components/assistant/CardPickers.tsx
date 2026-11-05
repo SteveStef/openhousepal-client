@@ -7,8 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart3, Bell, CalendarCheck, Check, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Eye, Globe, Handshake, Home, Image as ImageIcon, LifeBuoy, Mail, MapPin, MessageSquare,
-  Lock, Move, Newspaper, Palette, PartyPopper, Plus, Send, Settings2, Sparkles, Star, Trash2, UserRound, X, type LucideIcon,
-} from 'lucide-react'
+  Lock, Move, Newspaper, Palette, PartyPopper, Plus, Send, Settings2, Sparkles, Star, Trash2, UserRound, X, type LucideIcon, GitBranch } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import type { BrandKit, LinkedProperty } from '@/types'
@@ -19,6 +18,9 @@ import { getTemplatesFor, isCompositionReady } from '@/lib/studio/designTemplate
 import { designAgentFrom, SAMPLE_DESIGN_AGENT } from '@/lib/studio/designAgent'
 import { fetchLinkedProperty } from '@/components/studio/PropertySelector'
 import { BRAND_COLORS, brandFormLook, type BrandLook } from '@/lib/brandKit'
+import type { FormLook } from '@/lib/formLook'
+import { HUB_CLASSIC_ACCENTS } from '@/components/agent-hub/HubClassicTheme'
+import { LUXE_METALS, LUXE_METAL_ORDER, type LuxeMetal } from '@/lib/luxeMetals'
 import type { SetupStep } from '@/components/property-sites/spotlight/autoSetup'
 import { OhpBot } from './OhpBot'
 
@@ -27,7 +29,7 @@ const ICONS: Record<string, LucideIcon> = {
   create_design: ImageIcon, update_branding: Palette, create_invite: PartyPopper, create_showcase: Sparkles,
   update_showcase_search: Sparkles, set_showcase: Sparkles, add_home_to_showcase: Sparkles, resend_showcase_invite: Sparkles,
   confirm_showcase_tour: CalendarCheck, reply_to_showcase_comment: MessageSquare, create_spotlight: Star, publish_spotlight: Star,
-  create_form: ClipboardList, write_blog_post: Newspaper, start_cma: BarChart3, update_email_settings: Mail,
+  create_form: ClipboardList, edit_form: ClipboardList, write_blog_post: Newspaper, start_cma: BarChart3, update_email_settings: Mail,
   update_profile: UserRound, set_website_on: Globe, add_town: MapPin, create_followup: Bell, update_followup: Bell,
   set_followup_rules: Bell, open_help_ticket: LifeBuoy, update_review_settings: Star, answer_host_request: Handshake,
   ask_team_to_host: Handshake, request_to_host: Handshake, answer_suggested_host_time: Handshake,
@@ -58,7 +60,7 @@ export function CardIcon({ tool, state }: { tool: string; state: 'idle' | 'live'
 }
 
 const label = 'mb-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#C9A24D]'
-const chip = (on: boolean) => `ohp-ai-press rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${on
+export const chip = (on: boolean) => `ohp-ai-press rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${on
   ? 'border-[#111827] bg-[#111827] text-white dark:border-[#C9A24D] dark:bg-[#C9A24D] dark:text-[#111827]'
   : 'border-gray-200 bg-white text-gray-700 hover:border-[#C9A24D]/60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200'}`
 
@@ -107,10 +109,10 @@ export function PickShell({ testid, preview, side = 280, children }: { testid: s
       {wide ? (
         <div className="grid items-start gap-4" style={{ gridTemplateColumns: `${side}px minmax(0,1fr)` }}>
           <div className="sticky top-2 min-w-0">{preview}</div>
-          <div className="min-w-0 space-y-2">{children}</div>
+          <div className="ohp-steps min-w-0">{children}</div>
         </div>
       ) : (
-        <div className="space-y-2">{preview}{children}</div>
+        <div className="space-y-2">{preview}<div className="ohp-steps">{children}</div></div>
       )}
     </div>
   )
@@ -136,9 +138,27 @@ export function CardStep({ id, n, title, summary, steps, children }: {
       </button>
       <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
         <div className="min-h-0 overflow-hidden">
-          <div className="px-2 pb-2 sm:px-2.5 sm:pb-2.5">{children}</div>
+          <div className="px-2 pb-2 pt-1 sm:px-2.5 sm:pb-2.5">{children}</div>
         </div>
       </div>
+    </div>
+  )
+}
+
+/** Show-or-hide switches for a page's sections (a Spotlight's, a CMA report's). */
+export function SectionToggles({ all, hidden, onChange }: { all: [string, string][]; hidden: string[]; onChange: (hidden: string[]) => void }) {
+  return (
+    <div className={OPTION_GRID} data-testid="ai-sections">
+      {all.map(([id, name]) => {
+        const on = !hidden.includes(id)
+        return (
+          <button key={id} type="button" role="switch" aria-checked={on} onClick={() => onChange(on ? [...hidden, id] : hidden.filter(x => x !== id))}
+            className={`ohp-ai-press flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-[11.5px] font-bold transition-colors ${on ? 'border-[#C9A24D]/60 bg-white text-[#111827] dark:bg-zinc-900 dark:text-white' : 'border-gray-200 bg-white/50 text-gray-400 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-zinc-500'}`}>
+            <span className={`grid h-4 w-4 shrink-0 place-items-center rounded ${on ? 'bg-[#C9A24D] text-white' : 'bg-gray-200 dark:bg-zinc-700'}`}>{on && <Check className="h-3 w-3" strokeWidth={3.5} />}</span>
+            <span className="min-w-0 truncate">{name}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -264,105 +284,11 @@ export function BrandLivePreview({ picks }: { picks: { theme: string; metal: str
   )
 }
 
-// ---------------------------------------------------------------- a Spotlight's front page
-export type SpotlightPicks = { template_id: string; brand_color: string }
-const SPOT_COLORS = BRAND_COLORS.slice(0, 14)
-
-export function SpotlightPick({ payload, picks, onPicks }: { payload: Record<string, any>; picks: SpotlightPicks; onPicks: (p: SpotlightPicks) => void }) {
-  const pv = (payload.preview || {}) as Record<string, any>
-  const luxe = picks.template_id === 'cinematic_luxury'
-  const color = picks.brand_color
-  const look: BrandLook = { theme: 'classic', metal: 'gold', dark: luxe, accent: color, primary: '#111827', saved: true }
-  const p = paintOf(look)
-  const price = pv.price ? `$${Math.round(pv.price).toLocaleString()}` : ''
-  const facts = [pv.beds && `${pv.beds} bd`, pv.baths && `${pv.baths} ba`, pv.sqft && `${Math.round(pv.sqft).toLocaleString()} sq ft`].filter(Boolean).join(' · ')
-  const changed = color.toLowerCase() !== String(pv.brand_color || '').toLowerCase()
-  const steps = useSteps(['look', 'color'])
-  const colorName = SPOT_COLORS.find(c => c.color.toLowerCase() === color.toLowerCase())?.label || 'Your color'
-  return (
-    <PickShell testid="ai-spotlight-pick" side={300} preview={
-      /* the front page, small: their photo, address and price, in the look + color picked */
-      <div className={`relative h-[150px] overflow-hidden rounded-xl ring-1 ring-black/10 ${luxe ? 'bg-[#0d0d0f]' : 'bg-[#f7f3ea]'}`}>
-        {pv.photo && <img src={resolveMediaUrl(pv.photo)} alt="" className={`absolute inset-0 h-full w-full object-cover ${luxe ? '' : 'h-[62%]'}`} />}
-        <div className={`absolute inset-0 ${luxe ? 'bg-gradient-to-t from-black/85 via-black/25 to-black/5' : 'bg-gradient-to-t from-[#f7f3ea] via-[#f7f3ea]/10 to-transparent'}`} />
-        <span className="absolute left-2.5 top-2 text-[8px] font-black uppercase tracking-[0.24em]" style={{ color: luxe ? 'rgba(255,255,255,.8)' : '#172522' }}>Spotlight</span>
-        <div className="absolute bottom-2.5 left-2.5 right-2.5">
-          <span className="inline-block rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.16em]" style={{ background: p.color, color: p.fillInk }}>For sale</span>
-          <p className="mt-1 truncate text-[17px] leading-tight" style={{ fontFamily: 'Georgia, serif', color: luxe ? '#fff' : '#172522', fontStyle: luxe ? 'normal' : 'italic' }}>{pv.address || 'Your listing'}</p>
-          <p className="truncate text-[9px] font-semibold" style={{ color: luxe ? 'rgba(255,255,255,.72)' : 'rgba(23,37,34,.65)' }}>{[pv.city, facts].filter(Boolean).join(' · ')}</p>
-          <div className="mt-1 flex items-center justify-between">
-            <span className="text-[14px] font-black" style={{ color: luxe ? color : '#172522' }}>{price}</span>
-            <span className="rounded-full px-2.5 py-1 text-[8px] font-black" style={{ background: p.fill, color: p.fillInk }}>Book a tour</span>
-          </div>
-        </div>
-      </div>
-    }>
-      <CardStep id="look" n={1} title="Look" summary={luxe ? 'Luxe' : 'Editorial'} steps={steps}>
-        <div className="flex flex-wrap gap-1.5">
-          {[['cinematic_luxury', 'Luxe'], ['editorial_estate', 'Editorial']].map(([id, name]) => (
-            <button key={id} type="button" onClick={() => { onPicks({ ...picks, template_id: id }); steps.picked('look') }} aria-pressed={picks.template_id === id} className={chip(picks.template_id === id)}>{name}</button>
-          ))}
-        </div>
-      </CardStep>
-      <CardStep id="color" n={2} title="Color" steps={steps}
-        summary={<span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full ring-1 ring-black/10" style={{ background: color }} />{colorName}</span>}>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(1.75rem,1fr))] justify-items-center gap-1.5">
-          {SPOT_COLORS.map(c => {
-            const on = c.color.toLowerCase() === color.toLowerCase()
-            return (
-              <button key={c.color} type="button" title={c.label} aria-label={c.label} aria-pressed={on} onClick={() => { onPicks({ ...picks, brand_color: c.color }); steps.picked('color') }}
-                className={`ohp-ai-press grid h-7 w-7 place-items-center rounded-full ring-1 ring-black/10 ${on ? 'ring-2 ring-[#111827] ring-offset-2 dark:ring-white dark:ring-offset-zinc-900' : ''}`} style={{ background: c.color }}>
-                {on && <Check className="h-3.5 w-3.5 text-white drop-shadow" strokeWidth={3} />}
-              </button>
-            )
-          })}
-        </div>
-      </CardStep>
-      {changed && <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">This is your brand color - your hub, forms and website change with it.</p>}
-    </PickShell>
-  )
-}
-
-// ---------------------------------------------------------------- a CMA: who it's for, then AI or manual
-// Two taps as steps (owner, 11/01: "it should have asked first, buyer or seller, as a clickable option").
-export function CmaPick({ payload, ai, onAi, mode, onMode }: { payload: Record<string, any>; ai: boolean; onAi: (v: boolean) => void; mode: string; onMode: (m: string) => void }) {
-  const pct = typeof payload.ai_percent === 'number' ? payload.ai_percent : null
-  const steps = useSteps(['who', 'how'])
-  const opt = (on: boolean) => `ohp-ai-press flex w-full items-start gap-2.5 rounded-xl border-2 p-2.5 text-left transition-colors ${on
-    ? 'border-[#C9A24D] bg-white shadow-sm dark:bg-zinc-900' : 'border-transparent bg-white/60 hover:border-[#C9A24D]/40 dark:bg-zinc-900/60'}`
-  const dot = (on: boolean) => `mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 ${on ? 'border-[#C9A24D] bg-[#C9A24D]' : 'border-gray-300 dark:border-zinc-600'}`
-  const choice = (on: boolean, title: string, sub: string, onClick: () => void, testId: string) => (
-    <button type="button" onClick={onClick} aria-pressed={on} className={opt(on)} data-testid={testId}>
-      <span className={dot(on)}>{on && <Check className="h-2.5 w-2.5 text-white" strokeWidth={4} />}</span>
-      <span className="min-w-0">
-        <span className="block text-[13px] font-black text-[#111827] dark:text-white">{title}</span>
-        <span className="block text-[11px] font-semibold leading-snug text-gray-500 dark:text-zinc-400">{sub}</span>
-      </span>
-    </button>
-  )
-  return (
-    <div className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-2.5 dark:bg-zinc-800/50" data-testid="ai-cma-pick">
-      <CardStep id="who" n={1} title="Who it's for" summary={mode === 'buyer' ? 'Buyer / Offer' : 'Seller / Listing'} steps={steps}>
-        <div className={OPTION_GRID}>
-          {choice(mode !== 'buyer', 'Seller / Listing', 'What their home should list for', () => { onMode('listing'); steps.picked('who') }, 'ai-cma-seller')}
-          {choice(mode === 'buyer', 'Buyer / Offer', 'What to offer on a home they want', () => { onMode('buyer'); steps.picked('who') }, 'ai-cma-buyer')}
-        </div>
-      </CardStep>
-      <CardStep id="how" n={2} title="How" summary={ai ? 'AI CMA' : 'Manual'} steps={steps}>
-        <div className="space-y-1.5">
-          {choice(ai, 'AI CMA - I do all of it', `Picks the comps, values the home, writes the report${pct != null ? ` · about ${pct < 1 ? 'under 1' : Math.round(pct)}% of your AI` : ''}`, () => { onAi(true); steps.picked('how') }, 'ai-cma-ai')}
-          {choice(!ai, 'Manual', 'You pick the comps on the CMA page - no AI used', () => { onAi(false); steps.picked('how') }, 'ai-cma-manual')}
-        </div>
-      </CardStep>
-    </div>
-  )
-}
-
 // ---------------------------------------------------------------- a form: background + home
-export type FormQuestion = { label: string; type?: string; options?: string[]; required?: boolean }
-export type FormPicks = { background_effects: boolean; listing_key: string | null; questions: FormQuestion[] }
+export type FormQuestion = { label: string; type?: string; options?: string[]; required?: boolean; show_if?: { question: string; answers: string[] } | null; fields?: { id?: string; label: string; type?: string; required?: boolean }[] | null }
+export type FormPicks = { background_effects: boolean; welcome_text_effects: boolean; dark: boolean | null; look?: FormLook | null; style?: Partial<Pick<FormLook, 'theme' | 'accent' | 'metal'>> | null; one_contact: boolean; first_last: boolean; after_mode: string | null; after_url: string; listing_key: string | null; questions: FormQuestion[] }
 const Q_LABEL: Record<string, string> = { short_text: 'Short answer', long_text: 'Long answer', select: 'Pick one', multi_select: 'Pick any', number: 'Number',
-  currency: 'Dollar amount', date: 'Date', time: 'Time', email: 'Email', phone: 'Phone' }
+  currency: 'Dollar amount', date: 'Date', time: 'Time', email: 'Email', phone: 'Phone', contact_group: 'Several on one page' }
 type CardHome = { listing_key: string; address: string; city: string; state?: string | null; price?: number | null; beds?: number | null; baths?: number | null; sqft?: number | null; status?: string | null; photo?: string | null }
 
 // Name, email and phone open every new form (the server adds them), so the agent's own questions
@@ -372,20 +298,26 @@ const CORE_QS = [
   { id: 'core_email', type: 'email', label: 'Email', required: true },
   { id: 'core_phone', type: 'phone', label: 'Phone', required: true },
 ]
-export const FIRST_OWN_Q = CORE_QS.length + 1
+// ...or all three on one screen (owner, 11/04) - the same question the premade forms use.
+const ONE_CONTACT = [{ id: 'core_contact', type: 'contact_group', label: 'Your Contact Information', required: true,
+  fields: [{ id: 'full_name', type: 'short_text', label: 'Full name', required: true }, { id: 'email', type: 'email', label: 'Email', required: true }, { id: 'phone', type: 'phone', label: 'Phone', required: true }] }]
+const FIRST_LAST = [{ id: 'buyer_first_name', type: 'short_text', label: 'First name', required: true }, { id: 'buyer_last_name', type: 'short_text', label: 'Last name', required: true }]
+const coreQs = (one?: boolean, split?: boolean) => (one
+  ? [{ ...ONE_CONTACT[0], fields: split ? [...FIRST_LAST, ...ONE_CONTACT[0].fields.slice(1)] : ONE_CONTACT[0].fields }]
+  : CORE_QS) as Array<{ id: string; type: string; label: string; required: boolean; fields?: unknown[] }>
 
 /** The form as a guest sees it on a phone, one screen at a time (owner, 11/02): the real form screen
  *  in a phone-width frame (app/assistant/form-preview), so a phone layout shows even on a computer. */
-function FormPreview({ title, questions, home, backgroundEffects, at }: {
-  title: string; questions: FormQuestion[]; home: CardHome | null; backgroundEffects: boolean; at: number
+function FormPreview({ title, questions, home, backgroundEffects, welcomeTextEffects = true, oneContact = false, firstLast = false, look, at }: {
+  title: string; questions: FormQuestion[]; home: CardHome | null; backgroundEffects: boolean; welcomeTextEffects?: boolean; oneContact?: boolean; firstLast?: boolean; look?: FormLook | null; at: number
 }) {
   const { user, agent, kit } = useAgentBits()
   const frame = useRef<HTMLIFrameElement>(null)
   const box = useRef<HTMLDivElement>(null)
   const [ready, setReady] = useState(false)
   const [w, setW] = useState(300)
-  const all = useMemo(() => [...CORE_QS, ...questions.map((q, i) => ({ id: `q${i}`, type: q.type || 'short_text', label: q.label, required: !!q.required, options: q.options?.length ? q.options : null }))]
-    .map(q => ({ ...q, locked: false })), [questions])
+  const all = useMemo(() => [...coreQs(oneContact, firstLast), ...questions.map((q, i) => ({ id: `q${i}`, type: q.type || 'short_text', label: q.label, required: !!q.required, fields: q.fields?.map((f, k) => ({ id: `q${i}f${k}`, type: f.type || 'short_text', label: f.label, required: !!f.required })), options: q.options?.length ? q.options : null }))]
+    .map(q => ({ ...q, locked: false })), [questions, oneContact, firstLast])
   const screens = useMemo(() => ['welcome', ...all.map(q => q.id), 'thankyou'], [all])
   const i = Math.min(at, screens.length - 1)
   const luxeOk = user?.plan_tier === 'IDX' || !!user?.is_admin
@@ -404,12 +336,12 @@ function FormPreview({ title, questions, home, backgroundEffects, at }: {
   useEffect(() => {
     if (!ready) return
     frame.current?.contentWindow?.postMessage({ type: 'ohp-form-preview', data: {
-      questions: all, focus: screens[i], backgroundEffects, look: brandFormLook(kit, luxeOk),
+      questions: all, focus: screens[i], backgroundEffects, welcomeTextEffects, look: look || brandFormLook(kit, luxeOk),
       branding: { title, agentName: agent.agentName || 'Your Name', agentBrokerage: agent.agentBrokerage || '', agentPhotoUrl: agent.agentPhotoUrl, agentTitle: agent.agentTitle },
       linkedProperty: home ? { listing_key: home.listing_key, address: home.address, city: home.city, state: home.state, price: home.price, beds: home.beds, baths: home.baths,
         sqft: home.sqft, status: home.status, image_url: home.photo } : null,
     } }, window.location.origin)
-  }, [ready, all, screens, i, backgroundEffects, kit, luxeOk, title, agent, home])
+  }, [ready, all, screens, i, backgroundEffects, welcomeTextEffects, look, kit, luxeOk, title, agent, home])
   const PW = 390, PH = 700
   // A 390 x 700 phone, a little smaller now that the card shows one question under it (11/03)
   const s = Math.min(0.62, w / PW)
@@ -425,21 +357,38 @@ function FormPreview({ title, questions, home, backgroundEffects, at }: {
 
 export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy }: {
   payload: Record<string, any>; picks: FormPicks; onPicks: (p: FormPicks) => void; onOpenEditor?: () => void; busy?: boolean
-  onRevise?: (instruction: string, at: number | null) => Promise<{ ok: boolean; message: string; focus?: number }>
+  onRevise?: (instruction: string, at: number | null) => Promise<{ ok: boolean; message: string; focus?: number; oneContact?: boolean }>
 }) {
   const homes = (payload.homes || []) as CardHome[]
-  const steps = useSteps(homes.length ? ['questions', 'background', 'home'] : ['questions', 'background'])
+  const steps = useSteps(homes.length ? ['questions', 'look', 'home', 'after'] : ['questions', 'look', 'after'])
+  const cores = coreQs(picks.one_contact, picks.first_last)
+  const firstOwn = cores.length + 1
+  // The look: the brand look until they pick something else, then the form's own look with only
+  // that changed - the same choices as the form editor's picker (owner, 11/04).
+  const { user, kit } = useAgentBits()
+  const luxeOk = user?.plan_tier === 'IDX' || !!user?.is_admin
+  const brandLook = useMemo(() => brandFormLook(kit, luxeOk), [kit, luxeOk])
+  const isDark = picks.dark ?? brandLook.dark
+  const wanted: FormLook = { ...brandLook, ...(picks.style || {}), dark: isDark }
+  const sameAsBrand = wanted.theme === brandLook.theme && wanted.dark === brandLook.dark
+    && (wanted.theme === 'luxe' ? wanted.metal === brandLook.metal : wanted.accent.toLowerCase() === brandLook.accent.toLowerCase())
+  const shownLook = sameAsBrand ? null : wanted
+  const pickStyle = (patch: NonNullable<FormPicks['style']>) => onPicks({ ...picks, style: { theme: wanted.theme, accent: wanted.accent, metal: wanted.metal, ...patch } })
+  const lookName = wanted.theme === 'luxe' ? `Luxe ${LUXE_METALS[wanted.metal].label}` : HUB_CLASSIC_ACCENTS.find(a => a.color.toLowerCase() === wanted.accent.toLowerCase())?.label || 'Classic'
+  useEffect(() => {
+    if (JSON.stringify(picks.look ?? null) !== JSON.stringify(shownLook)) onPicks({ ...picks, look: shownLook })
+  }, [JSON.stringify(shownLook)]) // eslint-disable-line react-hooks/exhaustive-deps
   const title = String(payload.title || 'Your form')
   // One screen at a time, the same screens as the preview (owner, 11/03): welcome, name/email/phone
   // (greyed - nothing to change), their questions, thank-you. A card that replaced one they asked to
   // change opens on that question (ai_routes._replace_open_form_cards).
-  const [at, setAt] = useState(typeof payload.focus_q === 'number' ? FIRST_OWN_Q + payload.focus_q : 0)
+  const [at, setAt] = useState(typeof payload.focus_q === 'number' ? coreQs(picks.one_contact, picks.first_last).length + 1 + payload.focus_q : 0)
   const [preview, setPreview] = useState(true)
-  const last = picks.questions.length + CORE_QS.length + 1
+  const last = picks.questions.length + cores.length + 1
   const i = Math.min(at, last)
-  const own = i >= FIRST_OWN_Q && i < last ? i - FIRST_OWN_Q : null
+  const own = i >= firstOwn && i < last ? i - firstOwn : null
   const q = own !== null ? picks.questions[own] : null
-  const core = i >= 1 && i < FIRST_OWN_Q ? CORE_QS[i - 1] : null
+  const core = i >= 1 && i < firstOwn ? cores[i - 1] : null
   // "What should change or be added?" (owner, 11/03): the card itself changes - the preview and this
   // screen update right here and it moves to the changed (or first added) question. No new card.
   const [fix, setFix] = useState('')
@@ -451,7 +400,7 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
     setFixing(true); setFixNote(null)
     const r = await onRevise(t, own)
     setFixing(false)
-    if (r.ok) { setFix(''); if (typeof r.focus === 'number') setAt(FIRST_OWN_Q + r.focus) }
+    if (r.ok) { setFix(''); if (r.oneContact !== undefined) setAt(1); else if (typeof r.focus === 'number') setAt(firstOwn + r.focus) }
     setFixNote({ ok: r.ok, text: r.message })
   }
   useEffect(() => { if (!fixing) setFixNote(n => (n?.ok ? n : null)) }, [i]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -462,11 +411,29 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
   const [adding, setAdding] = useState(false)
   const [more, setMore] = useState(false)
   const [mine, setMine] = useState('')
-  const add = (b: FormQuestion) => { onPicks({ ...picks, questions: [...picks.questions, b] }); setAt(FIRST_OWN_Q + picks.questions.length) }
+  const add = (b: FormQuestion) => { onPicks({ ...picks, questions: [...picks.questions, b] }); setAt(firstOwn + picks.questions.length) }
   const addMine = () => { const t = mine.trim(); if (!t) return; add({ label: t, type: 'short_text' }); setMine('') }
   const home = homes.find(h => h.listing_key === picks.listing_key)
   const screenName = i === 0 ? 'Welcome screen' : i === last ? 'Thank-you screen' : `Question ${i} of ${last - 1}`
-  const navBtn = 'ohp-ai-press inline-flex items-center gap-1 rounded-full px-3.5 py-2 text-[12px] font-black disabled:opacity-30'
+  // Every screen as a numbered step, between Back and Next - tap to jump. Theirs are gold, the contact
+  // and welcome / thank-you screens grey; the one they're on is filled (owner, 11/04).
+  const stepNumbers = (
+<div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-x-0.5 gap-y-1" data-testid="ai-form-steps">
+          {Array.from({ length: last + 1 }, (_, k) => {
+            const on = k === i, mine = k >= firstOwn && k < last
+            return (
+              <button key={k} type="button" onClick={() => setAt(k)} aria-current={on ? 'step' : undefined}
+                aria-label={k === 0 ? 'Welcome screen' : k === last ? 'Thank-you screen' : `Question ${k}`}
+                className={`ohp-ai-press grid h-[22px] min-w-[22px] place-items-center rounded-full px-0.5 text-[10px] font-black transition ${on
+                  ? 'bg-[#111827] text-white ring-2 ring-[#C9A24D] ring-offset-1 ring-offset-white dark:bg-[#C9A24D] dark:text-[#111827] dark:ring-offset-zinc-900'
+                  : mine ? 'bg-[#C9A24D]/15 text-[#8b7355] ring-1 ring-[#C9A24D]/40 dark:text-[#e8c97a]'
+                  : 'bg-gray-100 text-gray-400 dark:bg-zinc-800 dark:text-zinc-500'}`}>
+                {k === 0 ? <Home className="h-3 w-3" strokeWidth={3} /> : k === last ? <Check className="h-3 w-3" strokeWidth={3.5} /> : k}
+              </button>
+            )
+          })}
+        </div>
+  )
   // A wide chat (computer, big window) puts a small preview on the left and the steps on the right
   // (owner, 11/04: the preview took the whole card). Goes by the card's own width.
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -479,6 +446,15 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
     return () => ro.disconnect()
   }, [])
   const wide = cardW >= 600
+  const afterChoices: [string, string][] = [
+    ...(picks.listing_key ? [['property', 'That home'] as [string, string]] : []),
+    ['agent_hub', 'My Agent Hub'], ['website', 'My website'], ['none', 'Stay on the thank-you'], ['custom', 'My own link'],
+  ]
+  const afterMode = picks.after_mode && afterChoices.some(c => c[0] === picks.after_mode) ? picks.after_mode : picks.listing_key ? 'property' : 'agent_hub'
+  // A narrow card (a phone): Back and Next stack their arrow over the word, thick tiles that leave the
+  // row to the numbers, so a long form still fits on one or two lines (owner, 11/04).
+  const tight = cardW < 480
+  const navBtn = `ohp-ai-press inline-flex h-12 shrink-0 items-center justify-center rounded-xl font-black shadow-sm disabled:opacity-30 ${tight ? 'w-[46px] flex-col text-[10.5px] leading-tight' : 'gap-1 px-4 text-[13px]'}`
   return (
     <div ref={wrapRef} className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-1.5 sm:p-2.5 dark:bg-zinc-800/50" data-testid="ai-form-pick">
       {onOpenEditor && (
@@ -498,25 +474,8 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
             <Eye className="h-3 w-3" strokeWidth={3} /> {preview ? 'Hide preview' : 'Preview'}
           </button>
         </div>
-        {/* Every screen as a numbered step - tap to jump. Theirs are gold, name/email/phone and the
-            welcome / thank-you screens grey; the one they're on is filled (owner, 11/04: dots too thin to see). */}
-        <div className="mb-2 flex flex-wrap gap-1" data-testid="ai-form-steps">
-          {Array.from({ length: last + 1 }, (_, k) => {
-            const on = k === i, mine = k >= FIRST_OWN_Q && k < last
-            return (
-              <button key={k} type="button" onClick={() => setAt(k)} aria-current={on ? 'step' : undefined}
-                aria-label={k === 0 ? 'Welcome screen' : k === last ? 'Thank-you screen' : `Question ${k}`}
-                className={`ohp-ai-press grid h-6 min-w-[1.5rem] place-items-center rounded-full px-1 text-[10.5px] font-black transition ${on
-                  ? 'bg-[#111827] text-white ring-2 ring-[#C9A24D] ring-offset-1 ring-offset-white dark:bg-[#C9A24D] dark:text-[#111827] dark:ring-offset-zinc-900'
-                  : mine ? 'bg-[#C9A24D]/15 text-[#8b7355] ring-1 ring-[#C9A24D]/40 dark:text-[#e8c97a]'
-                  : 'bg-gray-100 text-gray-400 dark:bg-zinc-800 dark:text-zinc-500'}`}>
-                {k === 0 ? <Home className="h-3 w-3" strokeWidth={3} /> : k === last ? <Check className="h-3 w-3" strokeWidth={3.5} /> : k}
-              </button>
-            )
-          })}
-        </div>
         <div className={preview && wide ? 'grid grid-cols-[200px_minmax(0,1fr)] items-start gap-4' : undefined}>
-        {preview && <div className={wide ? 'sticky top-2' : undefined}><FormPreview title={title} questions={picks.questions} backgroundEffects={picks.background_effects} home={home || null} at={i} /></div>}
+        {preview && <div className={wide ? 'sticky top-2' : undefined}><FormPreview title={title} questions={picks.questions} backgroundEffects={picks.background_effects} welcomeTextEffects={picks.welcome_text_effects} oneContact={picks.one_contact} firstLast={picks.first_last} look={shownLook} home={home || null} at={i} /></div>}
         <div className="min-w-0">
         {/* This screen: greyed when there's nothing to change, else the question with its fix bar */}
         <div className="ohp-ai-card-in rounded-xl bg-[#faf7f0]/60 p-2 ring-1 ring-black/5 sm:p-2.5 dark:bg-zinc-800/40 dark:ring-white/10" key={i} data-testid="ai-form-screen">
@@ -531,21 +490,52 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
+              {q.show_if && (
+                <p className="mt-1.5 inline-flex max-w-full items-center gap-1 rounded-lg bg-[#C9A24D]/12 px-2 py-1 text-[11px] font-bold text-[#8b7355] dark:text-[#e8c97a]" data-testid="ai-form-fork">
+                  <GitBranch className="h-3.5 w-3.5 shrink-0" />
+                  <span className="min-w-0">Only if &ldquo;{q.show_if.question}&rdquo; is {q.show_if.answers.join(' or ')}</span>
+                  <button type="button" aria-label="Ask this of everyone" title="Ask this of everyone" className="ohp-ai-press -mr-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full hover:bg-black/5"
+                    onClick={() => onPicks({ ...picks, questions: picks.questions.map((x, k) => (k === own ? { ...x, show_if: null } : x)) })}><X className="h-3 w-3" strokeWidth={3} /></button>
+                </p>
+              )}
               {/* Answer choices share a line when they fit */}
               <div className="mt-1.5 flex flex-wrap items-center gap-1">
                 <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[9.5px] font-black uppercase tracking-wide text-gray-500 dark:bg-zinc-800 dark:text-zinc-400">{Q_LABEL[q.type || 'short_text'] || 'Answer'}</span>
+                {(q.fields || []).map(f => <span key={f.label} className="rounded-full border border-gray-200 px-2 py-0.5 text-[10.5px] font-semibold text-gray-600 dark:border-zinc-700 dark:text-zinc-300">{f.label}</span>)}
                 {(q.options || []).map(o => <span key={o} className="rounded-full border border-gray-200 px-2 py-0.5 text-[10.5px] font-semibold text-gray-600 dark:border-zinc-700 dark:text-zinc-300">{o}</span>)}
               </div>
             </>
           ) : (
+            <>
             <div className="flex items-center gap-2 text-gray-400 dark:text-zinc-500">
               <Lock className="h-3.5 w-3.5 shrink-0" />
               <p className="text-[12px] font-semibold leading-snug">
-                {core ? `${core.label} - every form asks this. Nothing to change here.`
+                {core ? (picks.one_contact ? `${picks.first_last ? 'First and last name' : 'Full name'}, email and phone, all on one screen. Every form asks these.` : `${core.label} - every form asks this.`)
                   : i === 0 ? 'The welcome screen shows your name, photo and the form’s title. Nothing to change here.'
                   : 'The thank-you screen. You can change its words later in the form editor.'}
               </p>
             </div>
+            {core && !payload.contact_fixed && (
+              <button type="button" role="switch" aria-checked={picks.one_contact} data-testid="ai-form-one-contact"
+                onClick={() => { onPicks({ ...picks, one_contact: !picks.one_contact, first_last: picks.one_contact ? false : picks.first_last }); setAt(1) }}
+                className="ohp-ai-press mt-2 flex w-full items-center justify-between gap-3 rounded-lg bg-white px-2.5 py-2 text-left dark:bg-zinc-900">
+                <span className="text-[12.5px] font-bold text-[#111827] dark:text-white">Name, email and phone on one screen</span>
+                <span className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${picks.one_contact ? 'bg-[#C9A24D]' : 'bg-gray-300 dark:bg-zinc-600'}`}>
+                  <span className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${picks.one_contact ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+                </span>
+              </button>
+            )}
+            {core && !payload.contact_fixed && (
+              <button type="button" role="switch" aria-checked={picks.first_last} data-testid="ai-form-first-last"
+                onClick={() => { onPicks({ ...picks, first_last: !picks.first_last, one_contact: picks.first_last ? picks.one_contact : true }); setAt(1) }}
+                className="ohp-ai-press mt-1.5 flex w-full items-center justify-between gap-3 rounded-lg bg-white px-2.5 py-2 text-left dark:bg-zinc-900">
+                <span className="text-[12.5px] font-bold text-[#111827] dark:text-white">First and last name on one line</span>
+                <span className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${picks.first_last ? 'bg-[#C9A24D]' : 'bg-gray-300 dark:bg-zinc-600'}`}>
+                  <span className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${picks.first_last ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+                </span>
+              </button>
+            )}
+            </>
           )}
         </div>
         {/* One line for any change or addition - the card updates right here (owner, 11/03) */}
@@ -564,10 +554,11 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
             {!fixing && fixNote && <p className={`mt-1 text-[11px] font-semibold ${fixNote.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`} data-testid="ai-form-fix-note">{fixNote.text}</p>}
           </div>
         )}
-        <div className="mt-2 flex items-center justify-between gap-2">
+        <div className="mt-2 flex items-center gap-2" data-testid="ai-form-nav">
           <button type="button" onClick={() => setAt(i - 1)} disabled={i === 0} className={`${navBtn} bg-white text-[#111827] ring-1 ring-black/10 dark:bg-zinc-900 dark:text-white dark:ring-white/10`}>
             <ChevronLeft className="h-4 w-4" strokeWidth={3} /> Back
           </button>
+          {stepNumbers}
           {i < last ? (
             <button type="button" onClick={() => setAt(i + 1)} className={`${navBtn} bg-[#111827] text-white dark:bg-[#C9A24D] dark:text-[#111827]`} data-testid="ai-form-next">
               Next <ChevronRight className="h-4 w-4" strokeWidth={3} />
@@ -612,23 +603,70 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
         </div>
         </div>
       </CardStep>
-      <CardStep id="background" n={2} title="Background" summary={picks.background_effects ? 'Moving' : 'Still'} steps={steps}>
-      <button type="button" role="switch" aria-checked={picks.background_effects} onClick={() => { onPicks({ ...picks, background_effects: !picks.background_effects }); steps.picked('background') }}
-        className="ohp-ai-press flex w-full items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 dark:bg-zinc-900" data-testid="ai-form-bg">
-        <span className="text-[13px] font-bold text-[#111827] dark:text-white">Moving background</span>
-        <span className={`relative h-6 w-10 rounded-full transition-colors ${picks.background_effects ? 'bg-[#C9A24D]' : 'bg-gray-300 dark:bg-zinc-600'}`}>
-          <span className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${picks.background_effects ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
-        </span>
-      </button>
+      <CardStep id="look" n={2} title="Look" summary={`${lookName} · ${isDark ? 'Dark' : 'Light'}`} steps={steps}>
+        {/* The same choices as the form editor, with the form beside them (owner, 11/04) */}
+        <div className={wide ? 'grid grid-cols-[200px_minmax(0,1fr)] items-start gap-4' : undefined}>
+          {steps.isOpen('look') && <FormPreview title={title} questions={picks.questions} backgroundEffects={picks.background_effects} welcomeTextEffects={picks.welcome_text_effects} oneContact={picks.one_contact} firstLast={picks.first_last} look={shownLook} home={home || null} at={0} />}
+          <div className="min-w-0 space-y-1.5" data-testid="ai-form-look">
+            <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Style">
+              {([['classic', 'Classic'], ['luxe', 'Luxe']] as const).map(([t, label]) => (
+                <button key={t} type="button" aria-pressed={wanted.theme === t} disabled={t === 'luxe' && !luxeOk} onClick={() => pickStyle({ theme: t })} data-testid={`ai-form-${t}`}
+                  className={`ohp-ai-press h-10 rounded-xl text-[13px] font-black transition-colors disabled:opacity-60 ${wanted.theme === t ? 'bg-[#111827] text-white dark:bg-[#C9A24D] dark:text-[#111827]' : 'bg-white text-gray-600 ring-1 ring-black/10 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-white/10'}`}>
+                  {label}{t === 'luxe' && !luxeOk && <span className="ml-1.5 rounded-full bg-[#111827] px-1.5 py-0.5 text-[9px] font-black tracking-wider text-[#e8c97a]">IDX</span>}
+                </button>
+              ))}
+            </div>
+            <div className="rounded-xl bg-white px-2.5 py-2 dark:bg-zinc-900" data-testid="ai-form-colors">
+              <p className="mb-1.5 text-[11px] font-black text-[#111827] dark:text-white">{wanted.theme === 'luxe' ? `Finish: ${LUXE_METALS[wanted.metal].label}` : `Color: ${lookName === 'Classic' ? 'Your own' : lookName}`}</p>
+              <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={wanted.theme === 'luxe' ? 'Finish' : 'Color'}>
+                {wanted.theme === 'luxe'
+                  ? LUXE_METAL_ORDER.map((m: LuxeMetal) => {
+                    const c = LUXE_METALS[m]
+                    return <button key={m} type="button" role="radio" aria-checked={wanted.metal === m} aria-label={c.label} title={c.label} onClick={() => pickStyle({ metal: m })} data-testid={`ai-form-metal-${m}`}
+                      className={`ohp-ai-press h-8 w-8 rounded-full ring-1 ring-black/10 ${wanted.metal === m ? 'ring-2 ring-[#111827] ring-offset-2 dark:ring-white dark:ring-offset-zinc-900' : ''}`}
+                      style={{ background: `conic-gradient(from 210deg, ${c.deep}, ${c.light}, ${c.pale}, ${c.base}, ${c.deep})` }} />
+                  })
+                  : HUB_CLASSIC_ACCENTS.map(a => (
+                    <button key={a.color} type="button" role="radio" aria-checked={wanted.accent.toLowerCase() === a.color.toLowerCase()} aria-label={a.label} title={a.label} onClick={() => pickStyle({ accent: a.color })} data-testid={`ai-form-color-${a.label.toLowerCase().replace(/ /g, '-')}`}
+                      className={`ohp-ai-press h-8 w-8 rounded-full ring-1 ring-black/10 ${wanted.accent.toLowerCase() === a.color.toLowerCase() ? 'ring-2 ring-[#111827] ring-offset-2 dark:ring-white dark:ring-offset-zinc-900' : ''}`}
+                      style={{ background: a.color }} />
+                  ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Light or dark">
+              {([[false, 'Light'], [true, 'Dark']] as const).map(([d, label]) => (
+                <button key={label} type="button" aria-pressed={isDark === d} onClick={() => onPicks({ ...picks, dark: d })} data-testid={`ai-form-${label.toLowerCase()}`}
+                  className={`ohp-ai-press h-10 rounded-xl text-[13px] font-black transition-colors ${isDark === d ? 'bg-[#111827] text-white dark:bg-[#C9A24D] dark:text-[#111827]' : 'bg-white text-gray-600 ring-1 ring-black/10 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-white/10'}`}>{label}</button>
+              ))}
+            </div>
+            {([['background_effects', 'Background effects', 'A quiet street of homes behind the form', 'ai-form-bg'], ['welcome_text_effects', 'Welcome text effects', 'The welcome words glide in one by one', 'ai-form-welcome']] as const).map(([k, label, blurb, id]) => (
+              <button key={k} type="button" role="switch" aria-checked={picks[k]} onClick={() => onPicks({ ...picks, [k]: !picks[k] })} data-testid={id}
+                className="ohp-ai-press flex w-full items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 text-left dark:bg-zinc-900">
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-bold text-[#111827] dark:text-white">{label}</span>
+                  <span className="block text-[11px] font-semibold leading-snug text-gray-500 dark:text-zinc-400">{blurb}</span>
+                </span>
+                <span className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${picks[k] ? 'bg-[#C9A24D]' : 'bg-gray-300 dark:bg-zinc-600'}`}>
+                  <span className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${picks[k] ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+                </span>
+              </button>
+            ))}
+            {!sameAsBrand && (
+              <button type="button" onClick={() => onPicks({ ...picks, style: null, dark: null })} data-testid="ai-form-brand-look"
+                className="ohp-ai-press w-full rounded-xl py-1.5 text-[11.5px] font-black text-[#8b7355] dark:text-[#e8c97a]">Use my Brand Kit look</button>
+            )}
+            <StepDone onDone={() => steps.done('look')} />
+          </div>
+        </div>
       </CardStep>
       {homes.length > 0 && (
         <CardStep id="home" n={3} title="About a home?" summary={home ? home.address : 'No'} steps={steps}>
           <div className="flex flex-wrap gap-1.5">
-            <button type="button" onClick={() => { onPicks({ ...picks, listing_key: null }); steps.picked('home') }} aria-pressed={!picks.listing_key} className={chip(!picks.listing_key)}>No</button>
+            <button type="button" onClick={() => { onPicks({ ...picks, listing_key: null, after_mode: picks.after_mode === 'property' ? null : picks.after_mode }); steps.picked('home') }} aria-pressed={!picks.listing_key} className={chip(!picks.listing_key)}>No</button>
             {homes.map(h => {
               const on = picks.listing_key === h.listing_key
               return (
-                <button key={h.listing_key} type="button" onClick={() => { onPicks({ ...picks, listing_key: h.listing_key }); steps.picked('home') }} aria-pressed={on} title={`${h.address}, ${h.city}`}
+                <button key={h.listing_key} type="button" onClick={() => { onPicks({ ...picks, listing_key: h.listing_key, after_mode: 'property' }); steps.picked('home') }} aria-pressed={on} title={`${h.address}, ${h.city}`}
                   className={`${chip(on)} inline-flex items-center gap-1.5 !py-1 !pl-1`} data-testid="ai-form-home">
                   {h.photo ? <img src={resolveMediaUrl(h.photo)} alt="" className="h-5 w-5 rounded-full object-cover" /> : <Home className="ml-1 h-3.5 w-3.5" />}
                   {h.address}
@@ -638,6 +676,19 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
           </div>
         </CardStep>
       )}
+      {/* Where the thank-you sends them, the same choices as the form editor (owner, 11/04). A form
+          about a home goes to that home unless they pick something else. */}
+      <CardStep id="after" n={homes.length ? 4 : 3} title="After the thank-you" summary={afterMode === 'none' ? 'Stay here' : afterChoices.find(c => c[0] === afterMode)?.[1] || ''} steps={steps}>
+        <div className="flex flex-wrap gap-1.5" data-testid="ai-form-after">
+          {afterChoices.map(([m, label]) => (
+            <button key={m} type="button" aria-pressed={afterMode === m} onClick={() => { onPicks({ ...picks, after_mode: m }); if (m !== 'custom') steps.picked('after') }} className={chip(afterMode === m)} data-after={m}>{label}</button>
+          ))}
+        </div>
+        {afterMode === 'custom' && (
+          <input value={picks.after_url} onChange={e => onPicks({ ...picks, after_url: e.target.value })} placeholder="yourwebsite.com/page" inputMode="url" data-testid="ai-form-after-url"
+            className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[13px] font-medium text-gray-800 outline-none focus:border-[#C9A24D] sm:text-xs dark:border-zinc-700 dark:bg-zinc-900 dark:text-white" />
+        )}
+      </CardStep>
     </div>
   )
 }
@@ -655,6 +706,7 @@ const WORK_LINES: Record<string, string[]> = {
   create_spotlight: ['Building the page...', 'Writing the story...', 'Adding the highlights...'],
   create_showcase: ['Searching for matching homes...', 'Setting up their Showcase...'],
   create_form: ['Building your form...', 'Adding the questions...'],
+  edit_form: ['Saving your changes...', 'Updating the form...'],
 }
 
 export function WorkingScene({ tool, message }: { tool: string; message?: string }) {
@@ -678,23 +730,5 @@ export function WorkingScene({ tool, message }: { tool: string; message?: string
         <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[#C9A24D]/15"><div className="ohp-work-bar h-full w-1/3 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a]" /></div>
       </div>
     </div>
-  )
-}
-
-// ---------------------------------------------------------------- a Spotlight finishing itself
-export function SetupSteps({ steps }: { steps: SetupStep[] }) {
-  const shown = steps.filter(s => s.state !== 'skip')
-  if (!shown.length) return null
-  return (
-    <ul className="mt-2 space-y-1.5" data-testid="ai-spotlight-setup">
-      {shown.map(s => (
-        <li key={s.key} className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-zinc-300">
-          <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full ${s.state === 'done' ? 'bg-emerald-500 text-white' : s.state === 'fail' ? 'bg-gray-200 text-gray-500 dark:bg-zinc-700' : 'bg-[#C9A24D]/20'}`}>
-            {s.state === 'done' ? <Check className="h-2.5 w-2.5" strokeWidth={3.5} /> : s.state === 'fail' ? <X className="h-2.5 w-2.5" /> : <span className={`h-1.5 w-1.5 rounded-full bg-[#C9A24D] ${s.state === 'run' ? 'animate-pulse' : 'opacity-40'}`} />}
-          </span>
-          <span className={s.state === 'run' ? 'ohp-ai-shimmer' : ''}>{s.label}</span>
-        </li>
-      ))}
-    </ul>
   )
 }

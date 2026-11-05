@@ -388,6 +388,17 @@ function PropertySiteEditorPage() {
     if (facts) setTown(t => ({ ...t, facts, body: '', hidden: false }))
   }
 
+  // Set up on the server from the chat: the amenities are the one step left to do here, once.
+  const serverTicked = useRef(false)
+  useEffect(() => {
+    if (!site || serverTicked.current || !allFeatureTags.length) return
+    const d = site.draft_data as Record<string, unknown> | undefined
+    if (d?.auto_setup_server && !((d.featured_amenities as string[] | undefined) || []).length) {
+      serverTicked.current = true
+      setFeatured(autoFeatured(allFeatureTags.map(r => r.label)))
+    }
+  }, [site, allFeatureTags])
+
   // First open: pre-pick the big-ticket amenities, write the highlights, polish the story (when
   // the agent chose the short version when creating the site) and draft "About the town" - so
   // the page is complete before the agent touches anything. Runs once per site.
@@ -461,7 +472,7 @@ function PropertySiteEditorPage() {
       video: header.video,
       frame: header.frame,
     },
-    auto_setup_done: autoSetupDone,
+    auto_setup_done: autoSetupDone, auto_setup_server: false,
     video_asset_id: videoAssetId,
     virtual_tour_url: virtualTourUrl.trim() || null,
     floor_plans: floorPlans.filter(f => f.image_url),
@@ -1557,8 +1568,8 @@ function PropertySiteEditorPage() {
                 <section className="ohp-rise mt-4 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-[#151517]">
                   <style>{`.rv-shine{position:relative;overflow:hidden}.rv-shine:after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.5) 50%,transparent 65%);transform:translateX(-100%);animation:rvShine 3.2s ease-in-out infinite}@keyframes rvShine{0%,55%{transform:translateX(-100%)}100%{transform:translateX(100%)}}.rv-seg{transform-origin:left;animation:rvSeg .6s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i)*90ms + .2s)}@keyframes rvSeg{from{transform:scaleX(0)}to{transform:scaleX(1)}}@media (prefers-reduced-motion:reduce){.rv-shine:after,.rv-seg{animation:none}}`}</style>
                   <div className="relative overflow-hidden bg-gradient-to-br from-[#0f1a17] via-[#111827] to-[#3a2c14] p-5 text-white sm:p-7">
-                    <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#C9A24D]/25 blur-3xl" />
-                    <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl" />
+                    <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.25),transparent)]" />
+                    <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-[radial-gradient(closest-side,rgba(52,211,153,.1),transparent)]" />
                     <div className="relative grid grid-cols-1 items-center gap-6 lg:grid-cols-[1.3fr_1fr]">
                       <ScaledPreview className="min-w-0" src={`/spotlight-preview/${templateId}?site=${site.id}&embed=1`} aspect={0.6} label={siteLabel} poster={heroImage} />
                       <div>

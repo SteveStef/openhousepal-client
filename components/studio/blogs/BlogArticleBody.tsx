@@ -400,11 +400,11 @@ function ContactFormCard({ agent, accentColor, onLead, heading, sheet = false, o
   const field = 'w-full rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-sm font-semibold text-[#111827] outline-none transition placeholder:font-medium placeholder:text-gray-400 focus:ring-4 dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white'
   return (
     <div id="blog-contact" className={`relative overflow-hidden border border-gray-200 bg-white p-6 shadow-[0_24px_50px_-34px_rgba(0,0,0,.45)] dark:border-gray-800 dark:bg-[#151517] sm:p-7 ${sheet ? 'rounded-t-[28px] sm:rounded-[28px]' : 'rounded-[24px]'}`}>
-      <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-25 blur-3xl" style={{ background: accentColor }} />
+      <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-25" style={{ background: `radial-gradient(closest-side, ${accentColor}, transparent)` }} />
       <AnimatePresence mode="wait" initial={false}>
         {state === 'sent' ? (
           <motion.div key="sent" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="relative py-6 text-center">
-            <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }} className="mx-auto grid h-14 w-14 place-items-center rounded-full text-white shadow-lg" style={{ background: accentColor }}>
+            <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }} className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-500 text-white shadow-lg">
               <Check className="h-7 w-7" strokeWidth={3} />
             </motion.span>
             <p className="mt-4 font-serif text-2xl font-black text-[#111827] dark:text-white">Sent to {agent.name.split(' ')[0] || 'me'}</p>
@@ -445,7 +445,7 @@ function LeadFormCard({ data, accentColor, href, onEvent }: { data: any; accentC
   }
   const inner = (
     <>
-      <div className="pointer-events-none absolute -right-10 -top-14 h-44 w-44 rounded-full opacity-30 blur-3xl" style={{ background: accentColor }} />
+      <div className="pointer-events-none absolute -right-10 -top-14 h-44 w-44 rounded-full opacity-30" style={{ background: `radial-gradient(closest-side, ${accentColor}, transparent)` }} />
       <span className="relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white shadow-lg" style={{ background: accentColor }}><ClipboardList className="h-6 w-6" /></span>
       <span className="relative min-w-0 flex-1">
         <span className="block text-[10px] font-black uppercase tracking-[0.25em]" style={{ color: accentColor }}>Free · about a minute</span>

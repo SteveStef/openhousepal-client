@@ -22,7 +22,7 @@ const DUST = [
 ] as const
 
 const CSS = `
-.ts-aurora{position:absolute;inset:-35%;background:conic-gradient(from 210deg at 50% 50%,transparent 0deg,rgba(201,162,77,.20) 60deg,transparent 120deg,rgba(80,110,170,.18) 200deg,transparent 260deg,rgba(201,162,77,.14) 320deg,transparent 360deg);filter:blur(42px);animation:tsSpin 26s linear infinite}
+.ts-aurora{position:absolute;inset:-35%;background:radial-gradient(38% 38% at 32% 36%,rgba(201,162,77,.2),transparent),radial-gradient(38% 38% at 70% 64%,rgba(80,110,170,.18),transparent);animation:tsSpin 26s linear infinite}
 .ts-floor{position:absolute;left:-30%;right:-30%;bottom:-8%;height:58%;transform:perspective(380px) rotateX(64deg);transform-origin:50% 100%;
   background-image:linear-gradient(rgba(201,162,77,.38) 1px,transparent 1px),linear-gradient(90deg,rgba(201,162,77,.38) 1px,transparent 1px);background-size:44px 44px;
   -webkit-mask-image:linear-gradient(to top,#000 0%,rgba(0,0,0,.65) 45%,transparent 100%);mask-image:linear-gradient(to top,#000 0%,rgba(0,0,0,.65) 45%,transparent 100%);animation:tsFloor 6s linear infinite}
@@ -33,7 +33,7 @@ const CSS = `
 .ts-dust{position:absolute;width:3px;height:3px;border-radius:9999px;background:#f1d58b;box-shadow:0 0 8px 2px rgba(241,213,139,.55);opacity:0;animation:tsDust 6.5s ease-in-out infinite}
 .ts-halo{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:22px;border:1.5px solid rgba(232,201,122,.55);opacity:0;animation:tsHalo 3.2s cubic-bezier(.2,.6,.3,1) .7s infinite}
 .ts-halo:nth-child(2){animation-delay:1.75s}
-.ts-glow{position:absolute;left:50%;top:50%;width:150px;height:150px;margin:-75px 0 0 -75px;border-radius:9999px;background:radial-gradient(circle,rgba(201,162,77,.45),transparent 65%);filter:blur(6px);animation:tsGlow 3.2s ease-in-out infinite}
+.ts-glow{position:absolute;left:50%;top:50%;width:150px;height:150px;margin:-75px 0 0 -75px;border-radius:9999px;background:radial-gradient(circle,rgba(201,162,77,.45),transparent 65%);animation:tsGlow 3.2s ease-in-out infinite}
 .ts-orbit{position:absolute;left:50%;top:50%;width:132px;height:132px;margin:-66px 0 0 -66px;border-radius:9999px;border:1px dashed rgba(201,162,77,.28);animation:tsSpin 18s linear infinite}
 .ts-orbit::before,.ts-orbit::after{content:"";position:absolute;width:6px;height:6px;border-radius:9999px;background:#e8c97a;box-shadow:0 0 10px 2px rgba(232,201,122,.7)}
 .ts-orbit::before{top:-3px;left:calc(50% - 3px)}
@@ -53,7 +53,7 @@ const CSS = `
 @keyframes tsHalo{0%{opacity:.75;transform:scale(1)}100%{opacity:0;transform:scale(2.15)}}
 @keyframes tsGlow{0%,100%{opacity:.65;transform:scale(.92)}50%{opacity:1;transform:scale(1.08)}}
 @keyframes tsCorner{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
-@keyframes tsRise{from{opacity:0;transform:translateY(14px);filter:blur(6px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes tsRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 @keyframes tsLine{to{width:44px}}
 @keyframes tsShine{0%{background-position:100% 0}55%,100%{background-position:0% 0}}
 @keyframes tsAiIn{from{opacity:0;transform:scale(.4) rotate(-12deg)}to{opacity:1;transform:none}}

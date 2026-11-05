@@ -94,8 +94,8 @@ export default function CheatSheetView({ data, onRequest, sending, onBack }: {
 
       {/* The home */}
       <motion.div {...rise()} className="relative mt-3 overflow-hidden rounded-[30px] bg-[#0B0B0B] p-5 pb-9 text-white shadow-[0_30px_70px_-34px_rgba(0,0,0,0.7)] ring-1 ring-white/10 sm:p-7 sm:pb-11">
-        <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full opacity-40 blur-3xl" style={{ background: 'var(--gp)' }} />
-        <div aria-hidden className="pointer-events-none absolute -bottom-28 -left-16 h-60 w-60 rounded-full opacity-20 blur-3xl" style={{ background: 'var(--gp)' }} />
+        <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full opacity-40" style={{ background: 'radial-gradient(closest-side, var(--gp), transparent)' }} />
+        <div aria-hidden className="pointer-events-none absolute -bottom-28 -left-16 h-60 w-60 rounded-full opacity-20" style={{ background: 'radial-gradient(closest-side, var(--gp), transparent)' }} />
         <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-80" style={{ background: 'linear-gradient(90deg, transparent, var(--gp), transparent)' }} />
         <div className="relative flex flex-wrap items-center gap-2">
           <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--gp)]">Open House Guide</span>

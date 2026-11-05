@@ -92,6 +92,12 @@ export function sendTextBody(message: string | null, links: string[]): string {
   return [message?.trim(), ...links].filter(Boolean).join('\n\n')
 }
 
+/** What a text says when the agent's message is off. Never a bare link: on the owner's iPhone that
+ *  opened Messages blank, no contact and no text, while words + link worked (11/04). */
+export function sendTextLabel(homes: Property[]): string {
+  return homes.length === 1 ? homeStreet(homes[0]) : `${homes.length} homes`
+}
+
 export function sendEmailSubject(homes: Property[]): string {
   return homes.length === 1 ? `A home for you: ${homeStreet(homes[0])}` : `${homes.length} homes for you`
 }
@@ -131,11 +137,13 @@ function note(href: string, extra?: Record<string, unknown>) {
   ;(window as unknown as { __ohpSendOpen?: unknown }).__ohpSendOpen = { href, ...extra }
 }
 
-/** Opens Messages with the text written (and the client's number, when there is one). */
-export function openSendText(phone: string | null | undefined, body: string) {
-  const href = phone ? smsHref(phone, body) : `sms:${/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) ? '&' : '?'}body=${encodeURIComponent(body)}`
-  note(href, { body })
-  window.location.href = href
+/** The Messages link with the text written (and the client's number, when there is one). The Send
+ *  button is a real link to this, like every other Text button in the app: a page sending itself to
+ *  sms: from script can quietly do nothing on a phone, a tapped link always hands off (owner 11/04). */
+export function sendTextHref(phone: string | null | undefined, body: string): string {
+  if (phone) return smsHref(phone, body)
+  if (typeof navigator === 'undefined') return `sms:?body=${encodeURIComponent(body)}`
+  return `sms:${/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) ? '&' : '?'}body=${encodeURIComponent(body)}`
 }
 
 /** Opens the agent's email app with the email written. Phones open the app itself (its web compose

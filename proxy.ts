@@ -1,3 +1,5 @@
+import { ARTICLE_SLUGS, TOOL_SLUGS } from '@/lib/marketingPaths'
+import { hubOnlyPath, hubOnlySlug } from '@/lib/hubOnlyDomain'
 import { NextRequest, NextResponse } from 'next/server'
 import { hubOwnDomainTarget } from './lib/hubOwnDomainRedirect'
 import { subdomainOwnDomainTarget } from './lib/subdomainOwnDomainRedirect'
@@ -35,6 +37,7 @@ const RESERVED_APP_SEGMENTS = new Set([
   'checkout', 'cma', 'dash', 'discovery', 'leads', 'net-sheet', 'open-houses',
   'gsi', 'privacy', 'property', 'settings', 'setup', 'showcase', 'showcases', 'studio', 'terms', 'unsubscribe',
   'upgrade-required', 'forgot-password', 'login', 'register', 'reset-password',
+  'tools', 'pricing', 'idx-websites', 'faq', 'about', 'resources', 'brokerages',
 ])
 
 // openhousepal.com is for agents (we sell them subscriptions), so these are the only pages on the
@@ -43,7 +46,7 @@ const RESERVED_APP_SEGMENTS = new Set([
 // (user, 10/29: googling OpenHousePal showed "Lori D'Onofrio", "Setup My Own Showcase" under our
 // own result). Agents' own sites (<slug>.openhousepal.com, own domains) aren't touched.
 // Not robots.txt: a blocked page can still be listed from links, and Google can't see the noindex.
-const INDEXABLE_APP_PATHS = new Set(['/', '/register', '/login', '/privacy', '/terms'])
+const INDEXABLE_APP_PATHS = new Set(['/', '/tools', '/pricing', '/idx-websites', '/faq', '/about', '/resources', '/brokerages', '/register', '/login', '/privacy', '/terms'])
 
 // An agent's Hub (/<slug>/...) is shown on their own website's /hub, /about and /sales inside a
 // frame. `indexifembedded` lets Google count it as part of THAT page (owner, 10/30: their hub and
@@ -70,7 +73,7 @@ export async function proxy(request: NextRequest) {
   if (!rawHost || APP_HOSTNAMES.has(rawHost) || APP_HOSTNAMES.has(hostWithoutPort)) {
     const res = await appHostResponse(request)
     const path = request.nextUrl.pathname.replace(/\/+$/, '') || '/'
-    if (!INDEXABLE_APP_PATHS.has(path) && !isBlogPostPath(request)) res.headers.set('X-Robots-Tag', isHubPath(request) ? 'noindex, indexifembedded' : 'noindex')
+    if (!INDEXABLE_APP_PATHS.has(path) && !/^\/(tools|resources)\/[a-z0-9-]+$/.test(path) && !isBlogPostPath(request)) res.headers.set('X-Robots-Tag', isHubPath(request) ? 'noindex, indexifembedded' : 'noindex')
     return res
   }
   return siteHostResponse(request, rawHost, hostWithoutPort)
@@ -85,14 +88,19 @@ async function appHostResponse(request: NextRequest): Promise<NextResponse> {
     previewHeaders.set('x-ohp-public-site', '1')
     return NextResponse.next({ request: { headers: previewHeaders } })
   }
+  const marketingChild = request.nextUrl.pathname.match(/^\/(tools|resources)\/([^/]+)\/?$/)
+  if (marketingChild && !(marketingChild[1] === 'tools' ? TOOL_SLUGS : ARTICLE_SLUGS).includes(marketingChild[2])) {
+    return new NextResponse('<!doctype html><title>Page not found | OpenHousePal</title><meta name="robots" content="noindex"><body style="font-family:system-ui;text-align:center;padding:15vh 24px"><h1>Page not found</h1><p><a href="/">Back to OpenHousePal</a></p>', { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+  }
   const firstSegment = request.nextUrl.pathname.split('/').filter(Boolean)[0]?.toLowerCase()
   if (firstSegment && !RESERVED_APP_SEGMENTS.has(firstSegment)) {
     // openhousepal.com/<slug>/... -> the agent's own connected domain, only while it fully works
-    // (lib/hubOwnDomainRedirect - never for frames/previews; any doubt = no redirect). 307 + no-store:
-    // switching the domain off stops it within a minute, nothing sticks in browsers.
+    // (lib/hubOwnDomainRedirect - never for frames/previews; any doubt = no redirect). 308 tells Google
+    // the move is real; no-store means switching the domain off still stops it within a minute,
+    // nothing sticks in browsers.
     const ownDomainUrl = await hubOwnDomainTarget(request)
     if (ownDomainUrl) {
-      const res = NextResponse.redirect(ownDomainUrl, 307)
+      const res = NextResponse.redirect(ownDomainUrl, 308)
       res.headers.set('Cache-Control', 'no-store')
       return res
     }
@@ -119,11 +127,26 @@ async function siteHostResponse(request: NextRequest, rawHost: string, hostWitho
     return NextResponse.next({ request: { headers: inviteHeaders } })
   }
 
+  // Their own domain with the IDX website switched off: the Agent Hub by itself, no website around it.
+  if (!hostWithoutPort.endsWith(`.${OHP_BASE_DOMAIN}`)) {
+    const hubSlug = await hubOnlySlug(hostWithoutPort)
+    const first = request.nextUrl.pathname.split('/').filter(Boolean)[0]?.toLowerCase()
+    if (hubSlug && !/\.(txt|xml)$/.test(request.nextUrl.pathname)) {
+      const hubHeaders = new Headers(request.headers)
+      hubHeaders.set('x-ohp-public-site', '1')
+      // Shared Showcases, open houses, CMAs and the like are app pages: they open as they are.
+      if (first && RESERVED_APP_SEGMENTS.has(first)) return NextResponse.next({ request: { headers: hubHeaders } })
+      const url = request.nextUrl.clone()
+      url.pathname = hubOnlyPath(url.pathname, hubSlug)
+      return NextResponse.rewrite(url, { request: { headers: hubHeaders } })
+    }
+  }
+
   // <slug>.openhousepal.com -> the agent's own domain once it's their working default address
   // (lib/subdomainOwnDomainRedirect - same rule as every link they share; any doubt = no redirect).
   const ownSiteUrl = await subdomainOwnDomainTarget(hostWithoutPort, request)
   if (ownSiteUrl) {
-    const res = NextResponse.redirect(ownSiteUrl, 307)
+    const res = NextResponse.redirect(ownSiteUrl, 308)
     res.headers.set('Cache-Control', 'no-store')
     return res
   }

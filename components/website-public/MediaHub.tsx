@@ -253,7 +253,7 @@ export default function MediaHub({ theme, basePrefix, posts, videos, tours, agen
             <button key={t.id} type="button" onClick={() => setTab(t.id)} className={`relative inline-flex shrink-0 items-center gap-2 px-4 py-2 text-sm font-black transition-colors duration-300 ${luxe ? 'rounded-full' : 'rounded-lg'}`}
               style={{ color: tab === t.id ? 'var(--site-on-accent)' : 'var(--mh-muted)' }}>
               {tab === t.id && <motion.span layoutId="ohp-media-tab" className={`absolute inset-0 ${luxe ? 'rounded-full' : 'rounded-lg'}`} style={{ backgroundColor: 'var(--site-accent)' }} transition={{ type: 'spring', stiffness: 420, damping: 36 }} />}
-              <span className="relative inline-flex items-center gap-2"><t.icon className="h-4 w-4" />{t.label}<span className="text-xs opacity-60">{t.n}</span></span>
+              <span className="relative inline-flex items-center gap-2"><t.icon className="h-4 w-4" />{t.label}<span className="ohp-keep-solid text-xs opacity-60">{t.n}</span></span>
             </button>
           ))}
         </div>

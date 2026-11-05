@@ -336,7 +336,7 @@ const CSS = `
 
 /* Luxe grid cards (full Sales / Listings pages) */
 .hub-lx-gcard { animation: hubLxCardIn .7s cubic-bezier(.22,.61,.36,1) both; }
-@keyframes hubLxCardIn { from { opacity: 0; transform: translateY(18px) scale(.97); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes hubLxCardIn { from { opacity: 0; transform: translateY(18px) scale(.97); } to { opacity: 1; transform: none; filter: none; } }
 .hub-luxe .hub-lx-panel { position: relative; overflow: hidden; background: radial-gradient(110% 130% at 100% 0%, rgba(var(--m-rgb),.24), transparent 55%), linear-gradient(135deg, #fffdf8 0%, var(--m-wash0) 55%, var(--m-wash3) 100%) !important; border-color: rgba(var(--m-rgb),.45) !important; box-shadow: 0 30px 60px -40px rgba(var(--m-deep-rgb),.8), inset 0 1px 0 rgba(255,255,255,.8) !important; }
 .dark .hub-luxe .hub-lx-panel { background: radial-gradient(120% 140% at 100% 0%, rgba(var(--m-rgb),.22), transparent 55%), linear-gradient(135deg, #0b0f0e 0%, #111827 55%, var(--m-night2) 100%) !important; border-color: rgba(var(--m-light-rgb),.24) !important; }
 .hub-luxe .hub-lx-panel::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1.5px; background: linear-gradient(90deg, transparent 20%, var(--m-light) 50%, transparent 80%); background-size: 200% 100%; animation: hubLxEdge 7s ease-in-out infinite; }
@@ -360,19 +360,19 @@ const CSS = `
 .hub-lx-decor { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; border-radius: inherit; }
 .hub-lx-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(var(--m-deep-rgb),.08) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--m-deep-rgb),.08) 1px, transparent 1px); background-size: 40px 40px; -webkit-mask-image: radial-gradient(70% 55% at 80% 0%, #000, transparent 75%); mask-image: radial-gradient(70% 55% at 80% 0%, #000, transparent 75%); }
 .dark .hub-lx-grid { background-image: linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px); }
-.hub-lx-aurora { position: absolute; border-radius: 999px; filter: blur(64px); }
-.hub-lx-aurora-a { left: -80px; top: 280px; width: 380px; height: 380px; background: rgba(var(--m-rgb),.26); animation: hubLxDriftA 18s ease-in-out infinite alternate; }
-.hub-lx-aurora-b { right: -60px; top: -100px; width: 480px; height: 320px; background: rgba(var(--m-light-rgb),.42); animation: hubLxDriftB 22s ease-in-out infinite alternate; }
-.hub-lx-aurora-c { left: 30%; top: 55%; width: 420px; height: 300px; background: rgba(var(--j1-rgb),.24); animation: hubLxDriftA 26s ease-in-out -6s infinite alternate-reverse; }
-.hub-lx-aurora-d { right: 8%; top: 32%; width: 340px; height: 280px; background: rgba(var(--j2-rgb),.20); animation: hubLxDriftB 24s ease-in-out -4s infinite alternate; }
-.hub-lx-aurora-e { left: 4%; top: 12%; width: 300px; height: 240px; background: rgba(var(--j3-rgb),.18); animation: hubLxDriftA 30s ease-in-out -12s infinite alternate; }
-.dark .hub-lx-aurora-a { background: rgba(var(--m-rgb),.22); }
-.dark .hub-lx-aurora-b { background: rgba(var(--m-deep-rgb),.30); }
-.dark .hub-lx-aurora-c { background: rgba(var(--j1-rgb),.30); }
-.dark .hub-lx-aurora-d { background: rgba(var(--j2-rgb),.28); }
-.dark .hub-lx-aurora-e { background: rgba(var(--j3-rgb),.20); }
+.hub-lx-aurora { position: absolute; border-radius: 999px; }
+.hub-lx-aurora-a { left: -80px; top: 280px; width: 380px; height: 380px; background: radial-gradient(closest-side, rgba(var(--m-rgb),.26), transparent); animation: hubLxDriftA 18s ease-in-out infinite alternate; }
+.hub-lx-aurora-b { right: -60px; top: -100px; width: 480px; height: 320px; background: radial-gradient(closest-side, rgba(var(--m-light-rgb),.42), transparent); animation: hubLxDriftB 22s ease-in-out infinite alternate; }
+.hub-lx-aurora-c { left: 30%; top: 55%; width: 420px; height: 300px; background: radial-gradient(closest-side, rgba(var(--j1-rgb),.24), transparent); animation: hubLxDriftA 26s ease-in-out -6s infinite alternate-reverse; }
+.hub-lx-aurora-d { right: 8%; top: 32%; width: 340px; height: 280px; background: radial-gradient(closest-side, rgba(var(--j2-rgb),.20), transparent); animation: hubLxDriftB 24s ease-in-out -4s infinite alternate; }
+.hub-lx-aurora-e { left: 4%; top: 12%; width: 300px; height: 240px; background: radial-gradient(closest-side, rgba(var(--j3-rgb),.18), transparent); animation: hubLxDriftA 30s ease-in-out -12s infinite alternate; }
+.dark .hub-lx-aurora-a { background: radial-gradient(closest-side, rgba(var(--m-rgb),.22), transparent); }
+.dark .hub-lx-aurora-b { background: radial-gradient(closest-side, rgba(var(--m-deep-rgb),.30), transparent); }
+.dark .hub-lx-aurora-c { background: radial-gradient(closest-side, rgba(var(--j1-rgb),.30), transparent); }
+.dark .hub-lx-aurora-d { background: radial-gradient(closest-side, rgba(var(--j2-rgb),.28), transparent); }
+.dark .hub-lx-aurora-e { background: radial-gradient(closest-side, rgba(var(--j3-rgb),.20), transparent); }
 /* a slow satin sheen folding across the page */
-.hub-lx-silk { position: absolute; inset: -20%; background: conic-gradient(from 210deg at 70% 30%, transparent 0deg, rgba(var(--m-pale-rgb),.30) 40deg, transparent 90deg, rgba(var(--j1-rgb),.06) 170deg, transparent 230deg, rgba(var(--m-light-rgb),.18) 300deg, transparent 360deg); filter: blur(30px); animation: hubLxSilk 40s ease-in-out infinite alternate; }
+.hub-lx-silk { position: absolute; inset: -20%; background: conic-gradient(from 210deg at 70% 30%, transparent 0deg, rgba(var(--m-pale-rgb),.30) 40deg, transparent 90deg, rgba(var(--j1-rgb),.06) 170deg, transparent 230deg, rgba(var(--m-light-rgb),.18) 300deg, transparent 360deg); animation: hubLxSilk 40s ease-in-out infinite alternate; }
 .dark .hub-lx-silk { background: conic-gradient(from 210deg at 70% 30%, transparent 0deg, rgba(var(--m-light-rgb),.08) 40deg, transparent 90deg, rgba(var(--j2-rgb),.10) 170deg, transparent 230deg, rgba(var(--m-rgb),.08) 300deg, transparent 360deg); }
 @keyframes hubLxSilk { from { transform: rotate(-4deg) scale(1); } to { transform: rotate(6deg) scale(1.08); } }
 .hub-lx-beam { position: absolute; top: -20%; left: -30%; width: 40%; height: 140%; background: linear-gradient(100deg, transparent, rgba(var(--m-pale-rgb),.28), transparent); transform: rotate(12deg) translateX(-60%); animation: hubLxBeam 14s ease-in-out 2.6s infinite; }
@@ -403,11 +403,11 @@ const CSS = `
 @keyframes hubLxBurst { 0% { opacity: 0; transform: translate(0,0) scale(.4); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); } }
 .hub-lx-intro-kicker { margin-top: 22px; font-size: 10px; font-weight: 900; letter-spacing: .34em; text-transform: uppercase; color: var(--m-light); opacity: 0; animation: hubLxRise .7s .55s cubic-bezier(.22,.61,.36,1) forwards; }
 .hub-lx-intro-name { margin-top: 8px; font-size: clamp(28px, 7vw, 46px); font-weight: 900; line-height: 1.05; letter-spacing: -.01em; background-image: linear-gradient(100deg, #fff 0%, #fff 40%, var(--m-light) 48%, var(--m-pale) 52%, var(--m-light) 56%, #fff 64%, #fff 100%); background-size: 260% 100%; background-position: 100% 0; -webkit-background-clip: text; background-clip: text; color: transparent; opacity: 0; animation: hubLxRise .8s .7s cubic-bezier(.22,.61,.36,1) forwards, hubLxNameGlint 1.4s .9s ease-in-out forwards; }
-@keyframes hubLxRise { from { opacity: 0; transform: translateY(14px); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes hubLxRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; filter: none; } }
 @keyframes hubLxNameGlint { to { background-position: 0% 0; } }
 .hub-luxe.hub-lx-intro-on .hub-enter { animation: none !important; opacity: 0; }
 .hub-luxe .hub-enter { animation-name: hubLxEnter; animation-duration: 1.15s; }
-@keyframes hubLxEnter { from { opacity: 0; transform: translateY(26px) scale(.97); filter: blur(8px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes hubLxEnter { from { opacity: 0; transform: translateY(26px) scale(.97); } to { opacity: 1; transform: none; filter: none; } }
 
 /* ---- Profile card ---- */
 .hub-luxe [class*="rounded-[28px]"][class*="bg-[#fbfaf7]"] { position: relative; overflow: hidden; background: radial-gradient(110% 130% at 100% 0%, rgba(var(--m-rgb),.24), transparent 55%), radial-gradient(80% 80% at 0% 100%, rgba(var(--j1-rgb),.08), transparent 60%), radial-gradient(70% 70% at 100% 100%, rgba(var(--j3-rgb),.06), transparent 60%), linear-gradient(135deg, #fffdf8 0%, var(--m-wash0) 55%, var(--m-wash3) 100%) !important; border-color: rgba(var(--m-rgb),.45) !important; box-shadow: 0 30px 60px -40px rgba(var(--m-deep-rgb),.8), inset 0 1px 0 rgba(255,255,255,.8) !important; }

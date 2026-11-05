@@ -128,11 +128,11 @@ export default function AboutHubMirror({ data, theme, siteId, basePrefix = '' }:
           {p.photo_url && (
             <div className="relative shrink-0">
               <img src={p.photo_url} alt={p.name || ''} className="h-40 w-40 rounded-2xl object-cover shadow-lg ring-4 ring-white" />
-              <span className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full ring-4 ring-white" style={{ backgroundColor: theme.secondary_color }} />
+              <span className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full ring-4 ring-white" style={{ backgroundColor: 'var(--site-accent)' }} />
             </div>
           )}
           <div className="min-w-0 flex-1 text-center sm:text-left">
-            <p className="text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: theme.secondary_color }}>Meet Your Agent</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent)' }}>Meet Your Agent</p>
             {p.name && <h1 className={`mt-2 text-3xl font-black ${fontClass(theme.heading_font, 'font-serif')}`} style={{ color: 'var(--site-heading)' }}>{p.name}</h1>}
             {(p.title || p.brokerage) && <p className="mt-1 text-sm font-bold uppercase tracking-wide text-gray-400">{[p.title, p.brokerage].filter(Boolean).join(' · ')}</p>}
             {p.market && <p className="mt-0.5 flex items-center justify-center gap-1 text-sm text-gray-400 sm:justify-start"><MapPin className="h-3.5 w-3.5" />{p.market}</p>}
@@ -239,7 +239,7 @@ export default function AboutHubMirror({ data, theme, siteId, basePrefix = '' }:
                   <a key={post.slug} href={`${basePrefix}/blog/${post.slug}`} className="ohp-card group overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/[0.04] transition hover:-translate-y-1 hover:shadow-lg">
                     <div className="aspect-video w-full bg-gray-100 bg-cover bg-center" style={{ backgroundImage: post.cover_image_url ? `url(${post.cover_image_url})` : undefined }} />
                     <div className="p-4">
-                      {post.category && <p className="text-[10px] font-black uppercase tracking-wide" style={{ color: theme.secondary_color }}>{post.category}</p>}
+                      {post.category && <p className="text-[10px] font-black uppercase tracking-wide" style={{ color: 'var(--site-accent)' }}>{post.category}</p>}
                       <h3 className="mt-1 line-clamp-2 text-sm font-black text-[#111827]">{post.title}</h3>
                     </div>
                   </a>

@@ -1219,7 +1219,7 @@ function RequestFlow({ kind, inv, mine, t, accent, done, onSend, onClose }: {
   if (sent) {
     return (
       <div className="flex flex-col items-center py-8 text-center" data-testid="invite-request-done">
-        <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 16 }} className="grid h-16 w-16 place-items-center rounded-full" style={btnStyle(t, accent)}><Check className="h-8 w-8" strokeWidth={3} /></motion.span>
+        <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 16 }} className="grid h-16 w-16 place-items-center rounded-full bg-emerald-500 text-white"><Check className="h-8 w-8" strokeWidth={3} /></motion.span>
         <p className="mt-4 text-2xl font-black" style={{ fontFamily: SERIF }}>{kind === 'updates' ? "You're on the list" : 'Request sent'}</p>
         <p className="mt-1 text-sm" style={{ color: t.sub }}>{kind === 'updates' ? "You'll hear about anything that changes." : `${first} has it and will be in touch.`}</p>
       </div>

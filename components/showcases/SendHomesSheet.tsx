@@ -11,8 +11,8 @@ import { normalizeImageUrl } from '@/lib/utils'
 import { useToast } from '@/contexts/ToastContext'
 import type { Collection, Property } from '@/types'
 import {
-  DEFAULT_SEND_MESSAGE, SEND_APP_LABEL, withShowcaseCount, fillSendMessage, fitSendEmail, homeStreet, openSendEmail, openSendText,
-  sendEmailSubject, sendHomeKey, sendHomeLink, sendLine, sendsByHome, sendTextBody, toSendTemplate, type HomeSend, type SendMailApp, type SendMethod,
+  DEFAULT_SEND_MESSAGE, SEND_APP_LABEL, withShowcaseCount, fillSendMessage, fitSendEmail, homeStreet, openSendEmail,
+  sendEmailSubject, sendHomeKey, sendHomeLink, sendLine, sendsByHome, sendTextBody, sendTextHref, sendTextLabel, toSendTemplate, type HomeSend, type SendMailApp, type SendMethod,
 } from '@/lib/sendHome'
 
 // Send one home (or the homes picked in select mode) to the client (user, 10/30): Text or Email,
@@ -107,7 +107,9 @@ export default function SendHomesSheet({ open, onClose, homes, collection, showc
   const links = useMemo(() => (showcaseUrl ? homes.map(p => sendHomeLink(showcaseUrl, p)) : []), [homes, showcaseUrl])
   // the agent's words + the live "You have 12 homes in your Showcase." (never saved with them)
   const message = withMsg && text.trim() ? withShowcaseCount(text, homeCount) : null
-  const textBody = sendTextBody(message, links)
+  // the words above the link: the agent's message, or the home's street when that's off
+  const textWords = message || sendTextLabel(homes)
+  const textBody = sendTextBody(textWords, links)
   const mail = method === 'email' && app ? fitSendEmail(app, email, message, homes, links) : null
 
   const saveDefault = async () => {
@@ -142,8 +144,7 @@ export default function SendHomesSheet({ open, onClose, homes, collection, showc
   const send = () => {
     if (!method || !links.length) return
     if (method === 'text') {
-      openSendText(phone, textBody)
-      logSent('text', ids)
+      logSent('text', ids) // the tapped link itself opens Messages
     } else {
       if (!app || !mail) return
       const sendHomes = homes.slice(0, mail.count)
@@ -173,6 +174,17 @@ export default function SendHomesSheet({ open, onClose, homes, collection, showc
   const photo = one?.ListPictureURL ? normalizeImageUrl(one.ListPictureURL) : undefined
   const ready = !!method && !!links.length && (method === 'text' || (!!app && !pickingApp))
   const cta = !method ? 'Pick Text or Email' : method === 'text' ? 'Open Messages' : app && !pickingApp ? `Open ${SEND_APP_LABEL[app]}` : 'Pick your email app'
+  const goClass = 'relative inline-flex h-12 flex-1 items-center justify-center gap-2 overflow-hidden rounded-2xl text-sm font-black transition'
+  const goOn = 'bg-gradient-to-br from-[#e8c97a] via-[#C9A24D] to-[#a8823a] text-[#16130e] shadow-[0_14px_30px_-14px_rgba(201,162,77,.9)]'
+  const goOff = 'bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500'
+  const goLabel = (
+    <>
+      {method === 'email' ? <Mail className="h-4 w-4" /> : method === 'text' ? <MessageSquareText className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span key={cta} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.14 }}>{cta}</motion.span>
+      </AnimatePresence>
+    </>
+  )
 
   return (
     <OhSheet open={open} onClose={onClose} width="max-w-lg" title={title} subtitle={subtitle}
@@ -188,15 +200,11 @@ export default function SendHomesSheet({ open, onClose, homes, collection, showc
               {copied ? 'Copied' : 'Copy'}
             </motion.button>
           )}
-          <motion.button type="button" whileTap={ready ? { scale: 0.97 } : undefined} onClick={send} disabled={!ready} data-send-go
-            className={`relative inline-flex h-12 flex-1 items-center justify-center gap-2 overflow-hidden rounded-2xl text-sm font-black transition ${ready
-              ? 'bg-gradient-to-br from-[#e8c97a] via-[#C9A24D] to-[#a8823a] text-[#16130e] shadow-[0_14px_30px_-14px_rgba(201,162,77,.9)]'
-              : 'bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500'}`}>
-            {method === 'email' ? <Mail className="h-4 w-4" /> : method === 'text' ? <MessageSquareText className="h-4 w-4" /> : <Send className="h-4 w-4" />}
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.span key={cta} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.14 }}>{cta}</motion.span>
-            </AnimatePresence>
-          </motion.button>
+          {method === 'text' && ready ? (
+            <motion.a href={sendTextHref(phone, textBody)} whileTap={{ scale: 0.97 }} onClick={send} data-send-go className={`${goClass} ${goOn}`}>{goLabel}</motion.a>
+          ) : (
+            <motion.button type="button" whileTap={ready ? { scale: 0.97 } : undefined} onClick={send} disabled={!ready} data-send-go className={`${goClass} ${ready ? goOn : goOff}`}>{goLabel}</motion.button>
+          )}
         </div>
       ) : undefined}>
       {!showcaseUrl ? (
@@ -331,7 +339,7 @@ export default function SendHomesSheet({ open, onClose, homes, collection, showc
                     <span className="min-w-0 flex-1">
                       <span className="block text-[14px] font-black text-[#111827] dark:text-white">Attach a short message?</span>
                       {method === 'text' && introSaid && (
-                        <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">You already said hi to {clientName || 'them'} by text - this can be just the link.</span>
+                        <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">You already said hi to {clientName || 'them'} by text - this can be just the home.</span>
                       )}
                     </span>
                   </button>
@@ -381,10 +389,10 @@ export default function SendHomesSheet({ open, onClose, homes, collection, showc
                 {method === 'text' ? (
                   <div className="flex flex-col items-end gap-1.5" data-send-preview="text">
                     <AnimatePresence initial={false}>
-                      {message && (
-                        <motion.div key="m" data-send-bubble initial={{ opacity: 0, scale: 0.9, y: 6 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }} transition={spring}
+                      {textWords && (
+                        <motion.div key={message ? 'm' : 'label'} data-send-bubble initial={{ opacity: 0, scale: 0.9, y: 6 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }} transition={spring}
                           className="max-w-[85%] origin-bottom-right rounded-[20px] rounded-br-md bg-[#0a84ff] px-3.5 py-2 text-[14px] font-medium leading-snug text-white">
-                          {message}
+                          {textWords}
                         </motion.div>
                       )}
                     </AnimatePresence>

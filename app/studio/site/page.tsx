@@ -12,6 +12,7 @@ import SubscriptionGuard from '@/components/SubscriptionGuard'
 import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
+import OhSheet from '@/components/open-house-manager/OhSheet'
 import { toJpeg } from '@/components/setup/SetupUi'
 import api, { API_BASE_URL, resolveMediaUrl } from '@/lib/api-service'
 import FormResultsModal from '@/components/forms/FormResultsModal'
@@ -25,6 +26,7 @@ import FormLookPicker from '@/components/forms/FormLookPicker'
 import { AfterSubmitSettings, EffectsSettings, RevertButton, SaveFormButton } from '@/components/forms/FormSettingsBits'
 import { hasAgentHubAccess } from '@/lib/navAccess'
 import { formLookOf, type FormLookFields } from '@/lib/formLook'
+import { editQuestion, removeQuestion, tidyChoicesForSave } from '@/lib/formForks'
 import { brandFormLook, brandHubPatch, brandColorName, modeLabel, useBrandKit } from '@/lib/brandKit'
 import FormQrCode from '@/components/forms/FormQrCode'
 import FormTypeArt, { hasFormTypeArt } from '@/components/forms/FormTypeArt'
@@ -1400,6 +1402,35 @@ function AgentHubContent() {
     })
     return { forms: out, dirty }
   }
+  // A newer version turned up while saving - the agent picks which one stays.
+  const [formConflict, setFormConflict] = useState<{ formId: string; newest: AgentFormConfig } | null>(null)
+  // Coming back to this tab: pick up what the chat or another tab saved, on any form with no unsaved
+  // changes here. A form with unsaved changes stays put; its Save checks first (owner, 11/04).
+  useEffect(() => {
+    if (!user) return
+    const fresh = async () => {
+      if (document.visibilityState === 'hidden') return
+      const res = await api.forms.getMine()
+      if (!res.success || !res.data) return
+      const latest = res.data
+      setAgentForms(current => {
+        if (!current.length) return current
+        const byId = new Map(latest.map(f => [f.id, f]))
+        const kept = current.map(item => {
+          const f = byId.get(item.id)
+          if (!f || formIsDirty[item.id] || formSaveStatus[item.id] === 'saving' || f.updated_at === item.updated_at) return item
+          lastSavedFormsRef.current[item.id] = f
+          return f
+        })
+        const added = latest.filter(f => !current.some(item => item.id === f.id))
+        added.forEach(f => { lastSavedFormsRef.current[f.id] = f })
+        return added.length ? [...kept, ...added] : kept
+      })
+    }
+    window.addEventListener('focus', fresh)
+    document.addEventListener('visibilitychange', fresh)
+    return () => { window.removeEventListener('focus', fresh); document.removeEventListener('visibilitychange', fresh) }
+  }, [user, formIsDirty, formSaveStatus])
   const [formSlugDrafts, setFormSlugDrafts] = useState<Record<string, string>>({})
   const [formSlugStatus, setFormSlugStatus] = useState<Record<string, 'idle' | 'checking' | 'available' | 'taken' | 'saved' | 'error'>>({})
   const [formSlugMessage, setFormSlugMessage] = useState<Record<string, string>>({})
@@ -2052,15 +2083,21 @@ function AgentHubContent() {
     const isAestheticsOnly = URL_LOCKED_FORM_TYPES.has(form.form_type)
     // Forms Campaigns scope - mirrors CAMPAIGN_ELIGIBLE_FORM_TYPES in forms_routes.py.
     const isCampaignEligible = form.form_type !== 'custom' && !ONBOARDING_FORM_TYPES.has(form.form_type) && !isAestheticsOnly
-    // Premade forms wear their own animated medallion; custom forms keep showing their QR code.
-    // The Download QR buttons still need the code, so it's drawn off-screen at print size.
+    // Every form wears its animated medallion, custom forms too (owner, 11/04: no QR picture on a card),
+    // with the red count on it, so nothing shares a corner with a button. Only Showcase Request still
+    // downloads a QR - guests reach it by a printed code - so only it draws one, off-screen at print size.
     const registerQr = (fn: () => void) => { qrDownloadFns.current[form.id] = fn }
-    const formMedia = hasFormTypeArt(form.form_type) ? (
-      <>
-        <FormTypeArt formType={form.form_type} size={big ? 62 : 56} />
-        <span className="hidden"><FormQrCode bare url={qrUrl} size={600} onDownloadReady={registerQr} /></span>
-      </>
-    ) : <FormQrCode url={qrUrl} size={48} onDownloadReady={registerQr} />
+    const formMedia = (
+      <span className="relative block" data-testid="form-card-media">
+        <FormTypeArt formType={hasFormTypeArt(form.form_type) ? form.form_type : 'custom'} size={big ? 62 : 56} />
+        {pendingSubmissions > 0 && (
+          <span data-testid="form-card-count" className="absolute -right-1.5 -top-1.5 z-10 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white shadow-sm ring-2 ring-white dark:ring-[#151517]">
+            {pendingSubmissions > 9 ? '9+' : pendingSubmissions}
+          </span>
+        )}
+        {isAestheticsOnly && <span className="hidden"><FormQrCode bare url={qrUrl} size={600} onDownloadReady={registerQr} /></span>}
+      </span>
+    )
 
     // Aesthetics-only (currently just Showcase Request) is left exactly as it's always been -
     // its own QR-driven automation, not part of the simplified click-through card below.
@@ -2075,11 +2112,6 @@ function AgentHubContent() {
             style={{ '--form-accent': form.accent_color || '#816937', '--form-accent-dark': form.accent_color || '#d7b974' } as React.CSSProperties}
           />
           <PlayfulFormCard seed={form.title.length + form.questions.length} />
-          {pendingSubmissions > 0 && (
-            <span className="absolute right-3 top-3 z-10 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white shadow-sm">
-              {pendingSubmissions > 9 ? '9+' : pendingSubmissions}
-            </span>
-          )}
           {/* words first, starting at the top; the form's picture on the right (like the Studio cards) */}
           <div className={`flex items-start gap-3 ${big ? 'p-5' : 'p-4'}`}>
             <button onClick={() => setThemeEditFormId(form.id)} className="order-1 flex min-w-0 flex-1 items-center justify-between gap-3 text-left">
@@ -2095,19 +2127,21 @@ function AgentHubContent() {
               </div>
             </button>
             <span className="order-2 shrink-0">{formMedia}</span>
-            <div className="order-3 flex shrink-0 items-center gap-1">
-              <button onClick={() => handleDuplicateForm(form)} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-gray-800 dark:hover:text-white" title="Duplicate" aria-label="Duplicate form">
-                <Copy className="h-4 w-4" />
-              </button>
-            </div>
           </div>
 
-          <div className={`flex gap-2 px-4 pb-4 ${big ? 'px-5 pb-5' : ''}`}>
+          <div className={`flex flex-wrap gap-2 px-4 pb-4 ${big ? 'px-5 pb-5' : ''}`}>
             <button
               onClick={() => setThemeEditFormId(form.id)}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#C9A24D]/50 bg-[#C9A24D]/10 px-3 py-2 text-xs font-black text-[#8b7355] transition active:scale-95 hover:border-[#C9A24D] hover:bg-[#C9A24D]/15 dark:border-[#C9A24D]/40 dark:bg-[#C9A24D]/10 dark:text-[#e8cf8a]"
             >
               <Pencil className="h-3.5 w-3.5" /> Edit Theme
+            </button>
+            <button
+              onClick={() => handleDuplicateForm(form)}
+              className="shrink-0 rounded-lg border border-[#C9A24D]/50 bg-[#C9A24D]/10 px-3 py-2 text-xs font-black text-[#8b7355] transition active:scale-95 hover:border-[#C9A24D] hover:bg-[#C9A24D]/15 dark:border-[#C9A24D]/40 dark:bg-[#C9A24D]/10 dark:text-[#e8cf8a]"
+              title="Make an editable copy in Custom Forms"
+            >
+              <CopyPlus className="mr-1.5 inline h-3.5 w-3.5" /> Duplicate
             </button>
             <button
               onClick={() => { qrDownloadFns.current[form.id]?.(); flashFormAction(`${form.id}-qr`) }}
@@ -2198,21 +2232,9 @@ function AgentHubContent() {
             style={{ '--form-accent': form.accent_color || '#816937', '--form-accent-dark': form.accent_color || '#d7b974' } as React.CSSProperties}
           />
           <PlayfulFormCard seed={form.title.length + form.questions.length} />
-          <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
-            {form.form_type === 'custom' && (
-              <button onClick={() => setDeleteFormTarget(form)} className="rounded-lg bg-white/90 p-1.5 text-gray-400 shadow-sm hover:bg-red-50 hover:text-red-600 dark:bg-[#151517]/90" aria-label="Delete form">
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
-            {pendingSubmissions > 0 && (
-              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white shadow-sm">
-                {pendingSubmissions > 9 ? '9+' : pendingSubmissions}
-              </span>
-            )}
-          </div>
-          {/* words first, starting at the top; the form's picture (or QR) on the right, clear of the corner buttons */}
+          {/* words first, starting at the top; the form's picture on the right (like the other cards) */}
           <div className={`flex items-start gap-3 ${big ? 'p-5' : 'p-4'}`}>
-            <span className={`order-2 shrink-0 ${form.form_type === 'custom' || pendingSubmissions > 0 ? 'mr-8' : ''}`}>{formMedia}</span>
+            <span className="order-2 shrink-0">{formMedia}</span>
             <button onClick={openEditor} className="order-1 flex min-w-0 flex-1 items-center gap-3 text-left">
               <div className="min-w-0">
                 <p className="truncate font-serif text-[17px] font-black leading-tight tracking-tight text-[#111827] dark:text-white"><GoldLastWord text={form.title} /></p>
@@ -2227,42 +2249,30 @@ function AgentHubContent() {
             </button>
           </div>
 
-          <div className={`flex gap-2 px-4 pb-4 ${big ? 'px-5 pb-5' : ''}`}>
+          <div className={`flex flex-wrap gap-2 px-4 pb-4 ${big ? 'px-5 pb-5' : ''}`}>
             <button
               onClick={openEditor}
-              className="flex-1 rounded-lg border border-gray-300 bg-[#fbfaf7] px-3 py-2 text-xs font-black text-gray-600 transition active:scale-95 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-gray-300 dark:hover:border-[#C9A24D] dark:hover:text-[#e8cf8a]"
+              className="flex-1 whitespace-nowrap rounded-lg border border-gray-300 bg-[#fbfaf7] px-2 py-2 text-xs font-black text-gray-600 transition active:scale-95 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-gray-300 dark:hover:border-[#C9A24D] dark:hover:text-[#e8cf8a]"
             >
-              <Pencil className="mr-1.5 inline h-3.5 w-3.5" /> Edit
+              <Pencil className="mr-1 inline h-3.5 w-3.5" /> Edit
             </button>
             <button
               onClick={() => setEditingSlugFormId(isEditingSlug ? '' : form.id)}
-              className={`flex-1 rounded-lg border px-3 py-2 text-xs font-black transition active:scale-95 ${
+              className={`flex-1 whitespace-nowrap rounded-lg border px-2 py-2 text-xs font-black transition active:scale-95 ${
                 isEditingSlug
                   ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355] dark:border-[#C9A24D] dark:bg-[#C9A24D]/10 dark:text-[#e8cf8a]'
                   : 'border-gray-300 bg-[#fbfaf7] text-gray-600 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-gray-300 dark:hover:border-[#C9A24D] dark:hover:text-[#e8cf8a]'
               }`}
             >
-              <LinkIcon className="mr-1.5 inline h-3.5 w-3.5" /> {isEditingSlug ? 'Close' : 'Edit URL'}
+              <LinkIcon className="mr-1 inline h-3.5 w-3.5" /> {isEditingSlug ? 'Close' : 'Edit URL'}
             </button>
             <button
               onClick={() => handleDuplicateForm(form)}
-              className="shrink-0 rounded-lg border border-[#C9A24D]/50 bg-[#C9A24D]/10 px-3 py-2 text-xs font-black text-[#8b7355] transition active:scale-95 hover:border-[#C9A24D] hover:bg-[#C9A24D]/15 dark:border-[#C9A24D]/40 dark:bg-[#C9A24D]/10 dark:text-[#e8cf8a]"
+              className="shrink-0 whitespace-nowrap rounded-lg border border-[#C9A24D]/50 bg-[#C9A24D]/10 px-2 py-2 text-xs font-black text-[#8b7355] transition active:scale-95 hover:border-[#C9A24D] hover:bg-[#C9A24D]/15 dark:border-[#C9A24D]/40 dark:bg-[#C9A24D]/10 dark:text-[#e8cf8a]"
               title="Duplicate this form into an editable copy"
               aria-label="Duplicate this form into an editable copy"
             >
               <CopyPlus className="mr-1.5 inline h-3.5 w-3.5" /> Duplicate
-            </button>
-            <button
-              onClick={() => { qrDownloadFns.current[form.id]?.(); flashFormAction(`${form.id}-qr`) }}
-              className={`shrink-0 rounded-lg px-3 py-2 text-xs font-black transition active:scale-95 ${
-                justClickedFormAction === `${form.id}-qr`
-                  ? 'bg-emerald-500 text-white dark:bg-emerald-400 dark:text-[#111827]'
-                  : 'bg-[#111827] text-white hover:bg-black dark:bg-white dark:text-[#111827] dark:hover:bg-gray-200'
-              }`}
-              aria-label="Download QR code"
-              title="Download QR code"
-            >
-              {justClickedFormAction === `${form.id}-qr` ? <Check className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
             </button>
             <button
               onClick={() => setStatsModalFormId(form.id)}
@@ -2272,6 +2282,12 @@ function AgentHubContent() {
             >
               <BarChart3 className="h-3.5 w-3.5" />
             </button>
+            {form.form_type === 'custom' && (
+              <button onClick={() => setDeleteFormTarget(form)} aria-label="Delete form" title="Delete form" data-testid="form-card-delete"
+                className="shrink-0 rounded-lg border border-gray-300 bg-[#fbfaf7] px-3 py-2 text-gray-400 transition active:scale-95 hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:border-gray-700 dark:bg-[#0B0B0B] dark:hover:border-red-900/60 dark:hover:bg-red-950/30">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
           <div className={`space-y-2 border-t border-gray-100 px-4 py-3 text-xs dark:border-gray-800 ${big ? 'px-5' : ''}`}>
@@ -2392,11 +2408,6 @@ function AgentHubContent() {
             </span>
             <span className="relative shrink-0">
               {formMedia}
-              {pendingSubmissions > 0 && (
-                <span className="absolute -right-1.5 -top-1.5 z-10 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white shadow-sm ring-2 ring-white dark:ring-[#151517]">
-                  {pendingSubmissions > 9 ? '9+' : pendingSubmissions}
-                </span>
-              )}
             </span>
           </span>
           <span className="mt-auto flex w-full items-end justify-between gap-2 pt-2.5">
@@ -2978,7 +2989,7 @@ function AgentHubContent() {
 
   const updateFormQuestion = (formId: string, questionId: string, updates: Partial<FormQuestion>) => {
     setAgentForms(current => current.map(form => form.id === formId
-      ? { ...form, questions: form.questions.map(question => question.id === questionId ? { ...question, ...updates } : question) }
+      ? { ...form, questions: editQuestion(form.questions, questionId, updates) }
       : form))
     setFormSaveStatus(current => ({ ...current, [formId]: 'idle' }))
     setFormIsDirty(current => ({ ...current, [formId]: true }))
@@ -2986,7 +2997,7 @@ function AgentHubContent() {
 
   const removeFormQuestion = (formId: string, questionId: string) => {
     setAgentForms(current => current.map(form => form.id === formId
-      ? { ...form, questions: form.questions.filter(question => question.locked || question.id !== questionId) }
+      ? { ...form, questions: removeQuestion(form.questions, questionId) }
       : form))
     setFormSaveStatus(current => ({ ...current, [formId]: 'idle' }))
     setFormIsDirty(current => ({ ...current, [formId]: true }))
@@ -3005,17 +3016,15 @@ function AgentHubContent() {
     return newId
   }
 
-  const saveForm = async (formId: string) => {
+  // `over`: the newer version this save may replace (the agent chose it, or only the link / look moved).
+  const saveForm = async (formId: string, over?: string | null) => {
     const form = agentForms.find(item => item.id === formId)
     if (!form) return
 
     setFormSaveStatus(current => ({ ...current, [formId]: 'saving' }))
-    const cleanedQuestions = form.questions.map(question =>
-      question.type === 'select' || question.type === 'multi_select'
-        ? { ...question, options: (question.options || []).map(option => option.trim()).filter(Boolean) }
-        : question
-    )
+    const cleanedQuestions = tidyChoicesForSave(form.questions)
     const response = await api.forms.updateForm(formId, {
+      expected_updated_at: over !== undefined ? over : (form.updated_at ?? null),
       title: form.title,
       headline: form.headline,
       subtitle: form.subtitle,
@@ -3030,6 +3039,8 @@ function AgentHubContent() {
       luxe_metal: form.luxe_metal || undefined,
       redirect_to_agent_hub: form.redirect_to_agent_hub,
       redirect_to_showcase: form.redirect_to_showcase !== false,
+      redirect_mode: form.redirect_mode ?? null,
+      redirect_url: form.redirect_mode === 'custom' ? form.redirect_url || null : null,
       property_photo_carousel: form.property_photo_carousel,
       background_effects: form.background_effects !== false,
       welcome_text_effects: form.welcome_text_effects !== false,
@@ -3042,9 +3053,31 @@ function AgentHubContent() {
       lastSavedFormsRef.current[formId] = response.data
       setFormSaveStatus(current => ({ ...current, [formId]: 'saved' }))
       setFormIsDirty(current => ({ ...current, [formId]: false }))
+    } else if (response.error === 'form_changed' && over === undefined) {
+      // A newer version was saved somewhere else (the chat, another tab). If only its link or look
+      // moved there's nothing to lose - save on. Otherwise the agent decides; never overwrite silently.
+      const newest = await api.forms.getOne(formId)
+      const base = lastSavedFormsRef.current[formId]
+      if (newest.success && newest.data && base && newest.data.title === base.title
+        && JSON.stringify(newest.data.questions) === JSON.stringify(base.questions)) {
+        return saveForm(formId, newest.data.updated_at ?? null)
+      }
+      setFormSaveStatus(current => ({ ...current, [formId]: 'idle' }))
+      if (newest.success && newest.data) setFormConflict({ formId, newest: newest.data })
+      else showToast("This form changed somewhere else - refresh the page before saving.", 'error')
     } else {
       setFormSaveStatus(current => ({ ...current, [formId]: 'error' }))
     }
+  }
+
+  const loadNewestForm = () => {
+    if (!formConflict) return
+    const { formId, newest } = formConflict
+    try { localStorage.removeItem(formDraftKey(formId)) } catch { /* private window */ }
+    setAgentForms(current => current.map(item => item.id === formId ? newest : item))
+    lastSavedFormsRef.current[formId] = newest
+    setFormIsDirty(current => ({ ...current, [formId]: false }))
+    setFormConflict(null)
   }
 
   const handleResetFormToDefault = async (formId: string) => {
@@ -3436,7 +3469,7 @@ function AgentHubContent() {
                         <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.28em] text-[#8b7355] dark:text-[#e8c97a]"><PenLine className="h-3 w-3" /> Yours</p>
                         <h3 className="mt-1 font-serif text-2xl font-black tracking-tight text-[#111827] dark:text-white">Custom forms</h3>
                       </div>
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Your own questions, your own link and QR code.</p>
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Your own questions, your own link.</p>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                       {customForms.map(form => renderFormCard(form))}
@@ -3961,7 +3994,7 @@ function AgentHubContent() {
                   {activeTab === 'Link' && (
                   <HubFold id="link">{(open, toggle) => (
                   <div className="relative overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-gradient-to-br from-white to-[#fbf6ec] p-5 shadow-[0_18px_40px_-34px_rgba(139,115,85,.7)] dark:border-white/[0.08] dark:from-[#151517] dark:to-[#111113]">
-                    <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-[#C9A24D]/15 blur-3xl" />
+                    <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.15),transparent)]" />
                     <div className="relative flex items-center gap-3">
                       <button type="button" onClick={toggle} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                       <div className={HUB_ICON_TILE}>
@@ -4243,6 +4276,20 @@ function AgentHubContent() {
       })()}
       </AnimatePresence>
 
+      <OhSheet open={!!formConflict} onClose={() => setFormConflict(null)} zClass="z-[120]" width="max-w-md" title="A newer version exists" subtitle={formConflict?.newest.title}
+        icon={<AlertTriangle className="h-5 w-5" />}
+        footer={(
+          <div className="flex flex-col gap-2 sm:flex-row-reverse">
+            <button type="button" onClick={loadNewestForm} data-testid="form-load-newest" className="h-12 flex-1 rounded-2xl bg-[#111827] text-sm font-black text-white dark:bg-[#C9A24D] dark:text-[#16130e]">Load the newest</button>
+            <button type="button" data-testid="form-keep-mine" onClick={() => { const c = formConflict; setFormConflict(null); if (c) saveForm(c.formId, c.newest.updated_at ?? null) }}
+              className="h-12 flex-1 rounded-2xl border border-gray-200 text-sm font-black text-gray-600 dark:border-white/10 dark:text-gray-200">Replace it with mine</button>
+          </div>
+        )}>
+        <p className="text-sm font-medium leading-relaxed text-gray-600 dark:text-gray-300" data-testid="form-conflict">
+          This form was saved somewhere else after you opened it here, maybe in the chat or another tab. Nothing has been overwritten. Load the newest to keep that work, or replace it with what&apos;s on this screen.
+        </p>
+      </OhSheet>
+
       <AnimatePresence>
       {isBuilderOpen && (
       <FormBuilderModal
@@ -4250,6 +4297,10 @@ function AgentHubContent() {
         isOpen={isBuilderOpen}
         form={agentForms.find(form => form.id === formEditorOpenId) || null}
         onClose={handleRequestCloseFormBuilder}
+        onUpdateRedirect={(mode, url) => {
+          setAgentForms(current => current.map(item => item.id === formEditorOpenId ? { ...item, redirect_mode: mode, redirect_url: url, redirect_to_agent_hub: mode !== 'none' } : item))
+          setFormIsDirty(current => ({ ...current, [formEditorOpenId]: true }))
+        }}
         onUpdateField={(field, value) => updateFormField(formEditorOpenId, field, value)}
         onToggleBranding={() => toggleFormBranding(formEditorOpenId)}
         onToggleDarkMode={() => toggleFormDarkMode(formEditorOpenId)}

@@ -21,7 +21,7 @@ import LuxeSelect from '@/components/ui/LuxeSelect'
 import { SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
 import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
 import SendHomesSheet from '@/components/showcases/SendHomesSheet'
-import { sendsByHome, type HomeSend } from '@/lib/sendHome'
+import { sendHomeLink, sendsByHome, type HomeSend } from '@/lib/sendHome'
 import ShowcaseSelectBar, { type BulkAction } from '@/components/showcases/ShowcaseSelectBar'
 import { useLastValue } from '@/components/ui/windowMotion'
 
@@ -674,6 +674,10 @@ export const DetailView = memo(function DetailView({
           offMarketNotice
           onMoveToSold={onMoveToSold}
           onSend={(p) => setSendHomes([p])}
+          onCopyLink={async (p) => {
+            if (!sendableUrl) { onShare?.(); return false } // the link is off: same turn-it-on step as Share
+            return copyText(sendHomeLink(sendableUrl, p))
+          }}
           sentHomes={sentHomes}
           selectMode={selectMode}
           selectedIds={selectedIds}

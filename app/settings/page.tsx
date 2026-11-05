@@ -131,7 +131,7 @@ function IdxTab() {
       {/* IDX Domain - which address links use, plus the real domain manager (DNS/verification
           status and connect/check/primary/delete), all in one squared-off section. */}
       <IdxDomainCard linkDomain={linkDomain}>
-        {site && <DomainsPanel subdomainSlug={site.subdomain_slug} back="settings" />}
+        {site && <DomainsPanel subdomainSlug={site.subdomain_slug} back="settings" changeHref="/studio/website?tab=domains&address=1" />}
       </IdxDomainCard>
 
       {/* Settings keeps the basics; everything else lives in the website editor - one tap to each part. */}

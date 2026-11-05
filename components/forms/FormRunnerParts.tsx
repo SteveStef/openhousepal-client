@@ -25,12 +25,14 @@ type FieldLike = { id: string; type: string; label?: string | null }
 export function pickerKindOf(f: FieldLike): PickerKind | null {
   if (f.type !== 'number' && f.type !== 'currency') return null
   const k = `${f.id} ${f.label || ''}`.toLowerCase()
-  if (/year|built/.test(k)) return 'year'
+  // Build year only: "How many years..." is a typed count, and no money answer is ever a year.
+  if (f.type === 'number' && /(^|[^a-z])year([^a-z]|$)|built/.test(k)) return 'year'
   if (/acre|\blot\b/.test(k)) return 'acres'
   if (/sq\s*ft|sqft|square/.test(k)) return 'sqft'
   if (/bath/.test(k)) return 'baths'
   if (/bed/.test(k)) return 'beds'
-  if (f.type === 'currency' && /price|budget/.test(k)) return 'price'
+  // Home prices only: a monthly budget, a rent or a payment is far below the wheel's first step.
+  if (f.type === 'currency' && /price|budget/.test(k) && !/(^|[^a-z])(month|week|rent|payment)/.test(k)) return 'price'
   return null
 }
 

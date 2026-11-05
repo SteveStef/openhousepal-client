@@ -156,7 +156,7 @@ function ResetPasswordForm() {
     return (
       <div className="relative min-h-screen overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center px-6 transition-colors duration-300">
       <AuthLuxeStyle />
-      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#C9A24D]/15 blur-[110px]" />
+      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.15),transparent)]" />
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
             <Link href="/" className="mb-8 inline-flex items-center text-[28px] text-[#111827] dark:text-white"><GoldPal animate /></Link>
@@ -192,7 +192,7 @@ function ResetPasswordForm() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center px-6 transition-colors duration-300">
       <AuthLuxeStyle />
-      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#C9A24D]/15 blur-[110px]" />
+      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.15),transparent)]" />
       {/* Notification Toast */}
       {notification.type && (
         <div className={`fixed bottom-4 right-4 z-50 max-w-md p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
@@ -389,7 +389,7 @@ export default function ResetPasswordPage() {
     <Suspense fallback={
       <div className="relative min-h-screen overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center px-6 transition-colors duration-300">
       <AuthLuxeStyle />
-      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#C9A24D]/15 blur-[110px]" />
+      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.15),transparent)]" />
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
             <Link href="/" className="mb-8 inline-flex items-center text-[28px] text-[#111827] dark:text-white"><GoldPal animate /></Link>

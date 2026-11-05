@@ -196,8 +196,7 @@ function PhotoLayer({ photos, photoIndex, withBottomGradient }: { photos: string
   if (effect === 'pan-horizontal') {
     // Scaled up so there's room to slide left<->right without ever showing an edge, direction
     // alternates so consecutive slides don't all drift the same way. A slight scale settle (1.24
-    // -> 1.2) plus a soft blur-in/out layered on top of the pan and fade gives the crossfade more
-    // depth than a flat opacity dissolve - closer to a film-style transition than a slideshow one.
+    // -> 1.2) on top of the pan and fade gives the crossfade more depth than a flat dissolve.
     const panRight = photoIndex % 2 === 0
     return (
       <AnimatePresence mode="sync">
@@ -210,7 +209,6 @@ function PhotoLayer({ photos, photoIndex, withBottomGradient }: { photos: string
             exit={{ opacity: 0 }}
             transition={{
               opacity: { duration: FADE_DURATION_S, ease: FADE_EASE },
-              filter: { duration: FADE_DURATION_S, ease: FADE_EASE },
               scale: { duration: FADE_DURATION_S, ease: FADE_EASE },
               x: { duration: zoomDuration, ease: 'linear' },
             }}
@@ -232,15 +230,13 @@ function PhotoLayer({ photos, photoIndex, withBottomGradient }: { photos: string
           key={photoIndex}
           className="absolute inset-0"
           style={{ transformOrigin: origin }}
-          // A soft blur-in/out layered on top of the fade (rather than a flat opacity dissolve)
-          // reads as a more deliberate, cinematic transition. Overscan margin (1.03/1.18 floor)
-          // still guards against sub-pixel rounding revealing the container's black edge.
+          // Overscan margin (1.03/1.18 floor) guards against sub-pixel rounding revealing the
+          // container's black edge.
           initial={{ opacity: 0, scale: zoomOut ? 1.2 : 1.03 }}
           animate={{ opacity: 1, scale: zoomOut ? 1.03 : 1.2 }}
           exit={{ opacity: 0 }}
           transition={{
             opacity: { duration: FADE_DURATION_S, ease: FADE_EASE },
-            filter: { duration: FADE_DURATION_S, ease: FADE_EASE },
             scale: { duration: zoomDuration, ease: 'linear' },
           }}
         >

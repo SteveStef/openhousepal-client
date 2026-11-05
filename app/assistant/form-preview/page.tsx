@@ -14,6 +14,7 @@ export type FormPreviewData = {
   branding: FormRunnerBranding
   linkedProperty: LinkedProperty | null
   backgroundEffects: boolean
+  welcomeTextEffects?: boolean
   look?: FormLook
   focus: string
 }
@@ -29,16 +30,26 @@ export default function FormPreviewPage() {
     window.parent?.postMessage({ type: 'ohp-form-preview-ready' }, window.location.origin)
     return () => window.removeEventListener('message', on)
   }, [])
+  // Light or dark is the form's, not the agent's app: this frame shares the app's saved theme, so a
+  // light form in a dark app has to be forced light, the way the real form page does (useForcedLightMode).
+  const dark = !!data?.look?.dark
+  useEffect(() => {
+    const html = document.documentElement, body = document.body
+    html.classList.toggle('dark', dark)
+    if (dark) { delete html.dataset.ohpForcedLight; delete body.dataset.ohpForcedLight }
+    else { html.dataset.ohpForcedLight = 'true'; body.dataset.ohpForcedLight = 'true' }
+  }, [dark])
   if (!data) return <div className="h-screen bg-[#FAFAF7]" />
   return (
     <div className={`h-screen overflow-hidden ${data.look?.dark ? 'dark' : ''}`}>
       <FormRunner
         // a changed question list starts over (on the screen asked for), like the form editor's preview
-        key={data.questions.map(q => `${q.id}:${q.label}:${q.type}:${(q.options || []).join('|')}`).join(',') + String(data.backgroundEffects)}
+        key={data.questions.map(q => `${q.id}:${q.label}:${q.type}:${(q.options || []).join('|')}`).join(',') + String(data.backgroundEffects) + String(data.welcomeTextEffects) + String(data.look?.dark)}
         questions={data.questions}
         branding={data.branding}
         linkedProperty={data.linkedProperty}
         backgroundEffects={data.backgroundEffects}
+        welcomeTextEffects={data.welcomeTextEffects !== false}
         successHeading="Thanks!"
         successMessage="I'll be in touch soon."
         onSubmit={async () => ({ success: true })}

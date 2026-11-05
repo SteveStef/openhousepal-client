@@ -46,6 +46,15 @@
   /* Headings/outline buttons that used the brand ink directly - re-pointed to the palette ink
      in dark mode (lib/siteTheme.ts + the bulk swap in the section components). */
   --site-heading: var(--site-primary);
+  /* Text on an accent-filled chip: the brand ink on Luxe's metals; Classic's accents can be any
+     color, so there it is the accent's own readable "on" color (the Classic block below). */
+  --site-accent-ink: var(--site-primary);
+  /* An accent mark on a plain card. Luxe keeps its on-dark shade there; Classic the page one. */
+  --site-accent-on-card: var(--site-accent-text-dm);
+  /* A rating's unfilled stars. */
+  --site-star-off: var(--site-line-strong);
+  /* Year-over-year market change when it fell. */
+  --site-trend-down: #dc2626;
 
   /* Legacy names older components still reference. */
   --site-cream: var(--site-bg);
@@ -67,6 +76,9 @@
   --site-surface: #ffffff;
   --site-surface-2: #f9fafb;
   --site-line: rgba(17, 24, 39, 0.07);
+  --site-accent-ink: var(--site-on-accent);
+  --site-accent-on-card: var(--site-accent-text);
+  --site-star-off: var(--site-faint);
 }
 
 .ohp-site[data-mode="dark"] {
@@ -528,6 +540,41 @@ html.ohp-cv-off .ohp-town-section { content-visibility: visible; }
 /* A section that stays dark in light mode too (Luxe footer, navy bands): accent-colored small text
    in it uses the on-dark readable shade (lib/siteTheme --site-accent-text-dm). */
 .ohp-site .ohp-dark-band { --site-accent-text: var(--site-accent-text-dm); }
+
+/* Classic readability (Luxe untouched: everything below is scoped to the default template).
+   A brand-ink panel keeps its dark background in both modes, so a dark accent would vanish on it -
+   inside one, the accent is the shade lib/siteTheme measured against that panel. */
+.ohp-site[data-template="default"] .ohp-ink-panel,
+.ohp-site[data-template="default"] .pp-panel,
+.ohp-site[data-template="default"] .pp .bg-\[var\(--pp-ink\)\] {
+  --site-accent: var(--site-accent-panel);
+  --site-accent-rgb: var(--site-accent-panel-rgb);
+  --site-accent-text: var(--site-accent-text-panel);
+  --site-accent-text-dm: var(--site-accent-text-panel);
+  --site-on-accent: var(--site-on-accent-panel);
+  --site-accent-ink: var(--site-on-accent-panel);
+  --pp-gold: var(--site-accent-panel);
+  --pp-gold-text: var(--site-accent-text-panel);
+}
+/* The palest grays and ambers (3:1 misses on white) and marks kept faint as decoration. */
+.ohp-site[data-template="default"] .text-gray-400,
+.ohp-site[data-template="default"] .text-gray-300 { color: var(--site-faint); }
+.ohp-site[data-template="default"] .placeholder\:text-gray-400::placeholder,
+.ohp-site[data-template="default"] input:not([class*="placeholder:"])::placeholder,
+.ohp-site[data-template="default"] textarea:not([class*="placeholder:"])::placeholder { color: var(--site-faint); }
+.ohp-site[data-template="default"][data-mode="light"] .text-amber-400,
+.ohp-site[data-template="default"][data-mode="light"] .text-amber-500 { color: #b45309; }
+.ohp-site[data-template="default"][data-mode="light"] .fill-amber-400 { fill: #b45309; }
+.ohp-site[data-template="default"][data-mode="dark"] { --site-trend-down: #f87171; --site-hero-veil: 82%; }
+/* Two of the map's category colors (Coffee, Shopping) are too dark for a dark card. */
+.ohp-site[data-template="default"][data-mode="dark"] .lucide-coffee { color: #c08a4e !important; }
+.ohp-site[data-template="default"][data-mode="dark"] .lucide-shopping-bag { color: #a78bfa !important; }
+.ohp-site[data-template="default"] .ohp-keep-solid { opacity: 1; }
+/* The word on a blog cover sits on the brand ink, which can be a mid tone on Classic. */
+.ohp-site[data-template="default"] .bca-word { color: #fff; opacity: 1; }
+/* An accent-tinted mark sitting on a photo: the photo can be any color, so white reads everywhere. */
+.ohp-site[data-template="default"] .ohp-on-photo { color: #fff !important; }
+.ohp-site[data-template="default"] .ohp-step-no { color: var(--site-accent-text) !important; font-size: 1.5rem; line-height: 2rem; }
 .ohp-site[data-mode="dark"] .text-blue-600,
 .ohp-site[data-mode="dark"] .text-blue-700 { color: #93c5fd !important; }
 .ohp-site[data-mode="dark"] .bg-blue-50 { background-color: rgba(59, 130, 246, 0.15) !important; }

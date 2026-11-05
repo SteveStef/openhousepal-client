@@ -29,50 +29,22 @@ const formatAddressWithoutCountry = (place: google.maps.places.PlaceResult): str
     return place.formatted_address || ''
   }
 
-  const components: string[] = []
-
-  const componentOrder = [
-    'street_number',
-    'route',
-    'subpremise',
-    'locality',
-    'administrative_area_level_1',
-    'postal_code'
-  ]
-
-  for (const type of componentOrder) {
-    const component = place.address_components.find(comp =>
-      comp.types.includes(type)
-    )
-    if (component) {
-      const value = type === 'administrative_area_level_1'
-        ? component.short_name
-        : component.long_name
-      components.push(value)
+  // Each part by its type: "1650 Skinners Turn Road, Owings, MD 20736". Google leaves parts out (no
+  // apartment, no street number), so where a part sits in a list says nothing about what it is.
+  const components = place.address_components
+  const part = (types: string[], short = false): string => {
+    for (const type of types) {
+      const component = components.find(comp => comp.types.includes(type))
+      if (component) return short ? component.short_name : component.long_name
     }
+    return ''
   }
 
-  if (components.length === 0) {
-    return place.formatted_address?.replace(/, USA$/, '') || ''
-  }
+  const street = [part(['street_number']), part(['route']), part(['subpremise'])].filter(Boolean).join(' ')
+  const city = part(['locality', 'postal_town', 'sublocality', 'neighborhood', 'administrative_area_level_3'])
+  const stateZip = [part(['administrative_area_level_1'], true), part(['postal_code'])].filter(Boolean).join(' ')
 
-  const addressParts: string[] = []
-
-  const streetParts = components.slice(0, 3).filter(Boolean)
-  if (streetParts.length > 0) {
-    addressParts.push(streetParts.join(' '))
-  }
-
-  if (components[3]) {
-    addressParts.push(components[3])
-  }
-
-  const stateZipParts = components.slice(4).filter(Boolean)
-  if (stateZipParts.length > 0) {
-    addressParts.push(stateZipParts.join(' '))
-  }
-
-  return addressParts.join(', ')
+  return [street, city, stateZip].filter(Boolean).join(', ') || place.formatted_address?.replace(/, USA$/, '') || ''
 }
 
 const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GooglePlacesAutocompleteProps>(({

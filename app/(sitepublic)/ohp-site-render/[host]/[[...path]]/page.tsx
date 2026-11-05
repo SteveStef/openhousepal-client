@@ -180,6 +180,8 @@ async function baseMetadata({
         alternates: { canonical },
         openGraph: { title, description, type: 'website', url: canonical, images: [{ url: ogImage, width: 1200, height: 630 }] },
         twitter: { card: 'summary_large_image', title, description, images: [ogImage] },
+        // On our own domain they'd show up under OpenHousePal in Google (owner, 11/05). On an agent's own domain they're theirs to be found.
+        ...(host.endsWith(`.${OHP_BASE_DOMAIN}`) ? { robots: { index: false, follow: true } } : {}),
         // The tab icon the agent uploaded for their website - their Spotlights wear it too.
         ...((propertySite as any).agent_icon ? { icons: { icon: [{ url: (propertySite as any).agent_icon }], apple: [{ url: (propertySite as any).agent_icon }] } } : {}),
       }
@@ -388,7 +390,9 @@ export async function generateMetadata(args: {
   const meta = await baseMetadata(args)
   const { host: rawHost, path } = await args.params
   const resolved = await resolveSite(decodeURIComponent(rawHost), joinPath(path))
-  if (!resolved || resolved.redirect_to || (path?.[0] === 'listings' && path[1] && !path[2])) return meta
+  if (!resolved || resolved.redirect_to || (path?.[0] === 'listings' && path[1] && !path[2])) {
+    return resolved?.published_snapshot?.seo?.allow_indexing === false ? { ...meta, robots: { index: false, follow: false } } : meta
+  }
   const [profile, areaList] = await Promise.all([
     fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/profile`),
     fetchJson(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/areas`, TOWN_TAGS),
@@ -414,7 +418,6 @@ function applySiteSeo(meta: Metadata, resolved: ResolveResponse, path: string[] 
   const home = pages.find((p: any) => p.is_home) || pages[0]
   const siteName = (seo.site_name || '').trim() || (home?.title && home.title !== 'Home' ? home.title : '') || profile?.name || ''
   // Tab icon: the agent's own upload, else the OpenHousePal house mark for everyone (owner, 10/24).
-  const icon = seo.favicon_url || '/icon-512.png'
   const segs = path || []
   const key = segs.length === 0 ? 'home' : segs.length === 1 ? (segs[0] === 'communities' ? 'neighborhoods' : segs[0]) : null
   const isPageSlug = key && key !== 'home' && pages.some((p: any) => p.slug === key)
@@ -468,7 +471,10 @@ function applySiteSeo(meta: Metadata, resolved: ResolveResponse, path: string[] 
     applicationName: siteName || undefined,
     // Phones' home-screen icon: our default is see-through, which iPhones fill with black (a black
     // house on black) - so the white-backed apple-touch-icon unless the agent uploaded their own.
-    ...(icon ? { icons: { icon: [{ url: icon }], apple: [{ url: seo.favicon_url || '/apple-touch-icon.png' }] } } : {}),
+    // No icon of their own: exactly what openhousepal.com lists, so search results show the same logo.
+    icons: seo.favicon_url
+      ? { icon: [{ url: seo.favicon_url }], apple: [{ url: seo.favicon_url }] }
+      : { icon: [{ url: '/favicon.ico', sizes: 'any' }, { url: '/icon.svg', type: 'image/svg+xml' }, { url: '/icon-512.png', type: 'image/png', sizes: '512x512' }], apple: [{ url: '/apple-touch-icon.png' }] },
     ...(seo.allow_indexing === false ? { robots: { index: false, follow: false } } : {}),
     // Search Console ownership proof (google_search_service - automatic, plus any code the agent
     // pasted). Google only looks on the home page.
@@ -765,17 +771,17 @@ function FeaturedArticleCard({ post, theme, basePrefix }: { post: any; theme: an
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent lg:bg-gradient-to-r lg:from-transparent lg:to-black/10" />
         <div className="absolute left-5 top-5 flex flex-wrap gap-2">
-          <span className="rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: gold, color: theme.primary_color }}>Editor&apos;s Pick</span>
+          <span className="rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-accent-ink)' }}>Editor&apos;s Pick</span>
           {post.category && <span className="rounded-full bg-black/35 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white shadow ">{post.category}</span>}
         </div>
       </div>
       <div className="relative flex flex-col justify-center p-7 sm:p-9 lg:p-11" style={{ background: `radial-gradient(110% 130% at 100% 0%, ${gold}26, transparent 55%), linear-gradient(135deg, #fffdf8 0%, var(--site-cream, #fbf6ec) 100%)` }}>
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(90deg, transparent, ${gold}, transparent)` }} />
-        <p className="flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.28em]" style={{ color: gold }}><span className="h-px w-8" style={{ backgroundColor: gold }} />{post.published_at ? formatPostDate(post.published_at) : 'Latest'}</p>
+        <p className="flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.28em]" style={{ color: 'var(--site-accent)' }}><span className="h-px w-8" style={{ backgroundColor: 'var(--site-accent)' }} />{post.published_at ? formatPostDate(post.published_at) : 'Latest'}</p>
         <h2 className={`ohp-site-heading mt-4 text-3xl font-black leading-[1.08] tracking-tight sm:text-4xl ${serif}`} style={{ color: 'var(--site-heading)' }}>{post.title}</h2>
         {post.subtitle && <p className="mt-4 line-clamp-3 text-base leading-relaxed text-gray-600">{post.subtitle}</p>}
         <span className="mt-7 inline-flex w-fit items-center gap-2 rounded-full px-5 py-2.5 text-[11px] font-black uppercase tracking-widest text-white shadow-lg transition group-hover:translate-x-0.5" style={{ backgroundColor: theme.primary_color }}>
-          Read the story <ArrowRight className="h-3.5 w-3.5" style={{ color: gold }} />
+          Read the story <ArrowRight className="h-3.5 w-3.5" style={{ color: 'var(--site-accent)' }} />
         </span>
       </div>
     </a>
@@ -796,7 +802,7 @@ function BlogCard({ post, theme, basePrefix }: { post: any; theme: any; basePref
         )}
         {post.cover_image_url && <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />}
         {post.category && (
-          <span className="absolute left-4 top-4 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] shadow-sm" style={{ backgroundColor: theme.secondary_color, color: theme.primary_color }}>
+          <span className="absolute left-4 top-4 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] shadow-sm" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-accent-ink)' }}>
             {post.category}
           </span>
         )}
@@ -830,7 +836,7 @@ function HubMediaCard({ item, theme, kind }: { item: { id?: string; title?: stri
         <span className="absolute left-4 top-4 rounded-full bg-black/40 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-white ">{kind === 'tour' ? 'House Tour' : 'Video'}</span>
         <span className="absolute left-1/2 top-[42%] flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
           <span className="absolute inset-0 rounded-full border opacity-70" style={{ borderColor: gold }} />
-          <span className="flex h-12 w-12 items-center justify-center rounded-full shadow-[0_0_24px_rgba(0,0,0,.45)] transition group-hover:scale-110" style={{ backgroundColor: gold }}>
+          <span className="flex h-12 w-12 items-center justify-center rounded-full shadow-[0_0_24px_rgba(0,0,0,.45)] transition group-hover:scale-110" style={{ backgroundColor: 'var(--site-accent)' }}>
             <span className="ml-0.5 h-0 w-0 border-y-[7px] border-l-[11px] border-y-transparent" style={{ borderLeftColor: theme.primary_color }} />
           </span>
         </span>
@@ -889,8 +895,8 @@ async function BlogDetail({ siteId, slug, theme, basePrefix, path }: { siteId: s
           <a href={`${basePrefix}/blog`} className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/80 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-gray-800 shadow-sm transition hover:-translate-x-0.5">
             <ArrowRight className="h-3.5 w-3.5 rotate-180" /> All Articles
           </a>
-          <p className="mt-8 flex flex-wrap items-center gap-3 text-[11px] font-black uppercase tracking-[0.28em]" style={{ color: gold }}>
-            <span className="h-px w-8" style={{ backgroundColor: gold }} />{post.category || 'Journal'}
+          <p className="mt-8 flex flex-wrap items-center gap-3 text-[11px] font-black uppercase tracking-[0.28em]" style={{ color: 'var(--site-accent)' }}>
+            <span className="h-px w-8" style={{ backgroundColor: 'var(--site-accent)' }} />{post.category || 'Journal'}
           </p>
           <h1 className={`ohp-site-heading mt-3 text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl ${serif}`} style={{ color: 'var(--site-heading)' }}>{post.title}</h1>
           {post.subtitle && <p className="mt-4 text-lg leading-relaxed text-gray-600 sm:text-xl">{post.subtitle}</p>}
@@ -942,7 +948,7 @@ async function BlogDetail({ siteId, slug, theme, basePrefix, path }: { siteId: s
           <p className="relative text-[10px] font-black uppercase tracking-[0.28em]" style={{ color: 'var(--site-accent-text)' }}>Your next move</p>
           <h2 className={`relative mt-2 text-2xl font-black ${serif}`}>Have questions about the market?</h2>
           <p className="relative mt-2 text-sm text-white/65">Let&apos;s talk through what this means for your next move.</p>
-          <a href={`${basePrefix}/contact`} className="ohp-gold-sheen relative mt-5 inline-flex items-center gap-2 rounded-full px-7 py-3 text-xs font-black uppercase tracking-widest shadow-lg transition hover:-translate-y-0.5" style={theme.template !== 'default' ? { backgroundColor: gold, color: theme.primary_color } : { backgroundColor: '#ffffff', color: theme.primary_color }}>
+          <a href={`${basePrefix}/contact`} className="ohp-gold-sheen relative mt-5 inline-flex items-center gap-2 rounded-full px-7 py-3 text-xs font-black uppercase tracking-widest shadow-lg transition hover:-translate-y-0.5" style={theme.template !== 'default' ? { backgroundColor: 'var(--site-accent)', color: 'var(--site-accent-ink)' } : { backgroundColor: '#ffffff', color: theme.primary_color }}>
             Get in touch <ArrowRight className="h-3.5 w-3.5" />
           </a>
         </div>
@@ -995,7 +1001,7 @@ function AreaCard({ area, theme, basePrefix, featured = false }: { area: any; th
         <SitePhoto src={area.photo} widths={IMG.card} className="h-full w-full transition-transform duration-700 ease-out group-hover:scale-110 object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
         {featured && (
-          <span className="absolute left-4 top-4 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-sm" style={{ backgroundColor: theme.secondary_color, color: theme.primary_color }}>
+          <span className="absolute left-4 top-4 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-sm" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-accent-ink)' }}>
             Featured Neighborhood
           </span>
         )}
@@ -1019,7 +1025,7 @@ function AreaCard({ area, theme, basePrefix, featured = false }: { area: any; th
               ['Market', area.hover_facts?.market?.[0] || null],
             ] as [string, string | null][]).filter(([, v]) => v).slice(0, 4).map(([label, value]) => (
               <div key={label} className="rounded-2xl border p-3.5" style={{ borderColor: `${theme.secondary_color}40`, backgroundColor: `${theme.secondary_color}0d` }}>
-                <p className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: theme.secondary_color }}>{label}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent)' }}>{label}</p>
                 <p className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-gray-800">{value}</p>
               </div>
             ))}
@@ -1029,7 +1035,7 @@ function AreaCard({ area, theme, basePrefix, featured = false }: { area: any; th
               {area.median_price != null && <span>{formatCompactPrice(area.median_price)} <span className="font-medium text-gray-400">median</span></span>}
               {area.active_count != null && <span>{area.active_count} <span className="font-medium text-gray-400">for sale</span></span>}
             </span>
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest transition-transform group-hover:translate-x-1" style={{ color: theme.secondary_color }}>Explore {area.name} <ArrowRight className="h-3.5 w-3.5" /></span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest transition-transform group-hover:translate-x-1" style={{ color: 'var(--site-accent)' }}>Explore {area.name} <ArrowRight className="h-3.5 w-3.5" /></span>
           </div>
         </div>
       ) : (area.median_price != null || area.active_count != null || area.summary) && (
@@ -1522,7 +1528,7 @@ function CompareList({ title, icon: Icon, values, note, theme }: { title: string
   return (
     <div className="rounded-[1.25rem] border border-gray-100 bg-white p-5 shadow-sm">
       <div className="flex items-center gap-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: `${theme.secondary_color}1a`, color: theme.secondary_color }}>
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: `${theme.secondary_color}1a`, color: 'var(--site-accent)' }}>
           <Icon className="h-4 w-4" />
         </span>
         <h3 className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">{title}</h3>
@@ -1569,7 +1575,7 @@ async function NeighborhoodComparePage({ siteId, theme, basePrefix, compareParam
       ) : (
         <>
         <div className="relative px-6 py-20 text-center" style={{ backgroundColor: theme.primary_color }}>
-          <p className="text-xs font-black uppercase tracking-[0.24em]" style={{ color: theme.secondary_color }}>Neighborhood Compare</p>
+          <p className="text-xs font-black uppercase tracking-[0.24em]" style={{ color: 'var(--site-accent)' }}>Neighborhood Compare</p>
           <h1 className="ohp-site-heading mx-auto mt-3 max-w-3xl text-4xl font-black text-white sm:text-6xl">Choose two neighborhoods</h1>
           <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-white/70">Compare only the neighborhoods this agent serves, using existing research and live OHP listing data.</p>
           <div id="site-hero-sentinel" className="pointer-events-none absolute inset-x-0 bottom-0 h-px" />
@@ -1615,15 +1621,15 @@ async function NeighborhoodComparePage({ siteId, theme, basePrefix, compareParam
         <div className="absolute inset-y-0 left-1/2 w-px" style={{ background: `linear-gradient(180deg, transparent, ${theme.secondary_color}, transparent)` }} />
         <div className="relative mx-auto max-w-6xl text-center">
           <div className="flex items-center justify-center gap-3">
-            <Sparkles className="h-4 w-4 shrink-0" style={{ color: theme.secondary_color }} />
-            <span className="h-px w-8" style={{ backgroundColor: theme.secondary_color }} />
-            <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: theme.secondary_color }}>Neighborhood compare</span>
-            <span className="h-px w-8" style={{ backgroundColor: theme.secondary_color }} />
-            <Sparkles className="h-4 w-4 shrink-0" style={{ color: theme.secondary_color }} />
+            <Sparkles className="h-4 w-4 shrink-0" style={{ color: 'var(--site-accent)' }} />
+            <span className="h-px w-8" style={{ backgroundColor: 'var(--site-accent)' }} />
+            <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent)' }}>Neighborhood compare</span>
+            <span className="h-px w-8" style={{ backgroundColor: 'var(--site-accent)' }} />
+            <Sparkles className="h-4 w-4 shrink-0" style={{ color: 'var(--site-accent)' }} />
           </div>
           <h1 className={`ohp-site-heading mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-4xl font-black leading-tight sm:text-7xl ${fontClass(theme.heading_font, 'font-serif')}`}>
             <span>{left.name}</span>
-            <span className="grid h-14 w-14 place-items-center rounded-full text-lg font-black shadow-[0_0_40px_rgba(0,0,0,.5)] sm:h-16 sm:w-16" style={{ backgroundColor: theme.secondary_color, color: theme.primary_color }}>vs</span>
+            <span className="grid h-14 w-14 place-items-center rounded-full text-lg font-black shadow-[0_0_40px_rgba(0,0,0,.5)] sm:h-16 sm:w-16" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-accent-ink)' }}>vs</span>
             <span>{right.name}</span>
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-white/75 sm:text-base">Homes for sale, prices, schools, the town centers and daily life - side by side, so you can see which one fits.</p>
@@ -1652,7 +1658,7 @@ async function NeighborhoodComparePage({ siteId, theme, basePrefix, compareParam
       <section className="px-6 py-12" style={{ backgroundColor: `${theme.primary_color}08` }}>
         <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[1fr_1fr]">
           <div className="rounded-[1.5rem] bg-white p-6 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-[0.22em]" style={{ color: theme.secondary_color }}>What Feels Different?</p>
+            <p className="text-xs font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent)' }}>What Feels Different?</p>
             {differences.length > 0 ? (
               <ul className="mt-5 space-y-3 text-sm leading-relaxed text-gray-600">
                 {differences.map((line, index) => <li key={index} className="rounded-2xl bg-gray-50 p-4">{line}</li>)}
@@ -1662,7 +1668,7 @@ async function NeighborhoodComparePage({ siteId, theme, basePrefix, compareParam
             )}
           </div>
           <div className="rounded-[1.5rem] bg-white p-6 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-[0.22em]" style={{ color: theme.secondary_color }}>Best For</p>
+            <p className="text-xs font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent)' }}>Best For</p>
             <div className="mt-5 flex flex-wrap gap-2">
               {bestFor.map((item, index) => (
                 <span key={index} className="rounded-full border border-gray-100 bg-gray-50 px-4 py-2 text-xs font-black uppercase tracking-wide text-gray-600">
@@ -1815,7 +1821,8 @@ export default async function PublicSitePage({
   // and is the App Router's supported way to do a permanent redirect).
   if (resolved.redirect_to) {
     const suffix = path && path.length ? `/${path.join('/')}` : ''
-    permanentRedirect(`https://${resolved.redirect_to}${suffix}`)
+    const query = queryString(await searchParams)
+    permanentRedirect(`https://${resolved.redirect_to}${suffix}${query ? `?${query}` : ''}`)
   }
 
   const snapshot = resolved.published_snapshot

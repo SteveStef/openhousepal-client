@@ -1,11 +1,11 @@
 'use client'
 
-import { useMemo, memo, useRef } from 'react'
+import { useMemo, memo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { Property } from '@/types'
 import { formatOpenHouse, formatOpenHouseDay, upcomingOpenHouses } from '@/lib/mlsOpenHouses'
-import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye, Bed, Bath, Square, Home, MapPin, School, Trees, Navigation, Star, FolderInput, Undo2, Send, CheckCircle2 } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye, Bed, Bath, Square, Home, MapPin, School, Trees, Navigation, Star, FolderInput, Undo2, Send, CheckCircle2, Link2, Check } from 'lucide-react'
 import { cleanAddress, formatMlsStatus, formatPropertyFeature, isPropertyAvailableStatus, normalizeImageUrl, haversineMiles, googleMapsDirectionsUrl } from '@/lib/utils'
 import { statusNotice, type StatusTone } from '@/lib/showcaseStatus'
 import CardPhotoSwiper from '@/components/property/CardPhotoSwiper'
@@ -55,6 +55,9 @@ interface PropertyCardProps {
   onMoveToSold?: (property: Property, filed: boolean) => void
   /** Agent's Showcase view: "Send" this home to the client by text / email (SendHomesSheet). */
   onSend?: (property: Property) => void
+  /** Agent's Showcase view: copy this home's own link without opening its details (owner 11/04).
+   *  Resolves true once copied; false when there was nothing to copy yet (link off). */
+  onCopyLink?: (property: Property) => Promise<boolean>
   /** The last time this home was sent to the client (owner 10/31) - the Send button turns green "Sent". */
   sent?: HomeSend
   /** Agent's Showcase select mode: picked (true) / not picked (false); undefined = not selecting. */
@@ -115,7 +118,11 @@ const NOTICE_TONE: Record<StatusTone, string> = {
   off: 'bg-[#111827] text-white',
 }
 
-const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, destination, matchScore, tourButtonVariant = 'schedule', cropMlsBadge = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold, onSend, sent, selected }: PropertyCardProps) {
+const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, destination, matchScore, tourButtonVariant = 'schedule', cropMlsBadge = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold, onSend, onCopyLink, sent, selected }: PropertyCardProps) {
+  const [linkCopied, setLinkCopied] = useState(false)
+  // The agent's Tours button only on a home someone actually asked to tour (owner 11/04). Not tourCount:
+  // that only counts requests still waiting, so a confirmed tour reads 0.
+  const showTour = !!onScheduleTour && (tourButtonVariant !== 'requests' || !!property.hasTourRequest)
   // The agent's pick (user, 10/18) - impossible to miss on both sides; gone once the client passes on it.
   const recommended = !!property.agentRecommended && !property.disliked
   const statsRef = useRef<HTMLDivElement>(null)
@@ -555,12 +562,13 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
               e.stopPropagation();
               onPropertyClick?.(property);
             }}
-            className={`py-3 bg-gray-900 dark:bg-white/10 text-white dark:text-white hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] rounded-xl text-[10px] font-black uppercase tracking-widest transition-[background-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] ${onScheduleTour ? 'flex-1' : 'w-full'}`}
+            className={`py-3 bg-gray-900 dark:bg-white/10 text-white dark:text-white hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] rounded-xl text-[10px] font-black uppercase tracking-widest transition-[background-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] ${showTour || onSend ? 'flex-1' : 'w-full'}`}
           >
-             View Details
+             {showTour && onCopyLink ? 'Details' : 'View Details'}
           </button>
-          {onScheduleTour && (
+          {showTour && (
             <button
+              data-tour-button
               onClick={(e) => {
                 e.stopPropagation();
                 onScheduleTour?.(property);
@@ -573,7 +581,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
                   : 'bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8cf8a] hover:bg-[#C9A24D] hover:text-white hover:shadow-lg'
               }`}
             >
-              {tourButtonVariant === 'requests' ? <><span className="sm:hidden">Tours</span><span className="hidden sm:inline">Tour Requests</span></> : property.tourStatus === 'confirmed' ? 'Confirmed' : property.tourStatus === 'done' ? 'Toured' : property.hasTourScheduled ? 'Pending' : 'Tour'}
+              {tourButtonVariant === 'requests' ? <><span className={onCopyLink ? '' : 'sm:hidden'}>Tours</span>{!onCopyLink && <span className="hidden sm:inline">Tour Requests</span>}</> : property.tourStatus === 'confirmed' ? 'Confirmed' : property.tourStatus === 'done' ? 'Toured' : property.hasTourScheduled ? 'Pending' : 'Tour'}
               {tourButtonVariant === 'requests' && !!property.tourCount && (
                 <span className="absolute -top-2 -right-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white border-2 border-white dark:border-[#151517]">
                   {property.tourCount > 9 ? '9+' : property.tourCount}
@@ -596,6 +604,25 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
                 : 'inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#C9A24D]/45 py-3 text-[10px] font-black uppercase tracking-widest text-[#8b7355] transition-[background-color,color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:bg-[#C9A24D] hover:text-[#16130e] hover:shadow-lg dark:text-[#e8c97a]'}
             >
               {sent ? <><CheckCircle2 size={13} /> Sent</> : <><Send size={13} /> Send</>}
+            </motion.button>
+          )}
+          {/* Agent: this home's own link, straight from the card */}
+          {onCopyLink && (
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.92 }}
+              data-copy-home={property.id}
+              title={linkCopied ? 'Link copied' : 'Copy the link to this home'}
+              aria-label={linkCopied ? 'Link copied' : 'Copy the link to this home'}
+              onClick={async (e) => {
+                e.stopPropagation()
+                if (await onCopyLink(property)) { setLinkCopied(true); window.setTimeout(() => setLinkCopied(false), 1800) }
+              }}
+              className={`grid h-[42px] w-11 shrink-0 place-items-center rounded-xl border transition-[background-color,border-color,color] duration-200 ${linkCopied
+                ? 'border-emerald-500/45 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300'
+                : 'border-gray-200 text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-white/10 dark:text-gray-300 dark:hover:text-[#e8c97a]'}`}
+            >
+              {linkCopied ? <Check size={15} strokeWidth={3} /> : <Link2 size={15} />}
             </motion.button>
           )}
         </div>

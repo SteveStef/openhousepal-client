@@ -2039,7 +2039,7 @@ function ManualDetailsStep({ draft, onDraftChange, onBack, onComplete }: {
                     <Image src={url} alt={`Photo ${i + 1}`} fill sizes={KIT_PHOTO_SIZES} className="object-cover" />
                     {i === 0
                       ? <span className="absolute bottom-1.5 left-1.5 rounded-full bg-[#C9A24D] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#111827]">Cover</span>
-                      : <button type="button" onClick={() => makeCover(url)} className="absolute bottom-1.5 left-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white backdrop-blur-sm">Make cover</button>}
+                      : <button type="button" onClick={() => makeCover(url)} className="absolute bottom-1.5 left-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">Make cover</button>}
                     <button type="button" onClick={() => removePhoto(url)} aria-label="Remove photo" className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white transition active:scale-90"><X className="h-3.5 w-3.5" /></button>
                   </motion.div>
                 ))}
@@ -2556,7 +2556,7 @@ function OpensToolBlock({ href, icon, title, blurb, count, className = '', delay
       style={{ '--otb-d': `${delay}s` } as React.CSSProperties}
     >
       <style>{`.ohp-otb .otb-halo{animation:otbSpin 9s linear infinite;animation-delay:calc(var(--otb-d) * -1)}.ohp-otb .otb-icon{animation:otbFloat 4.2s ease-in-out infinite;animation-delay:var(--otb-d)}@keyframes otbSpin{to{transform:rotate(360deg)}}@keyframes otbFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}@media (prefers-reduced-motion:reduce){.ohp-otb .otb-halo,.ohp-otb .otb-icon{animation:none}}`}</style>
-      <span className="pointer-events-none absolute -top-16 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-[#C9A24D]/15 blur-2xl transition-opacity duration-500 group-hover:opacity-100 dark:bg-[#C9A24D]/20" />
+      <span className="pointer-events-none absolute -top-16 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.15),transparent)] transition-opacity duration-500 group-hover:opacity-100 dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.2),transparent)]" />
       <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/50 to-transparent transition-transform duration-1000 group-hover:translate-x-full dark:via-white/10" />
       {count > 0 && (
         <span className="absolute right-2.5 top-2.5 z-10 flex h-6 min-w-[24px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-black text-white shadow-lg shadow-red-500/40 ring-2 ring-white dark:ring-[#0b0f0e]">
@@ -2564,7 +2564,7 @@ function OpensToolBlock({ href, icon, title, blurb, count, className = '', delay
         </span>
       )}
       <span className="relative grid h-12 w-12 place-items-center">
-        <span className="otb-halo absolute inset-0 rounded-2xl bg-[conic-gradient(from_0deg,#C9A24D,#f1d58b,transparent_40%,#C9A24D_70%,#8b6a2b)] opacity-70 blur-[3px]" />
+        <span className="otb-halo absolute inset-0 rounded-2xl bg-[conic-gradient(from_0deg,#C9A24D,#f1d58b,transparent_40%,#C9A24D_70%,#8b6a2b)] opacity-70" />
         <span className="otb-icon relative grid h-[44px] w-[44px] place-items-center rounded-[14px] bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-lg transition-transform duration-300 group-hover:scale-105">
           {icon}
         </span>

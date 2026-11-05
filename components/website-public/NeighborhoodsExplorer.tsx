@@ -76,10 +76,10 @@ export default function NeighborhoodsExplorer({ areas, theme, basePrefix = '', c
             {i === bg && <div className="ohp-mls-crop ohp-hero-kenburns absolute inset-0 bg-cover bg-center" style={{ backgroundImage: sizedBg(p, 1920) }} />}
           </div>
         ))}
-        <div className="absolute inset-0 -z-10" style={{ background: luxe ? `linear-gradient(180deg, rgba(0,0,0,.55), ${theme.primary_color} 96%)` : 'linear-gradient(180deg, rgba(255,255,255,.55), var(--site-bg) 92%)' }} />
+        <div className="absolute inset-0 -z-10" style={{ background: luxe ? `linear-gradient(180deg, rgba(0,0,0,.55), ${theme.primary_color} 96%)` : 'linear-gradient(180deg, color-mix(in srgb, var(--site-bg) var(--site-hero-veil, 55%), transparent), var(--site-bg) 92%)' }} />
         <div className="mx-auto max-w-5xl px-5 pb-16 pt-32 text-center sm:px-6 sm:pb-20 sm:pt-40">
           <Reveal>
-            <p className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: luxe ? 'var(--site-accent-light)' : 'var(--site-accent-deep)' }}>
+            <p className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: luxe ? 'var(--site-accent-light)' : 'var(--site-accent-text)' }}>
               <Compass className="h-3.5 w-3.5" /> Explore the area
             </p>
             <h1 className={`mt-4 text-5xl leading-[1.02] sm:text-7xl ${luxe ? `font-black text-white ${serif}` : 'font-extrabold tracking-tight'}`} style={luxe ? undefined : { color: 'var(--site-heading)' }}>
@@ -150,7 +150,7 @@ export default function NeighborhoodsExplorer({ areas, theme, basePrefix = '', c
                     {big && <span className="rounded-full px-2.5 py-1 text-[11px] font-black" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>Featured</span>}
                   </div>
                   <div className="relative p-5 pt-16 text-white sm:p-6 sm:pt-16">
-                    <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.22em] text-white/60"><MapPin className="h-3 w-3" />{[a.county, a.state].filter(Boolean).join(', ') || 'Neighborhood'}</p>
+                    <p className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.22em] ${luxe ? 'text-white/60' : 'text-white/90'}`}><MapPin className="h-3 w-3" />{[a.county, a.state].filter(Boolean).join(', ') || 'Neighborhood'}</p>
                     <p className={`mt-1 leading-none ${big ? 'text-[44px] sm:text-6xl' : 'text-3xl'} ${luxe ? `font-black ${serif}` : 'font-extrabold tracking-tight'}`}>{a.name}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-bold text-white/85">
                       {a.median_price ? <span><span className="text-white/55">Median</span> {formatCompactPrice(a.median_price)}</span> : null}

@@ -199,8 +199,8 @@ const HIGHLIGHT_CSS = `
 .ohp-hl-in::after,.ohp-hl-out::after{inset:6px;border-radius:16px;border-width:3px}
 .ohp-hl-in::before,.ohp-hl-out::before{top:22px;padding:8px 16px;font-size:13px}
 }
-@keyframes ohpHlIn{from{opacity:0;transform:translateY(60px) scale(.98);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
-@keyframes ohpHlOut{to{opacity:0;transform:scale(.96);filter:blur(4px) grayscale(1)}}
+@keyframes ohpHlIn{from{opacity:0;transform:translateY(60px) scale(.98);}to{opacity:1;transform:none;filter:none}}
+@keyframes ohpHlOut{to{opacity:0;transform:scale(.96);filter:grayscale(1)}}
 @keyframes ohpGlow{0%{opacity:0}12%{opacity:1}30%{opacity:.5}48%{opacity:1}75%{opacity:1}100%{opacity:0}}
 @keyframes ohpGlowOut{0%{opacity:0}20%{opacity:1}40%{opacity:.6}60%{opacity:1}100%{opacity:1}}
 @keyframes ohpTag{0%{opacity:0;transform:translate(-50%,-14px)}12%,80%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-8px)}}

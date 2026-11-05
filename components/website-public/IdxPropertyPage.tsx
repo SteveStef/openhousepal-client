@@ -127,7 +127,7 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
                     <span className={`block text-base font-black leading-tight ${pp.heading} ${serif}`}>Get homes like this first</span>
                     <span className={`block text-xs font-semibold ${pp.muted}`}>Your own Showcase - new matches the moment they list.</span>
                   </span>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-[color:var(--site-accent-text-dm)] transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRight className="h-4 w-4 shrink-0 text-[color:var(--site-accent-on-card)] transition-transform group-hover:translate-x-0.5" />
                 </a>
 
 

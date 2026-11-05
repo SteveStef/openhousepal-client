@@ -323,8 +323,8 @@ export default function FormsDemo() {
 
         {!isEditor && !isShare && (
           <div className="relative h-[420px] overflow-hidden">
-            <div className="absolute -left-10 -top-10 h-40 w-40 rounded-full blur-3xl" style={{ backgroundColor: `${REAL_FORM.accentColor}30` }} />
-            <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full blur-3xl" style={{ backgroundColor: `${REAL_FORM.accentColor}20` }} />
+            <div className="absolute -left-10 -top-10 h-40 w-40 rounded-full" style={{ background: `radial-gradient(closest-side, ${REAL_FORM.accentColor}55, transparent)` }} />
+            <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full" style={{ background: `radial-gradient(closest-side, ${REAL_FORM.accentColor}20, transparent)` }} />
             <div className="relative flex h-full flex-col items-center justify-center p-4 pt-14">
               {beat.k === 'welcome' && (
                 <div className="w-full max-w-[300px] animate-fadeIn text-center">

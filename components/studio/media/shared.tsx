@@ -251,14 +251,13 @@ export function PhotoGeneratingCard({ src, label, elapsed }: { src?: string; lab
         style={{ animation: 'ohpGlow 2.4s ease-in-out infinite', boxShadow: '0 0 44px -8px rgba(201,162,77,0.55)' }}
       >
         {src
-          ? <img src={src} alt="" className="absolute inset-0 h-full w-full scale-105 object-cover blur-[2px] brightness-[0.55] saturate-[1.1]" draggable={false} />
+          ? <img src={src} alt="" className="absolute inset-0 h-full w-full scale-105 object-cover brightness-[0.55] saturate-[1.1]" draggable={false} />
           : <div className="absolute inset-0 bg-gradient-to-br from-[#111827] via-[#172033] to-[#4a3820]" />}
         <div
           className="pointer-events-none absolute inset-x-0 h-1/3"
           style={{
             animation: 'ohpScan 2.1s cubic-bezier(.4,0,.2,1) infinite',
             background: 'linear-gradient(180deg,transparent,rgba(230,199,122,0.55) 45%,rgba(255,255,255,0.85) 50%,rgba(230,199,122,0.55) 55%,transparent)',
-            filter: 'blur(2px)',
           }}
         />
         <Sparkles className="absolute left-3 top-3 h-4 w-4 text-white/80" style={{ animation: 'ohpFloat 2.8s ease-in-out infinite' }} />
@@ -621,11 +620,11 @@ function ProjectCardVideoProgress({ asset }: { asset: StudioMediaAsset }) {
   return (
     <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
       {asset.source_photo_url
-        ? <img src={asset.source_photo_url} alt="" className="absolute inset-0 h-full w-full scale-105 object-cover blur-[1.5px] brightness-[0.55]" draggable={false} />
+        ? <img src={asset.source_photo_url} alt="" className="absolute inset-0 h-full w-full scale-105 object-cover brightness-[0.55]" draggable={false} />
         : <div className="absolute inset-0 bg-gradient-to-br from-[#111827] via-[#172033] to-[#4a3820]" />}
       <div
         className="pointer-events-none absolute inset-x-0 h-1/3"
-        style={{ animation: 'ohpScan 2.1s cubic-bezier(.4,0,.2,1) infinite', background: 'linear-gradient(180deg,transparent,rgba(230,199,122,0.5) 45%,rgba(255,255,255,0.8) 50%,rgba(230,199,122,0.5) 55%,transparent)', filter: 'blur(1.5px)' }}
+        style={{ animation: 'ohpScan 2.1s cubic-bezier(.4,0,.2,1) infinite', background: 'linear-gradient(180deg,transparent,rgba(230,199,122,0.5) 45%,rgba(255,255,255,0.8) 50%,rgba(230,199,122,0.5) 55%,transparent)' }}
       />
       <div className="relative z-10 flex flex-col items-center gap-1 text-center">
         <Loader2 className="h-5 w-5 animate-spin text-white drop-shadow" />

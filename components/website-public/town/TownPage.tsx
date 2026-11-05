@@ -108,7 +108,7 @@ function FactCard({ label, source, icon: Icon, theme, children }: { label: strin
     <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:shadow-md">
       <div className="flex items-center gap-2">
         {Icon && (
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${theme.secondary_color}1a`, color: theme.secondary_color }}>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${theme.secondary_color}1a`, color: 'var(--site-accent)' }}>
             <Icon className="h-4 w-4" />
           </span>
         )}
@@ -172,7 +172,7 @@ export function ListingCard({ item, theme, basePrefix, showStatus = true, dateLa
           {cleanStreet(item.address, item.city) || 'Address on request'}
           {item.city && <span className="font-semibold" style={{ color: 'var(--site-muted)' }}>, {item.city}</span>}
         </p>
-        {statLine && <p className="mt-1.5 flex items-center gap-2 truncate text-xs font-semibold text-gray-500"><span className="h-1 w-1 shrink-0 rounded-full" style={{ backgroundColor: theme.secondary_color }} />{statLine}</p>}
+        {statLine && <p className="mt-1.5 flex items-center gap-2 truncate text-xs font-semibold text-gray-500"><span className="h-1 w-1 shrink-0 rounded-full" style={{ backgroundColor: 'var(--site-accent)' }} />{statLine}</p>}
         {item.list_office_name && <p className="mt-2 truncate text-[10px] font-medium" style={{ color: 'var(--site-muted)' }}>Courtesy of {item.list_office_name}</p>}
       </div>
     </>
@@ -568,18 +568,18 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
             <span className="text-white/85">{area.name}</span>
           </p>
           <div className="mt-8 flex items-center gap-3">
-            <Sparkles className="h-4 w-4 shrink-0" style={{ color: theme.secondary_color }} />
-            <span className="h-px w-8" style={{ backgroundColor: theme.secondary_color }} />
-            <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: theme.secondary_color }}>{guideLabel}</span>
+            <Sparkles className="h-4 w-4 shrink-0" style={{ color: 'var(--site-accent)' }} />
+            <span className="h-px w-8" style={{ backgroundColor: 'var(--site-accent)' }} />
+            <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent)' }}>{guideLabel}</span>
           </div>
           {/* The county / state rides on the town's own line, small - not a second line under it. */}
           <h1 className={`ohp-site-heading mt-4 max-w-5xl text-5xl font-black leading-[0.95] tracking-tight sm:text-8xl ${fontClass(theme.heading_font, 'font-serif')}`}>
             <span className="ohp-text-shimmer">{area.name}</span>
-            {areaDescriptor && <span className="ml-4 inline-flex items-center gap-1.5 align-middle font-sans text-sm font-bold uppercase tracking-[0.18em] text-white/70 sm:text-base"><MapPin className="h-4 w-4" style={{ color: theme.secondary_color }} />{areaDescriptor}</span>}
+            {areaDescriptor && <span className="ml-4 inline-flex items-center gap-1.5 align-middle font-sans text-sm font-bold uppercase tracking-[0.18em] text-white/70 sm:text-base"><MapPin className="h-4 w-4" style={{ color: 'var(--site-accent)' }} />{areaDescriptor}</span>}
           </h1>
           {summary && <p className="mt-5 line-clamp-3 max-w-2xl text-base leading-relaxed text-white/75 sm:text-lg">{firstSentences(summary, 1)}</p>}
           <div className="mt-8 flex flex-wrap gap-3">
-            <a href="#homes" className="ohp-gold-sheen inline-flex rounded-full px-7 py-3.5 text-xs font-black uppercase tracking-widest shadow-xl transition hover:-translate-y-0.5" style={{ backgroundColor: theme.secondary_color, color: theme.primary_color }}>
+            <a href="#homes" className="ohp-gold-sheen inline-flex rounded-full px-7 py-3.5 text-xs font-black uppercase tracking-widest shadow-xl transition hover:-translate-y-0.5" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-accent-ink)' }}>
               See homes for sale
             </a>
             <a href={townShowcaseHref}
@@ -973,7 +973,7 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
               <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-white/75">Buying or selling in {area.name}, I&apos;ll walk you through the streets, the schools and the numbers - no pressure.</p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <a href={`${basePrefix}/contact`} data-ohp-form="buying" data-ohp-form-title={`Buying in ${area.name}`} data-ohp-prefill={prefill}
-                  className={`inline-flex px-6 py-3 text-sm font-black transition hover:-translate-y-0.5 ${btnRound} ${luxe ? 'ohp-gold-sheen' : ''}`} style={luxe ? { backgroundColor: theme.secondary_color, color: theme.primary_color } : { backgroundColor: '#ffffff', color: 'var(--site-accent-deep)' }}>I&apos;m buying</a>
+                  className={`inline-flex px-6 py-3 text-sm font-black transition hover:-translate-y-0.5 ${btnRound} ${luxe ? 'ohp-gold-sheen' : ''}`} style={luxe ? { backgroundColor: 'var(--site-accent)', color: 'var(--site-accent-ink)' } : { backgroundColor: '#ffffff', color: 'var(--site-accent-deep)' }}>I&apos;m buying</a>
                 <a href={`${basePrefix}/contact`} data-ohp-form="selling" data-ohp-form-title={`Selling in ${area.name}`} data-ohp-prefill={prefill}
                   className={`inline-flex border border-white/40 px-6 py-3 text-sm font-black text-white transition hover:bg-white/10 ${btnRound}`}>I&apos;m selling</a>
                 {profile?.phone && <a href={`tel:${profile.phone}`} className={`inline-flex border border-white/40 px-6 py-3 text-sm font-black text-white transition hover:bg-white/10 ${btnRound}`}>Call {profile.phone}</a>}

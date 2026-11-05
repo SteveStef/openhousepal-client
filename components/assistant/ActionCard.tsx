@@ -17,10 +17,12 @@ import { BlogPick, type BlogPicks } from './BlogPick'
 import { KitPick, kitStart, type KitPicks } from './KitPick'
 import { DiscoveryPick, discoveryStart, type DiscoveryPicks } from './DiscoveryPick'
 import { InviteSendPick, inviteSendInitial, inviteSendLabel, type InviteSendPicks } from './InviteSendPick'
-import { WorkingScene, CardIcon, CardStep, StepDone, CmaPick, DesignLivePreview, BrandLivePreview, FormPick, OPTION_GRID, PickShell, SetupSteps, SpotlightPick, useDesignProperty, useSteps, type FormPicks, type SpotlightPicks } from './CardPickers'
+import { WorkingScene, CardIcon, CardStep, StepDone, DesignLivePreview, BrandLivePreview, FormPick, OPTION_GRID, PickShell, useDesignProperty, useSteps, type FormPicks } from './CardPickers'
 import { joinColorMode, splitColorMode } from '@/lib/studio/designColors'
 import { LUXE_METALS, LUXE_METAL_ORDER, type LuxeMetal } from '@/lib/luxeMetals'
-import { runSpotlightSetup, type SetupStep } from '@/components/property-sites/spotlight/autoSetup'
+import { SpotlightPick, spotlightStart, type SpotlightPicks } from './SpotlightPick'
+import { CmaPick, cmaStart, type CmaPicks } from './CmaPick'
+import { MediaPick, mediaStart, type MediaPicks } from './MediaPick'
 
 type Made = AIToolCallRef['made']
 
@@ -232,6 +234,7 @@ function editorFor(action: AIToolCallRef): EditorHandoff | null {
   if (action.tool === 'create_showcase') return make('Showcases', 'Rather set it up on the Showcases page?', 'Open in Showcases')
   if (action.picker === 'brand') return { mode: 'move', page: 'the Branding page', ask: 'Rather pick on the Branding page?', button: 'Open Branding', href: '/studio/brand-kit' }
   if (action.picker === 'blog') return { mode: 'move', page: 'the Blogs page', ask: 'Rather write it yourself on the Blogs page?', button: 'Open Blogs', href: '/studio/blogs?new=1' }
+  if (action.picker === 'media') return { mode: 'move', page: 'Media Lab', ask: 'Rather make it in Media Lab?', button: 'Open Media Lab', href: '/studio/media/new' }
   return null
 }
 
@@ -261,7 +264,9 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   const cur = (action.payload?.current || {}) as Record<string, any>
   // A color they named ("navy") starts the card on it, not on what they have now (11/02)
   const askedColor = ((action.payload?.body || {}) as Record<string, any>).secondary_color as string | undefined
-  const [brand, setBrand] = useState<BrandPicks>({ theme: cur.theme === 'luxe' ? 'luxe' : 'classic', metal: cur.metal || 'gold', dark: !!cur.dark, secondary_color: askedColor || cur.secondary_color || '#C9A24D' })
+  const [brand, setBrand] = useState<BrandPicks>({ theme: cur.theme === 'luxe' ? 'luxe' : 'classic', metal: cur.metal || 'gold', dark: !!cur.dark, secondary_color: askedColor || cur.secondary_color || '#C9A24D',
+    heading_font: cur.heading_font || 'serif', body_font: cur.body_font || 'sans', disclaimer_text: cur.disclaimer_text || '', qr: cur.qr?.choice || 'ohp', headshot: cur.attached_headshot || cur.headshot || null,
+    logos: { ...(cur.logos || {}), ...(cur.attached_logo ? { [cur.attached_logo.kind]: cur.attached_logo.url } : {}) } })
   const isBrand = action.picker === 'brand'
   // Invites: the four designs, tapped on the card (owner's test, 11/01: it picked Classic for them)
   const isInvite = action.picker === 'invite'
@@ -270,14 +275,19 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   const [invite, setInvite] = useState<InvitePicks>({
     kind: inviteOpts.kind_given ? inviteBody.invite_type : (inviteBody.invite_type || 'brokers_open'), listing_key: inviteOpts.homes?.[0]?.listing_key && !inviteBody.address ? inviteOpts.homes[0].listing_key : null,
     date: inviteBody.event_date || '', start_time: inviteBody.start_time || '', end_time: inviteBody.end_time || '',
-    design: inviteBody.design || 'classic', luxe_metal: inviteOpts.luxe_ok && inviteOpts.brand_metal ? inviteOpts.brand_metal : null, accent_color: inviteOpts.brand_accent || null })
+    design: inviteBody.design || 'classic', luxe_metal: inviteOpts.luxe_ok && inviteOpts.brand_metal ? inviteOpts.brand_metal : null, accent_color: inviteOpts.brand_accent || null,
+    title: inviteBody.title || '', subtitle: null, message: inviteBody.message || inviteOpts.presets?.[inviteBody.invite_type]?.message || '', place_name: inviteBody.place_name || '', address: inviteBody.address || '',
+    audience: inviteOpts.presets?.[inviteBody.invite_type]?.audience || 'clients', motion: 'normal', extra_dates: [], questions: inviteOpts.presets?.[inviteBody.invite_type]?.questions || [],
+    ...(inviteOpts.attached_cover ? { cover: inviteOpts.attached_cover } : {}) })
   // Spotlight: the look + color on a small front page; CMA: AI or manual; form: background + home (11/01)
   const isSpotlight = action.picker === 'spotlight'
-  const [spot, setSpot] = useState<SpotlightPicks>({ template_id: (action.payload?.template_id as string) || 'cinematic_luxury',
-    brand_color: ((action.payload?.preview as any)?.brand_color as string) || '#C9A24D' })
+  const [spot, setSpot] = useState<SpotlightPicks>(() => spotlightStart((action.payload || {}) as Record<string, any>))
+  const isMedia = action.picker === 'media'
+  const [media, setMedia] = useState<MediaPicks>(() => mediaStart((action.payload || {}) as Record<string, any>))
   const isCma = action.picker === 'cma'
   const [cmaAi, setCmaAi] = useState<boolean>(action.payload?.ai !== false)
   const [cmaMode, setCmaMode] = useState<string>((action.payload?.mode as string) === 'buyer' ? 'buyer' : 'listing')
+  const [cma, setCma] = useState<CmaPicks>(() => cmaStart((action.payload || {}) as Record<string, any>))
   const isForm = action.picker === 'form'
   const isBlog = action.picker === 'blog'
   const isKit = action.picker === 'kit'
@@ -290,12 +300,22 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   const blogList = (k: string) => (Array.isArray((blogBody as any)[k]) ? (blogBody as any)[k] as string[] : [])
   const [blog, setBlog] = useState<BlogPicks>({ topic: blogBody.topic || '', goal: blogBody.goal || '', tone: blogBody.tone || 'warm', length: blogBody.length || 'standard',
     cta: blogBody.cta || 'how_can_i_help', audiences: blogList('audiences'), areas: blogList('areas'), spotlight: true,
-    points: [], key_points: blogBody.key_points || '', personal_take: '', facts: '', sale_ids: [], listing_ids: [], video: null })
+    points: [], key_points: blogBody.key_points || '', personal_take: '', facts: '', sale_ids: [], listing_ids: [], video: null,
+    theme: 'luxe', luxe_metal: 'gold', accent_color: null, category: '', cover: ((action.payload as any)?.options?.attached_cover as string) || null,
+    agent_hub_visible: true, agent_hub_featured: false, idx_visible: true, use_signature_card: true })
   // A form card reopened later starts from the taps already made on it (saved as they go, below)
   const formDraft = ((action as any).draft_picks || null) as Partial<FormPicks> | null
   const [form, setForm] = useState<FormPicks>({ background_effects: formDraft?.background_effects ?? action.payload?.background_effects !== false,
+    welcome_text_effects: formDraft?.welcome_text_effects ?? action.payload?.welcome_text_effects !== false,
+    dark: formDraft?.dark !== undefined ? formDraft.dark : typeof action.payload?.dark === 'boolean' ? action.payload.dark as boolean : null,
+    look: formDraft?.look ?? null,
+    style: formDraft?.style !== undefined ? formDraft.style : (action.payload?.style as FormPicks['style']) ?? null,
+    one_contact: formDraft?.one_contact ?? !!action.payload?.one_contact,
+    first_last: formDraft?.first_last ?? !!action.payload?.first_last,
+    after_mode: formDraft?.after_mode !== undefined ? formDraft.after_mode : (action.payload?.after_mode as string) || null,
+    after_url: formDraft?.after_url ?? (action.payload?.after_url as string) ?? '',
     listing_key: formDraft && 'listing_key' in formDraft ? formDraft.listing_key ?? null : (action.payload?.listing_key as string) || null,
-    questions: ((formDraft?.questions || (action.payload as any)?.questions || []) as any[]).map(q => ({ label: q.label, type: q.type, options: q.options, required: q.required })) })
+    questions: ((formDraft?.questions || (action.payload as any)?.questions || []) as any[]).map(q => ({ label: q.label, type: q.type, options: q.options, required: q.required, show_if: q.show_if, fields: q.fields })) })
   // A newer card for the same form (they asked for a change) greys this one out right away - the
   // server marks it replaced too, so a tap here would do nothing (ai_routes._replace_open_form_cards)
   const formTitle = String(action.payload?.title || '').trim().toLowerCase()
@@ -319,25 +339,33 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
     const t = setTimeout(() => { formSaved.current = now; api.ai.saveActionDraft(action.record_id, messageId, form as unknown as Record<string, unknown>).catch(() => {}) }, 600)
     return () => clearTimeout(t)
   }, [form, isForm, state.status, action.record_id, messageId])
-  const picks = isBrand ? brand : isInvite ? invite : isSpotlight ? spot : isCma ? { ai: cmaAi, mode: cmaMode } : isForm ? form : isBlog ? blog : isInviteSend ? inviteSend : isDiscovery ? disc : undefined
-  // A Spotlight made just now finishes its own setup right here (amenities, highlights, story, town).
-  const [setup, setSetup] = useState<SetupStep[] | null>(null)
+  const picks = isBrand ? brand : isInvite ? invite : isSpotlight ? spot : isCma ? { ai: cmaAi, mode: cmaMode, ...cma } : isForm ? form : isBlog ? blog : isInviteSend ? inviteSend : isDiscovery ? disc : isMedia ? media : undefined
+  // Finished on the server while this chat was open: the card follows (the chat reloads the message).
+  useEffect(() => {
+    if ((action.status === 'done' || action.status === 'failed') && (state.status === 'working' || state.status === 'running'))
+      setState(st => ({ ...st, status: action.status as string, message: action.result_message || st.message, link: action.result_link || st.link, made: action.made || st.made }))
+  }, [action.status, action.result_message, action.result_link, action.made, state.status])
 
   // The card's "What should change or be added?" line - its questions change in place (11/03)
   const reviseForm = async (instruction: string, at: number | null) => {
     const r = await api.ai.reviseFormCard(action.record_id, messageId, { instruction, at, picks: form as unknown as Record<string, unknown> })
     if (!r.success || !r.data) return { ok: false, message: r.error || r.message || "Couldn't make that change - try again." }
-    const next = { ...form, questions: r.data.questions.map(q => ({ label: q.label, type: q.type, options: q.options, required: q.required })) }
+    const extra = r.data as { one_contact?: boolean; first_last?: boolean; changed?: boolean; style?: FormPicks['style']; dark?: boolean }
+    if (extra.changed === false) return { ok: false, message: r.data.note }   // nothing really changed: never say it did
+    const oneContact = extra.one_contact
+    const next = { ...form, ...(typeof oneContact === 'boolean' ? { one_contact: oneContact } : {}), ...(typeof extra.first_last === 'boolean' ? { first_last: extra.first_last } : {}),
+      ...(extra.style ? { style: extra.style } : {}), ...(typeof extra.dark === 'boolean' ? { dark: extra.dark } : {}),
+      questions: r.data.questions.map(q => ({ label: q.label, type: q.type, options: q.options, required: q.required, show_if: (q as any).show_if, fields: (q as any).fields })) }
     formSaved.current = JSON.stringify(next)  // already saved on the card by the server
     setForm(next)
-    return { ok: true, message: r.data.note, focus: r.data.focus }
+    return { ok: true, message: r.data.note, focus: r.data.focus, oneContact }
   }
 
-  const act = async (kind: 'confirm' | 'cancel'): Promise<{ status: string; link: string }> => {
+  const act = async (kind: 'confirm' | 'cancel', extra?: Record<string, unknown>): Promise<{ status: string; link: string }> => {
     let end = { status: 'failed', link: '' }
     setBusy(kind)
     const r = kind === 'confirm'
-      ? await api.ai.confirmAction(action.record_id, messageId, picks as Record<string, unknown> | undefined)
+      ? await api.ai.confirmAction(action.record_id, messageId, { ...(picks as Record<string, unknown> | undefined), ...extra })
       : await api.ai.cancelAction(action.record_id, messageId)
     const data = r.data as (typeof r.data & { client_action?: string; payload?: Record<string, unknown> }) | undefined
     if (r.success && data?.status === 'running' && data.client_action) {
@@ -357,11 +385,6 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
       // Same as the editor's Publish / Take down: drop the live page's cached copy, or a taken-down
       // Spotlight keeps showing (Next never replaces a cached page with the server's "not found").
       if (r.data.status === 'done' && action.tool === 'publish_spotlight') fetch('/api/website-property-sites/revalidate', { method: 'POST' }).catch(() => {})
-      if (r.data.status === 'done' && made?.kind === 'spotlight' && (made as any).site_id) {
-        setSetup([])
-        const out = await runSpotlightSetup((made as any).site_id, setSetup)
-        setState(st => ({ ...st, message: out.message }))
-      }
     } else {
       setState({ status: 'failed', message: r.error || 'Something went wrong - nothing was changed.', link: '' })
     }
@@ -384,9 +407,10 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
       window.dispatchEvent(new CustomEvent('ohp:navigate', { detail: editor.href }))
       return
     }
-    const end = await act('confirm')
+    // A Spotlight opened in its editor does its first-time setup there, in front of them.
+    const end = await act('confirm', isSpotlight ? { editor: true } : undefined)
     if ((end.status === 'done' || end.status === 'working') && end.link) {
-      setState(st => ({ ...st, message: `Made - it opened in ${editor.page}. Changes you make there are the real thing.` }))
+      setState(st => ({ ...st, message: `${action.tool === 'edit_form' ? 'Saved' : 'Made'} - it opened in ${editor.page}. Changes you make there are the real thing.` }))
       window.dispatchEvent(new CustomEvent('ohp:navigate', { detail: end.link }))
     }
   }
@@ -395,7 +419,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   // Tapped the main button: the choices fold away and the card shows it working (owner, 11/01 - they
   // could keep tapping options already sent).
   const choosing = pending && busy !== 'confirm'
-  const working = !!busy || state.status === 'running' || state.status === 'working' || (!!setup && setup.some(s => s.state === 'run' || s.state === 'wait'))
+  const working = !!busy || state.status === 'running' || state.status === 'working'
   const iconState = working ? 'live' : state.status === 'done' ? 'done' : state.status === 'cancelled' || state.status === 'expired' || state.status === 'failed' || state.status === 'replaced' || state.status === 'stale' ? 'off' : 'idle'
   return (
     <div className={`ohp-ai-card-in mt-2 w-full rounded-2xl border bg-white p-2.5 sm:p-3.5 text-left shadow-sm transition-colors duration-300 dark:bg-zinc-900 ${
@@ -426,11 +450,12 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
       {isDesign && choosing && <DesignPick payload={action.payload as Record<string, any>} look={look} onLook={setLook} idx={idx} />}
       {isBrand && choosing && (
         <PickShell testid="ai-brand-shell" side={300} preview={<BrandLivePreview picks={brand} />}>
-          <BrandPick picks={brand} onPicks={setBrand} idx={idx} notUsing={((action.payload as any)?.current?.not_using || []) as string[]} />
+          <BrandPick picks={brand} onPicks={setBrand} idx={!!cur.idx} notUsing={((action.payload as any)?.current?.not_using || []) as string[]} qrAllowed={!!cur.qr?.allowed} />
         </PickShell>
       )}
       {isSpotlight && choosing && <SpotlightPick payload={action.payload as Record<string, any>} picks={spot} onPicks={setSpot} />}
-      {isCma && choosing && <CmaPick payload={action.payload as Record<string, any>} ai={cmaAi} onAi={setCmaAi} mode={cmaMode} onMode={setCmaMode} />}
+      {isCma && choosing && <CmaPick payload={action.payload as Record<string, any>} ai={cmaAi} onAi={setCmaAi} mode={cmaMode} onMode={setCmaMode} picks={cma} onPicks={setCma} />}
+      {isMedia && choosing && <MediaPick payload={action.payload as Record<string, any>} picks={media} onPicks={setMedia} />}
       {editor && choosing && !isForm && (
         <div className="mt-2.5 flex items-center gap-2 rounded-xl bg-[#faf7f0] px-2.5 py-2 ring-1 ring-black/5 dark:bg-zinc-800/50 dark:ring-white/10" data-testid="ai-open-editor-bar">
           <p className="min-w-0 flex-1 text-[11.5px] font-semibold leading-snug text-gray-600 dark:text-zinc-300">{editor.ask}</p>
@@ -482,10 +507,13 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
           {state.status === 'done' && <span className="ohp-ai-check mr-1 h-4 w-4 items-center justify-center rounded-full bg-emerald-500 align-[-3px] text-white"><Check className="h-3 w-3" strokeWidth={3} /></span>}
           {state.status === 'running' || state.status === 'working'
             ? <WorkingScene tool={action.tool} message={state.status === 'working' ? state.message : undefined} />
-            : setup && setup.some(s => s.state === 'run' || s.state === 'wait') ? <WorkingScene tool="create_spotlight" />
             : state.message || 'Done.'}
-          {setup && <SetupSteps steps={setup} />}
           {state.status === 'done' && state.made?.kind === 'design' && <MadeDesign made={state.made as any} fresh={fresh} />}
+          {state.status === 'done' && state.made?.kind === 'media' && (state.made as any).url && (
+            (state.made as any).media === 'video'
+              ? <video src={resolveMediaUrl((state.made as any).url)} controls playsInline className="mt-2 max-h-[260px] w-full rounded-lg bg-black" data-testid="ai-media-result" />
+              : <a href={resolveMediaUrl((state.made as any).url)} target="_blank" rel="noopener" className="mt-2 block" title="See it full size"><img src={resolveMediaUrl((state.made as any).url)} alt="Your finished photo" className="ohp-ai-reveal max-h-[260px] w-auto max-w-full rounded-lg shadow-sm" data-testid="ai-media-result" /></a>
+          )}
           {state.status === 'done' && state.share?.url && <LinkPreviewCard url={state.share.url} preview={state.share.preview} />}
           {(state.status === 'done' || state.status === 'working') && state.link && (
             <Link href={state.link} className="group mt-1.5 flex items-center gap-1 font-bold text-[#8b7355] dark:text-[#C9A24D]">

@@ -84,6 +84,8 @@ export interface Property {
   unreadCommentCount?: number;
   visitorInteractions?: PropertyInteraction[];
   tourCount?: number;
+  /** Agent's list: any tour on this home, waiting, confirmed or done. */
+  hasTourRequest?: boolean;
   hasTourScheduled?: boolean;
   /** The buyer's showing request for this home: waiting on the agent, confirmed, or toured. */
   tourStatus?: 'pending' | 'confirmed' | 'done';
@@ -1127,6 +1129,8 @@ export interface AgentFormConfig {
   redirect_to_agent_hub: boolean;
   /** Showcase-building forms: open the Showcase the answers just built (wins over the Agent Hub). */
   redirect_to_showcase?: boolean;
+  redirect_mode?: string | null;
+  redirect_url?: string | null;
   property_photo_carousel: boolean;
   background_effects: boolean;
   welcome_text_effects: boolean;
@@ -3926,7 +3930,7 @@ export interface AIToolCallRef {
   // record_type 'action' run in the browser (designs) and what it made
   client_action?: string;
   payload?: Record<string, unknown>;
-  made?: { kind: string; title?: string; design_id?: string; is_print?: string; site_id?: string } | null;
+  made?: { kind: string; title?: string; design_id?: string; is_print?: string; site_id?: string; url?: string; media?: string; before?: string } | null;
   // a link a client would get by text - shown as its Messages-style preview card (10/31)
   share?: { url: string; preview?: string } | null;
 }

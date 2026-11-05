@@ -3625,7 +3625,7 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
         <AiAnalysisComplete report={report} monthlyLimitUsd={aiEstimate?.percent ? aiEstimate.usd / (aiEstimate.percent / 100) : null} celebrate={justGenerated} />
       ) : (
         <div className="relative overflow-hidden rounded-2xl border-2 border-[#C9A24D]/50 bg-gradient-to-br from-[#C9A24D]/15 via-[#C9A24D]/5 to-transparent p-4 shadow-[0_0_40px_-12px_rgba(201,162,77,0.5)] dark:border-[#C9A24D]/40 sm:p-6">
-          <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-[#C9A24D]/20 blur-3xl" />
+          <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.2),transparent)]" />
           {/* faint gold grid behind the desktop card */}
           <div aria-hidden className="pointer-events-none absolute inset-0 hidden opacity-[0.35] [background-image:linear-gradient(rgba(201,162,77,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(201,162,77,0.12)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:linear-gradient(90deg,transparent,black_40%,black)] sm:block" />
           {/* Phones (user, 10/20): "OpenHousePal AI" and the usage meter are two equal pills on ONE
@@ -3894,7 +3894,7 @@ function AiAnalysisComplete({ report, monthlyLimitUsd, celebrate }: { report: Cm
       transition={{ type: 'spring', stiffness: 320, damping: 26 }}
       className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-[#C9A24D]/[0.06] p-4 shadow-[0_18px_40px_-28px_rgba(16,185,129,0.7)] dark:border-emerald-900/40 dark:from-emerald-900/15 dark:via-[#111113] dark:to-[#C9A24D]/[0.06] sm:p-5"
     >
-      <div aria-hidden className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-emerald-400/15 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-[radial-gradient(closest-side,rgba(52,211,153,.15),transparent)]" />
       <div className="relative flex flex-col gap-3.5 sm:flex-row sm:items-center sm:gap-5">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <div className="relative flex h-11 w-11 shrink-0 items-center justify-center sm:h-12 sm:w-12">

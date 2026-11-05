@@ -110,7 +110,7 @@ export default function FeaturedHeroCard({ listing, theme, basePrefix = '', vari
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
 
           <div className="absolute left-5 top-5 flex flex-wrap gap-2">
-            <span className="rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: theme.secondary_color, color: theme.primary_color }}>
+            <span className="rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-accent-ink)' }}>
               Featured
             </span>
             {justListed && (

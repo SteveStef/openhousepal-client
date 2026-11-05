@@ -218,7 +218,7 @@ export default function LeadForm({
     return (
       <div className={`${t.text}`} role="status" aria-live="polite">
         {tourWindow}
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--sp-accent)] text-[color:var(--sp-on-accent)]">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-white">
           <Check className="h-5 w-5" />
         </span>
         <p className={`${t.heading} mt-5 text-3xl leading-tight`}>

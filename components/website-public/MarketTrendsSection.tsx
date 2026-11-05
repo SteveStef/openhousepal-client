@@ -43,7 +43,7 @@ export default function MarketTrendsSection({ trends, theme, areaName, bare = fa
   const yoyUp = (yoy || 0) >= 0
   const tiles = [
     trends.median_sold_price ? { icon: Home, label: 'Median sold price', value: formatCompactPrice(trends.median_sold_price), sub: 'last 12 months' } : null,
-    yoy != null ? { icon: yoyUp ? ArrowUpRight : ArrowDownRight, label: 'Year over year', value: `${yoyUp ? '+' : ''}${yoy}%`, sub: trends.prior_median_sold_price ? `was ${formatCompactPrice(trends.prior_median_sold_price)}` : 'median sold price', tone: yoyUp ? '#16a34a' : '#dc2626' } : null,
+    yoy != null ? { icon: yoyUp ? ArrowUpRight : ArrowDownRight, label: 'Year over year', value: `${yoyUp ? '+' : ''}${yoy}%`, sub: trends.prior_median_sold_price ? `was ${formatCompactPrice(trends.prior_median_sold_price)}` : 'median sold price', tone: yoyUp ? '#16a34a' : 'var(--site-trend-down)' } : null,
     trends.closed_count ? { icon: TrendingUp, label: 'Homes sold', value: String(trends.closed_count), sub: 'last 12 months' } : null,
     trends.median_sale_to_list_pct ? { icon: Percent, label: 'Sale to list', value: `${trends.median_sale_to_list_pct}%`, sub: trends.median_sale_to_list_pct >= 100 ? 'homes sell over asking' : 'of asking price' } : null,
     trends.median_sold_dom != null ? { icon: CalendarClock, label: 'Days to sell', value: String(trends.median_sold_dom), sub: 'median, sold homes' } : null,
@@ -108,13 +108,13 @@ export default function MarketTrendsSection({ trends, theme, areaName, bare = fa
                   {m.median_price ? (
                     <>
                       <rect x={x} y={y} width={w} height={h} rx={6} fill="url(#ohp-trend-bar)" />
-                      <text x={x + w / 2} y={y - 6} textAnchor="middle" fontSize="11" fontWeight="800" fill="currentColor" opacity="0.75">{formatCompactPrice(m.median_price)}</text>
+                      <text x={x + w / 2} y={y - 6} textAnchor="middle" fontSize="11" fontWeight="800" fill="currentColor" opacity="0.75" className="ohp-keep-solid">{formatCompactPrice(m.median_price)}</text>
                     </>
                   ) : (
                     <rect x={x} y={chartH + 6} width={w} height={4} rx={2} fill="currentColor" opacity="0.08" />
                   )}
-                  <text x={x + w / 2} y={chartH + 28} textAnchor="middle" fontSize="11" fontWeight="800" fill="currentColor" opacity="0.5">{m.label}</text>
-                  <text x={x + w / 2} y={chartH + 42} textAnchor="middle" fontSize="10" fontWeight="700" fill="currentColor" opacity="0.4">{m.closed ? `${m.closed} sold` : '—'}</text>
+                  <text x={x + w / 2} y={chartH + 28} textAnchor="middle" fontSize="11" fontWeight="800" fill="currentColor" opacity="0.5" className="ohp-keep-solid">{m.label}</text>
+                  <text x={x + w / 2} y={chartH + 42} textAnchor="middle" fontSize="10" fontWeight="700" fill="currentColor" opacity="0.4" className="ohp-keep-solid">{m.closed ? `${m.closed} sold` : '—'}</text>
                 </g>
               )
             })}

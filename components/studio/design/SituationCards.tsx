@@ -82,7 +82,7 @@ function SituationCard({ situation, index, onPick }: { situation: DesignSituatio
         <CardAlive seed={index * 3 + 2} />
         <Icon aria-hidden className="lx-mark pointer-events-none absolute -bottom-8 -right-5 hidden h-28 w-28 text-[#C9A24D]/[0.08] dark:text-[#e8c97a]/[0.06] sm:block" />
         <div aria-hidden className="ohp-tool-edge pointer-events-none absolute inset-x-0 top-0 h-[2px] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-20 -left-16 h-48 w-48 rounded-full bg-[#C9A24D]/0 blur-3xl transition-colors duration-700 group-hover:bg-[#C9A24D]/20" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-20 -left-16 h-48 w-48 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.2),transparent)] opacity-0 transition-opacity duration-700 group-hover:opacity-100" />
 
         {/* Icon tile (+ the "no listing needed" tag, tablet-up only; the phone bar says it in the text). */}
         <div className="relative flex shrink-0 items-start justify-between gap-2 sm:w-full">

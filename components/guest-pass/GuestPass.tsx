@@ -686,7 +686,7 @@ function HomeView({ data, token, street, onSimilar, onOpenSimilar, onCheat, onRe
     <div className="mx-auto max-w-5xl px-4 pb-4 pt-4 sm:pt-10">
       {/* Greeting - one tight line on phones so the home itself shows without scrolling. */}
       <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12, duration: 0.7, ease: [0.22, 1, 0.36, 1] }} className="relative">
-        <div aria-hidden className="pointer-events-none absolute -left-10 -top-16 h-44 w-72 rounded-full opacity-[0.16] blur-3xl dark:opacity-25" style={{ background: 'var(--gp)' }} />
+        <div aria-hidden className="pointer-events-none absolute -left-10 -top-16 h-44 w-72 rounded-full opacity-[0.16] dark:opacity-25" style={{ background: 'radial-gradient(closest-side, var(--gp), transparent)' }} />
         <p className="relative flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-[var(--gp)]">
           <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" /><span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" /></span>
           Thanks for signing in
@@ -841,7 +841,7 @@ function SimilarFeature({ data, street, onSeeAll, onOpen }: {
       initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18, duration: 0.4 }}
       className="relative mt-3 flex h-[156px] overflow-hidden rounded-[28px] border border-black/[0.06] bg-white shadow-[0_18px_50px_-28px_rgba(0,0,0,0.45)] dark:border-white/[0.07] dark:bg-[#141416] sm:mt-4 sm:h-[184px]"
     >
-      <div aria-hidden className="pointer-events-none absolute -left-12 -top-14 h-40 w-40 rounded-full opacity-[0.12] blur-3xl dark:opacity-20" style={{ background: 'var(--gp)' }} />
+      <div aria-hidden className="pointer-events-none absolute -left-12 -top-14 h-40 w-40 rounded-full opacity-[0.12] dark:opacity-20" style={{ background: 'radial-gradient(closest-side, var(--gp), transparent)' }} />
       <button type="button" onClick={onSeeAll} className="group relative flex min-w-0 flex-1 flex-col justify-center gap-2 py-3 pl-5 pr-3 text-left sm:gap-2.5 sm:pl-8 sm:pr-6">
         <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.24em] text-[var(--gp)] sm:text-[10px]">
           <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70 motion-reduce:hidden" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" /></span>
@@ -966,8 +966,8 @@ export function ShowcaseCta({ data, onShowcase, building, error }: { data: Guest
         {/* alive background, like the Tools page cards: drifting aurora, a faint grid, a big faint
             house that floats in place, cursor glow */}
         <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-          <span className="gp-sc-aurora-a absolute -bottom-28 -left-16 h-72 w-72 rounded-full blur-3xl" style={{ background: 'color-mix(in srgb, var(--gp) 30%, transparent)' }} />
-          <span className="gp-sc-aurora-b absolute -top-28 left-1/4 h-56 w-96 rounded-full blur-3xl" style={{ background: 'color-mix(in srgb, var(--gp) 18%, transparent)' }} />
+          <span className="gp-sc-aurora-a absolute -bottom-28 -left-16 h-72 w-72 rounded-full" style={{ background: 'radial-gradient(closest-side, color-mix(in srgb, var(--gp) 30%, transparent), transparent)' }} />
+          <span className="gp-sc-aurora-b absolute -top-28 left-1/4 h-56 w-96 rounded-full" style={{ background: 'radial-gradient(closest-side, color-mix(in srgb, var(--gp) 18%, transparent), transparent)' }} />
           <span className="gp-sc-grid absolute inset-0" />
           <Home className="gp-sc-mark absolute -bottom-12 -left-8 h-56 w-56" strokeWidth={0.8} />
           <span className="gp-sc-glow absolute inset-0 opacity-0 transition-opacity duration-500 group-hover/sc:opacity-100" />

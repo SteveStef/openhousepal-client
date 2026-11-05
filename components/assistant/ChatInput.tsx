@@ -1,11 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react'
-import { Send, Loader2, Mic, PhoneCall, Keyboard } from 'lucide-react'
+import { Send, Loader2, Mic, PhoneCall, Keyboard, ImagePlus, X } from 'lucide-react'
+import { uploadChatPhoto, type DroppedPhoto } from './PhotoDrop'
 
 interface ChatInputProps {
   // false back = it didn't go through (e.g. too many at once) - their words go back in the box
-  onSend: (message: string) => void | boolean | Promise<void | boolean>
+  onSend: (message: string, photos?: DroppedPhoto[]) => void | boolean | Promise<void | boolean>
   disabled?: boolean
   maxChars?: number
   placeholder?: string
@@ -74,12 +75,38 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
     liveValueRef.current = value
   }, [value])
 
+  // Photos waiting to go with the next message (owner, 11/05: drag one in, paste one, or tap the
+  // picture button). They upload right away, so sending is instant.
+  const [photos, setPhotos] = useState<{ key: string; preview: string; photo?: DroppedPhoto }[]>([])
+  const [photoError, setPhotoError] = useState('')
+  const photosRef = useRef(photos)
+  photosRef.current = photos
+  const fileInput = useRef<HTMLInputElement>(null)
+  const addFiles = useCallback((files: File[]) => {
+    setPhotoError('')
+    files.filter(f => f.type.startsWith('image/')).slice(0, Math.max(0, 6 - photosRef.current.length)).forEach(file => {
+      const key = `${file.name}-${Date.now()}-${Math.random()}`
+      setPhotos(list => [...list, { key, preview: URL.createObjectURL(file) }])
+      uploadChatPhoto(file).then(({ photo, error }) => {
+        if (photo) setPhotos(list => list.map(p => (p.key === key ? { ...p, photo } : p)))
+        else { setPhotos(list => list.filter(p => p.key !== key)); setPhotoError(error || "Couldn't add that photo.") }
+      })
+    })
+  }, [])
+  useEffect(() => {
+    const on = (e: Event) => addFiles((e as CustomEvent<File[]>).detail)
+    window.addEventListener('ohp:chat-files', on)
+    return () => window.removeEventListener('ohp:chat-files', on)
+  }, [addFiles])
+
   const handleSend = useCallback((textOverride?: string): boolean => {
     const trimmed = (textOverride ?? liveValueRef.current).trim()
-    if (!trimmed || disabledRef.current || trimmed.length > maxChars) return false
-    Promise.resolve(onSend(trimmed)).then(ok => {
+    const ready = photosRef.current.filter(p => p.photo).map(p => p.photo as DroppedPhoto)
+    if ((!trimmed && !ready.length) || photosRef.current.some(p => !p.photo) || disabledRef.current || trimmed.length > maxChars) return false
+    Promise.resolve(onSend(trimmed, ready)).then(ok => {
       if (ok === false && !liveValueRef.current.trim()) { setValue(trimmed); liveValueRef.current = trimmed }
     })
+    setPhotos([])
     setValue('')
     liveValueRef.current = ''
     // Send ends a dictation - the mic switches off (it never sends by itself).
@@ -181,6 +208,17 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
 
   return (
     <div className="border-t border-gray-100 dark:border-zinc-800/60 p-3 sm:p-4 bg-white dark:bg-zinc-900">
+      {photos.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-2" data-testid="ai-photo-chips">
+          {photos.map(p => (
+            <div key={p.key} className="relative h-16 w-16 overflow-hidden rounded-lg ring-1 ring-black/10">
+              <img src={p.preview} alt="Your photo" className={`h-full w-full object-cover ${p.photo ? '' : 'opacity-50'}`} />
+              {!p.photo && <Loader2 className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 animate-spin text-white" />}
+              <button type="button" aria-label="Remove this photo" onClick={() => setPhotos(list => list.filter(x => x.key !== p.key))} className="absolute right-0.5 top-0.5 grid h-4 w-4 place-items-center rounded-full bg-black/60 text-white"><X className="h-2.5 w-2.5" /></button>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="flex items-end gap-2">
         {voiceSupported && (
           <div className="relative flex-shrink-0">
@@ -233,10 +271,17 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
             )}
           </div>
         )}
+        <button type="button" onClick={() => fileInput.current?.click()} title="Add a photo" aria-label="Add a photo" data-testid="ai-add-photo"
+          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
+          <ImagePlus className="h-4 w-4" />
+        </button>
+        <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" data-testid="ai-photo-input"
+          onChange={e => { addFiles(Array.from(e.target.files || [])); e.target.value = '' }} />
         <textarea
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
+          onPaste={e => { const files = Array.from(e.clipboardData.files || []); if (files.length) { e.preventDefault(); addFiles(files) } }}
           placeholder={isListening ? 'Listening...' : placeholder || 'Ask me anything...'}
           rows={1}
           ref={boxRef}
@@ -249,12 +294,13 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
         />
         <button
           onClick={() => handleSend()}
-          disabled={disabled || !value.trim() || overLimit}
+          disabled={disabled || (!value.trim() && !photos.some(p => p.photo)) || photos.some(p => !p.photo) || overLimit}
           className="flex-shrink-0 flex items-center justify-center w-11 h-11 rounded-xl bg-[#8b7355] hover:bg-[#7a6549] disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed text-white transition-colors"
         >
           {disabled ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
         </button>
       </div>
+      {photoError && <p className="mt-1.5 text-xs font-semibold text-red-500" role="alert">{photoError}</p>}
       {overLimit && (
         <p className="mt-1.5 text-xs text-red-500">
           Message is too long ({value.length.toLocaleString()} / {maxChars.toLocaleString()} characters).

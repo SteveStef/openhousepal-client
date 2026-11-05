@@ -90,6 +90,7 @@ function ShowcaseContent() {
   const [isEditCriteriaOpen, setIsEditCriteriaOpen] = useState(false)
 
   const isInternalSyncRef = useRef(false)
+  const backSeededRef = useRef(false)
   // The homes in the list on screen right now, and the list the open details window steps through.
   const filteredIdsRef = useRef<string[]>([])
   const navIdsRef = useRef<string[]>([])
@@ -783,6 +784,19 @@ function ShowcaseContent() {
       if (property) {
         // If it's a new property selection, update state and load details
         if (!selectedProperty || String(selectedProperty.id) !== String(property.id)) {
+          // Opened straight from a link (a text, an email): put their Showcase behind this home, so
+          // the phone's own Back lands on it instead of leaving (owner, 11/04).
+          if (!backSeededRef.current && !window.history.state?.ohpHome) {
+            backSeededRef.current = true
+            isInternalSyncRef.current = true
+            const here = `${window.location.pathname}${window.location.search}${window.location.hash}`
+            const listParams = new URLSearchParams(window.location.search)
+            listParams.delete('property')
+            const q = listParams.toString()
+            window.history.replaceState(null, '', `${showcaseBase}${q ? `?${q}` : ''}`)
+            window.history.pushState({ ohpHome: true }, '', here)
+            setTimeout(() => { isInternalSyncRef.current = false }, 100)
+          }
           setSelectedProperty(property)
           setIsModalOpen(true)
           loadPropertyDetails(property)

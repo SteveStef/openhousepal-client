@@ -121,9 +121,9 @@ export default function FeaturedListingsBlock({ data, theme, siteId, basePrefix 
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div className="max-w-2xl">
               <div className="flex items-center gap-3">
-                <Sparkles className="h-4 w-4 shrink-0" style={{ color: gold }} />
-                <span className="h-px w-8" style={{ backgroundColor: gold }} />
-                <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: gold }}>{data.eyebrow || 'Featured Collection'}</span>
+                <Sparkles className="h-4 w-4 shrink-0" style={{ color: 'var(--site-accent)' }} />
+                <span className="h-px w-8" style={{ backgroundColor: 'var(--site-accent)' }} />
+                <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent)' }}>{data.eyebrow || 'Featured Collection'}</span>
               </div>
               <h2 className={`ohp-site-heading mt-4 text-4xl font-black leading-[1.05] text-white sm:text-6xl ${serif}`}>
                 {(() => {
@@ -135,7 +135,7 @@ export default function FeaturedListingsBlock({ data, theme, siteId, basePrefix 
               <p className="mt-4 max-w-xl text-sm text-white/70 sm:text-base">{data.subtext || 'A curated selection of exceptional homes available now.'}</p>
             </div>
             {siteId && (
-              <a href={`${basePrefix}/properties`} className="ohp-gold-sheen inline-flex items-center gap-2 rounded-full px-6 py-3 text-xs font-black uppercase tracking-widest shadow-lg transition hover:-translate-y-0.5" style={{ backgroundColor: gold, color: theme.primary_color }}>
+              <a href={`${basePrefix}/properties`} className="ohp-gold-sheen inline-flex items-center gap-2 rounded-full px-6 py-3 text-xs font-black uppercase tracking-widest shadow-lg transition hover:-translate-y-0.5" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-accent-ink)' }}>
                 See the collection <ChevronRight className="h-3.5 w-3.5" />
               </a>
             )}

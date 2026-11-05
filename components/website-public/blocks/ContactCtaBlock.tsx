@@ -21,9 +21,9 @@ export default function ContactCtaBlock({ data, theme, basePrefix = '' }: { data
       <section id="contact" className="px-6 py-16 sm:py-20" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>
         <div className="mx-auto flex max-w-6xl flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-xl">
-            <p className="text-[12px] font-bold uppercase tracking-[0.2em] opacity-75">Get in touch</p>
+            <p className="text-[12px] font-bold uppercase tracking-[0.2em] ohp-keep-solid opacity-75">Get in touch</p>
             <h2 className={`${headingClass(theme.heading_font)} mt-2 text-[2.2rem] font-extrabold leading-[1.08] tracking-tight sm:text-5xl`}>{headline}</h2>
-            {subtext && <p className={`mt-3 text-base opacity-80 ${fontClass(theme.body_font)}`}>{subtext}</p>}
+            {subtext && <p className={`mt-3 text-base ohp-keep-solid opacity-80 ${fontClass(theme.body_font)}`}>{subtext}</p>}
           </div>
           <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap lg:justify-end">
             <a href={`${basePrefix}/contact`} data-ohp-form="how_can_i_help" data-ohp-form-title="Book a consultation" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#111827] px-6 py-3.5 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5"><CalendarDays className="h-4 w-4" /> Book a consultation</a>
@@ -47,8 +47,8 @@ export default function ContactCtaBlock({ data, theme, basePrefix = '' }: { data
         <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full opacity-25" style={{ background: `radial-gradient(closest-side, ${gold} 0%, ${gold} 40%, transparent 100%)` }} />
         <div className="pointer-events-none absolute -bottom-28 -right-16 h-72 w-72 rounded-full opacity-15" style={{ background: `radial-gradient(closest-side, ${gold} 0%, ${gold} 40%, transparent 100%)` }} />
         <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,.7)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.7)_1px,transparent_1px)] [background-size:40px_40px] [mask-image:radial-gradient(60%_70%_at_50%_0%,#000,transparent_75%)]" />
-        <p className="relative flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: gold }}>
-          <span className="h-px w-8" style={{ backgroundColor: gold }} />Get in touch<span className="h-px w-8" style={{ backgroundColor: gold }} />
+        <p className="relative flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent)' }}>
+          <span className="h-px w-8" style={{ backgroundColor: 'var(--site-accent)' }} />Get in touch<span className="h-px w-8" style={{ backgroundColor: 'var(--site-accent)' }} />
         </p>
         <h2 className={`relative mt-4 text-4xl font-black leading-tight sm:text-5xl ${fontClass(theme.heading_font, 'font-serif')}`}>
           {headline}
@@ -59,7 +59,7 @@ export default function ContactCtaBlock({ data, theme, basePrefix = '' }: { data
             <CalendarDays className="h-4 w-4" /> Book a consultation
           </a>
           {phone && (
-            <a href={`tel:${tel}`} className="ohp-gold-sheen inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-sm font-black uppercase tracking-wide shadow-xl transition hover:-translate-y-0.5" style={{ backgroundColor: gold, color: theme.primary_color }}>
+            <a href={`tel:${tel}`} className="ohp-gold-sheen inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-sm font-black uppercase tracking-wide shadow-xl transition hover:-translate-y-0.5" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-accent-ink)' }}>
               <Phone className="h-4 w-4" /> Call {phone}
             </a>
           )}

@@ -241,7 +241,7 @@ function MediaLabListPage() {
         ) : (
           <div className="animate-fadeIn relative mt-5 overflow-hidden rounded-2xl border border-[#C9A24D]/30 bg-white shadow-sm dark:border-[#C9A24D]/20 dark:bg-[#151517]">
             <div className="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-gradient-to-r from-[#C9A24D] to-[#e0b85f]" />
-            <div className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-[#C9A24D]/10 blur-3xl" />
+            <div className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.1),transparent)]" />
             <div className="relative flex flex-col items-center gap-6 px-6 py-10 text-center sm:px-10 sm:py-14">
               <div className="flex items-center gap-2.5 sm:gap-3.5">
                 {[

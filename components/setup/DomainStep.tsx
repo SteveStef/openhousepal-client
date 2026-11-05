@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react'
 import { Globe, Loader2, Lock, ShoppingBag, Sparkles } from 'lucide-react'
 import api from '@/lib/api-service'
-import DomainsPanel from '@/components/studio/website/DomainsPanel'
+import DomainsPanel, { ChangeAddress } from '@/components/studio/website/DomainsPanel'
 import { ChoiceCard, StepCtx, SubHead, useGate } from './SetupUi'
 
 const OHP_BASE_DOMAIN = process.env.NEXT_PUBLIC_OHP_BASE_DOMAIN || 'openhousepal.com'
@@ -65,9 +65,12 @@ export function DomainStep({ ctx }: { ctx: StepCtx }) {
       </div>
 
       {choice === 'free' && (
-        <p className="rounded-2xl bg-[#FAFAF7] p-4 text-[14px] font-semibold text-gray-600 dark:bg-white/[0.04] dark:text-white/65">
+        <div className="rounded-2xl bg-[#FAFAF7] p-4 dark:bg-white/[0.04]">
+        <p className=" text-[14px] font-semibold text-gray-600 dark:bg-white/[0.04] dark:text-white/65">
           Your website stays at <span className="font-mono font-bold text-[#111827] dark:text-white">{free}</span>. Want your own later? It&apos;s under Settings &gt; IDX Domain.
         </p>
+          <ChangeAddress slug={slug} onSaved={setSlug} />
+        </div>
       )}
       {(choice === 'have' || choice === 'buy') && (
         <div className="rounded-3xl border-2 border-[#ece5d6] bg-white p-4 dark:border-white/10 dark:bg-[#141416] sm:p-5">

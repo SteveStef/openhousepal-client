@@ -16,79 +16,7 @@ import api from '@/lib/api-service'
 import { Check, ChevronDown, Loader2, Send, Sparkles } from 'lucide-react'
 import HeroTagline from '@/components/home/HeroTagline'
 import CalmLoops, { usePlayWhenSeen } from '@/components/CalmLoops'
-
-// The FAQ section's closing "Ask Us a Question" card. Logged-in agents already have a real
-// ticket inbox (Header's Help icon / /settings/help), so this just routes them straight into the
-// new-ticket form there instead of re-implementing submission. A signed-out visitor has no
-// account for a ticket thread to belong to, so instead this collects a one-off email + message
-// and posts it to the public (no-auth) endpoint - it lands in its own "Questions" tab in the
-// admin dashboard, kept separate from agents' own support tickets.
-function AskQuestionCard({ isAuthenticated }: { isAuthenticated: boolean }) {
-  const [email, setEmail] = useState('')
-  const [message, setMessage] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
-  const [error, setError] = useState('')
-
-  const handleSubmit = async () => {
-    if (!email.trim() || !message.trim() || submitting) return
-    setSubmitting(true)
-    setError('')
-    const { success, error: err } = await api.publicQuestions.submit(email.trim(), message.trim())
-    setSubmitting(false)
-    if (success) {
-      setSubmitted(true)
-      setEmail('')
-      setMessage('')
-    } else {
-      setError(err || 'Something went wrong. Please try again.')
-    }
-  }
-
-  return (
-    <div className="mt-10 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-[#151517]/80 shadow-sm p-8 text-center">
-      <h4 className="text-xl font-bold text-[#0B0B0B] dark:text-white mb-2">Still have a question?</h4>
-      <p className="text-[#6B7280] dark:text-gray-400 font-medium mb-6">We're happy to help - ask us anything.</p>
-
-      {isAuthenticated ? (
-        <Link
-          href="/settings/help?compose=1&category=support"
-          className="inline-flex items-center gap-2 rounded-xl bg-[#111827] dark:bg-white text-white dark:text-[#111827] px-6 py-3.5 font-bold hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
-        >
-          <Send className="w-4 h-4" /> Ask Us a Question
-        </Link>
-      ) : submitted ? (
-        <p className="text-[#C9A24D] font-bold">Thanks! We'll get back to you soon.</p>
-      ) : (
-        <div className="max-w-md mx-auto flex flex-col gap-3 text-left">
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="Your email"
-            className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0B0B0B] px-4 py-3 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:text-white"
-          />
-          <textarea
-            value={message}
-            onChange={e => setMessage(e.target.value)}
-            placeholder="Your question"
-            rows={3}
-            className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0B0B0B] px-4 py-3 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:text-white resize-none"
-          />
-          {error && <p className="text-sm font-bold text-red-500">{error}</p>}
-          <button
-            onClick={handleSubmit}
-            disabled={submitting || !email.trim() || !message.trim()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#111827] dark:bg-white text-white dark:text-[#111827] px-6 py-3.5 font-bold hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            {submitting ? 'Sending...' : 'Ask Us a Question'}
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
+import AskQuestionCard from '@/components/home/AskQuestionCard'
 
 function FAQItem({ faq, index, isVisible }: { faq: { question: string; answer: string }; index: number; isVisible: boolean }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -168,9 +96,32 @@ const TOOL_ICON_ASSEMBLE: Record<string, string> = {
   calsync: 'ohp-icon-assemble-calendar',
 }
 
+// What the server sends before the page takes over: until now the homepage arrived blank, so its
+// headline and links only existed after scripts ran. Google should get them straight away (owner, 11/05).
+const HOME_SCHEMA = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    { '@type': 'Organization', '@id': 'https://openhousepal.com/#organization', name: 'OpenHousePal', url: 'https://openhousepal.com', logo: 'https://openhousepal.com/icon-512.png' },
+    { '@type': 'WebSite', '@id': 'https://openhousepal.com/#website', name: 'OpenHousePal', url: 'https://openhousepal.com', publisher: { '@id': 'https://openhousepal.com/#organization' } },
+  ],
+}
+
+function HomeFirstPaint() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#FAFAF7] px-6 text-center dark:bg-[#0B0B0B]">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(HOME_SCHEMA) }} />
+      <h1 className="font-serif text-[3rem] font-black leading-[0.95] text-[#0B0B0B] dark:text-white sm:text-[4.5rem]">Less Busywork. More Business.</h1>
+      <p className="mt-5 text-lg font-medium text-[#4b5563] dark:text-gray-300">The most capable platform in real estate.</p>
+      <nav aria-label="OpenHousePal" className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm font-black text-[#8b7355] dark:text-[#e8c97a]">
+        {[['/tools', 'All Tools'], ['/pricing', 'Pricing'], ['/idx-websites', 'IDX Websites'], ['/resources', 'Resources'], ['/brokerages', 'For Brokerages'], ['/faq', 'FAQ'], ['/about', 'About'], ['/register', 'Create Your Account']].map(([href, label]) => <Link key={href} href={href}>{label}</Link>)}
+      </nav>
+    </div>
+  )
+}
+
 export default function HomePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B]" />}>
+    <Suspense fallback={<HomeFirstPaint />}>
       {/* The looping glows / shimmers rest when off screen or untouched - a phone left on this page got hot (11/01) */}
       <CalmLoops />
       <HomePageContent />
@@ -440,7 +391,7 @@ function HomePageContent() {
 
 
   if (isCheckingAuth || (isAuthenticated && !viewMarketingAnyway)) {
-    return <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B]" />
+    return <HomeFirstPaint />
   }
 
 
@@ -601,7 +552,7 @@ function HomePageContent() {
             </p>
 
             <div className="relative inline-block">
-              <div className="absolute -inset-3 rounded-[2rem] bg-[#C9A24D]/40 blur-xl opacity-70 animate-glow-pulse -z-10"></div>
+              <div className="absolute inset-0 rounded-[2rem] shadow-[0_0_30px_12px_rgba(201,162,77,.4)] opacity-70 animate-glow-pulse -z-10"></div>
               <Link
                 href="/register"
                 className="group relative inline-flex items-center px-12 py-6 bg-gradient-to-r from-[#111827] via-[#1f2937] to-[#111827] dark:from-white dark:via-gray-50 dark:to-white text-white dark:text-[#111827] rounded-2xl font-bold text-xl overflow-hidden shadow-[0_16px_40px_-8px_rgba(17,24,39,0.45)] transform transition-all duration-300 hover:scale-105 hover:shadow-[0_24px_55px_-8px_rgba(201,162,77,0.55)] active:scale-95 whitespace-nowrap"
@@ -709,8 +660,8 @@ function HomePageContent() {
                           >
                             <span aria-hidden className="ohp-tier-spin pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[160%] bg-[conic-gradient(from_0deg,#5a4520_0%,#C9A24D_18%,#fff3cf_25%,#C9A24D_32%,#5a4520_50%,#C9A24D_68%,#fff3cf_75%,#C9A24D_82%,#5a4520_100%)]" style={{ translate: '-50% -50%' }} />
                             <span className="relative flex items-center justify-center gap-3 overflow-hidden rounded-[14.5px] bg-[radial-gradient(120%_160%_at_50%_0%,#2a2218_0%,#111827_55%,#0b0b0b_100%)] px-4 py-3.5">
-                              <span aria-hidden className="ohp-idx-aurora pointer-events-none absolute -top-8 left-1/4 h-20 w-1/2 rounded-full bg-[#C9A24D]/45 blur-2xl" />
-                              <span aria-hidden className="ohp-idx-aurora-b pointer-events-none absolute -bottom-10 right-[10%] h-20 w-2/5 rounded-full bg-[#e8c97a]/25 blur-2xl" />
+                              <span aria-hidden className="ohp-idx-aurora pointer-events-none absolute -top-8 left-1/4 h-20 w-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.45),transparent)]" />
+                              <span aria-hidden className="ohp-idx-aurora-b pointer-events-none absolute -bottom-10 right-[10%] h-20 w-2/5 rounded-full bg-[radial-gradient(closest-side,rgba(232,201,122,.25),transparent)]" />
                               <span aria-hidden className="ohp-idx-grid pointer-events-none absolute inset-0 opacity-[0.10] [background-image:linear-gradient(rgba(255,255,255,1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,1)_1px,transparent_1px)] [background-size:18px_18px]" />
                               <svg aria-hidden className="ohp-idx-skyline pointer-events-none absolute inset-x-0 bottom-0 h-7 w-full text-[#C9A24D]/35" viewBox="0 0 600 28" preserveAspectRatio="none" fill="none" stroke="currentColor" strokeWidth="1"><path d="M0 27h30V17l12-9 12 9v10h22V12h16v15h20V15l15-11 15 11v12h26V9h10V3h8v6h10v18h24V17l14-10 14 10v10h20V13h18v14h24V16l16-12 16 12v11h18V10h14v17h26V18l12-9 12 9v9h30V14h16v13h22V16l15-11 15 11v11h40" /></svg>
                               {[['12%', '30%', 0], ['31%', '70%', 1.3], ['63%', '26%', 2.4], ['84%', '64%', 0.7]].map(([l, t, d], k) => (
@@ -841,6 +792,7 @@ function HomePageContent() {
                 </div>
               </div>
             </div>
+            <p className="mt-6 text-center"><Link href="/tools" className="text-sm font-black text-[#8b7355] underline underline-offset-4 dark:text-[#e8c97a]">See all tools</Link></p>
             <div className="md:mt-8 lg:mt-10">{renderInlineCue('tools', false)}</div>
           </div>
         </div>
@@ -961,8 +913,8 @@ function HomePageContent() {
                       {/* Decorative Circles - only show if no image */}
                       {!item.image && (
                         <>
-                          <div className="absolute top-4 right-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
-                          <div className="absolute bottom-4 left-4 w-32 h-32 bg-black/10 rounded-full blur-2xl"></div>
+                          <div className="absolute top-4 right-4 w-24 h-24 bg-[radial-gradient(closest-side,rgba(255,255,255,.1),transparent)] rounded-full"></div>
+                          <div className="absolute bottom-4 left-4 w-32 h-32 bg-[radial-gradient(closest-side,rgba(0,0,0,.1),transparent)] rounded-full"></div>
                         </>
                       )}
                       
@@ -1162,6 +1114,8 @@ function HomePageContent() {
             ))}
           </div>
 
+          <p className="mt-6 text-center"><Link href="/faq" className="text-sm font-black text-[#8b7355] underline underline-offset-4 dark:text-[#e8c97a]">See every question</Link></p>
+
           <AskQuestionCard isAuthenticated={isAuthenticated} />
         </div>
       </section>
@@ -1181,7 +1135,7 @@ function SectionSeam() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
       <div className="relative h-px w-[min(880px,82%)] bg-gradient-to-r from-transparent via-[#C9A24D]/55 to-transparent">
-        <div className="absolute left-1/2 top-0 h-16 w-2/3 -translate-x-1/2 rounded-full bg-[#C9A24D]/10 blur-2xl" />
+        <div className="absolute left-1/2 top-0 h-16 w-2/3 -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.1),transparent)]" />
         <div className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-[#C9A24D]/70 bg-[#FAFAF7] dark:bg-[#0B0B0B]" />
       </div>
     </div>

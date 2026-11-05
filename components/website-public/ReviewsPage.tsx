@@ -55,16 +55,16 @@ export default function ReviewsPage({ data, theme, basePrefix, agent }: { data: 
           <CinematicHeroBackground photos={[]} />
           <div className="relative mx-auto max-w-3xl">
             <div className="mb-5 flex items-center justify-center gap-3">
-              <span className="h-px w-8" style={{ backgroundColor: theme.secondary_color }} />
-              <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: theme.secondary_color }}>Client Reviews</span>
-              <span className="h-px w-8" style={{ backgroundColor: theme.secondary_color }} />
+              <span className="h-px w-8" style={{ backgroundColor: 'var(--site-accent)' }} />
+              <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent)' }}>Client Reviews</span>
+              <span className="h-px w-8" style={{ backgroundColor: 'var(--site-accent)' }} />
             </div>
             <h1 className={`ohp-site-heading text-4xl font-black leading-[1.1] text-white sm:text-6xl ${serif}`}>
               <span className="ohp-text-shimmer block">What Clients Say</span>
             </h1>
             <div className="mt-7 inline-flex flex-wrap items-center justify-center gap-3 rounded-full border border-white/15 bg-white/5 px-5 py-2.5 ">
               <span className="inline-flex gap-0.5">
-                {[1, 2, 3, 4, 5].map(n => <Star key={n} className="h-5 w-5" style={n <= Math.round(avg) ? { color: theme.secondary_color, fill: theme.secondary_color } : { color: 'rgba(255,255,255,.25)' }} />)}
+                {[1, 2, 3, 4, 5].map(n => <Star key={n} className="h-5 w-5" style={n <= Math.round(avg) ? { color: 'var(--site-accent)', fill: 'var(--site-accent)' } : { color: 'rgba(255,255,255,.25)' }} />)}
               </span>
               <span className={`text-2xl font-black text-white ${serif}`}>{avg.toFixed(1)}</span>
               <span className="text-sm font-semibold text-white/65">{count} {count === 1 ? 'review' : 'reviews'}</span>

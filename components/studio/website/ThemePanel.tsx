@@ -36,7 +36,7 @@ function MiniSite({ template, mode, accent, primary }: { template: 'default' | '
       {/* hero */}
       <div className="relative px-2.5 py-3" style={{ background: luxe ? `linear-gradient(135deg, ${primary}, #05070c 70%)` : dark ? `linear-gradient(135deg, ${primary}, #0d0f14)` : `linear-gradient(135deg, ${primary}cc, ${primary})` }}>
         {luxe && <span className="absolute inset-0 opacity-[.12] [background-image:linear-gradient(rgba(255,255,255,.8)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.8)_1px,transparent_1px)] [background-size:10px_10px]" />}
-        {luxe && <span className="absolute -right-4 -top-6 h-14 w-14 rounded-full opacity-40 blur-xl" style={{ backgroundColor: accent }} />}
+        {luxe && <span className="absolute -right-4 -top-6 h-14 w-14 rounded-full opacity-40" style={{ background: `radial-gradient(closest-side, ${accent}, transparent)` }} />}
         <span className="relative block h-1 w-10 rounded-full" style={{ backgroundColor: accent }} />
         <span className="relative mt-1.5 block h-2 w-20 rounded-sm bg-white/90" />
         <span className="relative mt-1 block h-2 w-12 rounded-sm" style={{ backgroundColor: accent }} />

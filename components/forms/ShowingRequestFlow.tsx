@@ -132,12 +132,14 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
     const startTimes = () => { if (!latest) window.setTimeout(() => setTourOpen(true), 380) }
     if (form.linkedProperty?.address) {
       const lp = form.linkedProperty
+      const address = [lp.address, lp.city, [lp.state, lp.zipcode].filter(Boolean).join(' ')].filter(Boolean).join(', ')
       setHome({
-        address: [lp.address, lp.city, [lp.state, lp.zipcode].filter(Boolean).join(' ')].filter(Boolean).join(', '),
+        address,
         street: titleCase(lp.address.split(',')[0]), place: [titleCase(lp.city), [lp.state, lp.zipcode].filter(Boolean).join(' ')].filter(Boolean).join(', '),
         photo: lp.image_url ? resolveMediaUrl(lp.image_url) || lp.image_url : null, listingKey: lp.listing_key || null,
         price: lp.price, beds: lp.beds, baths: lp.baths, sqft: lp.sqft,
       })
+      onProgress?.(1, 'property_of_interest', false, { property_of_interest: address })
       startTimes()
     } else if (prefillAddress?.trim()) {
       const typed = prefillAddress.trim()
@@ -153,6 +155,12 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
       }).catch(() => {})
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Stats funnel: 1 the home (above and in choose), 2 the times as the window opens, 3 their details
+  // as they reach them (onDetailsStep) - the form's own question order and ids.
+  useEffect(() => {
+    if (tourOpen && home) onProgress?.(2, 'preferred_times', false, { property_of_interest: home.address })
+  }, [tourOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live suggestions while they type.
   useEffect(() => {
@@ -274,7 +282,7 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
       <style>{SHOWING_CSS}</style>
       {look && <style dangerouslySetInnerHTML={{ __html: FORM_LOOK_CSS }} />}
       {/* the same moving backdrop as the other forms (or the plain lit one when effects are off) */}
-      {effects ? <WelcomeMotionBackdrop accent={accent} intro={!home} /> : (
+      {effects ? <WelcomeMotionBackdrop accent={accent} intro={!home} look={look} /> : (
         <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
           <div className="showing-orb absolute -top-40 left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.28),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.2),transparent)]" />
         </div>
@@ -424,6 +432,10 @@ export default function ShowingRequestFlow({ form, agentSlug, formSlug, prefillA
         isOpen={tourOpen}
         onClose={closeTour}
         onSubmit={submit}
+        onDetailsStep={picks => onProgress?.(3, 'contact_info', false, {
+          ...(home ? { property_of_interest: home.address } : {}),
+          ...Object.fromEntries(picks.flatMap((pick, i) => [[`preferred_date_${i + 1}`, pick.date], [`preferred_time_${i + 1}`, pick.time]])),
+        })}
         showContactFields
         contactStyle="full"
         initialName={prefillName || ''}

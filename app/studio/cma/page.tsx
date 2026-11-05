@@ -634,7 +634,7 @@ function CreateCmaModal({ onClose, onCreated }: { onClose: () => void, onCreated
             className="relative w-full max-w-md overflow-hidden rounded-t-[28px] border border-gray-200 bg-white px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2 shadow-2xl dark:border-gray-800 dark:bg-[#151517] sm:rounded-[28px] sm:p-6"
             onClick={event => event.stopPropagation()}
           >
-            <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-[#C9A24D]/15 blur-3xl" />
+            <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.15),transparent)]" />
             <div aria-hidden className="mx-auto mb-3 h-[5px] w-10 rounded-full bg-gray-200 dark:bg-gray-700 sm:hidden" />
             <motion.div
               initial="hidden"

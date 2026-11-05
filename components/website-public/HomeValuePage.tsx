@@ -50,7 +50,7 @@ export default function HomeValuePage({ theme, basePrefix, profile, areas, revie
         <div className={`relative mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-10 ${luxe ? '' : 'lg:grid-cols-[1.15fr_1fr]'}`}>
           <div className="min-w-0">
             <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.26em]" style={{ color: luxe ? theme.secondary_color : 'var(--site-accent)' }}>
-              {luxe && <span className="h-px w-8" style={{ backgroundColor: theme.secondary_color }} />}Free home value
+              {luxe && <span className="h-px w-8" style={{ backgroundColor: 'var(--site-accent)' }} />}Free home value
             </p>
             <h1 className={`ohp-site-heading mt-4 max-w-3xl text-[2.6rem] font-black leading-[1.02] tracking-tight sm:text-7xl ${serif}`} style={luxe ? undefined : { color: 'var(--site-heading)' }}>
               What&apos;s your home <span className={luxe ? 'ohp-text-shimmer' : ''} style={luxe ? undefined : { color: 'var(--site-accent)' }}>really</span> worth?
@@ -93,7 +93,7 @@ export default function HomeValuePage({ theme, basePrefix, profile, areas, revie
           <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3">
             {steps.map((s, i) => (
               <div key={s.title} className={`relative border p-6 ${round}`} style={card}>
-                <span className="absolute right-5 top-4 text-5xl font-black opacity-[0.08]" style={{ color: 'var(--site-heading)' }}>{i + 1}</span>
+                <span className="ohp-keep-solid ohp-step-no absolute right-5 top-4 text-5xl font-black opacity-[0.08]" style={{ color: 'var(--site-heading)' }}>{i + 1}</span>
                 <span className={`flex h-12 w-12 items-center justify-center ${luxe ? 'rounded-full' : 'rounded-xl'}`} style={{ backgroundColor: 'rgba(var(--site-accent-rgb),0.12)', color: 'var(--site-accent)' }}><s.icon className="h-5 w-5" /></span>
                 <p className="mt-4 text-lg font-black" style={{ color: 'var(--site-heading)' }}>{s.title}</p>
                 <p className="mt-1.5 text-sm leading-relaxed" style={{ color: 'var(--site-ink-soft)' }}>{s.text}</p>
@@ -160,7 +160,7 @@ export default function HomeValuePage({ theme, basePrefix, profile, areas, revie
             </div>
             <div className="flex flex-wrap gap-3">
               <a href={`${basePrefix}/contact`} data-ohp-form="home_value" data-ohp-form-title="What's my home worth?"
-                className={`inline-flex items-center gap-2 px-6 py-3 text-sm font-black ${luxe ? 'ohp-gold-sheen rounded-full' : 'rounded-xl'}`} style={luxe ? { backgroundColor: theme.secondary_color, color: theme.primary_color } : { backgroundColor: '#ffffff', color: 'var(--site-accent-deep)' }}>
+                className={`inline-flex items-center gap-2 px-6 py-3 text-sm font-black ${luxe ? 'ohp-gold-sheen rounded-full' : 'rounded-xl'}`} style={luxe ? { backgroundColor: 'var(--site-accent)', color: 'var(--site-accent-ink)' } : { backgroundColor: '#ffffff', color: 'var(--site-accent-deep)' }}>
                 <MessageCircle className="h-4 w-4" /> Get my home value
               </a>
               {profile?.phone && <a href={`tel:${profile.phone}`} className={`inline-flex items-center gap-2 border border-white/40 px-6 py-3 text-sm font-black text-white ${luxe ? 'rounded-full' : 'rounded-xl'}`}><Phone className="h-4 w-4" /> {profile.phone}</a>}

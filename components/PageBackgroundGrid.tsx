@@ -15,9 +15,9 @@
 export default function PageBackgroundGrid({ className = '' }: { className?: string }) {
   return (
     <div className={`absolute inset-0 overflow-hidden pointer-events-none -z-10 ${className}`}>
-      <div className="animate-bg-blob-in absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] bg-[#C9A24D]/10 dark:bg-[#C9A24D]/5 rounded-full blur-[120px]" />
-      <div className="animate-bg-blob-in delay-200 absolute top-[18%] right-[-12%] w-[820px] h-[820px] bg-[#111827]/[0.05] dark:bg-[#C9A24D]/5 rounded-full blur-[110px]" />
-      <div className="animate-bg-blob-in delay-400 absolute top-[46%] left-[38%] w-[520px] h-[520px] bg-[#f0d494]/[0.14] dark:bg-[#f0d494]/[0.04] rounded-full blur-[100px]" />
+      <div className="animate-bg-blob-in absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] bg-[radial-gradient(closest-side,rgba(201,162,77,.1),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.05),transparent)] rounded-full" />
+      <div className="animate-bg-blob-in delay-200 absolute top-[18%] right-[-12%] w-[820px] h-[820px] bg-[radial-gradient(closest-side,rgba(17,24,39,.05),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.05),transparent)] rounded-full" />
+      <div className="animate-bg-blob-in delay-400 absolute top-[46%] left-[38%] w-[520px] h-[520px] bg-[radial-gradient(closest-side,rgba(240,212,148,.14),transparent)] dark:bg-[radial-gradient(closest-side,rgba(240,212,148,.04),transparent)] rounded-full" />
 
       {/* Architectural blueprint grid - 1.5px lines at 0.22 opacity, not the more "reasonable"
           looking 0.03-0.09 tried first, which is invisible on screen: a 1.5px line spaced 140px

@@ -19,7 +19,7 @@ const CSS = `
 .ohp-wm .ohp-l{display:inline-block}
 .ohp-wm .ohp-l[data-ch]::before{content:attr(data-ch)}
 .ohp-wm .ohp-name{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.ohp-anim .ohp-l{opacity:0;transform:translateY(.32em);filter:blur(3px);animation:ohpRise .62s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(var(--i) * 55ms)}
+.ohp-anim .ohp-l{opacity:0;transform:translateY(.32em);animation:ohpRise .62s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(var(--i) * 55ms)}
 .ohp-anim .ohp-roof,.ohp-anim .ohp-walls{stroke-dasharray:1;stroke-dashoffset:1;animation:ohpDraw .75s cubic-bezier(.65,0,.35,1) .25s forwards}
 .ohp-anim .ohp-walls{animation-delay:.4s}
 .ohp-anim .ohp-win{opacity:0;animation:ohpPop .4s cubic-bezier(.3,1.6,.5,1) .9s forwards;transform-box:fill-box;transform-origin:center}

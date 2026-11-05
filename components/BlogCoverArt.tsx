@@ -80,7 +80,7 @@ export default function BlogCoverArt({ category, title, tone = 'ink', className 
 const CSS = `
 .bca { color: var(--bca-glow); }
 .bca-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px); background-size: 28px 28px; -webkit-mask-image: radial-gradient(80% 70% at 70% 20%, #000, transparent 75%); mask-image: radial-gradient(80% 70% at 70% 20%, #000, transparent 75%); }
-.bca-orb { position: absolute; right: -18%; top: -22%; width: 70%; aspect-ratio: 1; border-radius: 999px; background: radial-gradient(circle, color-mix(in srgb, var(--bca-glow) 38%, transparent), transparent 65%); filter: blur(12px); animation: bcaOrb 9s ease-in-out infinite alternate; }
+.bca-orb { position: absolute; right: -18%; top: -22%; width: 70%; aspect-ratio: 1; border-radius: 999px; background: radial-gradient(circle, color-mix(in srgb, var(--bca-glow) 38%, transparent), transparent 65%); animation: bcaOrb 9s ease-in-out infinite alternate; }
 .bca-motif { position: absolute; right: 8%; top: 12%; width: 46%; max-width: 150px; opacity: .55; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--bca-glow) 45%, transparent)); animation: bcaFloat 12s ease-in-out infinite alternate; }
 .bca-motif svg { width: 100%; height: auto; }
 .bca-motif-b { right: auto; left: -6%; top: 48%; width: 34%; max-width: 110px; opacity: .16; animation-duration: 16s; animation-direction: alternate-reverse; }

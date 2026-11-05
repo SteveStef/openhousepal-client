@@ -158,7 +158,7 @@ function HomeCard({ p, i, kind, accent, className = '', eager = false }: { p: Sh
           <span className="absolute inset-x-0 bottom-0 p-4">
             <span className="block h-px w-10" style={{ background: `linear-gradient(90deg, ${accent}, transparent)` }} />
             {p.price ? <span className="mt-2 block text-[1.6rem] font-black leading-none tracking-tight text-white drop-shadow">{money(p.price)}</span> : null}
-            {place && <span className="mt-1.5 flex items-center gap-1 text-xs font-bold text-white/85"><MapPin className="h-3.5 w-3.5" style={{ color: accent }} />{place}</span>}
+            {place && <span className="mt-1.5 flex items-center gap-1 text-xs font-bold text-white/85"><MapPin className="ohp-on-photo h-3.5 w-3.5" style={{ color: accent }} />{place}</span>}
           </span>
         </div>
         <div className="px-4 pb-4 pt-3">

@@ -345,7 +345,7 @@ function SetupFlow() {
                 className="overflow-clip rounded-[32px] border border-[#C9A24D]/25 bg-white shadow-[0_50px_90px_-60px_rgba(139,106,43,.85)] dark:border-white/[0.08] dark:bg-[#121214]">
                 {/* step header */}
                 <div className="relative overflow-hidden border-b border-[#C9A24D]/15 bg-gradient-to-br from-[#fffaf0] via-white to-[#f8f1e2] px-6 pb-7 pt-7 dark:border-white/[0.06] dark:from-[#1a1712] dark:via-[#141416] dark:to-[#121214] sm:px-10 sm:pt-9">
-                  <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[#e8c97a]/30 blur-3xl dark:bg-[#C9A24D]/15" />
+                  <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(closest-side,rgba(232,201,122,.3),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.15),transparent)]" />
                   <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/70 to-transparent" />
                   {/* Phones: the icon sits small on the "Step x of y" line and the title gets the full
                       width (it used to push all the words right, leaving a gap under it - owner 10/22). */}
@@ -513,9 +513,9 @@ function ProgressRing({ pct, small = false }: { pct: number; small?: boolean }) 
 function SetupBackdrop() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
-      <div className="absolute -left-40 top-24 h-[520px] w-[520px] rounded-full bg-[#e8c97a]/25 blur-[120px] dark:bg-[#C9A24D]/10" />
-      <div className="absolute -right-32 top-[40%] h-[460px] w-[460px] rounded-full bg-[#1b6f58]/[0.07] blur-[110px] dark:bg-[#1b6f58]/15" />
-      <div className="absolute bottom-[-160px] left-1/3 h-[420px] w-[620px] rounded-full bg-[#C9A24D]/15 blur-[120px] dark:bg-[#2c4a96]/[0.12]" />
+      <div className="absolute -left-40 top-24 h-[520px] w-[520px] rounded-full bg-[radial-gradient(closest-side,rgba(232,201,122,.25),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.1),transparent)]" />
+      <div className="absolute -right-32 top-[40%] h-[460px] w-[460px] rounded-full bg-[radial-gradient(closest-side,rgba(27,111,88,.07),transparent)] dark:bg-[radial-gradient(closest-side,rgba(27,111,88,.15),transparent)]" />
+      <div className="absolute bottom-[-160px] left-1/3 h-[420px] w-[620px] rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.15),transparent)] dark:bg-[radial-gradient(closest-side,rgba(44,74,150,.12),transparent)]" />
       <div className="absolute inset-0 opacity-[0.5] [background-image:linear-gradient(rgba(139,106,43,.06)_1px,transparent_1px),linear-gradient(90deg,rgba(139,106,43,.06)_1px,transparent_1px)] [background-size:44px_44px] [mask-image:radial-gradient(70%_50%_at_50%_0%,#000,transparent)] dark:[background-image:linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px)]" />
     </div>
   )

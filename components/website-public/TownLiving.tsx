@@ -69,7 +69,7 @@ export default function TownLiving({ categories: researched, town, state, luxe, 
               <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors duration-300" style={{ backgroundColor: on ? 'rgba(0,0,0,.12)' : 'rgba(var(--site-accent-rgb),.12)', color: on ? 'inherit' : 'var(--site-accent)' }}><Icon className="h-4 w-4" /></span>
               <span className="relative min-w-0">
                 <span className="block whitespace-nowrap text-sm font-black">{SHORT[c.key] || c.label}</span>
-                <span className="block text-[11px] font-bold opacity-70">{c.items.length ? `${c.items.length} ${c.items.length === 1 ? 'place' : 'places'}` : 'On the map'}</span>
+                <span className="ohp-keep-solid block text-[11px] font-bold opacity-70">{c.items.length ? `${c.items.length} ${c.items.length === 1 ? 'place' : 'places'}` : 'On the map'}</span>
               </span>
             </button>
           )

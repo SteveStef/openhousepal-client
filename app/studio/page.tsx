@@ -462,7 +462,7 @@ function ProductCard({ href, icon: Icon, iconClass, eyebrow, title, description,
           card looked plain). Bottom-right on every size (owner, 10/22: keep it on the right). */}
       <Icon aria-hidden className="lx-mark pointer-events-none absolute -bottom-14 -right-12 h-60 w-60 text-[#C9A24D]/[0.13] sm:-bottom-12 sm:-right-10 sm:h-52 sm:w-52 dark:text-[#e8c97a]/[0.09]" />
       <div aria-hidden className="ohp-tool-edge pointer-events-none absolute inset-x-0 top-0 h-[2px] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-      <div aria-hidden className="pointer-events-none absolute -bottom-20 -left-16 h-48 w-48 rounded-full bg-[#C9A24D]/0 blur-3xl transition-colors duration-700 group-hover:bg-[#C9A24D]/20" />
+      <div aria-hidden className="pointer-events-none absolute -bottom-20 -left-16 h-48 w-48 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.2),transparent)] opacity-0 transition-opacity duration-700 group-hover:opacity-100" />
       {comingSoon && (
         <span className="absolute bottom-6 right-4 z-10 rounded-full bg-gray-200 px-2 py-0.5 sm:bottom-auto sm:right-3 sm:top-3 text-[9px] font-black uppercase tracking-widest text-gray-500 dark:bg-gray-700 dark:text-gray-400">
           Coming Soon

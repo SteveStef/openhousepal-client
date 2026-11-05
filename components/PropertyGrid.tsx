@@ -69,6 +69,8 @@ interface PropertyGridProps {
   onMoveToSold?: (property: Property, filed: boolean) => void
   /** Agent's Showcase: the "Send" button on each card. */
   onSend?: (property: Property) => void
+  /** Agent: copy a home's own link from its card (PropertyCard onCopyLink). */
+  onCopyLink?: (property: Property) => Promise<boolean>
   /** Agent's Showcase: each home's sends, newest first (lib/sendHome sendsByHome) - its Send button shows "Sent". */
   sentHomes?: Record<string, HomeSend[]>
   /** Agent's Showcase select mode: tapping a card picks it instead of opening it. */
@@ -91,7 +93,7 @@ export function homeMatches(p: any, key: string): boolean {
   return !!street && k.length > 5 && (k.startsWith(street) || street.startsWith(k.split(',')[0]))
 }
 
-export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, sortControl, headerAction, alignHeaderLeftOnMobile = false, compareInfo, destination, compareProperty, tourButtonVariant, cropMlsBadge = false, highlightFirst = false, highlightKey = null, animationKey, animationOrder, emptyState, compactHeader = false, phoneCompact = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold, onSend, sentHomes, selectMode = false, selectedIds, onToggleSelect }: PropertyGridProps) {
+export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, sortControl, headerAction, alignHeaderLeftOnMobile = false, compareInfo, destination, compareProperty, tourButtonVariant, cropMlsBadge = false, highlightFirst = false, highlightKey = null, animationKey, animationOrder, emptyState, compactHeader = false, phoneCompact = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold, onSend, onCopyLink, sentHomes, selectMode = false, selectedIds, onToggleSelect }: PropertyGridProps) {
   const firstCardRef = useRef<HTMLDivElement>(null)
   const [isHighlighting, setIsHighlighting] = useState(false)
   const hasFiredRef = useRef(false)
@@ -265,6 +267,7 @@ export default function PropertyGrid({ properties, title = "Properties", onLike,
             offMarketNotice={offMarketNotice}
             onMoveToSold={onMoveToSold}
             onSend={onSend}
+            onCopyLink={onCopyLink}
             sent={sentHomes?.[String(property.id)]?.[0]}
             selected={selectMode ? !!selectedIds?.has(String(property.id)) : undefined}
           />

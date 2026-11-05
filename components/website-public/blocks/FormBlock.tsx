@@ -47,7 +47,7 @@ export default function FormBlock({ data, theme, siteId, basePrefix = '' }: { da
     <section className="px-5 py-16 sm:px-6 sm:py-20">
       <div className={`relative mx-auto max-w-3xl overflow-hidden border px-6 py-10 text-center sm:px-12 sm:py-14 ${luxe ? 'rounded-[28px]' : 'rounded-2xl'}`}
         style={{ backgroundColor: 'var(--site-surface)', borderColor: 'var(--site-line)', boxShadow: 'var(--site-shadow)' }}>
-        <span aria-hidden className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[70%] -translate-x-1/2 rounded-full opacity-60 blur-3xl" style={{ backgroundColor: 'rgba(var(--site-accent-rgb),.18)' }} />
+        <span aria-hidden className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[70%] -translate-x-1/2 rounded-full opacity-60" style={{ background: 'radial-gradient(closest-side, rgba(var(--site-accent-rgb),.22), transparent)' }} />
         <p className="relative text-[11px] font-black uppercase tracking-[0.22em]" style={{ color: 'var(--site-accent-text)' }}>Let&apos;s talk</p>
         <h2 className={`ohp-site-heading relative mt-3 text-[1.9rem] leading-[1.1] sm:text-4xl ${luxe ? `font-black ${serif}` : `font-extrabold tracking-tight ${headingClass(theme.heading_font)}`}`} style={{ color: 'var(--site-heading)' }}>
           {title}

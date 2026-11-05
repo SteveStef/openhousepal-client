@@ -29,7 +29,7 @@ function Stars({ rating, size = 'h-4 w-4', onDark = false }: { rating: number; s
   return (
     <span className="inline-flex items-center gap-0.5" aria-label={`${rating} out of 5 stars`}>
       {[1, 2, 3, 4, 5].map(n => (
-        <Star key={n} className={size} style={n <= Math.round(rating) ? { color: 'var(--site-accent)', fill: 'var(--site-accent)' } : { color: onDark ? 'rgba(255,255,255,.25)' : 'var(--site-line-strong)' }} />
+        <Star key={n} className={size} style={n <= Math.round(rating) ? { color: 'var(--site-accent)', fill: 'var(--site-accent)' } : { color: onDark ? 'rgba(255,255,255,.25)' : 'var(--site-star-off)' }} />
       ))}
     </span>
   )
@@ -80,7 +80,7 @@ function WallCard({ rv, theme, highlight }: { rv: SiteReview; theme: any; highli
   const date = monthYear(rv.date)
   if (highlight) {
     return (
-      <figure className="ohp-rv-card relative overflow-hidden rounded-[26px] p-7 text-white" style={{ background: `radial-gradient(120% 90% at 100% 0%, rgba(var(--site-accent-rgb),.35), transparent 60%), ${theme.primary_color}` }}>
+      <figure className="ohp-rv-card ohp-ink-panel relative overflow-hidden rounded-[26px] p-7 text-white" style={{ background: `radial-gradient(120% 90% at 100% 0%, rgba(var(--site-accent-rgb),.35), transparent 60%), ${theme.primary_color}` }}>
         <Quote className="absolute -right-2 -top-2 h-24 w-24 opacity-10" style={{ color: 'var(--site-accent)', fill: 'var(--site-accent)' }} />
         <Stars rating={rv.rating} onDark />
         <blockquote className={`relative mt-4 text-[17px] leading-relaxed text-white/90 ${serif}`}>{`“${rv.body.trim()}”`}</blockquote>
@@ -99,7 +99,7 @@ function WallCard({ rv, theme, highlight }: { rv: SiteReview; theme: any; highli
       <span className="absolute inset-x-0 top-0 h-[3px] origin-left scale-x-0 transition-transform duration-500 group-hover:scale-x-100" style={{ backgroundColor: 'var(--site-accent)' }} />
       <div className="flex items-center justify-between gap-3">
         <Stars rating={rv.rating} />
-        <Quote className="h-6 w-6 opacity-20" style={{ color: 'var(--site-accent)', fill: 'var(--site-accent)' }} />
+        <Quote className="ohp-keep-solid h-6 w-6 opacity-20" style={{ color: 'var(--site-accent)', fill: 'var(--site-accent)' }} />
       </div>
       <blockquote className={`mt-4 text-[15px] leading-relaxed ${fontClass(theme.body_font)}`} style={{ color: 'var(--site-ink-soft)' }}>{`“${rv.body.trim()}”`}</blockquote>
       <figcaption className="mt-5 flex items-center gap-3 border-t pt-4" style={{ borderColor: 'var(--site-line)' }}>
@@ -209,7 +209,7 @@ export default function ReviewsShowcase({ data, theme, basePrefix, agent }: { da
       {featured && (
         <section className="mx-auto mt-14 grid max-w-6xl gap-6 px-6 lg:grid-cols-[1.55fr_1fr]">
           <Reveal>
-            <figure className="relative flex h-full flex-col justify-center overflow-hidden rounded-[32px] p-8 text-white sm:p-12" style={{ background: `radial-gradient(90% 120% at 0% 0%, rgba(var(--site-accent-rgb),.28), transparent 55%), radial-gradient(80% 100% at 100% 100%, rgba(var(--site-accent-rgb),.16), transparent 60%), ${theme.primary_color}` }}>
+            <figure className="ohp-ink-panel relative flex h-full flex-col justify-center overflow-hidden rounded-[32px] p-8 text-white sm:p-12" style={{ background: `radial-gradient(90% 120% at 0% 0%, rgba(var(--site-accent-rgb),.28), transparent 55%), radial-gradient(80% 100% at 100% 100%, rgba(var(--site-accent-rgb),.16), transparent 60%), ${theme.primary_color}` }}>
               <div className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,.9) 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
               <span className="relative text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent-text)' }}>Client spotlight</span>
               <Quote className="relative mt-5 h-12 w-12" style={{ color: 'var(--site-accent)', fill: 'var(--site-accent)' }} />
@@ -293,7 +293,7 @@ export default function ReviewsShowcase({ data, theme, basePrefix, agent }: { da
       {/* 5. Closing card with the agent */}
       <section className="px-6 pb-20 pt-14">
         <Reveal>
-          <div className="relative mx-auto grid max-w-5xl items-center gap-8 overflow-hidden rounded-[32px] p-8 text-white sm:p-10 md:grid-cols-[auto_1fr]" style={{ background: `radial-gradient(70% 120% at 100% 0%, rgba(var(--site-accent-rgb),.3), transparent 60%), ${theme.primary_color}` }}>
+          <div className="ohp-ink-panel relative mx-auto grid max-w-5xl items-center gap-8 overflow-hidden rounded-[32px] p-8 text-white sm:p-10 md:grid-cols-[auto_1fr]" style={{ background: `radial-gradient(70% 120% at 100% 0%, rgba(var(--site-accent-rgb),.3), transparent 60%), ${theme.primary_color}` }}>
             {agent?.photo_url && (
               <div className="mx-auto h-32 w-32 overflow-hidden rounded-full p-1 md:mx-0 md:h-40 md:w-40" style={{ background: 'conic-gradient(from 0deg, var(--site-accent-deep), var(--site-accent-light), var(--site-accent), var(--site-accent-deep))' }}>
                 <img src={sizedImage(agent.photo_url, 256)} loading="lazy" decoding="async" alt={agent.name || ''} className="h-full w-full rounded-full object-cover" />

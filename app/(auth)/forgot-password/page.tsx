@@ -67,10 +67,10 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] relative flex items-center justify-center px-6 py-12 overflow-hidden transition-colors duration-300">
       <AuthLuxeStyle />
-      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 -z-0 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#C9A24D]/15 blur-[110px]" />
+      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 -z-0 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.15),transparent)]" />
       {/* Refined Background Gradient Orbs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[#C9A24D]/5 rounded-full blur-[120px] pointer-events-none mix-blend-multiply dark:mix-blend-screen"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#111827]/5 dark:bg-[#C9A24D]/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply dark:mix-blend-screen"></div>
+      <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-[radial-gradient(closest-side,rgba(201,162,77,.05),transparent)] rounded-full pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[radial-gradient(closest-side,rgba(17,24,39,.05),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.05),transparent)] rounded-full pointer-events-none"></div>
 
       {/* Notification Toast */}
       {notification.type && (

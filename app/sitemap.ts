@@ -1,4 +1,6 @@
 import type { MetadataRoute } from 'next'
+import { ARTICLES } from '@/components/marketing/resourcesData'
+import { TOOL_PAGES } from '@/components/marketing/toolPagesData'
 
 const BASE =
   process.env.NEXT_PUBLIC_CLIENT_URL?.startsWith('https')
@@ -45,6 +47,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...posts.map((p) => ({ url: `${BASE}${p.path}`, lastModified: p.lastmod ? new Date(p.lastmod) : now, changeFrequency: 'monthly' as const, priority: 0.6 })),
     { url: `${BASE}/`, lastModified: now, changeFrequency: 'weekly', priority: 1 },
+    ...['/tools', ...TOOL_PAGES.map(t => `/tools/${t.slug}`), '/pricing', '/idx-websites', '/resources', ...ARTICLES.map(a => `/resources/${a.slug}`), '/brokerages', '/faq', '/about', '/register'].map((path) => ({ url: `${BASE}${path}`, lastModified: now, changeFrequency: 'monthly' as const, priority: 0.9 })),
     { url: `${BASE}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${BASE}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     ...recheck.map((path) => ({ url: `${BASE}${path}`, lastModified: now, changeFrequency: 'daily' as const, priority: 0.1 })),

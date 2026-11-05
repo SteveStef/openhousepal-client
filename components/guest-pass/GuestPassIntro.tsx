@@ -139,6 +139,6 @@ const CSS = `
 @keyframes gpPush { to { transform: scale(1.02); } }
 @keyframes gpSheen { to { transform: translateX(80%); } }
 @keyframes gpBurst { 0% { opacity: 0; transform: translate(0,0) scale(.4); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); } }
-@keyframes gpRise { from { opacity: 0; transform: translateY(14px); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes gpRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes gpGlint { to { background-position: 0 0; } }
 `

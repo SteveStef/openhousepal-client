@@ -35,7 +35,7 @@ export default function SetupChecklistCard({ className = '' }: { className?: str
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
       className={`relative overflow-hidden rounded-[26px] border border-[#C9A24D]/35 bg-gradient-to-br from-[#fffaf0] via-white to-[#f8f0de] p-4 shadow-[0_30px_60px_-44px_rgba(139,106,43,.9)] dark:border-[#C9A24D]/25 dark:from-[#1b1813] dark:via-[#151517] dark:to-[#121214] sm:p-5 ${className}`}>
-      <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[#e8c97a]/30 blur-3xl dark:bg-[#C9A24D]/12" />
+      <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(232,201,122,.3),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.12),transparent)]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/70 to-transparent" />
       <div className="relative flex flex-wrap items-center gap-4">
         <span className="relative inline-flex h-[56px] w-[56px] shrink-0 items-center justify-center">

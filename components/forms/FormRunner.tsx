@@ -1,5 +1,6 @@
 'use client'
 
+import LuxeMotionBackdrop from './LuxeMotionBackdrop'
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowRight, Bath, BedDouble, Check, ChevronDown, Home, KeyRound, LandPlot, Loader2, LucideIcon, MapPin, Ruler, Sparkles, ThumbsDown, ThumbsUp, TrendingDown, TrendingUp } from 'lucide-react'
@@ -100,6 +101,17 @@ const NUMERIC_TEXT_FIELD_RE = /\b(price|budget|value|worth|sq\s*ft|sqft|square\s
 const choiceGrid = (options?: string[] | null) => ((options || []).length > 1 && (options || []).every(o => o.length <= 20)
   ? 'grid-cols-2' : 'min-[420px]:grid-cols-2')
 
+// First and last name always share a line (owner, 11/04: "waste of space").
+const isNameField = (f: { id: string; label: string }, part: 'first' | 'last') => new RegExp(`${part}[ _]?name`, 'i').test(`${f.id} ${f.label}`)
+function contactRows<T extends { id: string; label: string }>(fields: T[]): T[][] {
+  const rows: T[][] = []
+  for (let i = 0; i < fields.length; i++) {
+    if (isNameField(fields[i], 'first') && fields[i + 1] && isNameField(fields[i + 1], 'last')) rows.push([fields[i], fields[++i]])
+    else rows.push([fields[i]])
+  }
+  return rows
+}
+
 function shouldFormatNumericText(field: NumericTextMeta): boolean {
   return NUMERIC_TEXT_FIELD_RE.test([
     field.id,
@@ -148,7 +160,7 @@ function getPropertyStatusClass(status?: string | null) {
 
 // Welcome / Thank You screen treatment: a modern card — photo with just address + price overlaid, everything else below it.
 // When cyclePhotos is on, flips through up to the first 10 listing photos, 4s each, looping.
-function PropertyHeroCard({ property, size = 'default', showCheckmark = false, accent, cyclePhotos = false }: { property: LinkedProperty; size?: 'default' | 'large'; showCheckmark?: boolean; accent?: string; cyclePhotos?: boolean }) {
+function PropertyHeroCard({ property, size = 'default', showCheckmark = false, cyclePhotos = false }: { property: LinkedProperty; size?: 'default' | 'large'; showCheckmark?: boolean; cyclePhotos?: boolean }) {
   const location = [property.city, property.state].filter(Boolean).join(', ')
   const statusLabel = formatPropertyStatus(property.status)
   const isLarge = size === 'large'
@@ -195,8 +207,7 @@ function PropertyHeroCard({ property, size = 'default', showCheckmark = false, a
             className="absolute inset-0 flex items-center justify-center"
           >
             <div
-              className="flex h-16 w-16 items-center justify-center rounded-full text-white shadow-xl ring-4 ring-white/90"
-              data-fill="" style={{ backgroundColor: accent }}
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500 text-white shadow-xl ring-4 ring-white/90"
             >
               <Check className="h-8 w-8" />
             </div>
@@ -227,187 +238,128 @@ function PropertyHeroCard({ property, size = 'default', showCheckmark = false, a
 
 const CONFETTI_COLORS = ['#d2b16f', '#34d399', '#60a5fa', '#f472b6', '#fbbf24', '#816937']
 
-const EDGE_FADE = 'linear-gradient(to bottom, transparent 0, #000 72px, #000 calc(100% - 72px), transparent 100%)'
+// The picture behind every form (owner, 11/04): a quiet street of homes under a soft sky, in the
+// form's own color - evening windows and stars on a dark form. Scenery only: no words, numbers or
+// cards, so nobody reads it as part of the form. Moves on the graphics chip (CSS transforms and
+// opacity, no blur), and it stays low on the page so it never sits behind the questions.
+const STREET_FAR: [number, number, number, number][] = [ // x, width, wall height, roof height
+  [20, 120, 70, 44], [150, 96, 92, 38], [262, 140, 62, 50], [420, 104, 84, 40], [540, 132, 66, 48],
+  [690, 110, 96, 40], [816, 138, 64, 50], [972, 100, 86, 38], [1090, 128, 68, 46], [1236, 112, 92, 40], [1364, 136, 64, 50], [1516, 104, 80, 40],
+]
+const STREET_NEAR: { x: number; w: number; h: number; r: number; chimney?: boolean; porch?: boolean }[] = [
+  { x: 96, w: 190, h: 96, r: 66, chimney: true }, { x: 370, w: 230, h: 84, r: 76, porch: true }, { x: 690, w: 200, h: 104, r: 68, chimney: true },
+  { x: 985, w: 236, h: 86, r: 78, porch: true }, { x: 1310, w: 196, h: 98, r: 66, chimney: true },
+]
+const STREET_TREES: [number, number][] = [[42, 58], [326, 72], [640, 62], [938, 74], [1262, 60], [1552, 70]]
+const SKY_STARS: [number, number, number][] = [[9, 12, 0], [21, 26, 1.4], [34, 9, 0.7], [47, 21, 2.1], [61, 11, 1.1], [73, 28, 0.3], [86, 14, 1.8], [93, 31, 0.9], [15, 41, 2.4], [80, 44, 1.6]]
+const BACKDROP_CSS = String.raw`
+.fr-bk { --bk-sky: color-mix(in srgb, var(--bk) 12%, transparent); --bk-cloud: #fff;
+  --bk-far: color-mix(in srgb, var(--bk) 8%, #fff); --bk-wall: color-mix(in srgb, var(--bk) 13%, #fff); --bk-roof: color-mix(in srgb, var(--bk) 32%, #fff); --bk-trim: color-mix(in srgb, var(--bk) 42%, #fff);
+  --bk-door: color-mix(in srgb, var(--bk) 48%, #fff); --bk-pane: color-mix(in srgb, var(--bk) 26%, #fff); --bk-win: #fff; --bk-tree: color-mix(in srgb, var(--bk) 22%, #fff); --bk-ground: color-mix(in srgb, var(--bk) 11%, #fff); }
+.dark .fr-bk:not(.fr-bk-day) { --bk-sky: color-mix(in srgb, var(--bk) 13%, transparent); --bk-cloud: rgba(255,255,255,.055);
+  --bk-far: color-mix(in srgb, var(--bk) 7%, #0d0d10); --bk-wall: color-mix(in srgb, var(--bk) 12%, #0d0d10); --bk-roof: color-mix(in srgb, var(--bk) 24%, #0d0d10); --bk-trim: color-mix(in srgb, var(--bk) 30%, #0d0d10);
+  --bk-door: color-mix(in srgb, var(--bk) 32%, #0d0d10); --bk-pane: color-mix(in srgb, var(--bk) 20%, #0d0d10); --bk-win: #f6d68a; --bk-tree: color-mix(in srgb, var(--bk) 15%, #0d0d10); --bk-ground: color-mix(in srgb, var(--bk) 9%, #0d0d10); }
+@keyframes frDriftA { from { transform: translate3d(-18vw,0,0); } to { transform: translate3d(112vw,0,0); } }
+@keyframes frSway { 0%, 100% { transform: translate3d(-10px,0,0); } 50% { transform: translate3d(10px,0,0); } }
+@keyframes frSwayFar { 0%, 100% { transform: translate3d(6px,0,0); } 50% { transform: translate3d(-6px,0,0); } }
+@keyframes frGlow { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+@keyframes frTwinkle { 0%, 100% { opacity: .2; } 50% { opacity: .95; } }
+@keyframes frSun { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+.fr-cloud { animation: frDriftA linear infinite; will-change: transform; }
+.fr-near { animation: frSway 26s ease-in-out infinite; will-change: transform; }
+.fr-far { animation: frSwayFar 34s ease-in-out infinite; will-change: transform; }
+.fr-win { animation: frGlow 7s ease-in-out infinite; }
+.fr-star { animation: frTwinkle 5s ease-in-out infinite; }
+.fr-sun { animation: frSun 12s ease-in-out infinite; transform-origin: center; }
+@media (prefers-reduced-motion: reduce) { .fr-cloud, .fr-near, .fr-far, .fr-win, .fr-star, .fr-sun { animation: none; } .fr-cloud { transform: translate3d(30vw,0,0); } }
+`
 
-export function WelcomeMotionBackdrop({ accent, light = false, intro = false }: { accent: string; light?: boolean; intro?: boolean }) {
+function BackdropCloud({ className, style }: { className: string; style: React.CSSProperties }) {
+  return (
+    <svg viewBox="0 0 220 70" aria-hidden className={`fr-cloud absolute left-0 ${className}`} style={{ fill: 'var(--bk-cloud)', ...style }}>
+      <path d="M34 62c-15 0-26-9-26-21 0-11 10-20 23-20 3-11 15-19 29-19 13 0 24 6 29 16 5-3 11-5 18-5 15 0 28 9 30 22 3-1 7-2 11-2 17 0 31 9 31 20 0 7-6 9-14 9z" />
+    </svg>
+  )
+}
+
+export function WelcomeMotionBackdrop({ accent, light = false, look }: { accent: string; light?: boolean; intro?: boolean; look?: FormLook | null }) {
+  // Luxe has its own, grander scene (owner, 11/05); Classic keeps this street.
+  if (look?.theme === 'luxe') return <LuxeMotionBackdrop metal={look.metal} light={light} />
   // Forced light (an IDX site page): the outer page can still carry the app's `dark` class, so
-  // every dark: style here is dropped instead of rendering dark panels on a light form.
-  const lt = (c: string) => (light ? c.split(/\s+/).filter(x => !x.startsWith('dark:')).join(' ') : c)
-  const particles = [
-    { className: 'left-[7%] top-[10%] h-44 w-44', delay: 0, x: 18, y: -18 },
-    { className: 'right-[7%] top-[18%] h-52 w-52', delay: 0.3, x: -22, y: -16 },
-    { className: 'bottom-[8%] left-[16%] h-56 w-56', delay: 0.6, x: 20, y: 18 },
-  ]
-  // Spread clear of the two big panels below (top-left listing card, bottom-right route card) and
-  // of each other - these used to cluster in the same corners as those panels (e.g. "Tour Ready"
-  // sat right on top of the route card's own corner), which read as one jumbled smudge instead of
-  // separate floating pieces.
-  // `phone`: where it sits on a phone - only on the welcome screen, in the space kept clear above
-  // the title (so nothing overlaps the content); null = desktop only. Kept well off the top edge -
-  // up at the very top they looked jammed against it, worst in a pop-up (user, 10/20).
-  const floatingCards = [
-    { className: 'sm:left-[2%] sm:bottom-[6%]', phone: 'max-sm:left-3 max-sm:top-7', delay: 0.15, label: 'New Match', value: '$825K', icon: Home },
-    { className: 'sm:right-[4%] sm:top-[max(44px,9%)]', phone: null, delay: 0.45, label: 'Near Parks', value: '0.4 mi', icon: MapPin },
-    { className: 'sm:left-[calc(50%-66px)] sm:top-[max(32px,6%)]', phone: 'max-sm:right-3 max-sm:top-7', delay: 0.75, label: 'Tour Ready', value: 'Today', icon: Sparkles },
-  ]
-  // A short screen (a phone turned sideways) has no room around the form - the big panels and
-  // floating cards stay off there so they never sit on top of the questions (user, 10/24).
-  // Panel fills/strokes are strong enough to read on both the light theme's near-white backdrop
-  // and the dark theme's near-black one - the old sketch panels here used a white/30-35 fill,
-  // which is essentially invisible against the light theme's own near-white background.
-  const panelShell = lt('border border-white/80 bg-white/85 shadow-[0_24px_70px_rgba(17,24,39,0.10)] dark:border-white/10 dark:bg-[#171719]/75')
-  const lineStroke = lt('border-[#111827]/25 dark:border-white/20')
-  const lineStrokeSvg = lt('stroke-[#111827]/25 dark:stroke-white/20')
-
+  // fr-bk-day keeps the daytime colours and the night sky stays off.
   // -z-10 (not just "absolute", which leaves z-index:auto) - a positioned element with z-index:
   // auto still paints ABOVE plain non-positioned siblings regardless of DOM order (the progress
   // bar/top bar/question content below are all plain non-positioned divs), which was letting this
   // decorative backdrop render on top of the real form content instead of behind it.
-  // The tint + grid fade out at the very top and bottom, so the page's edges are exactly its plain
-  // background - the colour a phone shows when you pull past them (user, 10/18: a line there).
-  const edgeFade = { maskImage: EDGE_FADE, WebkitMaskImage: EDGE_FADE }
+  // The sky fades out before the very top, so the page's edge is exactly its plain background - the
+  // colour a phone shows when you pull past it (user, 10/18: a line there).
+  const skyFade = 'linear-gradient(to bottom, transparent 0, #000 170px)'
+  const groundFade = 'linear-gradient(to bottom, #000 calc(100% - 22px), transparent 100%)'
   return (
-    <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+    <div className={`fr-bk pointer-events-none absolute inset-0 -z-10 overflow-hidden ${light ? 'fr-bk-day' : ''}`} style={{ ['--bk' as string]: accent }} aria-hidden>
+      <style dangerouslySetInnerHTML={{ __html: BACKDROP_CSS }} />
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.8, ease: 'easeOut' }}
-        className="absolute inset-0"
-        style={{
-          background: `radial-gradient(circle at 22% 18%, ${accent}2E, transparent 32%), radial-gradient(circle at 82% 22%, ${accent}26, transparent 30%), radial-gradient(circle at 50% 92%, ${accent}1C, transparent 38%), linear-gradient(180deg, ${accent}12, transparent 52%)`,
-          ...edgeFade,
-        }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="absolute inset-x-0 top-0 h-[58%]"
+        style={{ background: 'linear-gradient(180deg, var(--bk-sky), transparent)', maskImage: skyFade, WebkitMaskImage: skyFade }}
       />
-      {/* The grid: dark lines on a light page, light ones on a dark page (dark-on-dark lines were
-          invisible - the effects looked switched off on every Midnight form, user 10/24). */}
-      <div className={lt('absolute inset-0 bg-[linear-gradient(90deg,rgba(17,24,39,0.055)_1px,transparent_1px),linear-gradient(180deg,rgba(17,24,39,0.055)_1px,transparent_1px)] bg-[size:44px_44px] opacity-80 dark:bg-[linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.06)_1px,transparent_1px)] dark:opacity-100')} style={edgeFade} />
 
-      {/* Listing card: a little house with a warm glinting window and a rising-value tag */}
-      <motion.div
-        aria-hidden
-        className={`absolute -left-6 top-28 hidden h-64 w-60 rounded-[2rem] p-5 sm:block [@media(max-height:620px)]:!hidden ${panelShell}`}
-        initial={{ opacity: 0, rotate: -6, y: 18 }}
-        animate={{ opacity: 1, rotate: [-6, -3, -6], y: [0, -10, 0] }}
-        transition={{ opacity: { duration: 0.8 }, rotate: { duration: 9, repeat: Infinity, ease: 'easeInOut' }, y: { duration: 9, repeat: Infinity, ease: 'easeInOut' } }}
-      >
-        <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ backgroundColor: `${accent}1F`, color: accent }}>
-            <Home className="h-4 w-4" />
-          </span>
-          <span className={lt('text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400')}>For Sale</span>
+      {/* A low sun by day, a moon and stars at night */}
+      <div className={`fr-sun absolute right-[9%] top-[7%] h-14 w-14 rounded-full sm:h-20 sm:w-20 ${light ? '' : 'dark:hidden'}`} style={{ background: '#fbe6ae', boxShadow: '0 0 0 16px rgba(251,230,174,.3)' }} />
+      {!light && (
+        <div className="hidden dark:block">
+          {SKY_STARS.map(([x, y, delay]) => (
+            <span key={`${x}-${y}`} className="fr-star absolute h-[3px] w-[3px] rounded-full bg-white" style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${delay}s` }} />
+          ))}
+          <svg viewBox="0 0 64 64" className="absolute right-[8%] top-[6%] h-12 w-12 sm:h-16 sm:w-16" style={{ fill: 'var(--bk-roof)' }}>
+            <path d="M42 6a27 27 0 1 0 16 41A23 23 0 0 1 42 6z" />
+          </svg>
         </div>
-        <div className="relative mx-auto mt-5 h-24 w-32">
-          <div className={`absolute inset-x-2 bottom-0 h-14 rounded-t-sm border-2 ${lineStroke}`} />
-          <div className={`absolute left-1/2 top-0 h-12 w-12 -translate-x-1/2 rotate-45 border-l-2 border-t-2 ${lineStroke}`} />
-          <div className="absolute bottom-0 left-[40%] h-7 w-5 rounded-t-sm" data-fill="" style={{ backgroundColor: accent }} />
-          <motion.span
-            className="absolute bottom-8 right-[26%] h-2.5 w-2.5 rounded-[2px]"
-            data-fill="" style={{ backgroundColor: accent }}
-            animate={{ opacity: [0.25, 0.9, 0.25] }}
-            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-          />
-        </div>
-        <div className="mt-3 flex items-center justify-between">
-          <span className={lt('text-sm font-black text-[#111827] dark:text-white')}>$825,000</span>
-          <span className={lt('flex items-center gap-0.5 text-[10px] font-black text-emerald-600 dark:text-emerald-400')}>
-            <TrendingUp className="h-3 w-3" /> 4.2%
-          </span>
-        </div>
-      </motion.div>
+      )}
+      <BackdropCloud className="top-[9%] w-36 sm:w-56" style={{ animationDuration: '95s', animationDelay: '-30s' }} />
+      <BackdropCloud className="top-[21%] w-24 sm:w-40" style={{ opacity: 0.8, animationDuration: '130s', animationDelay: '-85s' }} />
+      <BackdropCloud className="top-[3%] hidden w-32 sm:block" style={{ opacity: 0.7, animationDuration: '160s', animationDelay: '-120s' }} />
 
-      {/* Nearby/route card: a pin at the end of an animated route across a mini map */}
-      <motion.div
-        aria-hidden
-        className={`absolute -right-8 bottom-6 hidden h-52 w-64 rounded-[2rem] p-5 sm:block [@media(max-height:620px)]:!hidden ${panelShell}`}
-        initial={{ opacity: 0, rotate: 6, y: 20 }}
-        animate={{ opacity: 1, rotate: [6, 3, 6], y: [0, 12, 0] }}
-        transition={{ opacity: { duration: 0.8, delay: 0.2 }, rotate: { duration: 10, repeat: Infinity, ease: 'easeInOut' }, y: { duration: 10, repeat: Infinity, ease: 'easeInOut' } }}
-      >
-        <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ backgroundColor: `${accent}1F`, color: accent }}>
-            <MapPin className="h-4 w-4" />
-          </span>
-          <span className={lt('text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400')}>Nearby &amp; Ready</span>
-        </div>
-        <svg viewBox="0 0 200 90" className="mt-2 h-20 w-full" fill="none">
-          <motion.path
-            d="M8 76 C 60 20, 120 88, 192 18"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeDasharray="7 8"
-            className={lineStrokeSvg}
-            initial={{ pathLength: 0, opacity: 0 }}
-            animate={{ pathLength: 1, opacity: 1 }}
-            transition={{ duration: 2.2, delay: 0.4, repeat: Infinity, repeatDelay: 1, ease: 'easeInOut' }}
-          />
-          <circle cx="8" cy="76" r="4" fill={accent} />
-          <motion.circle
-            cx="192" cy="18" r="5" fill={accent}
-            animate={{ scale: [1, 1.5, 1], opacity: [1, 0.6, 1] }}
-            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-          />
+      {/* The street. A short screen (a phone turned sideways) has no room for it. */}
+      <div className="absolute inset-x-0 bottom-0 h-[clamp(112px,20vh,230px)] [@media(max-height:620px)]:hidden" style={{ maskImage: groundFade, WebkitMaskImage: groundFade }}>
+        <svg viewBox="0 0 1640 280" preserveAspectRatio="xMidYMax slice" className="fr-far absolute -inset-x-4 bottom-0 h-full w-[calc(100%+32px)] max-w-none">
+          <g style={{ fill: 'var(--bk-far)' }}>
+            {STREET_FAR.map(([x, w, h, r]) => <path key={x} d={`M${x} 280V${280 - h}L${x + w / 2} ${280 - h - r}L${x + w} ${280 - h}V280Z`} />)}
+          </g>
         </svg>
-        <div className="mt-1 flex items-center justify-between text-[10px] font-black uppercase tracking-wide text-gray-400">
-          <span>0.4 mi to park</span>
-          <span className={lt('text-[#111827] dark:text-white')}>A+ schools</span>
-        </div>
-      </motion.div>
-
-      {particles.map((particle, index) => (
-        <motion.span
-          key={index}
-          className={`absolute rounded-full blur-3xl ${particle.className}`}
-          style={{ backgroundColor: `${accent}34` }}
-          initial={{ opacity: 0, scale: 0.75 }}
-          animate={{ opacity: [0.28, 0.48, 0.28], scale: [0.92, 1.08, 0.92], x: [0, particle.x, 0], y: [0, particle.y, 0] }}
-          transition={{ duration: 8, delay: particle.delay, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      ))}
-      {floatingCards.map(card => {
-        const Icon = card.icon
-        const onPhone = intro && card.phone
-        // "Tour Ready" sits top-centre - on a question page that's right under the agent's pill.
-        if (!intro && card.label === 'Tour Ready') return null
-        return (
-          <motion.div
-            key={card.label}
-            className={lt(`absolute ${onPhone ? `block ${card.phone}` : 'hidden'} min-w-[118px] rounded-2xl border border-white/80 bg-white/80 p-2.5 text-left shadow-[0_18px_50px_rgba(17,24,39,0.12)] dark:border-white/10 dark:bg-[#171719]/80 sm:block sm:min-w-[132px] sm:p-3 [@media(max-height:620px)]:!hidden ${card.className}`)}
-            initial={{ opacity: 0, y: 18, scale: 0.94 }}
-            animate={{ opacity: 1, y: [0, -9, 0], scale: 1 }}
-            transition={{ opacity: { duration: 0.55, delay: card.delay }, y: { duration: 5.8, delay: card.delay, repeat: Infinity, ease: 'easeInOut' }, scale: { duration: 0.55, delay: card.delay } }}
-          >
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ backgroundColor: `${accent}1F`, color: accent }}>
-                <Icon className="h-4 w-4" />
-              </span>
-              <span>
-                <span className="block text-[10px] font-black uppercase tracking-widest text-gray-400">{card.label}</span>
-                <span className={lt('block text-sm font-black text-[#111827] dark:text-white')}>{card.value}</span>
-              </span>
-            </div>
-          </motion.div>
-        )
-      })}
-      {/* Sits in the gap between the top-left listing panel and the bottom-left "New Match" card,
-          instead of on top of the listing panel like before. */}
-      <motion.div
-        className={lt('absolute left-[3%] top-[58%] hidden h-12 w-12 items-center justify-center rounded-2xl border border-white/80 bg-white/80 shadow-lg dark:border-white/10 dark:bg-white/10 sm:flex [@media(max-height:620px)]:!hidden')}
-        initial={{ opacity: 0, y: 12, rotate: -8 }}
-        animate={{ opacity: 1, y: [0, -8, 0], rotate: [-8, -2, -8] }}
-        transition={{ opacity: { duration: 0.7, delay: 0.25 }, y: { duration: 5, repeat: Infinity, ease: 'easeInOut' }, rotate: { duration: 5, repeat: Infinity, ease: 'easeInOut' } }}
-      >
-        <Sparkles className="h-5 w-5" style={{ color: accent }} />
-      </motion.div>
-      {/* Sits in the gap between the top-right "Near Parks" card and the bottom-right route panel,
-          instead of stacked on either. */}
-      <motion.div
-        className={lt('absolute right-[5%] top-[46%] hidden h-12 w-12 items-center justify-center rounded-2xl border border-white/80 bg-white/80 shadow-lg dark:border-white/10 dark:bg-white/10 sm:flex [@media(max-height:620px)]:!hidden')}
-        initial={{ opacity: 0, y: 16, rotate: 8 }}
-        animate={{ opacity: 1, y: [0, 10, 0], rotate: [8, 3, 8] }}
-        transition={{ opacity: { duration: 0.7, delay: 0.45 }, y: { duration: 6, repeat: Infinity, ease: 'easeInOut' }, rotate: { duration: 6, repeat: Infinity, ease: 'easeInOut' } }}
-      >
-        <KeyRound className="h-5 w-5" style={{ color: accent }} />
-      </motion.div>
+        <svg viewBox="0 0 1640 280" preserveAspectRatio="xMidYMax slice" className="fr-near absolute -inset-x-4 bottom-0 h-full w-[calc(100%+32px)] max-w-none">
+          {STREET_TREES.map(([x, r]) => (
+            <g key={x} style={{ fill: 'var(--bk-tree)' }}>
+              <rect x={x - 3} y={250 - r} width="6" height={r} rx="3" style={{ fill: 'var(--bk-trim)' }} />
+              <circle cx={x} cy={236 - r} r={r * 0.5} />
+              <circle cx={x - r * 0.3} cy={250 - r} r={r * 0.34} />
+              <circle cx={x + r * 0.3} cy={250 - r} r={r * 0.34} />
+            </g>
+          ))}
+          {STREET_NEAR.map(({ x, w, h, r, chimney, porch }, n) => {
+            const base = 256, top = base - h, door = x + w * 0.5 - 14
+            return (
+              <g key={x}>
+                {chimney && <rect x={x + w * 0.72} y={top - r * 0.9} width="18" height={r * 0.8} style={{ fill: 'var(--bk-trim)' }} />}
+                <rect x={x} y={top} width={w} height={h} style={{ fill: 'var(--bk-wall)' }} />
+                <path d={`M${x - 14} ${top + 3}L${x + w / 2} ${top - r}L${x + w + 14} ${top + 3}Z`} style={{ fill: 'var(--bk-roof)' }} />
+                <rect x={door} y={base - 50} width="28" height="50" rx="3" style={{ fill: 'var(--bk-door)' }} />
+                {porch && <path d={`M${door - 18} ${base - 56}H${door + 46}`} strokeWidth="5" strokeLinecap="round" style={{ stroke: 'var(--bk-trim)' }} />}
+                {[x + w * 0.16, x + w * 0.7].map((wx, k) => (
+                  <g key={wx}>
+                    <rect x={wx} y={top + 18} width="30" height="30" rx="2" style={{ fill: 'var(--bk-pane)' }} />
+                    <rect x={wx} y={top + 18} width="30" height="30" rx="2" className="fr-win" style={{ fill: 'var(--bk-win)', animationDelay: `${(n * 2 + k) * 1.3}s` }} />
+                    <path d={`M${wx + 15} ${top + 18}v30M${wx} ${top + 33}h30`} strokeWidth="1.5" style={{ stroke: 'var(--bk-trim)' }} />
+                  </g>
+                ))}
+              </g>
+            )
+          })}
+          <path d="M0 280V254C260 240 520 262 820 254S1380 240 1640 254V280Z" style={{ fill: 'var(--bk-ground)' }} />
+        </svg>
+      </div>
     </div>
   )
 }
@@ -808,15 +760,54 @@ function isAnswerFilled(value: AnswerValue | undefined) {
   return Boolean(value && value.trim() !== '')
 }
 
-function isQuestionVisible(question: FormQuestion, answers: AnswersState): boolean {
+// A follow-up's parent: a question, or the contact screen holding that field. Undefined = the id
+// isn't on the form.
+function forkParentOf(parentId: string, questions: FormQuestion[]) {
+  return questions.find(q => q.id === parentId) || questions.find(q => (q.fields || []).some(field => field.id === parentId))
+}
+
+// A question hides when its parent is hidden, not just when its parent's answer doesn't match: an
+// answer left behind on a path they backed out of opens nothing (buy -> No agent -> Back -> sell).
+// A loop of follow-ups never shows. Same rule on the server: forms_service.question_is_visible.
+function isQuestionVisible(question: FormQuestion, answers: AnswersState, questions: FormQuestion[], seen: string[] = []): boolean {
   const dependsOn = question.depends_on
   if (!dependsOn) return true
+  if (seen.includes(question.id)) return false
+  const parent = forkParentOf(dependsOn.question_id, questions)
+  if (parent && !isQuestionVisible(parent, answers, questions, [...seen, question.id])) return false
   const dependValue = answers[dependsOn.question_id]
   if (dependValue === undefined) return false
   if (Array.isArray(dependValue)) {
     return dependsOn.values.some(value => dependValue.includes(value))
   }
   return dependsOn.values.includes(dependValue)
+}
+
+// Showing now, or waiting on an answer from a parent that could itself still show.
+function couldStillShow(question: FormQuestion, answers: AnswersState, questions: FormQuestion[], passed: string[] = [], seen: string[] = []): boolean {
+  if (isQuestionVisible(question, answers, questions)) return true
+  const dependsOn = question.depends_on
+  // `passed`: questions they've already gone past. One they skipped will never open its follow-ups.
+  if (!dependsOn || seen.includes(question.id) || answers[dependsOn.question_id] !== undefined || passed.includes(dependsOn.question_id)) return false
+  const parent = forkParentOf(dependsOn.question_id, questions)
+  return Boolean(parent) && couldStillShow(parent!, answers, questions, passed, [...seen, question.id])
+}
+
+// Same rule as the server's forms_service._EMAIL_RE.
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/
+
+// What's wrong with an email / phone on this screen, in plain words - '' when it's fine. Blank is
+// fine here: a required answer is already held back by the Next button.
+function contactProblem(question: FormQuestion, answers: AnswersState): string {
+  const items: { id: string; type: string }[] = question.type === 'contact_group' ? question.fields || [] : [question]
+  for (const item of items) {
+    const value = answers[item.id]
+    const text = typeof value === 'string' ? value.trim() : ''
+    if (!text) continue
+    if (item.type === 'email' && !EMAIL_RE.test(text)) return 'That email doesn\u2019t look right. Please check it, like name@example.com.'
+    if (item.type === 'phone' && text.replace(/\D/g, '').length < 10) return 'That phone number looks too short. Please enter all 10 digits.'
+  }
+  return ''
 }
 
 // The input control for a single question, shared by every layout so none of them duplicate
@@ -871,29 +862,7 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
         />
       )
     }
-    return (
-      <div className={`${wheelPair ? 'space-y-4' : 'space-y-5'} text-left`}>
-        {isAllNumeric && (
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.95 }}
-            onClick={() => { fields.forEach(field => setAnswer(field.id, '')); opts.onChoose?.(question.id) }}
-            className={`inline-flex items-center gap-1.5 rounded-full border-2 px-4 py-2 text-xs font-black transition-colors ${isAnySelected ? '' : 'border-gray-200 bg-white text-[#374151] hover:border-gray-300 dark:border-white/15 dark:bg-[#151517] dark:text-gray-100'}`}
-            style={isAnySelected ? { borderColor: accent, backgroundColor: `${accent}1A`, color: accent } : undefined}
-          >
-            {isAnySelected && <Check className="h-3.5 w-3.5" />} Any / No preference
-          </motion.button>
-        )}
-        {wheelPair ? (
-          <div className="grid grid-cols-2 gap-3">
-            {fields.map(field => (
-              <div key={field.id}>
-                <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">{field.label}</p>
-                {wheelOf(field)}
-              </div>
-            ))}
-          </div>
-        ) : fields.map(field => {
+    const oneField = (field: (typeof fields)[number]) => {
           if (pickerKindOf(field)) {
             return (
               <div key={field.id}>
@@ -1012,7 +981,32 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
               )}
             </div>
           )
-        })}
+            }
+    return (
+      <div className={`${wheelPair ? 'space-y-4' : 'space-y-5'} text-left`}>
+        {isAllNumeric && (
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.95 }}
+            onClick={() => { fields.forEach(field => setAnswer(field.id, '')); opts.onChoose?.(question.id) }}
+            className={`inline-flex items-center gap-1.5 rounded-full border-2 px-4 py-2 text-xs font-black transition-colors ${isAnySelected ? '' : 'border-gray-200 bg-white text-[#374151] hover:border-gray-300 dark:border-white/15 dark:bg-[#151517] dark:text-gray-100'}`}
+            style={isAnySelected ? { borderColor: accent, backgroundColor: `${accent}1A`, color: accent } : undefined}
+          >
+            {isAnySelected && <Check className="h-3.5 w-3.5" />} Any / No preference
+          </motion.button>
+        )}
+        {wheelPair ? (
+          <div className="grid grid-cols-2 gap-3">
+            {fields.map(field => (
+              <div key={field.id}>
+                <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">{field.label}</p>
+                {wheelOf(field)}
+              </div>
+            ))}
+          </div>
+        ) : contactRows(fields).map(row => (row.length > 1
+          ? <div key={row[0].id} className="grid grid-cols-2 gap-3">{row.map(oneField)}</div>
+          : oneField(row[0])))}
       </div>
     )
   }
@@ -1354,7 +1348,6 @@ export default function FormRunner({ questions, branding, successHeading, succes
   const [topBarHeight, setTopBarHeight] = useState(0)
   const [isSmUp, setIsSmUp] = useState(false)
   // Room kept above the welcome content for the floating cards (phones: the two small cards; desktop: "Tour Ready").
-  const introTopPad = backgroundEffects ? (isSmUp ? 104 : 88) : 0
   // Showcase Request's welcome screen (branding + title + animation + button) can run taller
   // than a short phone viewport - rather than letting it scroll, it's scaled down to fit.
   const introScrollAreaRef = useRef<HTMLDivElement>(null)
@@ -1391,12 +1384,16 @@ export default function FormRunner({ questions, branding, successHeading, succes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkedProperty, prefill, questions, agentStateName])
 
-  const visibleQuestions = useMemo(() => questions.filter(question => isQuestionVisible(question, answers)), [questions, answers])
+  const visibleQuestions = useMemo(() => questions.filter(question => isQuestionVisible(question, answers, questions)), [questions, answers])
   const totalQuestions = visibleQuestions.length
   // What the "Question 3 of 13" counter + progress bar show: also counts follow-up questions whose
   // deciding answer hasn't been given yet, so the total doesn't jump from 5 to 13 mid-form. It can
-  // only shrink (an answer that hides questions), never grow.
-  const displayTotal = useMemo(() => questions.filter(q => isQuestionVisible(q, answers) || (q.depends_on && answers[q.depends_on.question_id] === undefined)).length, [questions, answers])
+  // only shrink (an answer that hides questions), never grow. A follow-up under a parent that can't
+  // show any more doesn't count.
+  const displayTotal = useMemo(() => {
+    const passed = visibleQuestions.slice(0, Math.max(step - 1, 0)).map(q => q.id)
+    return questions.filter(q => couldStillShow(q, answers, questions, passed)).length
+  }, [questions, answers, visibleQuestions, step])
   const currentQuestion = step >= 1 && step <= totalQuestions ? visibleQuestions[step - 1] : null
 
   // Progress tracking (Stats view/drop-off funnel) - fires once for the intro (step 0 = "view")
@@ -1404,10 +1401,16 @@ export default function FormRunner({ questions, branding, successHeading, succes
   // (totalQuestions + 1) - that's reported separately, alongside the submit result, as `completed`.
   const answersSnapshot = () => {
     const out: Record<string, unknown> = {}
+    const idsOf = (q: FormQuestion) => (q.type === 'contact_group' ? (q.fields || []).map(field => field.id) : [q.id])
+    const formIds = new Set(questions.flatMap(idsOf))
+    const shownIds = new Set(visibleQuestions.flatMap(idsOf))
     for (const [id, value] of Object.entries(answers)) {
       if (value === undefined || value === null) continue
       // the agent's own state, filled in for them - not something this visitor told us
       if (id === 'state' && value === agentStateName) continue
+      // On a path they left: null tells the server to take it out of what the agent sees in
+      // Unfinished. Only ids in this visit's answers - it can't touch what was saved before a reload.
+      if (formIds.has(id) && !shownIds.has(id)) { out[id] = null; continue }
       if (Array.isArray(value) ? value.length === 0 : String(value).trim() === '') continue
       out[id] = value
     }
@@ -1422,14 +1425,20 @@ export default function FormRunner({ questions, branding, successHeading, succes
   // Autosave what they've typed/picked on the current question (debounced), so someone who
   // enters their email and then closes the tab still shows up with it.
   const lastSent = useRef('')
+  // Where they are right now: a tap moves on after 320ms, so by the time this timer fires the step
+  // it started on is old, and sending that would log them as back on the previous question.
+  const whereNow = useRef({ step, total: totalQuestions, questionId: currentQuestion?.id ?? null })
+  whereNow.current = { step, total: totalQuestions, questionId: currentQuestion?.id ?? null }
   useEffect(() => {
     if (!onProgress || step < 1 || step > totalQuestions) return
     const snapshot = answersSnapshot()
     const key = JSON.stringify(snapshot)
     if (key === lastSent.current || key === '{}') return
     const timer = setTimeout(() => {
+      const now = whereNow.current
+      if (now.step < 1 || now.step > now.total) return
       lastSent.current = key
-      onProgress(step, currentQuestion?.id ?? null, false, snapshot)
+      onProgress(now.step, now.questionId, false, snapshot)
     }, 1200)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1523,7 +1532,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
 
     const recalc = () => {
       const cs = getComputedStyle(areaEl)
-      const available = areaEl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - introTopPad
+      const available = areaEl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
       const needed = contentEl.scrollHeight
       if (available > 0 && needed > available) {
         const s = Math.max(0.68, available / needed)
@@ -1546,7 +1555,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
       ro.disconnect()
       window.removeEventListener('resize', recalc)
     }
-  }, [isIntro, showcasePreview, introTopPad])
+  }, [isIntro, showcasePreview])
 
   // Measure the pinned agent/property row so the question below it can be raised by exactly that much —
   // the question should land in the same spot whether or not branding/property is shown.
@@ -1610,6 +1619,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
 
   const setAnswer = (questionId: string, value: AnswerValue) => {
     setAnswers(current => ({ ...current, [questionId]: value }))
+    setSubmitError('')
   }
 
   const goToStep = (nextStep: number, dir: 1 | -1) => {
@@ -1634,6 +1644,13 @@ export default function FormRunner({ questions, branding, successHeading, succes
 
   const handleNext = async () => {
     if (!canAdvance || submitting) return
+    // A dead end stays a dead end: Back is the only way out, never Enter.
+    if (currentQuestion?.terminal) return
+    const problem = currentQuestion ? contactProblem(currentQuestion, answers) : ''
+    if (problem) {
+      setSubmitError(problem)
+      return
+    }
 
     if (step < totalQuestions) {
       goToStep(step + 1, 1)
@@ -1697,8 +1714,25 @@ export default function FormRunner({ questions, branding, successHeading, succes
     if (Array.from(document.querySelectorAll<HTMLElement>('.pac-container')).some(el => el.offsetParent !== null && el.querySelector('.pac-item'))) return
     event.preventDefault()
     if (isIntro) goToStep(1, 1)
-    else if (currentQuestion) handleNext()
+    else if (currentQuestion && !currentQuestion.terminal) handleNext()
   }
+
+  // Nothing has focus when the welcome screen opens, so a keydown never reaches handleKeyDown above -
+  // "Press Enter" has to work from the page itself. Not in the editor's preview: Enter there is the
+  // agent's. Focus on anything else (a box, a link) keeps Enter for that.
+  useEffect(() => {
+    if (!isIntro || focusBlockId !== undefined) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter' || event.defaultPrevented) return
+      const active = document.activeElement
+      if (active && active !== document.body) return
+      event.preventDefault()
+      goToStep(1, 1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isIntro, focusBlockId])
 
   const variants = {
     enter: (dir: number) => ({ opacity: 0, x: dir > 0 ? 24 : -24, scale: 0.98 }),
@@ -1750,7 +1784,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
       style={look ? (formLookVars(look) as React.CSSProperties) : undefined}
     >
       {look && <style dangerouslySetInnerHTML={{ __html: FORM_LOOK_CSS }} />}
-      {backgroundEffects && <WelcomeMotionBackdrop accent={accent} light={forceLightMode} intro={isIntro} />}
+      {backgroundEffects && <WelcomeMotionBackdrop accent={accent} light={forceLightMode} intro={isIntro} look={look} />}
       {isSuccess && <ConfettiBurst />}
 
       <style dangerouslySetInnerHTML={{ __html: `${WHEEL_CSS}.fr-scroll{scrollbar-width:none}.fr-scroll::-webkit-scrollbar{display:none}` }} />
@@ -1768,7 +1802,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
 
       {currentQuestion && showTopBar && (
         <div ref={topBarRef} className="px-6 pt-3">
-          <div className="mx-auto w-full max-w-xl border-b border-gray-100 pb-5 dark:border-white/[0.07]">
+          <div className="mx-auto w-full max-w-xl pb-2">
             <QuestionBrandBar branding={topBarBranding} property={topBarProperty} accent={accent} />
           </div>
         </div>
@@ -1782,7 +1816,6 @@ export default function FormRunner({ questions, branding, successHeading, succes
         {currentQuestion && <div aria-hidden style={{ flex: '1 1 0px' }} />}
         <div
           className={`w-full max-w-xl shrink-0 ${currentQuestion ? '' : isIntro && showcasePreview ? '' : isIntro || isSuccess ? 'my-auto pb-14 sm:pb-20' : 'my-auto'}`}
-          style={!currentQuestion && isIntro && introTopPad ? { paddingTop: `${introTopPad}px` } : undefined}
         >
           {/* Readability veil: an edgeless fade of the page colour right behind the questions (no
               box, border or shadow), so the animated backdrop never runs under the text but still
@@ -1869,7 +1902,8 @@ export default function FormRunner({ questions, branding, successHeading, succes
                       <span className="relative">Start</span>
                       <ArrowRight className="relative h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                     </motion.button>
-                    <motion.p variants={welcomeTextEffects ? introItemVariants : introStaticItemVariants} className="mt-4 text-xs font-bold text-gray-400">
+                    {/* Hidden by CSS, not by a check in code: the server can't know it's a phone, and a page that differs from it gets rebuilt. */}
+                    <motion.p variants={welcomeTextEffects ? introItemVariants : introStaticItemVariants} className="mt-4 text-xs font-bold text-gray-500 dark:text-gray-400 [@media(pointer:coarse)]:hidden">
                       Press Enter
                     </motion.p>
                   </div>
@@ -2124,8 +2158,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
                     initial={{ scale: 0.4, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.1 }}
-                    className="mx-auto flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg"
-                    data-fill="" style={{ backgroundColor: accent }}
+                    className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg"
                   >
                     <Check className="h-8 w-8" />
                   </motion.div>
@@ -2137,7 +2170,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
 
                 {linkedProperty && (
                   <div className="mx-auto mt-6 flex justify-center">
-                    <PropertyHeroCard property={linkedProperty} size="large" showCheckmark accent={accent} />
+                    <PropertyHeroCard property={linkedProperty} size="large" showCheckmark />
                   </div>
                 )}
 
@@ -2166,7 +2199,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
 
       {currentQuestion && showBottomBar && (
         <div className="px-6 pb-4">
-          <div className="mx-auto w-full max-w-xl border-t border-gray-100 pt-5 dark:border-gray-800">
+          <div className="mx-auto w-full max-w-xl pt-2">
             <QuestionBrandBar branding={bottomBarBranding} property={bottomBarProperty} accent={accent} />
           </div>
         </div>

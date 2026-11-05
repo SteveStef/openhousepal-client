@@ -290,8 +290,8 @@ export default function NewTicketWindow({ open, onClose, onCreated, onViewTicket
                           {/* Color wash that blooms from the icon on hover */}
                           <span
                             aria-hidden
-                            className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100"
-                            style={{ background: c.glow.replace(/[\d.]+\)$/, '.22)') }}
+                            className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+                            style={{ background: `radial-gradient(closest-side, ${c.glow.replace(/[\d.]+\)$/, '.22)')}, transparent)` }}
                           />
                           <span className="relative transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110">
                             <CategoryBadgeTile meta={c} size="lg" />
@@ -509,7 +509,7 @@ export default function NewTicketWindow({ open, onClose, onCreated, onViewTicket
                     exit={{ opacity: 0 }}
                     className="relative flex flex-col items-center overflow-hidden px-5 pb-7 pt-8 text-center sm:px-10 sm:pb-9 sm:pt-10"
                   >
-                    <div className="pointer-events-none absolute left-1/2 top-16 h-56 w-56 -translate-x-1/2 rounded-full blur-3xl" style={{ background: meta.glow.replace(/[\d.]+\)$/, '.18)') }} />
+                    <div className="pointer-events-none absolute left-1/2 top-16 h-56 w-56 -translate-x-1/2 rounded-full" style={{ background: `radial-gradient(closest-side, ${meta.glow.replace(/[\d.]+\)$/, '.18)')}, transparent)` }} />
                     {/* Burst of gold sparks around the check */}
                     <div className="relative grid h-24 w-24 place-items-center">
                       {Array.from({ length: 10 }).map((_, i) => {

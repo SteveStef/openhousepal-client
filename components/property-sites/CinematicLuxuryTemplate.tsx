@@ -938,7 +938,7 @@ function VirtualTourSection({ url, poster }: { url: string; poster?: string | nu
   return (
     <Section id="tour" eyebrow="3D virtual tour" title={<>Walk through, <em className="italic text-white/80">from anywhere</em></>} wide>
       <button onClick={() => setOpen(true)} className="cl-reveal group relative flex aspect-[21/9] min-h-[320px] w-full items-center justify-center overflow-hidden rounded-[2px] bg-[#111]">
-        {poster && <img src={poster} alt="" loading="lazy" className="absolute inset-0 h-full w-full scale-105 object-cover opacity-50 blur-[2px] transition-[transform,opacity] duration-700 group-hover:scale-100 group-hover:opacity-60" />}
+        {poster && <img src={poster} alt="" loading="lazy" className="absolute inset-0 h-full w-full scale-105 object-cover opacity-50 transition-[transform,opacity] duration-700 group-hover:scale-100 group-hover:opacity-60" />}
         <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/40" />
         <span className="relative flex flex-col items-center gap-4">
           <span className="flex h-20 w-20 items-center justify-center rounded-full bg-[color:var(--sp-accent)] text-[color:var(--sp-on-accent)] shadow-2xl transition duration-500 group-hover:scale-110"><Box className="h-8 w-8" /></span>
@@ -1220,7 +1220,7 @@ function ContactSection({ m, siteId, url, onShare, allowTour }: { m: SpotlightMo
   const bg = m.photos[m.photos.length > 3 ? 3 : 0]
   return (
     <section id="contact" className="sp-loop relative scroll-mt-16 overflow-hidden px-5 py-24 sm:px-10 sm:py-32">
-      {bg && <img src={bg} alt="" aria-hidden loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-[0.14] blur-sm" />}
+      {bg && <img src={bg} alt="" aria-hidden loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-[0.14]" />}
       <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-[#0A0A0A]/85 to-[#0A0A0A]" />
       <div className="relative mx-auto grid max-w-6xl grid-cols-1 gap-12 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
         <div className="cl-reveal min-w-0 [container-type:inline-size]">

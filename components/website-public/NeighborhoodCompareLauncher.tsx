@@ -68,8 +68,8 @@ export default function NeighborhoodCompareLauncher({
     <section id="compare-neighborhoods" className="mx-auto max-w-6xl px-6 pt-14">
       <div className="overflow-hidden rounded-[1.75rem] border border-gray-100 bg-white shadow-[0_18px_60px_rgba(17,24,39,0.08)]">
         <div className="grid gap-0 lg:grid-cols-[0.9fr_1.25fr]">
-          <div className="p-7 sm:p-9" style={{ backgroundColor: theme.primary_color }}>
-            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl" style={{ backgroundColor: theme.secondary_color, color: theme.primary_color }}>
+          <div className="ohp-ink-panel p-7 sm:p-9" style={{ backgroundColor: theme.primary_color }}>
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-accent-ink)' }}>
               <GitCompareArrows className="h-5 w-5" />
             </span>
             <p className="mt-6 text-xs font-black uppercase tracking-[0.24em]" style={{ color: 'var(--site-accent-text-dm)' }}>Compare Neighborhoods</p>

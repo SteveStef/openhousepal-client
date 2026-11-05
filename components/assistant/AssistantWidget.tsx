@@ -12,7 +12,9 @@ import { useToast } from '@/contexts/ToastContext'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
 import AssistantHome from './AssistantHome'
 import ChatThread from './ChatThread'
+import Link from 'next/link'
 import ChatInput from './ChatInput'
+import type { DroppedPhoto } from './PhotoDrop'
 import TalkToOHP from './TalkToOHP'
 import { useSpeech } from './useSpeech'
 import WorkingStrip, { type WorkingJob } from './WorkingStrip'
@@ -103,6 +105,8 @@ function useKeyboardSpace(on: boolean) {
   return space
 }
 
+type ChatNews = { id: string; text: string; ok: boolean; link?: string | null; link_label?: string; conversation_id?: string | null; at: string }
+
 export default function AssistantWidget() {
   const { user, isAuthenticated, isLoading: isCheckingAuth } = useAuth()
   const pathname = usePathname()
@@ -131,6 +135,15 @@ export default function AssistantWidget() {
   const [peek, setPeek] = useState(false)
   useEffect(() => { if (!isOpen) { setPeek(false); setDragH(null) } }, [isOpen])
   const kb = useKeyboardSpace(isPhone && isOpen && !peek)
+  // The iPhone's keyboard and the bars above it are see-through, and it doesn't paint pinned layers
+  // past the keyboard line - a cover or the dim layer never reached there, so the page showed through
+  // (owner, 11/04). While it's up the page itself is hidden (globals.css), the chat stays.
+  const kbOpen = !!kb
+  useEffect(() => {
+    const root = document.documentElement
+    if (kbOpen) root.setAttribute('data-ohp-chat-kb', '')
+    return () => root.removeAttribute('data-ohp-chat-kb')
+  }, [kbOpen])
 
   // Closing plays its exit first (a beat), then unmounts.
   const close = useCallback(() => {
@@ -189,13 +202,18 @@ export default function AssistantWidget() {
   const [unread, setUnread] = useState<string[]>([])
   // what's still being made, for the strip under the top bar (any chat - 11/01)
   const [working, setWorking] = useState<WorkingJob[]>([])
+  // Finished jobs not told yet (owner, 11/05: "it tells them that it finished only one time"): shown
+  // at the top of the chat the first time it's open afterwards, whichever chat that is, then gone for
+  // good. The job's own message stays in its chat as usual.
+  const [news, setNews] = useState<ChatNews[]>([])
+  const [told, setTold] = useState<ChatNews[]>([])
   // While a card in this chat is still making something (an AI CMA, a blog draft) the news is checked
   // every few seconds, not every 30 (owner, 11/01: "I wouldn't have known it finished").
   const workingHere = !!activeConversation?.messages.some(m => (m.tool_calls || []).some((t: any) => t.record_type === 'action' && (t.status === 'working' || t.status === 'running')))
   useEffect(() => {
     if (!helper?.enabled) return
     let live = true
-    const tick = () => { api.ai.unread().then(r => { if (live && r.success && r.data) { setUnread(r.data.conversations); setWorking(r.data.working || []) } }) }
+    const tick = () => { api.ai.unread().then(r => { if (live && r.success && r.data) { setUnread(r.data.conversations); setWorking(r.data.working || []); setNews(r.data.news || []) } }) }
     tick()
     const t = window.setInterval(tick, workingHere || working.length ? 6000 : 30000)
     window.addEventListener('focus', tick)
@@ -230,6 +248,20 @@ export default function AssistantWidget() {
     api.ai.markRead(id).then(r => { if (r.success && r.data) setUnread(r.data.conversations) })
   }, [isOpen, activeConversation?.id, unread])
 
+  useEffect(() => {
+    if (!isOpen || !news.length) return
+    const here = activeConversation?.id
+    const fresh = news.filter(n => !told.some(t => t.id === n.id))
+    if (!fresh.length) return
+    // In the chat they're looking at, the message itself is the news.
+    setTold(t => [...t, ...fresh.filter(n => n.conversation_id !== here)])
+    api.ai.newsSeen(fresh.map(n => n.id))
+    Array.from(new Set(fresh.map(n => n.conversation_id).filter(c => c && c !== here))).forEach(c => api.ai.markRead(c as string).then(r => { if (r.success && r.data) setUnread(r.data.conversations) }))
+    setNews([])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, news, activeConversation?.id])
+
+  const [dragging, setDragging] = useState(false)
   const newChat = useCallback(() => { setActiveConversation(null) }, [])
   // Any page change while the chat is open (a Go there button that moves the page itself, not only
   // a link - owner, 11/01: "make a new Open House Kit" kept the sheet over it): it steps aside the
@@ -256,13 +288,15 @@ export default function AssistantWidget() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])
 
-  const handleSend = useCallback(async (text: string) => {
+  const handleSend = useCallback(async (typed: string, photos?: DroppedPhoto[]) => {
+    const text = typed
+    const shown = typed + (photos || []).map(p => `\n[Photo attached: ${p.url}]`).join('')
     // A new message means the agent is actively talking again - cut off whatever spoken
     // reply might still be playing instead of letting it talk over the new turn.
     speech.stop()
     setIsSending(true)
     const tempId = `temp-${Date.now()}`
-    const optimisticUser = { id: tempId, role: 'user' as const, content: text, created_at: new Date().toISOString() }
+    const optimisticUser = { id: tempId, role: 'user' as const, content: shown, created_at: new Date().toISOString() }
 
     let conversationId = activeConversation?.id
 
@@ -280,7 +314,7 @@ export default function AssistantWidget() {
 
       // voice_mode: true whenever replies are being read aloud, so the model answers in one
       // short spoken sentence instead of a bullet-list dump that takes forever to listen to.
-      const response = await api.ai.sendMessage(conversationId, text, voiceOutputEnabled)
+      const response = await api.ai.sendMessage(conversationId, text, voiceOutputEnabled, photos?.map(p => p.id))
       if (!response.success || !response.data) {
         throw new Error(response.error || 'Something went wrong sending that message.')
       }
@@ -403,6 +437,11 @@ export default function AssistantWidget() {
       {kb && <div aria-hidden className="fixed inset-x-0 bg-white dark:bg-zinc-900" style={{ top: kb.top + kb.height - 1, height: '100vh', zIndex: 50 }} />}
       <div
         ref={panelRef}
+        data-ohp-chat-panel
+        // A photo dragged anywhere on the chat goes with the next message (a card's own drop spot keeps its own).
+        onDragOver={e => { if (Array.from(e.dataTransfer.types).includes('Files')) { e.preventDefault(); setDragging(true) } }}
+        onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false) }}
+        onDrop={e => { e.preventDefault(); setDragging(false); const files = Array.from(e.dataTransfer.files || []); if (files.length) window.dispatchEvent(new CustomEvent('ohp:chat-files', { detail: files })) }}
         // Tapping a "Create a Showcase" / "Open it" button inside the chat goes there and the chat
         // steps aside (owner, 10/31: on a phone the sheet stayed over the create window). The
         // conversation is kept - the bubble reopens it.
@@ -460,7 +499,19 @@ export default function AssistantWidget() {
           <button onClick={close} aria-label="Close" className={iconBtn}><X className="w-4 h-4" /></button>
         </div>
 
+        {dragging && <div className="pointer-events-none absolute inset-2 z-20 grid place-items-center rounded-2xl border-2 border-dashed border-[#C9A24D] bg-white/90 text-sm font-black text-[#8b7355] dark:bg-zinc-900/90 dark:text-[#e8c97a]" data-testid="ai-drop-hint">Drop your photo here</div>}
         <WorkingStrip jobs={working} />
+        {told.length > 0 && (
+          <div className="flex-shrink-0 space-y-1 border-b border-emerald-100 bg-emerald-50 px-3 py-2 dark:border-emerald-900/40 dark:bg-emerald-900/20" data-testid="ai-news">
+            {told.map(n => (
+              <div key={n.id} className="ohp-ai-fade flex items-center gap-2 text-[12px] font-semibold text-emerald-900 dark:text-emerald-200">
+                <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{n.text}</span>
+                {n.link && <Link href={n.link} className="shrink-0 font-black underline underline-offset-2">{n.link_label || 'Open it'}</Link>}
+              </div>
+            ))}
+            <button type="button" onClick={() => setTold([])} className="text-[11px] font-bold text-emerald-800/70 hover:underline dark:text-emerald-200/70">Got it</button>
+          </div>
+        )}
 
         <div className="flex-1 min-h-0 flex">
           <div className="flex-1 min-w-0 flex flex-col">

@@ -22,6 +22,8 @@ interface ScheduleTourModalProps {
   initialContact?: string
   /** Pre-filled phone ('full' contact style). */
   initialPhone?: string
+  /** They moved on from the times to "who you are", with the times they picked. */
+  onDetailsStep?: (picks: { date: string; time: string }[]) => void
   /** The agent's busy blocks from their connected Google / Outlook calendar - those times are
    *  crossed out. Omitted (or none connected) = every time is open. */
   loadBusy?: () => Promise<{ start: string; end: string }[]>
@@ -88,6 +90,7 @@ function ScheduleTourWindow({
   initialContact = '',
   initialPhone = '',
   loadBusy,
+  onDetailsStep,
   contactStyle = 'compact',
   maxPicks = 3,
 }: ScheduleTourModalProps & { property: NonNullable<ScheduleTourModalProps['property']> }) {
@@ -142,7 +145,7 @@ function ScheduleTourWindow({
     return () => window.clearTimeout(t)
   }, [step, onClose])
 
-  const go = (s: Step) => { setDir(s === 'when' ? -1 : 1); setStep(s); setError('') }
+  const go = (s: Step) => { setDir(s === 'when' ? -1 : 1); setStep(s); setError(''); if (s === 'you') onDetailsStep?.(picks) }
   const toggle = (time: string) => {
     if (!day) return
     setPicks(cur => {

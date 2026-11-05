@@ -60,7 +60,7 @@ const GALLERY_CSS = `
 @keyframes lx-sig-gold { 0%, 100% { background-position: 100% 0; } 50% { background-position: 0 0; } }
 .lx-sig-layer { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; border-radius: inherit; }
 .lx-sig-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(139,115,85,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(139,115,85,.09) 1px, transparent 1px); background-size: 28px 28px; -webkit-mask-image: radial-gradient(70% 90% at 85% 10%, #000, transparent 75%); mask-image: radial-gradient(70% 90% at 85% 10%, #000, transparent 75%); }
-.lx-sig-aurora { position: absolute; left: -40px; bottom: -70px; width: 220px; height: 220px; border-radius: 999px; background: rgba(var(--m-rgb),.22); filter: blur(40px); animation: lx-sig-drift 14s ease-in-out infinite alternate; }
+.lx-sig-aurora { position: absolute; left: -40px; bottom: -70px; width: 220px; height: 220px; border-radius: 999px; background: radial-gradient(closest-side, rgba(var(--m-rgb),.22), transparent); animation: lx-sig-drift 14s ease-in-out infinite alternate; }
 .lx-sig-edge { position: absolute; left: 0; right: 0; top: 0; height: 1.5px; background: linear-gradient(90deg, transparent 20%, var(--m-light) 50%, transparent 80%); background-size: 200% 100%; animation: lx-sig-edge 7s ease-in-out infinite; }
 .lx-sig-spark { position: absolute; width: 3px; height: 3px; border-radius: 999px; background: var(--m-light); box-shadow: 0 0 8px 2px rgba(var(--m-light-rgb),.65); opacity: 0; animation: lx-sig-spark 5.5s ease-in-out infinite; }
 .signature-gallery.lx .gallery-inner { position: relative; z-index: 1; }
@@ -76,11 +76,11 @@ const GALLERY_CSS = `
    pick up gold (gradient price, shining "View home", serif numbers). */
 @property --lx-sig-a { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
 @keyframes lx-sig-spin { to { --lx-sig-a: 360deg; } }
-@keyframes lx-sig-in { from { opacity: 0; transform: translateY(16px) scale(.985); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes lx-sig-in { from { opacity: 0; transform: translateY(16px) scale(.985); } to { opacity: 1; transform: none; filter: none; } }
 @keyframes lx-sig-leak { 0% { transform: translateX(-110%); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateX(110%); opacity: 0; } }
 @keyframes lx-sig-beam { 0% { transform: rotate(14deg) translateX(-200%); } 40%, 100% { transform: rotate(14deg) translateX(520%); } }
 @keyframes lx-sig-rise { 0% { opacity: 0; transform: translateY(0) scale(.5); } 25% { opacity: .95; transform: translateY(-10px) scale(1); } 100% { opacity: 0; transform: translateY(-46px) scale(.6); } }
-@keyframes lx-sig-name { from { opacity: 0; transform: translateY(10px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes lx-sig-name { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; filter: none; } }
 @keyframes lx-sig-shine { 0%, 60% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 .signature-gallery.lx { position: relative; animation: lx-sig-in 1.1s cubic-bezier(.22,.61,.36,1) both; }
 .signature-gallery.lx::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; background: conic-gradient(from var(--lx-sig-a), rgba(var(--m-rgb),.18), var(--m-light) 12%, var(--m-pale) 16%, var(--m-base) 20%, rgba(var(--m-rgb),.18) 34%, rgba(var(--m-rgb),.18) 62%, var(--m-light) 76%, var(--m-pale) 80%, var(--m-base) 84%, rgba(var(--m-rgb),.18)); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: lx-sig-spin 7s linear infinite; pointer-events: none; z-index: 4; }
@@ -170,7 +170,7 @@ const GALLERY_CSS = `
 .portrait-frame { position: relative; flex: 0 0 auto; margin: -8px 11px 11px; }
 /* A slow, subtle breathing pulse - opacity only, so it never risks nudging anything, and stays
    calm rather than "throbbing". Respects reduced-motion below. */
-.portrait-frame::before { content: ''; position: absolute; inset: -15px; z-index: 0; pointer-events: none; border-radius: 34px; background: radial-gradient(circle at 24% 18%, color-mix(in srgb, currentColor 56%, transparent), transparent 60%), radial-gradient(circle at 82% 88%, color-mix(in srgb, currentColor 36%, transparent), transparent 56%), radial-gradient(circle at 50% 50%, color-mix(in srgb, currentColor 18%, transparent), transparent 72%); filter: blur(3px); animation: portrait-glow-pulse 7s ease-in-out infinite; }
+.portrait-frame::before { content: ''; position: absolute; inset: -15px; z-index: 0; pointer-events: none; border-radius: 34px; background: radial-gradient(circle at 24% 18%, color-mix(in srgb, currentColor 56%, transparent), transparent 60%), radial-gradient(circle at 82% 88%, color-mix(in srgb, currentColor 36%, transparent), transparent 56%), radial-gradient(circle at 50% 50%, color-mix(in srgb, currentColor 18%, transparent), transparent 72%); animation: portrait-glow-pulse 7s ease-in-out infinite; }
 @keyframes portrait-glow-pulse { 0%, 100% { opacity: .78; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .portrait-frame::before { animation: none; } }
 /* Clips the photo to its rounded, alternating-corner frame - the halo above sits outside this

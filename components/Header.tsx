@@ -795,6 +795,11 @@ export default function Header({ mode = 'app' }: HeaderProps) {
             {/* Landing/Public Actions */}
             {!isCheckingAuth && !isAuthenticated && (
               <div className="flex shrink-0 items-center space-x-0.5 sm:space-x-2">
+                <nav aria-label="OpenHousePal" className="mr-2 hidden items-center gap-1 lg:flex">
+                  {[['/tools', 'All Tools'], ['/pricing', 'Pricing'], ['/idx-websites', 'IDX Websites'], ['/resources', 'Resources'], ['/faq', 'FAQ'], ['/about', 'About']].map(([href, label]) => (
+                    <Link key={href} href={href} className="rounded-xl px-3 py-2 text-sm font-black text-[#374151] transition-colors hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800">{label}</Link>
+                  ))}
+                </nav>
                 <ThemeToggle />
                 <Link
                   href="/login"

@@ -1,6 +1,6 @@
 'use client'
 
-// The animated medallion each premade form wears on the Forms page (custom forms keep their QR).
+// The animated medallion each form wears on the Forms page.
 // One small living drawing per form - a heart rising from a house, a coin flipping, a checklist
 // ticking itself off - in the app's midnight + gold. Loops gently at rest, a touch livelier when
 // the card is hovered (the card is the `group`). Pure SVG + CSS, so dozens cost nothing.
@@ -109,6 +109,10 @@ const ARTS: Record<string, Art> = {
   },
   buyer_onboarding: {
     label: 'A buyer checklist ticking itself off',
+    draw: <Clipboard />,
+  },
+  custom: {
+    label: 'Your own form',
     draw: <Clipboard />,
   },
   showcase_request: {

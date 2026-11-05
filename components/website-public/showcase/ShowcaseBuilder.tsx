@@ -524,7 +524,7 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
                     <div className="relative mx-auto grid h-24 w-24 place-items-center">
                       {[0, 1, 2, 3, 4, 5, 6, 7].map(i => <span key={i} className="sb-spark" style={{ ['--a' as any]: `${i * 45}deg`, animationDelay: `${i * 40}ms` }} />)}
                       <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 380, damping: 16 }}
-                        className="grid h-20 w-20 place-items-center rounded-full shadow-[0_20px_40px_-14px_rgba(var(--site-accent-rgb),.9)]" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>
+                        className="grid h-20 w-20 place-items-center rounded-full bg-emerald-500 text-white shadow-[0_20px_40px_-14px_rgba(16,185,129,.8)]">
                         <Check className="h-9 w-9" strokeWidth={3} />
                       </motion.span>
                     </div>

@@ -109,10 +109,10 @@ export default function PropertyShowcaseCard({ listing, theme, basePrefix = '', 
         {(listing as any).list_office_name && <p className="mt-1 truncate text-[10px] font-medium text-gray-400">Courtesy of {(listing as any).list_office_name}</p>}
         {(listing.bedrooms != null || listing.bathrooms != null || listing.living_area != null || listing.lot_size_acres != null) && (
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-gray-100 pt-3 text-xs font-semibold text-gray-500">
-            {listing.bedrooms != null && <span className="flex items-center gap-1.5"><BedDouble className="h-3.5 w-3.5" style={{ color: theme.secondary_color }} /> {listing.bedrooms} bd</span>}
-            {listing.bathrooms != null && <span className="flex items-center gap-1.5"><Bath className="h-3.5 w-3.5" style={{ color: theme.secondary_color }} /> {listing.bathrooms} ba</span>}
-            {listing.living_area != null && <span className="flex items-center gap-1.5"><Ruler className="h-3.5 w-3.5" style={{ color: theme.secondary_color }} /> {listing.living_area.toLocaleString()} sqft</span>}
-            {listing.lot_size_acres != null && <span className="flex items-center gap-1.5"><LandPlot className="h-3.5 w-3.5" style={{ color: theme.secondary_color }} /> {listing.lot_size_acres.toFixed(listing.lot_size_acres < 1 ? 2 : 1)} ac</span>}
+            {listing.bedrooms != null && <span className="flex items-center gap-1.5"><BedDouble className="h-3.5 w-3.5" style={{ color: 'var(--site-accent)' }} /> {listing.bedrooms} bd</span>}
+            {listing.bathrooms != null && <span className="flex items-center gap-1.5"><Bath className="h-3.5 w-3.5" style={{ color: 'var(--site-accent)' }} /> {listing.bathrooms} ba</span>}
+            {listing.living_area != null && <span className="flex items-center gap-1.5"><Ruler className="h-3.5 w-3.5" style={{ color: 'var(--site-accent)' }} /> {listing.living_area.toLocaleString()} sqft</span>}
+            {listing.lot_size_acres != null && <span className="flex items-center gap-1.5"><LandPlot className="h-3.5 w-3.5" style={{ color: 'var(--site-accent)' }} /> {listing.lot_size_acres.toFixed(listing.lot_size_acres < 1 ? 2 : 1)} ac</span>}
           </div>
         )}
       </div>

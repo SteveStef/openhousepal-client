@@ -131,21 +131,21 @@ export default function AboutAgentBlock({ data, theme, basePrefix = '' }: { data
         {/* words */}
         <div className={photoUrl ? '' : 'lg:col-span-2 lg:mx-auto lg:max-w-3xl lg:text-center'}>
           <div className={`flex items-center gap-3 ${photoUrl ? '' : 'lg:justify-center'}`}>
-            <span className="h-px w-8" style={{ backgroundColor: gold }} />
+            <span className="h-px w-8" style={{ backgroundColor: 'var(--site-accent)' }} />
             <span className="text-xs font-black uppercase tracking-[0.3em]" style={{ color: 'var(--site-accent-text)' }}>Meet your agent</span>
           </div>
           {name && <h2 className={`ohp-site-heading mt-4 text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl ${serif}`} style={{ color: 'var(--site-heading)' }}>{name}</h2>}
           {(title || market) && (
             <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-bold text-gray-500">
               {title && <span className="uppercase tracking-[0.16em]">{title}</span>}
-              {title && market && <span className="h-1 w-1 rounded-full" style={{ backgroundColor: gold }} />}
+              {title && market && <span className="h-1 w-1 rounded-full" style={{ backgroundColor: 'var(--site-accent)' }} />}
               {market && <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" style={{ color: 'var(--site-accent-text)' }} />{market}</span>}
             </p>
           )}
 
           {bio && (
             <div className="relative mt-7 rounded-[26px] border p-6 shadow-[0_24px_60px_-44px_rgba(17,24,39,.5)] sm:p-7" style={{ borderColor: `${gold}33`, backgroundColor: 'color-mix(in srgb, var(--site-surface) 72%, transparent)' }}>
-              <Quote className="absolute -top-4 left-6 h-8 w-8 rounded-full p-1.5" style={{ backgroundColor: ink, color: gold }} />
+              <Quote className="absolute -top-4 left-6 h-8 w-8 rounded-full p-1.5" style={{ backgroundColor: ink, color: 'var(--site-accent)' }} />
               <p className={`text-[17px] leading-[1.8] ${fontClass(theme.body_font)}`} style={{ color: 'var(--site-ink-soft)' }}>{bio}</p>
             </div>
           )}
@@ -153,7 +153,7 @@ export default function AboutAgentBlock({ data, theme, basePrefix = '' }: { data
           {(tel || email) && (
             <div className={`mt-7 flex flex-wrap items-center gap-3 ${photoUrl ? '' : 'lg:justify-center'}`}>
               {tel && (
-                <a href={`tel:${tel}`} className="ohp-gold-sheen inline-flex items-center gap-2 rounded-full px-6 py-3 text-xs font-black uppercase tracking-widest shadow-lg transition hover:-translate-y-0.5" style={{ backgroundColor: gold, color: ink }}>
+                <a href={`tel:${tel}`} className="ohp-gold-sheen inline-flex items-center gap-2 rounded-full px-6 py-3 text-xs font-black uppercase tracking-widest shadow-lg transition hover:-translate-y-0.5" style={{ backgroundColor: 'var(--site-accent)', color: ink }}>
                   <Phone className="h-4 w-4" /> Call {first}
                 </a>
               )}
@@ -175,7 +175,7 @@ export default function AboutAgentBlock({ data, theme, basePrefix = '' }: { data
                   {socialLinks.map(link => {
                     const Icon = SOCIAL_ICON[link.id] || Globe
                     return (
-                      <a key={link.id} href={link.url} target="_blank" rel="noreferrer" aria-label={link.label || link.id} title={link.label || link.id} className="grid h-10 w-10 place-items-center rounded-full border bg-white transition hover:-translate-y-0.5" style={{ borderColor: `${gold}44`, color: gold }}>
+                      <a key={link.id} href={link.url} target="_blank" rel="noreferrer" aria-label={link.label || link.id} title={link.label || link.id} className="grid h-10 w-10 place-items-center rounded-full border bg-white transition hover:-translate-y-0.5" style={{ borderColor: `${gold}44`, color: 'var(--site-accent)' }}>
                         <Icon className="h-4 w-4" />
                       </a>
                     )

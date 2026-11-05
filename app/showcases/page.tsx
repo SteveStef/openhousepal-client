@@ -100,9 +100,11 @@ function ShowcaseContent() {
   // The New Matches mailbox; ?new=1 opens it (the AI helper's button).
   const [isNewMatchesOpen, setIsNewMatchesOpen] = useState(false)
   const [newMatchCount, setNewMatchCount] = useState(0)
-  useEffect(() => {
+  // Re-read whenever homes get seen some other way than the mailbox: a Showcase opened, or dismissed.
+  const refreshNewMatchCount = useCallback(() => {
     api.collections.getNewMatches().then(r => { if (r.success && r.data) setNewMatchCount(r.data.count) }).catch(() => {})
   }, [])
+  useEffect(() => { refreshNewMatchCount() }, [refreshNewMatchCount])
   useEffect(() => { if (searchParams.get('new') === '1') setIsNewMatchesOpen(true) }, [searchParams])
   const [deleteAlsoRemoves, setDeleteAlsoRemoves] = useState<string[] | null>(null)
   const [deleteModalState, setDeleteModalState] = useState<{ isOpen: boolean, collection: Collection | null }>({
@@ -305,7 +307,7 @@ function ShowcaseContent() {
   useEffect(() => {
     if (!selectedCollection?.id || markedSeenRef.current.has(selectedCollection.id)) return
     markedSeenRef.current.add(selectedCollection.id)
-    api.collections.markSeen(selectedCollection.id)
+    Promise.resolve(api.collections.markSeen(selectedCollection.id)).catch(() => {}).finally(refreshNewMatchCount)
     // Opening it = seeing its new matches: the card's NEW photos + "N NEW" clear (server does the
     // same). NEW on the homes inside stays until each one is opened.
     const seenId = selectedCollection.id
@@ -711,6 +713,7 @@ function ShowcaseContent() {
   const handleDismissNew = async (collectionId: string) => {
     const { success, error } = await api.collections.dismiss(collectionId)
     if (success) {
+      refreshNewMatchCount()
       setCollections(prev => prev.map(c =>
         c.id === collectionId
           ? {

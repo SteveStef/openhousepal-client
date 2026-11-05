@@ -8,11 +8,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ host: s
   const host = decodeURIComponent(rawHost)
   const res = await fetch(`${INTERNAL_API_URL}/public/sites/resolve?host=${encodeURIComponent(host)}&path=`, { next: { revalidate: 300 } })
   const resolved = res.ok ? await res.json() : null
-  if (!resolved?.site_id) return new Response('User-agent: *\nDisallow: /\n', { headers: { 'Content-Type': 'text/plain' } })
+  if (!resolved?.site_id) {
+    // Stays readable: a Spotlight's noindex, or the "not found" of a site that was switched off or
+    // downgraded, only works if Google can open the page.
+    return new Response('User-agent: *\nDisallow:\n', { headers: { 'Content-Type': 'text/plain' } })
+  }
   const origin = `https://${resolved.canonical_hostname || host}`
   const off = resolved.published_snapshot?.seo?.allow_indexing === false
+  // A site hidden on purpose stays open to crawlers: Google has to re-read a page to see its noindex.
+  // A Disallow here keeps a page it already listed in its results (owner, 11/04).
   const body = off
-    ? 'User-agent: *\nDisallow: /\n'
+    ? 'User-agent: *\nDisallow:\n'
     : `User-agent: *\nAllow: /\nDisallow: /forms/\nDisallow: /open-house/\nDisallow: /showcase/\nDisallow: /showcases/\nDisallow: /cma/\n\nSitemap: ${origin}/sitemap.xml\n`
   return new Response(body, { headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'public, max-age=300' } })
 }

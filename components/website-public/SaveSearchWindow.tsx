@@ -251,7 +251,7 @@ export default function SaveSearchWindow({ siteId, criteria, onClose }: { siteId
 
               {step === 'done' && (
                 <motion.div key="done" className="p-8 text-center" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, ease }}>
-                  <motion.span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}
+                  <motion.span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500 text-white"
                     initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 16, delay: 0.1 }}>
                     <Check className="h-8 w-8" />
                   </motion.span>

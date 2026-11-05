@@ -147,7 +147,7 @@ export function PhotoStep({ ctx }: { ctx: StepCtx }) {
   return (
     <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:gap-10">
       <div className="relative">
-        <div className="absolute -inset-3 rounded-full bg-gradient-to-br from-[#e8c97a]/50 via-transparent to-[#C9A24D]/40 blur-xl" />
+        <div className="absolute -inset-3 rounded-full bg-[radial-gradient(closest-side,rgba(232,201,122,.5),transparent)]" />
         <div className="relative rounded-full bg-gradient-to-br from-[#8b6a2b] via-[#e8c97a] to-[#C9A24D] p-[5px] shadow-[0_24px_50px_-24px_rgba(139,106,43,.9)]">
           {i.photoUrl ? (
             <DraggableAvatarPhoto url={i.photoUrl} position={pos} onPositionChange={setPos} onDragEnd={p => ctx.saveInfo({ photoPosition: p })} size={176} uploading={busy} />

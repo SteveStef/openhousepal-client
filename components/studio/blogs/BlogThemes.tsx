@@ -284,7 +284,7 @@ export function BlogThemedArticle({ theme, title, subtitle, category, coverUrl, 
           {t.id === 'midnight' && dark && (
             <>
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(110%_130%_at_100%_0%,rgba(201,162,77,.22),transparent_55%),linear-gradient(135deg,#0b0f0e_0%,#111827_55%,#1d1810_100%)]" />
-              <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-[#C9A24D]/15 blur-3xl" />
+              <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.15),transparent)]" />
             </>
           )}
           <div className={`relative mx-auto px-5 pb-10 pt-6 ${t.id === 'editorial' ? 'max-w-4xl text-center' : 'max-w-4xl'}`}>
