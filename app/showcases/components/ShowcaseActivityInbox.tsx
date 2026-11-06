@@ -1,6 +1,7 @@
 'use client'
 
-import { X, Heart, ThumbsDown, MessageSquare, Calendar, SlidersHorizontal, Eye, Inbox } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { X, Heart, ThumbsDown, MessageSquare, Calendar, SlidersHorizontal, Eye, Inbox, Search } from 'lucide-react'
 import type { ShowcaseActivityItem } from '@/types'
 import { useEscapeToClose } from '@/components/ui/windowMotion'
 import MotionModal from '@/components/ui/MotionModal'
@@ -40,6 +41,10 @@ const street = (address?: string | null) => {
 
 export default function ShowcaseActivityInbox({ isOpen, onClose, items, onOpenItem }: ShowcaseActivityInboxProps) {
   useEscapeToClose(onClose, isOpen)
+  const [query, setQuery] = useState('')
+  useEffect(() => { if (isOpen) setQuery('') }, [isOpen])
+  const needle = query.trim().toLowerCase()
+  const shown = needle ? items.filter(i => [i.showcase_name, i.property_address, i.message].some(v => (v || '').toLowerCase().includes(needle))) : items
 
   // Same spring-up open / drop-away close as the Tours window (MotionModal) - user, 10/24.
   return (
@@ -60,8 +65,19 @@ export default function ShowcaseActivityInbox({ isOpen, onClose, items, onOpenIt
           </button>
         </div>
 
+        {items.length > 0 && (
+          <div className="flex-shrink-0 border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+            <label className="relative block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search a client's name" aria-label="Search a client's name" data-testid="activity-search"
+                className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm font-semibold text-[#111827] outline-none transition placeholder:text-gray-400 focus:border-[#C9A24D] dark:border-gray-800 dark:bg-[#0B0B0B] dark:text-white" />
+            </label>
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto p-3 bg-[#FAFAF7] dark:bg-[#0B0B0B]">
-          {items.length === 0 ? (
+          {items.length > 0 && shown.length === 0 ? (
+            <p className="py-10 text-center text-sm font-semibold text-gray-500 dark:text-gray-400">Nothing matches that name.</p>
+          ) : items.length === 0 ? (
             <div className="text-center py-10">
               <div className="w-12 h-12 bg-white dark:bg-[#151517] rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm border border-gray-100 dark:border-gray-800">
                 <Inbox className="h-6 w-6 text-gray-300 dark:text-gray-600" />
@@ -71,7 +87,7 @@ export default function ShowcaseActivityInbox({ isOpen, onClose, items, onOpenIt
             </div>
           ) : (
             <div className="space-y-1.5">
-              {items.map((item) => {
+              {shown.map((item) => {
                 const k = kindOf(item)
                 const Icon = k.icon
                 return (

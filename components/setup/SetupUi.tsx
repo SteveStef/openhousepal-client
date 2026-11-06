@@ -320,6 +320,44 @@ export function LockedValue({ label, value, note }: { label: string; value: stri
 
 /** Shrinks any picked image to a JPG under ~4MB (the upload accepts JPG only) - so a PNG or a
  * huge phone photo still just works. */
+/** Every headshot box uses this (Settings, Site, setup, Studio's pop-up): a right-sized JPG when the
+ * browser can read the file. One it can't (an iPhone HEIC on a Windows computer) goes as it is, and
+ * the server converts it. */
+export async function readyHeadshot(file: File): Promise<File> {
+  if (file.type === 'image/jpeg' && file.size < 4.5 * 1024 * 1024) return file
+  try { return await toJpeg(file) } catch { return file }
+}
+
+/** Logos stay JPG or PNG. Anything else (WebP, SVG) becomes a PNG here, so see-through stays see-through. */
+export async function readyLogo(file: File): Promise<File> {
+  if (file.type === 'image/png' || file.type === 'image/jpeg') return file
+  const url = URL.createObjectURL(file)
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image()
+      i.onload = () => resolve(i)
+      i.onerror = reject
+      i.src = url
+    })
+    // A drawing (SVG) can report a tiny size, or none: draw it large enough to stay sharp.
+    const w = img.naturalWidth || 1200, h = img.naturalHeight || 1200
+    const scale = Math.min(2000 / Math.max(w, h), Math.max(1, 1200 / Math.max(w, h)))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(w * scale)
+    canvas.height = Math.round(h * scale)
+    canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+    const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/png'))
+    return blob ? new File([blob], (file.name.replace(/\.[^.]+$/, '') || 'logo') + '.png', { type: 'image/png' }) : file
+  } catch {
+    return file
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
+/** What a logo box offers in the picker. */
+export const LOGO_ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml'
+
 export async function toJpeg(file: File, maxSide = 2000): Promise<File> {
   const url = URL.createObjectURL(file)
   try {

@@ -13,7 +13,8 @@ import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import OhSheet from '@/components/open-house-manager/OhSheet'
-import { toJpeg } from '@/components/setup/SetupUi'
+import { readyHeadshot } from '@/components/setup/SetupUi'
+import { PHOTO_ACCEPT } from '@/components/assistant/PhotoDrop'
 import api, { API_BASE_URL, resolveMediaUrl } from '@/lib/api-service'
 import FormResultsModal from '@/components/forms/FormResultsModal'
 import InvitesPanel from '@/components/invites/InvitesPanel'
@@ -2860,16 +2861,8 @@ function AgentHubContent() {
     if (!file) return
     setPhotoUploading(true)
     setPhotoError('')
-    // Any phone photo (PNG, WebP, a big camera shot) becomes a right-sized JPG first - same as
-    // Settings and the setup flow.
-    let jpg: File = file
-    try {
-      if (!(file.type === 'image/jpeg' && file.size < 4.5 * 1024 * 1024)) jpg = await toJpeg(file)
-    } catch {
-      setPhotoError('That photo couldn’t be read - please try a JPG or PNG.')
-      setPhotoUploading(false)
-      return
-    }
+    // Any phone photo is made right-sized first - same as Settings and the setup flow.
+    const jpg = await readyHeadshot(file)
     const response = await api.agentHub.uploadPhoto(jpg)
     if (response.success && response.data) {
       const url = response.data.photo_url.startsWith('http') ? response.data.photo_url : `${API_BASE_URL}${response.data.photo_url}`
@@ -2878,7 +2871,7 @@ function AgentHubContent() {
       setEditorSectionStatus(current => ({ ...current, Profile: 'Incomplete' }))
       setSaveStatus('Unsaved Changes')
     } else {
-      setPhotoError(response.error || 'Unable to upload photo. Please try a JPG under 5MB.')
+      setPhotoError(response.error || 'That photo didn’t upload - please try another one.')
     }
     setPhotoUploading(false)
   }
@@ -3932,7 +3925,7 @@ function AgentHubContent() {
                                           <ImageIcon className="h-3.5 w-3.5 text-[#e8c97a] dark:text-[#111827]" /> Upload a new photo
                                           <input
                                             type="file"
-                                            accept="image/jpeg,image/png,image/webp"
+                                            accept={PHOTO_ACCEPT}
                                             disabled={photoUploading}
                                             onChange={(event) => handleProfilePhotoChange(event.target.files?.[0])}
                                             className="sr-only"

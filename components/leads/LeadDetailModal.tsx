@@ -13,6 +13,8 @@ interface LeadDetailModalProps {
   // Fired after any edit inside the panel (status, represented, tags, contacted) so the
   // Leads list underneath can resync without a full page reload.
   onChanged?: () => void
+  /** What the phone's back bar says (where closing takes you). */
+  backLabel?: string
 }
 
 // Opens a lead over the current list (closing leaves the list's scroll and filters as they were).
@@ -24,7 +26,7 @@ interface LeadDetailModalProps {
 // dark scrim - no backdrop blur (blurring the live, animated page behind it made every scrolled
 // frame re-blur the whole screen) - and the scroller is opaque so the browser can scroll it on
 // the GPU without repainting.
-export default function LeadDetailModal({ leadId, onClose, onChanged }: LeadDetailModalProps) {
+export default function LeadDetailModal({ leadId, onClose, onChanged, backLabel = 'Leads' }: LeadDetailModalProps) {
   const closeRef = useRef(onClose)
   closeRef.current = onClose
   // Keep showing the lead while the window animates closed.
@@ -72,7 +74,7 @@ export default function LeadDetailModal({ leadId, onClose, onChanged }: LeadDeta
             {/* Phone: a back bar that stays put while the lead scrolls under it. */}
             <div className="flex shrink-0 items-center border-b border-gray-200/70 bg-[#faf9f7] px-2 py-1.5 dark:border-white/10 dark:bg-[#0B0B0B] sm:hidden">
               <button onClick={onClose} className="inline-flex items-center gap-1.5 rounded-xl px-2 py-2 text-sm font-black text-[#111827] dark:text-white">
-                <ArrowLeft className="h-4 w-4" /> Leads
+                <ArrowLeft className="h-4 w-4" /> {backLabel}
               </button>
             </div>
             <motion.button

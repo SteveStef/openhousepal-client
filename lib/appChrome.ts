@@ -42,6 +42,10 @@ export function hasAppHeader(pathname: string | null | undefined): boolean {
 
 /** The agent's working pages - these open behind the logo loader until their data is in. The
  * homepage and the legal pages are marketing, not app. */
+/** openhousepal.com's own public pages (not the homepage). */
+export function isMarketingPage(pathname: string | null | undefined): boolean {
+  return /^\/(tools(\/|$)|resources(\/|$)|pricing$|idx-websites$|brokerages$|faq$|about$)/.test(pathname || '')
+}
 export function isGatedAppPage(pathname: string | null | undefined): boolean {
   if (!pathname || ['/', '/privacy', '/terms', '/tools', '/pricing', '/idx-websites', '/faq', '/about', '/resources', '/brokerages'].includes(pathname) || /^\/(tools|resources)\//.test(pathname)) return false
   return hasAppHeader(pathname)

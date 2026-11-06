@@ -57,6 +57,8 @@ interface PropertyGridProps {
   animationOrder?: readonly (string | number)[]
   /** Agent's Showcase: no title block - the search bar (compareInfo) then sort + count on one row. */
   compactHeader?: boolean
+  /** The word beside the count, one and many ("Match", "Matches"). Default: home / homes. */
+  countWord?: [string, string]
   /** Client's Showcase: on phones, no title / hint - just sort + count on one slim row. */
   phoneCompact?: boolean
   /** Agent's Showcase: the "I recommend this home" star on each card. */
@@ -93,7 +95,7 @@ export function homeMatches(p: any, key: string): boolean {
   return !!street && k.length > 5 && (k.startsWith(street) || street.startsWith(k.split(',')[0]))
 }
 
-export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, sortControl, headerAction, alignHeaderLeftOnMobile = false, compareInfo, destination, compareProperty, tourButtonVariant, cropMlsBadge = false, highlightFirst = false, highlightKey = null, animationKey, animationOrder, emptyState, compactHeader = false, phoneCompact = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold, onSend, onCopyLink, sentHomes, selectMode = false, selectedIds, onToggleSelect }: PropertyGridProps) {
+export default function PropertyGrid({ properties, title = "Properties", onLike, onDislike, onPropertyClick, onScheduleTour, onCommentClick, showDetailedViewCount = false, showNewForUnviewed = false, sortControl, headerAction, alignHeaderLeftOnMobile = false, compareInfo, destination, compareProperty, tourButtonVariant, cropMlsBadge = false, highlightFirst = false, highlightKey = null, animationKey, animationOrder, emptyState, compactHeader = false, countWord, phoneCompact = false, onRecommend, recommendedBy, offMarketNotice = false, onMoveToSold, onSend, onCopyLink, sentHomes, selectMode = false, selectedIds, onToggleSelect }: PropertyGridProps) {
   const firstCardRef = useRef<HTMLDivElement>(null)
   const [isHighlighting, setIsHighlighting] = useState(false)
   const hasFiredRef = useRef(false)
@@ -304,7 +306,7 @@ export default function PropertyGrid({ properties, title = "Properties", onLike,
   const countPill = (
     <span className="inline-flex shrink-0 items-center overflow-hidden rounded-full border border-[#C9A24D]/25 bg-white text-xs font-black uppercase tracking-wider shadow-sm dark:border-[#C9A24D]/20 dark:bg-[#151517]">
       <span className="bg-[#C9A24D]/12 px-2.5 py-1.5 text-[#8b7355] dark:text-[#e8cf8a]">{properties.length}</span>
-      <span className="px-2.5 py-1.5 text-[#6B7280] dark:text-gray-400">{properties.length === 1 ? 'home' : 'homes'}</span>
+      <span className="px-2.5 py-1.5 text-[#6B7280] dark:text-gray-400">{(countWord || ['home', 'homes'])[properties.length === 1 ? 0 : 1]}</span>
     </span>
   )
   if (compactHeader) {
@@ -312,8 +314,7 @@ export default function PropertyGrid({ properties, title = "Properties", onLike,
       <div className="space-y-5">
         <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:gap-4">
           {compareInfo && <div className="min-w-0 flex-1">{compareInfo}</div>}
-          {/* (with the agent's Select button in the row, a phone shows just the number) */}
-          <div className={`flex items-center gap-2 ${compareInfo ? '' : 'lg:ml-auto'}`}>{sortControl}<span className={`ml-auto lg:ml-0 ${onSend ? '[&>span>span:last-child]:hidden sm:[&>span>span:last-child]:inline' : ''}`}>{countPill}</span></div>
+          <div className={`flex items-center gap-1.5 sm:gap-2 ${compareInfo ? '' : 'lg:ml-auto'}`}>{sortControl}<span className="shrink-0 lg:ml-0 max-sm:[&>span]:normal-case max-sm:[&>span]:tracking-normal max-sm:[&>span>span]:px-1.5">{countPill}</span></div>
         </div>
         {tabStage}
       </div>

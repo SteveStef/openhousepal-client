@@ -33,7 +33,8 @@ import MyListingsPanel from '@/components/agent-hub/MyListingsPanel'
 import ListingLinkRoutingPanel from '@/components/agent-hub/ListingLinkRoutingPanel'
 import BillingPanel from '@/components/settings/BillingPanel'
 import { useSettingsCompleteness } from '@/hooks/useSettingsCompleteness'
-import { toJpeg } from '@/components/setup/SetupUi'
+import { readyHeadshot } from '@/components/setup/SetupUi'
+import { PHOTO_ACCEPT } from '@/components/assistant/PhotoDrop'
 import { getBrokeragePhone, getOfficePhone, upgradeHubPhones } from '@/lib/hubPhones'
 import { SaveStatusBar, SaveStatusContext, useSaveStatus, useSaveTracker } from '@/components/ui/SaveStatus'
 
@@ -478,16 +479,8 @@ export default function SettingsPage() {
     if (!file) return
     setPhotoUploading(true)
     setPhotoError('')
-    // Same as the setup flow: any phone photo (PNG, WebP, a 12 MB camera shot) is turned into a
-    // right-sized JPG first, instead of being turned away.
-    let jpg: File = file
-    try {
-      if (!(file.type === 'image/jpeg' && file.size < 4.5 * 1024 * 1024)) jpg = await toJpeg(file)
-    } catch {
-      setPhotoError('That photo couldn’t be read - please try a JPG or PNG.')
-      setPhotoUploading(false)
-      return
-    }
+    // Same as the setup flow: any phone photo is made right-sized first, instead of being turned away.
+    const jpg = await readyHeadshot(file)
     const response = await save.track(async () => {
       const r = await api.agentHub.uploadPhoto(jpg)
       if (r.success && r.data) {
@@ -500,7 +493,7 @@ export default function SettingsPage() {
       return r
     }, { key: 'profile-photo' })
     if (!(response.success && response.data)) {
-      setPhotoError(response.error || 'Unable to upload photo. Please try a JPG under 5MB.')
+      setPhotoError(response.error || 'That photo didn’t upload - please try another one.')
     }
     setPhotoUploading(false)
   }
@@ -670,7 +663,7 @@ export default function SettingsPage() {
                           {photoUploading ? 'Uploading…' : profilePhotoUrl ? 'Change photo' : 'Upload photo'}
                           <input
                             type="file"
-                            accept="image/jpeg,image/png,image/webp"
+                            accept={PHOTO_ACCEPT}
                             disabled={photoUploading}
                             onChange={(event) => { handleProfilePhotoChange(event.target.files?.[0]); event.target.value = '' }}
                             className="sr-only"

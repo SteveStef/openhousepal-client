@@ -17,7 +17,7 @@ import { BlogPick, type BlogPicks } from './BlogPick'
 import { KitPick, kitStart, type KitPicks } from './KitPick'
 import { DiscoveryPick, discoveryStart, type DiscoveryPicks } from './DiscoveryPick'
 import { InviteSendPick, inviteSendInitial, inviteSendLabel, type InviteSendPicks } from './InviteSendPick'
-import { WorkingScene, CardIcon, CardStep, StepDone, DesignLivePreview, BrandLivePreview, FormPick, OPTION_GRID, PickShell, useDesignProperty, useSteps, type FormPicks } from './CardPickers'
+import { WorkingScene, CardIcon, CardStep, StepDone, DesignLivePreview, BrandLivePreview, FormPick, OPTION_GRID, PickShell, useAgentBits, useDesignProperty, useSteps, type FormPicks } from './CardPickers'
 import { joinColorMode, splitColorMode } from '@/lib/studio/designColors'
 import { LUXE_METALS, LUXE_METAL_ORDER, type LuxeMetal } from '@/lib/luxeMetals'
 import { SpotlightPick, spotlightStart, type SpotlightPicks } from './SpotlightPick'
@@ -90,7 +90,8 @@ function MadeDesign({ made, fresh }: { made: NonNullable<Made> & { design_id?: s
 }
 
 type DesignHome = { listing_key: string; address: string; photo?: string | null }
-type Look = { layout: string | null; colors: string; metal: LuxeMetal | null; photo: string | null; home: DesignHome | null; focal: { x: number; y: number } | null }
+type LogoMode = 'personal' | 'team' | 'brokerage' | 'none'
+type Look = { layout: string | null; colors: string; metal: LuxeMetal | null; photo: string | null; home: DesignHome | null; focal: { x: number; y: number } | null; logo?: LogoMode | null }
 
 const stepChip = (on: boolean) => `ohp-ai-press rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${on
   ? 'border-[#111827] bg-[#111827] text-white dark:border-[#C9A24D] dark:bg-[#C9A24D] dark:text-[#111827]'
@@ -114,7 +115,11 @@ function DesignPick({ payload: given, look, onLook, idx }: { payload: Record<str
   const layout = look.layout || layouts[0]?.composition || null
   const photos = Array.from(new Set([...(property?.photos || []), property?.image_url].filter(Boolean) as string[])).slice(0, 12)
   const photo = look.photo || photos[0] || null
-  const ids = [homes.length > 1 && 'home', layouts.length > 1 && 'layout', 'colors', idx && 'finish', photos.length > 1 && 'photo'].filter(Boolean) as string[]
+  const ids = [homes.length > 1 && 'home', layouts.length > 1 && 'layout', 'colors', idx && 'finish', 'logo', photos.length > 1 && 'photo'].filter(Boolean) as string[]
+  // Which logo goes on it, or none (owner, 11/05) - the first one they have to start.
+  const { kit } = useAgentBits()
+  const logos = ([['personal', 'My logo', kit?.personal_logo_url], ['team', 'Team', kit?.team_logo_url], ['brokerage', 'Brokerage', kit?.brokerage_logo_url]] as const).filter(l => !!l[2])
+  const logo: LogoMode = look.logo ?? logos[0]?.[0] ?? 'personal'
   // The home they named in chat is already picked - start on the next step (owner, 11/01).
   const steps = useSteps(ids, ids[0] === 'home' && given.listing_key ? ids[1] ?? null : undefined)
   const n = (id: string) => ids.indexOf(id) + 1
@@ -125,7 +130,7 @@ function DesignPick({ payload: given, look, onLook, idx }: { payload: Record<str
     <PickShell testid="ai-design-pick" side={300} preview={
       /* how it will look, redrawn as they tap (owner, 11/01) - the Studio's own renderer */
       <DesignLivePreview payload={payload} layout={layout} colors={joinColorMode(look.colors, look.metal)} property={property} photo={photo}
-        focal={look.focal} onFocal={f => onLook({ ...look, focal: f })} big={big} />
+        focal={look.focal} onFocal={f => onLook({ ...look, focal: f })} big={big} brandingMode={logo} />
     }>
       {homes.length > 1 && (
         <CardStep id="home" n={n('home')} title="Home" summary={(payload.address || '').split(',')[0]} steps={steps}>
@@ -193,6 +198,16 @@ function DesignPick({ payload: given, look, onLook, idx }: { payload: Record<str
           </div>
         </CardStep>
       )}
+      <CardStep id="logo" n={n('logo')} title="Logo" summary={logo === 'none' || !logos.length ? 'None' : logos.find(l => l[0] === logo)?.[1] || 'None'} steps={steps}>
+        {logos.length ? (
+          <div className="flex flex-wrap gap-1.5" data-testid="ai-design-logo">
+            {logos.map(([mode, label]) => (
+              <button key={mode} type="button" onClick={() => { onLook({ ...look, logo: mode }); steps.picked('logo') }} aria-pressed={logo === mode} className={stepChip(logo === mode)}>{label}</button>
+            ))}
+            <button type="button" onClick={() => { onLook({ ...look, logo: 'none' }); steps.picked('logo') }} aria-pressed={logo === 'none'} className={stepChip(logo === 'none')}>No logo</button>
+          </div>
+        ) : <p className="text-[11.5px] font-semibold text-gray-500 dark:text-zinc-400">No logo yet. You can add one in Branding.</p>}
+      </CardStep>
       {photos.length > 1 && (
         <CardStep id="photo" n={n('photo')} title="Photo" summary={photo === photos[0] ? 'Main photo' : `Photo ${photos.indexOf(photo || '') + 1}`} steps={steps}>
           <div className="-mx-0.5 flex gap-1.5 overflow-x-auto px-0.5 pb-1 [scrollbar-width:thin]" data-testid="ai-design-photos">
@@ -258,7 +273,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
     designProfileMissing(String(action.payload?.format || ''), user).then(m => { if (live) setDesignMissing(m) })
     return () => { live = false }
   }, [isDesign, action.status, action.payload?.format, user])
-  const [look, setLook] = useState<Look>({ layout: (action.payload?.layout as string) || null, colors: splitColorMode((action.payload?.colors as string) || 'light').base, metal: splitColorMode(action.payload?.colors as string).metal, photo: null, home: null, focal: null })
+  const [look, setLook] = useState<Look>({ layout: (action.payload?.layout as string) || null, colors: splitColorMode((action.payload?.colors as string) || 'light').base, metal: splitColorMode(action.payload?.colors as string).metal, photo: null, home: null, focal: null, logo: (action.payload?.branding_mode as LogoMode) || null })
   const idx = user?.plan_tier === 'IDX' || !!user?.is_admin
   // Branding: the card's swatches start from what they have now (payload.current) - sent as picks on Save.
   const cur = (action.payload?.current || {}) as Record<string, any>
@@ -371,7 +386,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
     if (r.success && data?.status === 'running' && data.client_action) {
       // Built here in the browser (a design), then recorded on the card.
       setState(st => ({ ...st, status: 'running', message: 'Making it...' }))
-      const picked = data.client_action === 'build_open_house_kit' ? kit : data.client_action === 'create_design' ? { ...(look.layout ? { layout: look.layout } : {}), colors: joinColorMode(look.colors, look.metal), ...(look.photo ? { photo: look.photo } : {}), ...(look.focal ? { focal: look.focal } : {}), ...(look.home ? { listing_key: look.home.listing_key, address: look.home.address } : {}) } : {}
+      const picked = data.client_action === 'build_open_house_kit' ? kit : data.client_action === 'create_design' ? { ...(look.layout ? { layout: look.layout } : {}), colors: joinColorMode(look.colors, look.metal), ...(look.logo ? { branding_mode: look.logo } : {}), ...(look.photo ? { photo: look.photo } : {}), ...(look.focal ? { focal: look.focal } : {}), ...(look.home ? { listing_key: look.home.listing_key, address: look.home.address } : {}) } : {}
       const out = await runClientAction(data.client_action, { ...(data.payload || {}), ...picked }, user)
       const saved = await api.ai.clientActionResult(action.record_id, messageId, out)
       setFresh(true)

@@ -1,5 +1,6 @@
 'use client'
 
+import { useLogoTone } from '@/lib/logoTone'
 import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -204,6 +205,7 @@ export function SiteHeader({
   // The image may have failed before the page hydrated (onError then never fires) - check once.
   useEffect(() => { const img = logoRef.current; if (img && img.complete && img.naturalWidth === 0) setLogoOk(false) }, [])
   const showLogo = !!theme.logo_url && logoOk
+  const logoTone = useLogoTone(showLogo ? resolveMediaUrl(theme.logo_url) : null)
   const isActive = (href: string) => !!pathname && (pathname === href || pathname.endsWith(href.replace(basePrefix, '') || '/__none'))
 
   return (
@@ -222,7 +224,7 @@ export function SiteHeader({
             Google and screen readers, so the page never said "Compass" up top (11/01 review). */}
         <a href={`${basePrefix}/`} aria-label={`${[agentProfile?.name, agentProfile?.brokerage].filter(Boolean).join(' · ') || siteName} - home`} data-ohp-spot="logo" className="flex shrink-0 items-center gap-3">
           {showLogo ? (
-            <img ref={logoRef} src={resolveMediaUrl(theme.logo_url)} alt={[agentProfile?.name, agentProfile?.brokerage].filter(Boolean).join(' · ') || siteName} onError={() => setLogoOk(false)} className={`h-10 w-auto max-w-[150px] object-contain ${dark ? 'brightness-0 invert' : ''}`} />
+            <img ref={logoRef} src={resolveMediaUrl(theme.logo_url)} alt={[agentProfile?.name, agentProfile?.brokerage].filter(Boolean).join(' · ') || siteName} onError={() => setLogoOk(false)} data-tone={logoTone} data-over-dark={dark ? '' : undefined} className="ohp-logo-fit h-10 w-auto max-w-[150px] object-contain" />
           ) : (
             <span
               className={`flex h-11 w-11 items-center justify-center transition-transform duration-300 hover:scale-105 ${classic ? 'rounded-xl' : 'rounded-xl ring-1 ring-[var(--site-gold)]/30'}`}

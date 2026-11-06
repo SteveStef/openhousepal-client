@@ -1,5 +1,6 @@
 'use client'
 
+import FitLogo from '@/components/ui/FitLogo'
 import { useEffect, useRef, useState } from 'react'
 import { Check, Crown, Loader2, Moon, Sparkles, Sun, Trash2, Upload, Wand2 } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
@@ -11,6 +12,7 @@ import { useToast } from '@/contexts/ToastContext'
 import OhpSwitch from '@/components/ui/OhpSwitch'
 import { brandColorName, brandLookOf, modeLabel, siteThemeWithBrand } from '@/lib/brandKit'
 import { isLightColor } from '@/lib/siteTheme'
+import { LOGO_ACCEPT, readyLogo } from '@/components/setup/SetupUi'
 
 // The Design tab. Everything here is "one click, whole site": the look (Classic / Luxe), the
 // accent color (the same swatches as the Email Signature), light or dark by default (visitors
@@ -96,7 +98,7 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
 
   const uploadLogo = async (file: File) => {
     setUploading(true)
-    const res = await api.studio.uploadMedia(file, 'brand_logo')
+    const res = await api.studio.uploadMedia(await readyLogo(file), 'brand_logo')
     setUploading(false)
     if (res.success && res.data?.url) set({ logo_url: res.data.url })
     else showToast(res.error || 'Could not upload that file.', 'error')
@@ -105,7 +107,7 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
   const [loaderUploading, setLoaderUploading] = useState(false)
   const uploadLoaderLogo = async (file: File) => {
     setLoaderUploading(true)
-    const res = await api.studio.uploadMedia(file, 'brand_logo')
+    const res = await api.studio.uploadMedia(await readyLogo(file), 'brand_logo')
     setLoaderUploading(false)
     if (res.success && res.data?.url) setOwn({ loader_logo_url: res.data.url })
     else showToast(res.error || 'Could not upload that file.', 'error')
@@ -288,7 +290,7 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
         <p className={label}>Logo</p>
         <div className="mt-1.5 flex items-center gap-3 rounded-xl border border-gray-200 p-2.5 dark:border-gray-800">
           <span className="flex h-12 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#111827] p-1.5">
-            {theme.logo_url ? <img src={resolveMediaUrl(theme.logo_url)} alt="Logo" className="max-h-full max-w-full object-contain" /> : <span className="text-[9px] font-black uppercase tracking-wide text-white/40">Your name</span>}
+            {theme.logo_url ? <FitLogo src={resolveMediaUrl(theme.logo_url)} on="dark" alt="Logo" className="max-h-full max-w-full object-contain" /> : <span className="text-[9px] font-black uppercase tracking-wide text-white/40">Your name</span>}
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-semibold leading-snug text-gray-400">{theme.logo_url ? 'Shown in the header and footer.' : 'No logo - your site name is shown instead. PNG with a clear background looks best.'}</p>
@@ -301,7 +303,7 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
               )}
             </div>
           </div>
-          <input ref={fileRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(f); e.target.value = '' }} />
+          <input ref={fileRef} type="file" accept={LOGO_ACCEPT} className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(f); e.target.value = '' }} />
         </div>
       </div>
 
@@ -323,7 +325,7 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
               )}
             </div>
           </div>
-          <input ref={loaderRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadLoaderLogo(f); e.target.value = '' }} />
+          <input ref={loaderRef} type="file" accept={LOGO_ACCEPT} className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadLoaderLogo(f); e.target.value = '' }} />
         </div>
       </div>
 

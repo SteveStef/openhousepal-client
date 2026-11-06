@@ -115,7 +115,8 @@ export default function LeaveReviewPage() {
 
   const onwardDests = submitted?.dests || dests
   const showOnward = useMemo(() => {
-    if (!submitted || !submitted.isPublic) return false
+    // The same offer whatever they rated: Google's rules ban steering only happy clients there.
+    if (!submitted) return false
     return !!(onwardDests.google_review_url || onwardDests.zillow_review_url)
   }, [submitted, onwardDests])
 
@@ -336,9 +337,9 @@ export default function LeaveReviewPage() {
                 {showOnward && (
                   <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.4 }}
                     className="mt-5 rounded-2xl border border-[#C9A24D]/40 bg-[#C9A24D]/[0.07] p-4">
-                    <p className="text-sm font-black text-[#111827] dark:text-white">One paste and you’re done</p>
+                    <p className="text-sm font-black text-[#111827] dark:text-white">Share your review publicly</p>
                     <p className="mt-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
-                      Share the same words publicly — it means the world to {agent.first || 'them'}.
+                      Post the same words on Google or Zillow if you’d like. It helps other buyers and sellers.
                     </p>
                     {pasteBlock}
                   </motion.div>

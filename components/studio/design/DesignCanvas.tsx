@@ -1,5 +1,6 @@
 'use client'
 
+import { useLogoTone } from '@/lib/logoTone'
 import { Fragment, memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { styledQrSvg } from '@/lib/qrStyle'
@@ -1173,6 +1174,7 @@ function useImageAspect(src: string | null): number | null {
 
 function Logo({ c, t, ink, height, maxWidth, chip }: { c: Content; t: DesignTheme; ink: Ink; height: number; maxWidth?: number; chip?: boolean }) {
   const aspect = useImageAspect(c.logo)
+  const tone = useLogoTone(c.logo)
   if (!c.logo) return null
   const k = c.logoScale || 1
   const tallish = aspect !== null && aspect < 1.5
@@ -1181,9 +1183,13 @@ function Logo({ c, t, ink, height, maxWidth, chip }: { c: Content; t: DesignThem
   // Most brokerage logos are dark marks on transparent - on a photo or a dark panel they vanish, so
   // they sit on a small white card there.
   const needsChip = chip ?? (ink.onPhoto || t.isDark)
-  const img = <img data-probe="logo" src={c.logo} alt="" crossOrigin="anonymous" style={{ display: 'block', maxHeight: u(h), maxWidth: u(w), width: 'auto', height: 'auto' }} />
-  if (!needsChip) return img
-  return <div style={{ background: '#fff', padding: `${u(height * 0.22)} ${u(height * 0.34)}`, borderRadius: u(height * 0.12), display: 'inline-flex', flexShrink: 0 }}>{img}</div>
+  const img = <img data-probe="logo" src={c.logo} alt="" style={{ display: 'block', maxHeight: u(h), maxWidth: u(w), width: 'auto', height: 'auto' }} />
+  // A white logo is the other way round (owner, 11/05): it would vanish on that white card or on light
+  // paper, so it sits on a dark card, or on nothing on a dark panel.
+  const white = tone === 'light'
+  if (white && t.isDark && !ink.onPhoto) return img
+  if (!needsChip && !white) return img
+  return <div style={{ background: !white ? '#fff' : ink.onPhoto ? 'rgba(8,10,16,.62)' : '#111827', padding: `${u(height * 0.22)} ${u(height * 0.34)}`, borderRadius: u(height * 0.12), display: 'inline-flex', flexShrink: 0 }}>{img}</div>
 }
 
 // The site-wide QR look (lib/qrStyle): rounded modules, rounded eyes + a house mark in the theme's

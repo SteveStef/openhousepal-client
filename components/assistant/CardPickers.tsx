@@ -175,7 +175,7 @@ export function StepDone({ onDone, label = 'Done' }: { onDone: () => void; label
 }
 
 // ---------------------------------------------------------------- the agent, once per card
-function useAgentBits() {
+export function useAgentBits() {
   const { user } = useAuth()
   const [hub, setHub] = useState<any>(null)
   const [kit, setKit] = useState<BrandKit | null>(null)
@@ -203,9 +203,10 @@ export function useDesignProperty(payload: Record<string, any>) {
   return property
 }
 
-export function DesignLivePreview({ payload, layout, colors, property, photo, focal, onFocal, big = false }: {
+export function DesignLivePreview({ payload, layout, colors, property, photo, focal, onFocal, big = false, brandingMode }: {
   payload: Record<string, any>; layout: string | null; colors: string; property: LinkedProperty | null | undefined; photo?: string | null
   focal?: { x: number; y: number } | null; onFocal?: (f: { x: number; y: number }) => void; big?: boolean
+  brandingMode?: 'personal' | 'team' | 'brokerage' | 'none'
 }) {
   const { agent, kit } = useAgentBits()
   const situation = getSituation(payload.situation)
@@ -251,7 +252,7 @@ export function DesignLivePreview({ payload, layout, colors, property, photo, fo
         className={`overflow-hidden rounded-lg shadow-[0_10px_24px_-12px_rgba(0,0,0,.45)] ring-1 ring-black/10 ${canDrag ? 'cursor-grab touch-none select-none active:cursor-grabbing' : ''}`}
         data-testid="ai-design-preview" data-focal={shown ? `${shown.x},${shown.y}` : ''}>
         <StyleThumbnail designType={payload.format} styleId="modern_luxury" colorMode={colors as any} templateId={template.id} situation={payload.situation}
-          property={situation?.propertyAttached ? property : null} agent={agent} brandKit={kit}
+          property={situation?.propertyAttached ? property : null} agent={agent} brandKit={kit} brandingMode={brandingMode}
           messaging={payload.headline ? { id: 'custom', headline: String(payload.headline) } as any : undefined}
           buildOptions={buildOptions} rounded={false} />
       </div>

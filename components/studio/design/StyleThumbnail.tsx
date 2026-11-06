@@ -43,13 +43,14 @@ export const DesignPreview = memo(function DesignPreview({ blocks, ctx, classNam
 // `blocks` / `agent` it shows the agent's real listing and branding (the wizard, the editor's
 // Brand tab); without them it falls back to a realistic sample listing (the dashboard).
 export default function StyleThumbnail({
-  designType, styleId, colorMode = 'light', templateId, brandKit, className, situation, property, blocks, agent, messaging, buildOptions, rounded = true,
+  designType, styleId, colorMode = 'light', templateId, brandKit, brandingMode = 'personal', className, situation, property, blocks, agent, messaging, buildOptions, rounded = true,
 }: {
   designType: string
   styleId: DesignStyleId
   colorMode?: DesignColorMode
   templateId?: string
   brandKit?: BrandKit | null
+  brandingMode?: 'personal' | 'team' | 'brokerage' | 'none'
   className?: string
   situation?: string | null
   property?: LinkedProperty | null
@@ -85,7 +86,7 @@ export default function StyleThumbnail({
     property: resolvedProperty,
     ...a,
     brandKit: brandKit || null,
-    brandingMode: 'personal',
+    brandingMode,
   }
   return <DesignPreview blocks={resolvedBlocks} ctx={ctx} className={className} rounded={rounded} />
 }

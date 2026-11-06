@@ -202,7 +202,7 @@ function ReviewsPageInner() {
           icon={Star}
           kicker="Reviews"
           title={<>Five stars, <em>on repeat</em></>}
-          subtitle="Collect client reviews, and turn your best ones into Google & Zillow reviews."
+          subtitle="Collect client reviews, and let every client post theirs to Google & Zillow."
         />
 
         {loading ? (
@@ -224,12 +224,12 @@ function ReviewsPageInner() {
 
             {/* How it works - the funnel as a picture, not a paragraph */}
             <motion.div variants={rise} className="overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-white shadow-sm dark:border-white/[0.07] dark:bg-[#121214]">
-              <LuxeSectionHeader icon={Sparkles} kicker="How it works" title={<>One link, <em>two paths</em></>} subtitle="Happy clients go public. Unhappy ones come to you first." />
+              <LuxeSectionHeader icon={Sparkles} kicker="How it works" title={<>One link, <em>every client</em></>} subtitle="Everyone gets the same link and the same choices. You hear about every review." />
               <div className="grid gap-px bg-[#C9A24D]/15 sm:grid-cols-3 dark:bg-white/[0.06]">
                 {[
                   { icon: Link2, t: 'You send your link', d: 'Text or email it after closing - it takes them 30 seconds.' },
-                  { icon: ThumbsUp, t: '4-5 stars go public', d: 'Shown on your Agent Hub, and they post it to Google & Zillow in one tap.' },
-                  { icon: ShieldCheck, t: '1-3 stars come to you', d: 'Private feedback only you see - never posted anywhere.' },
+                  { icon: ThumbsUp, t: 'Everyone can post', d: 'Google & Zillow are one tap away for every client. 4-5 stars also show on your Agent Hub.' },
+                  { icon: ShieldCheck, t: '1-3 stars alert you', d: 'You hear right away, so you can reach out and make it right. It stays off your Agent Hub.' },
                 ].map((st, i) => (
                   <motion.div key={st.t} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 + i * 0.12 }}
                     className="group relative bg-white p-5 transition hover:bg-[#fffaf0] dark:bg-[#121214] dark:hover:bg-white/[0.03]">
@@ -301,7 +301,7 @@ function ReviewsPageInner() {
 
             {/* Where 4-5 star reviews get re-posted */}
             <motion.div variants={rise} className="overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-white shadow-sm dark:border-white/[0.07] dark:bg-[#121214]">
-              <LuxeSectionHeader icon={Send} kicker="Where happy clients post" title={<>Google &amp; <em>Zillow</em></>} subtitle="Paste each review link once - no account connection needed."
+              <LuxeSectionHeader icon={Send} kicker="Where clients post" title={<>Google &amp; <em>Zillow</em></>} subtitle="Paste each review link once - no account connection needed."
                 aside={(
                   <motion.button whileTap={{ scale: 0.96 }} onClick={saveDests} disabled={savingDests || (!destsDirty && !savedDests)}
                     className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-wide transition ${savedDests ? 'bg-emerald-500 text-white' : destsDirty ? 'bg-[#111827] text-white hover:-translate-y-0.5 dark:bg-white dark:text-[#111827]' : 'bg-white/70 text-gray-400 dark:bg-white/5'}`}>
@@ -356,7 +356,7 @@ function ReviewsPageInner() {
               <LuxeSectionHeader icon={MessageSquareQuote} kicker="Received" title={<>Your <em>reviews</em></>} subtitle={reviews.length ? 'Hide any you don’t want on your Agent Hub, or delete them.' : 'They’ll show up here the moment a client submits.'} />
               {reviews.length > 0 && (
                 <div className="flex gap-1.5 overflow-x-auto border-b border-gray-100 px-5 py-3 dark:border-white/[0.06] sm:px-6">
-                  {([['all', 'All', reviews.length], ['public', 'Public', publicCount], ['private', 'Private feedback', privateCount], ['imported', 'From other sites', reviews.filter(r => (r.source || 'direct') !== 'direct').length]] as const).map(([k, label, n]) => (
+                  {([['all', 'All', reviews.length], ['public', 'Public', publicCount], ['private', 'Off your hub', privateCount], ['imported', 'From other sites', reviews.filter(r => (r.source || 'direct') !== 'direct').length]] as const).map(([k, label, n]) => (
                     <button key={k} onClick={() => setFilter(k)} className={`relative shrink-0 rounded-full px-3.5 py-1.5 text-[11px] font-black transition ${filter === k ? 'text-[#111827]' : 'text-gray-500 hover:text-[#111827] dark:text-white/50 dark:hover:text-white'}`}>
                       {filter === k && <motion.span layoutId="rv-filter" className="absolute inset-0 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a]" transition={{ type: 'spring', stiffness: 420, damping: 32 }} />}
                       <span className="relative">{label} <span className="opacity-60">{n}</span></span>
@@ -369,7 +369,7 @@ function ReviewsPageInner() {
                   <div className="flex flex-col items-center rounded-2xl border-2 border-dashed border-[#C9A24D]/25 py-10 text-center">
                     <motion.div animate={{ rotate: [0, -8, 8, 0] }} transition={{ duration: 2.4, repeat: Infinity, repeatDelay: 1.5 }}><Star className="h-8 w-8 fill-[#C9A24D]/20 text-[#C9A24D]" /></motion.div>
                     <p className="mt-2 text-sm font-black text-[#111827] dark:text-white">No reviews yet</p>
-                    <p className="mt-0.5 text-xs font-semibold text-gray-500">Copy your link above and send it to your last happy client.</p>
+                    <p className="mt-0.5 text-xs font-semibold text-gray-500">Copy your link above and send it to your last client.</p>
                   </div>
                 ) : (
                   <motion.div layout className="grid gap-3 md:grid-cols-2">
@@ -386,7 +386,7 @@ function ReviewsPageInner() {
                                 <div className="flex flex-wrap items-center gap-1.5">
                                   <span className="text-sm font-black text-[#111827] dark:text-white">{rv.reviewer_name}</span>
                                   {rv.source && rv.source !== 'direct' && <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-blue-600 dark:bg-blue-900/20 dark:text-blue-300">{({ google: 'Google', zillow: 'Zillow', realtor: 'Realtor.com', homes: 'Homes.com', facebook: 'Facebook' } as Record<string, string>)[rv.source] || 'Imported'}</span>}
-                                  {isPrivate && <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">Private feedback</span>}
+                                  {isPrivate && <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">Off your hub</span>}
                                   {!isPrivate && hidden && <span className="rounded-full bg-gray-200 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-gray-600 dark:bg-white/10 dark:text-white/60">Hidden</span>}
                                 </div>
                                 <div className="mt-0.5 flex items-center gap-1.5">

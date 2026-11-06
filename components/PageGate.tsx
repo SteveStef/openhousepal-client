@@ -14,7 +14,7 @@ import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import OhpLoader from '@/components/brand/OhpLoader'
 import { API_BASE_URL } from '@/lib/api-service'
-import { isGatedAppPage } from '@/lib/appChrome'
+import { isGatedAppPage, isMarketingPage } from '@/lib/appChrome'
 
 const QUIET_MS = 160      // nothing in flight for this long = the data is in
 const GRACE_MS = 280      // ready within this = the page just appears (the loader never shows)
@@ -153,7 +153,9 @@ const labelFor = (p: string) => p === '/' ? 'Loading OpenHousePal' : LABELS.find
 // The homepage, when reached from inside the app (the logo, top left), opens like every app page:
 // the loader if it takes a moment, then it rises in - it used to just pop in with no animation
 // (owner, 10/27). Opened fresh (a search result, a typed address) it shows at once, as before.
-const gatesInApp = (path: string) => isGatedAppPage(path) || path === '/'
+// The public pages too (owner, 11/05: going between them and the homepage just popped and jumped):
+// the old page holds still, then the new one rises in section by section, like every feature page.
+const gatesInApp = (path: string) => isGatedAppPage(path) || path === '/' || isMarketingPage(path)
 
 // pending = page held back but no loader yet (the first GRACE_MS); loading = the loader is up.
 // waiting = a link was clicked: the old page stays as it is until the new one arrives.

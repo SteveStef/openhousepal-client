@@ -9,7 +9,8 @@ import api from '@/lib/api-service'
 import DraggableAvatarPhoto from '@/components/agent-hub/DraggableAvatarPhoto'
 import { AiWriteButton } from '@/components/ai/AiWriteButton'
 import { BIO_MAX_CHARS, fitBio } from '@/lib/agentBio'
-import { emailOk, Field, formatPhone, inputCls, LockedValue, MoreOptions, phoneOk, StepCtx, toJpeg, useGate } from './SetupUi'
+import { emailOk, Field, formatPhone, inputCls, LockedValue, MoreOptions, phoneOk, readyHeadshot, StepCtx, useGate } from './SetupUi'
+import { PHOTO_ACCEPT } from '@/components/assistant/PhotoDrop'
 
 const TITLE_SUGGESTIONS = ['REALTOR®', 'Real Estate Agent', 'Associate Broker', 'Broker', 'Team Leader']
 
@@ -135,12 +136,12 @@ export function PhotoStep({ ctx }: { ctx: StepCtx }) {
     if (!file) return
     setErr(''); setBusy(true)
     try {
-      const jpg = file.type === 'image/jpeg' && file.size < 4.5 * 1024 * 1024 ? file : await toJpeg(file)
+      const jpg = await readyHeadshot(file)
       const r = await ctx.markSaving(() => api.setup.uploadPhoto(jpg), 'photo')
       if (r.success && r.data) { ctx.setData(r.data); setPos({ x: 50, y: 50 }); ctx.saveInfo({ photoPosition: { x: 50, y: 50 } }) }
       else setErr(r.error || 'That photo didn’t upload - please try another one.')
     } catch {
-      setErr('We couldn’t read that file - please pick a photo (JPG or PNG).')
+      setErr('That photo didn’t upload - please try another one.')
     }
     setBusy(false)
   }
@@ -163,7 +164,7 @@ export function PhotoStep({ ctx }: { ctx: StepCtx }) {
         <button type="button" onClick={() => input.current?.click()} disabled={busy} className="inline-flex h-14 items-center gap-2.5 rounded-2xl bg-[#111827] px-7 text-[16px] font-black text-white shadow-lg transition hover:-translate-y-0.5 disabled:opacity-60 dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827]">
           {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />} {i.photoUrl ? 'Choose a different photo' : 'Choose a photo'}
         </button>
-        <input ref={input} type="file" accept="image/*" className="sr-only" onChange={e => { pick(e.target.files?.[0]); e.target.value = '' }} />
+        <input ref={input} type="file" accept={PHOTO_ACCEPT} className="sr-only" onChange={e => { pick(e.target.files?.[0]); e.target.value = '' }} />
         {err && <p className="mt-3 text-[14px] font-bold text-rose-600">{err}</p>}
         <ul className="mt-5 space-y-2 text-[14.5px] font-medium text-gray-600 dark:text-gray-300">
           <li>• A recent, professional headshot works best.</li>

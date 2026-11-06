@@ -50,7 +50,7 @@ function UpgradeRequiredContent() {
               label, but still well short of the original's full-height centered stack. */}
           <div className="text-center mb-10 max-w-2xl mx-auto">
             <div className="relative mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#C9A24D]/10 text-[#C9A24D] shadow-sm border border-[#C9A24D]/20">
-              <div className="absolute inset-0 -z-10 rounded-3xl shadow-[0_0_24px_10px_rgba(201,162,77,.25)] animate-glow-pulse" />
+              <div aria-hidden className="pointer-events-none absolute -inset-x-12 -inset-y-8 -z-10 bg-[radial-gradient(closest-side,rgba(201,162,77,.22),transparent)]" />
               <Lock className="w-8 h-8" strokeWidth={1.5} />
             </div>
             <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.3em] text-[#C9A24D]">Unlock More</span>

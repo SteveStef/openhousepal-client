@@ -5,11 +5,29 @@ import { OhpWordmark } from '@/components/brand/OhpBrand'
 import { MlsUpdatedText } from '@/components/MLSComplianceFooter'
 import { useOptionalAuth } from '@/contexts/AuthContext'
 import { hasMlsAccess } from '@/lib/navAccess'
+import { MARKETING_LINKS, homeHref } from '@/lib/sitePages'
+
+const COMPANY = ['/brokerages', '/about']
+
+function FootColumn({ title, links }: { title: string; links: { href: string; label: string }[] }) {
+  return (
+    <div className="flex flex-col space-y-6">
+      <h5 className="flex items-center gap-2 font-bold text-xs text-[#C9A24D] uppercase tracking-[0.25em]"><span className="h-px w-5 bg-[#C9A24D]/60" />{title}</h5>
+      <ul className="space-y-4 text-sm text-gray-400">
+        {links.map(l => (
+          <li key={l.href}><Link href={l.href} className="group/fl relative inline-flex items-center transition-colors hover:text-white"><span className="absolute -left-3 h-1 w-1 rounded-full bg-[#C9A24D] opacity-0 transition-all duration-300 group-hover/fl:-left-2.5 group-hover/fl:opacity-100" /><span className="bg-gradient-to-r from-[#C9A24D] to-[#C9A24D] bg-[length:0%_1px] bg-left-bottom bg-no-repeat pb-0.5 transition-[background-size] duration-300 group-hover/fl:bg-[length:100%_1px]">{l.label}</span></Link></li>
+        ))}
+      </ul>
+    </div>
+  )
+}
 
 export default function Footer() {
   // A signed-in No-MLS agent never sees Bright data in the app, so the Bright notice would only
   // confuse them (and implies a Bright connection they don't have). Everyone else keeps it.
-  const user = useOptionalAuth()?.user
+  const auth = useOptionalAuth()
+  const user = auth?.user
+  const signedIn = !!auth?.isAuthenticated
   const noMlsAgent = !!user?.plan_tier && !hasMlsAccess(user.plan_tier) && !user.is_admin
   return (
     <footer className="relative isolate mt-auto overflow-hidden bg-[#0B0B0B] py-16 text-white">
@@ -33,28 +51,13 @@ export default function Footer() {
             </p>
           </div>
 
-          {/* Links Section - kept side by side even on the narrowest phones (there's room for two
-              short columns), instead of stacking Platform on top of Legal. */}
+          {/* Links - side by side even on the narrowest phones. Legal has a second group under it, so
+              the two columns come out about even (owner, 11/05). */}
           <div className="lg:col-span-7 flex flex-row gap-12 sm:gap-20 md:gap-24 lg:justify-end">
-            <div className="flex flex-col space-y-6">
-              <h5 className="flex items-center gap-2 font-bold text-xs text-[#C9A24D] uppercase tracking-[0.25em]"><span className="h-px w-5 bg-[#C9A24D]/60" />Platform</h5>
-              <ul className="space-y-4 text-sm text-gray-400">
-                <li><Link href="/tools" className="group/fl relative inline-flex items-center transition-colors hover:text-white"><span className="absolute -left-3 h-1 w-1 rounded-full bg-[#C9A24D] opacity-0 transition-all duration-300 group-hover/fl:-left-2.5 group-hover/fl:opacity-100" /><span className="bg-gradient-to-r from-[#C9A24D] to-[#C9A24D] bg-[length:0%_1px] bg-left-bottom bg-no-repeat pb-0.5 transition-[background-size] duration-300 group-hover/fl:bg-[length:100%_1px]">All Tools</span></Link></li>
-                <li><Link href="/pricing" className="group/fl relative inline-flex items-center transition-colors hover:text-white"><span className="absolute -left-3 h-1 w-1 rounded-full bg-[#C9A24D] opacity-0 transition-all duration-300 group-hover/fl:-left-2.5 group-hover/fl:opacity-100" /><span className="bg-gradient-to-r from-[#C9A24D] to-[#C9A24D] bg-[length:0%_1px] bg-left-bottom bg-no-repeat pb-0.5 transition-[background-size] duration-300 group-hover/fl:bg-[length:100%_1px]">Pricing</span></Link></li>
-                <li><Link href="/idx-websites" className="group/fl relative inline-flex items-center transition-colors hover:text-white"><span className="absolute -left-3 h-1 w-1 rounded-full bg-[#C9A24D] opacity-0 transition-all duration-300 group-hover/fl:-left-2.5 group-hover/fl:opacity-100" /><span className="bg-gradient-to-r from-[#C9A24D] to-[#C9A24D] bg-[length:0%_1px] bg-left-bottom bg-no-repeat pb-0.5 transition-[background-size] duration-300 group-hover/fl:bg-[length:100%_1px]">IDX Websites</span></Link></li>
-                <li><Link href="/resources" className="group/fl relative inline-flex items-center transition-colors hover:text-white"><span className="absolute -left-3 h-1 w-1 rounded-full bg-[#C9A24D] opacity-0 transition-all duration-300 group-hover/fl:-left-2.5 group-hover/fl:opacity-100" /><span className="bg-gradient-to-r from-[#C9A24D] to-[#C9A24D] bg-[length:0%_1px] bg-left-bottom bg-no-repeat pb-0.5 transition-[background-size] duration-300 group-hover/fl:bg-[length:100%_1px]">Resources</span></Link></li>
-                <li><Link href="/brokerages" className="group/fl relative inline-flex items-center transition-colors hover:text-white"><span className="absolute -left-3 h-1 w-1 rounded-full bg-[#C9A24D] opacity-0 transition-all duration-300 group-hover/fl:-left-2.5 group-hover/fl:opacity-100" /><span className="bg-gradient-to-r from-[#C9A24D] to-[#C9A24D] bg-[length:0%_1px] bg-left-bottom bg-no-repeat pb-0.5 transition-[background-size] duration-300 group-hover/fl:bg-[length:100%_1px]">For Brokerages</span></Link></li>
-                <li><Link href="/about" className="group/fl relative inline-flex items-center transition-colors hover:text-white"><span className="absolute -left-3 h-1 w-1 rounded-full bg-[#C9A24D] opacity-0 transition-all duration-300 group-hover/fl:-left-2.5 group-hover/fl:opacity-100" /><span className="bg-gradient-to-r from-[#C9A24D] to-[#C9A24D] bg-[length:0%_1px] bg-left-bottom bg-no-repeat pb-0.5 transition-[background-size] duration-300 group-hover/fl:bg-[length:100%_1px]">About</span></Link></li>
-                <li><Link href="/faq" className="group/fl relative inline-flex items-center transition-colors hover:text-white"><span className="absolute -left-3 h-1 w-1 rounded-full bg-[#C9A24D] opacity-0 transition-all duration-300 group-hover/fl:-left-2.5 group-hover/fl:opacity-100" /><span className="bg-gradient-to-r from-[#C9A24D] to-[#C9A24D] bg-[length:0%_1px] bg-left-bottom bg-no-repeat pb-0.5 transition-[background-size] duration-300 group-hover/fl:bg-[length:100%_1px]">FAQ</span></Link></li>
-              </ul>
-            </div>
-
-            <div className="flex flex-col space-y-6">
-              <h5 className="flex items-center gap-2 font-bold text-xs text-[#C9A24D] uppercase tracking-[0.25em]"><span className="h-px w-5 bg-[#C9A24D]/60" />Legal</h5>
-              <ul className="space-y-4 text-sm text-gray-400">
-                <li><Link href="/privacy" className="group/fl relative inline-flex items-center transition-colors hover:text-white"><span className="absolute -left-3 h-1 w-1 rounded-full bg-[#C9A24D] opacity-0 transition-all duration-300 group-hover/fl:-left-2.5 group-hover/fl:opacity-100" /><span className="bg-gradient-to-r from-[#C9A24D] to-[#C9A24D] bg-[length:0%_1px] bg-left-bottom bg-no-repeat pb-0.5 transition-[background-size] duration-300 group-hover/fl:bg-[length:100%_1px]">Privacy Policy</span></Link></li>
-                <li><Link href="/terms" className="group/fl relative inline-flex items-center transition-colors hover:text-white"><span className="absolute -left-3 h-1 w-1 rounded-full bg-[#C9A24D] opacity-0 transition-all duration-300 group-hover/fl:-left-2.5 group-hover/fl:opacity-100" /><span className="bg-gradient-to-r from-[#C9A24D] to-[#C9A24D] bg-[length:0%_1px] bg-left-bottom bg-no-repeat pb-0.5 transition-[background-size] duration-300 group-hover/fl:bg-[length:100%_1px]">Terms of Service</span></Link></li>
-              </ul>
+            <FootColumn title="Platform" links={[{ href: homeHref(signedIn), label: 'Home' }, ...MARKETING_LINKS.filter(l => !COMPANY.includes(l.href))]} />
+            <div className="flex flex-col space-y-10">
+              <FootColumn title="Legal" links={[{ href: '/privacy', label: 'Privacy Policy' }, { href: '/terms', label: 'Terms of Service' }]} />
+              <FootColumn title="Company" links={MARKETING_LINKS.filter(l => COMPANY.includes(l.href))} />
             </div>
           </div>
         </div>

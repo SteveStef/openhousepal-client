@@ -65,8 +65,12 @@ function useIsPhone() {
 // Now: a text box is in use and the screen showing is well short of its full height (the tallest
 // seen with no keyboard). When the keyboard goes away the page is put back where it was - iOS left
 // it scrolled, so the sheet looked like it dropped.
-function useKeyboardSpace(on: boolean) {
+// While the chat is closing it keeps the size it has (`hold`): the keyboard is going down at the same
+// moment, and following it made the sheet jump to its normal height mid-exit (owner, 11/05).
+function useKeyboardSpace(on: boolean, hold: boolean) {
   const [space, setSpace] = useState<{ top: number; height: number } | null>(null)
+  const holdRef = useRef(hold)
+  holdRef.current = hold
   useEffect(() => {
     const vv = window.visualViewport
     if (!on || !vv) { setSpace(null); return }
@@ -74,6 +78,7 @@ function useKeyboardSpace(on: boolean) {
     let full = Math.max(window.innerHeight, vv.height)
     let openAt: number | null = null
     const fit = () => {
+      if (holdRef.current) return
       const t = typing()
       if (!t) full = Math.max(full, window.innerHeight, vv.height)
       const open = (t && full - vv.height > 120) || window.innerHeight - vv.height > 120
@@ -100,6 +105,12 @@ function useKeyboardSpace(on: boolean) {
     return () => {
       vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit)
       document.removeEventListener('focusin', later); document.removeEventListener('focusout', later)
+      // Closed with the keyboard up: the page still goes back to where it was.
+      if (openAt !== null) {
+        const y = openAt
+        requestAnimationFrame(() => window.scrollTo(window.scrollX, y))
+        setTimeout(() => window.scrollTo(window.scrollX, y), 350)
+      }
     }
   }, [on])
   return space
@@ -134,11 +145,12 @@ export default function AssistantWidget() {
   // Phone: after a link in the chat opened a page, the sheet sits low as a peek (owner, 10/31).
   const [peek, setPeek] = useState(false)
   useEffect(() => { if (!isOpen) { setPeek(false); setDragH(null) } }, [isOpen])
-  const kb = useKeyboardSpace(isPhone && isOpen && !peek)
+  const kb = useKeyboardSpace(isPhone && isOpen && !peek, closing)
   // The iPhone's keyboard and the bars above it are see-through, and it doesn't paint pinned layers
   // past the keyboard line - a cover or the dim layer never reached there, so the page showed through
   // (owner, 11/04). While it's up the page itself is hidden (globals.css), the chat stays.
-  const kbOpen = !!kb
+  // (Closing: the page comes back right away, behind the chat, so it's there as the chat slides off.)
+  const kbOpen = !!kb && !closing
   useEffect(() => {
     const root = document.documentElement
     if (kbOpen) root.setAttribute('data-ohp-chat-kb', '')
@@ -146,9 +158,14 @@ export default function AssistantWidget() {
   }, [kbOpen])
 
   // Closing plays its exit first (a beat), then unmounts.
+  const kbUp = useRef(false)
+  kbUp.current = !!kb
   const close = useCallback(() => {
+    // the keyboard starts down now, so it and the chat leave together
+    const typingIn = document.activeElement as HTMLElement | null
+    if (typingIn && panelRef.current?.contains(typingIn)) typingIn.blur()
     setClosing(true)
-    window.setTimeout(() => { setIsOpen(false); setClosing(false) }, isPhone ? 230 : 200)
+    window.setTimeout(() => { setIsOpen(false); setClosing(false) }, !isPhone ? 200 : kbUp.current ? 310 : 230)
   }, [isPhone])
 
   // Bigger / smaller: a quick settle on the new size instead of a hard jump.
@@ -426,7 +443,7 @@ export default function AssistantWidget() {
       ? 'fixed inset-4 lg:inset-y-8 lg:left-[8%] lg:right-[8%] z-50 rounded-3xl'
       : 'fixed bottom-6 right-6 z-40 w-96 h-[560px] max-h-[calc(100vh-3rem)] rounded-2xl'
   const iconBtn = 'ohp-ai-press p-1.5 rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300'
-  const motionIn = isPhone ? (closing ? 'ohp-ai-sheet-out' : 'ohp-ai-sheet-in') : closing ? 'ohp-ai-panel-out' : 'ohp-ai-panel-in'
+  const motionIn = isPhone ? (closing ? (kb ? 'ohp-ai-sheet-out-kb' : 'ohp-ai-sheet-out') : 'ohp-ai-sheet-in') : closing ? 'ohp-ai-panel-out' : 'ohp-ai-panel-in'
 
   return (
     <>
@@ -434,7 +451,7 @@ export default function AssistantWidget() {
         <div data-scroll-lock={isPhone ? 'soft' : undefined} className={`fixed inset-0 touch-none bg-black/30 ${closing ? 'ohp-ai-fade-out' : 'ohp-ai-fade'}`} style={{ zIndex: 49 }} onClick={() => (isPhone ? close() : setBig(false))} />
       )}
       {/* Under the see-through keyboard: the chat's own color, not the page behind it. */}
-      {kb && <div aria-hidden className="fixed inset-x-0 bg-white dark:bg-zinc-900" style={{ top: kb.top + kb.height - 1, height: '100vh', zIndex: 50 }} />}
+      {kbOpen && kb && <div aria-hidden className="fixed inset-x-0 bg-white dark:bg-zinc-900" style={{ top: kb.top + kb.height - 1, height: '100vh', zIndex: 50 }} />}
       <div
         ref={panelRef}
         data-ohp-chat-panel
@@ -464,7 +481,7 @@ export default function AssistantWidget() {
           : dragH !== null ? { height: dragH, transition: 'none' } : undefined}
         className={`${frame} ${motionIn} bg-white dark:bg-zinc-900 shadow-2xl shadow-black/20 border border-gray-100 dark:border-zinc-800 flex flex-col overflow-hidden`}
       >
-        {isPhone && (
+        {isPhone && !kb && (
           <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onClick={() => setBig((b) => !b)}
                className="relative flex justify-center pt-2 pb-1 cursor-grab touch-none" aria-label={big ? 'Swipe down to shrink' : 'Swipe up for full screen'}>
             <span className="h-1.5 w-10 rounded-full bg-gray-300 dark:bg-zinc-600" />
@@ -472,7 +489,7 @@ export default function AssistantWidget() {
         )}
         <div
           onTouchStart={isPhone ? onTouchStart : undefined} onTouchMove={isPhone ? onTouchMove : undefined} onTouchEnd={isPhone ? onTouchEnd : undefined}
-          className="flex items-center gap-1 px-3 py-2.5 border-b border-gray-100 dark:border-zinc-800/60 bg-white dark:bg-zinc-900 flex-shrink-0"
+          className={`flex items-center gap-1 px-3 ${kb ? 'py-1.5' : 'py-2.5'} border-b border-gray-100 dark:border-zinc-800/60 bg-white dark:bg-zinc-900 flex-shrink-0`}
         >
           <OhpBot size={26} className="mx-0.5 flex-shrink-0" />
           {/* Always "AI Assistant", the chat's usage bar beside it on the same line (owner, 11/01) */}
@@ -532,6 +549,7 @@ export default function AssistantWidget() {
                     disabled={isSending}
                     onUserSpeaking={speech.stop}
                     onStartCall={helper.voice ? () => { if (!isSending) setIsTalking(true) } : undefined}
+                    tight={!!kb}
                   />
                 </div>
               </>

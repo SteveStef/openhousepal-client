@@ -139,7 +139,7 @@ export default function CalendarSyncDemo() {
             <p className="mt-1 font-serif text-[24px] font-black leading-tight text-[#111827] dark:text-white">Your follow-ups, <em className="font-light text-[#a8853d] dark:text-[#e8c97a]">on your calendar</em></p>
             <p className="mt-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Connect once. We fill it in.</p>
             <div className="mt-4 grid grid-cols-2 gap-3">
-              {[{ m: <span className="inline-block h-[26px] w-[26px]"><GoogleCalendarLogo /></span>, n: 'Google Calendar', d: "Two-way - edit events right in Google, and we skip times you're already booked.", g: true }, { m: <MicrosoftMark size={24} />, n: 'Outlook Calendar', d: 'Two-way with Outlook / Microsoft 365 - events you can drag and edit.', g: false }].map(p => {
+              {[{ m: <span className="inline-block h-[26px] w-[26px]"><GoogleCalendarLogo /></span>, n: 'Google Calendar', d: "Two-way - edit events right in Google, and we skip times you're already booked.", g: true }, { m: <MicrosoftMark size={24} />, n: 'Outlook Calendar', d: 'Coming soon.', g: false }].map(p => {
                 const done = p.g && tick >= 12
                 return (
                   <div key={p.n} className={`rounded-2xl border-2 bg-white p-3.5 transition-all duration-500 dark:bg-[#151517] ${done ? 'border-emerald-400 shadow-[0_14px_30px_-18px_rgba(16,185,129,.8)]' : 'border-gray-200 dark:border-gray-800'}`}>

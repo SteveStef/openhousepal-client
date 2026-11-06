@@ -1,5 +1,6 @@
 'use client'
 
+import { logoTonesRead } from '@/lib/logoTone'
 import { Suspense, useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { API_BASE_URL } from '@/lib/api-service'
@@ -117,11 +118,13 @@ function DesignPrintPageInner() {
       root?.querySelectorAll('img').forEach(img => { if (img.src) urls.add(img.src) })
       await Promise.all(Array.from(urls).map(src => new Promise<void>(resolve => {
         const img = new Image()
-        img.crossOrigin = 'anonymous'
         img.onload = () => resolve()
         img.onerror = () => resolve()
         img.src = src
       })))
+      // (a white logo gets a dark card once it's been read)
+      await logoTonesRead()
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
       if (!cancelled) setReady(true)
     })()
     return () => { cancelled = true }

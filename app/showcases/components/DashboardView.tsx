@@ -5,7 +5,7 @@ import Pager from '@/components/ui/Pager'
 import ExpandOnFocus from '@/components/ui/ExpandOnFocus'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Collection, Property } from '@/types'
-import { Share2, Edit3, Trash2, Mail, Phone, Check, Copy, Users, Search, MapPin, X, Calendar, Heart, ThumbsDown, MessageSquare, Inbox, BedDouble, Bath, Ruler, Trees, Sparkles, Clock, Eye, Wallet, CheckCircle2, Home as HomeIcon, Star, Moon, ArrowUpDown } from 'lucide-react'
+import { Contact, Share2, Edit3, Trash2, Mail, Phone, Check, Copy, Users, Search, MapPin, X, Calendar, Heart, ThumbsDown, MessageSquare, Inbox, BedDouble, Bath, Ruler, Trees, Sparkles, Clock, Eye, Wallet, CheckCircle2, Home as HomeIcon, Star, Moon, ArrowUpDown } from 'lucide-react'
 import { formatRelativeDay } from '@/lib/relativeDays'
 import LuxeHero from '@/components/ui/LuxeHero'
 import { copyText } from '@/lib/copyText'
@@ -162,6 +162,8 @@ interface DashboardViewProps {
   unreadActivityCount: number;
   onOpenTourInbox: () => void;
   onOpenActivityInbox: () => void;
+  /** Opens this client's lead card over the page. */
+  onOpenLead: (collectionId: string) => void;
   newMatchCount: number;
   onOpenNewMatches: () => void;
 }
@@ -185,6 +187,7 @@ export const DashboardView = memo(function DashboardView({
   unreadActivityCount,
   onOpenTourInbox,
   onOpenActivityInbox,
+  onOpenLead,
   newMatchCount,
   onOpenNewMatches,
 }: DashboardViewProps) {
@@ -538,6 +541,7 @@ export const DashboardView = memo(function DashboardView({
                   onDismissNew={onDismissNew}
                   onPropertyPreviewClick={onPropertyPreviewClick}
                   onOpenTours={onOpenTours}
+                  onOpenLead={onOpenLead}
                   onOpenComments={onOpenComments}
                   formatPriceRange={formatPriceRange}
                   copiedField={copiedField}
@@ -603,6 +607,7 @@ interface ShowcaseCardProps {
   copiedField: string | null;
   onCopy: (e: React.MouseEvent, fieldKey: string, value: string) => void;
   /** Mid switch-off ('sleep') or switch-on ('wake') - plays the overlay, then the matching exit. */
+  onOpenLead: (collectionId: string) => void;
   leaving?: 'sleep' | 'wake' | null;
 }
 
@@ -622,6 +627,7 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
   formatPriceRange,
   copiedField,
   onCopy,
+  onOpenLead,
   leaving = null,
 }, ref) {
   const prefs = collection.preferences as any
@@ -708,7 +714,7 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
     >
       {property?.ListPictureURL ? (
         <img src={property.ListPictureURL} alt={property.FullStreetAddress || ''} loading="lazy" decoding="async"
-          className="block h-full w-full object-cover" />
+          className="ohp-mls-tile block h-full w-full object-cover" />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-gray-300 dark:text-gray-700"><HomeIcon size={big(i) ? 28 : 18} /></div>
       )}
@@ -787,12 +793,15 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
       <div className="flex flex-1 flex-col gap-3 p-4">
         {/* Visitor */}
         <div className="flex items-center gap-3">
-          <div className={`relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border text-[13px] font-black ${getAvatarColor(collection.customer.firstName + collection.customer.lastName)}`}>
+          {/* Their initials open their lead card over the page (the card's own click opens the Showcase). */}
+          <motion.button type="button" whileTap={{ scale: 0.92 }} onClick={stop(() => onOpenLead(collection.id))} title={`Open ${collection.customer.firstName}'s lead card`} aria-label="Open their lead card" data-testid="card-lead-card"
+            className={`relative flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border text-[13px] font-black transition-shadow hover:ring-2 hover:ring-[#C9A24D]/50 ${getAvatarColor(collection.customer.firstName + collection.customer.lastName)}`}>
+            <span aria-hidden className="absolute -left-1 -top-1 grid h-[18px] w-[18px] place-items-center rounded-full bg-[#111827] text-[#e8c97a] ring-2 ring-white dark:bg-[#C9A24D] dark:text-[#111827] dark:ring-[#151517]"><Contact size={10} /></span>
             {collection.customer.firstName.charAt(0)}{collection.customer.lastName.charAt(0)}
             {collection.stats.lastActivity && (Date.now() - new Date(collection.stats.lastActivity).getTime() < 86400000 * 2) && (
               <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-500 dark:border-[#151517]" title="Active in the last 2 days" />
             )}
-          </div>
+          </motion.button>
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-1.5">
               <div className="truncate text-[17px] font-black leading-tight text-[#0B0B0B] transition-colors group-hover:text-[#C9A24D] dark:text-white">

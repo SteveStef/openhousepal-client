@@ -1,5 +1,6 @@
 'use client'
 
+import { useLogoTone } from '@/lib/logoTone'
 import OhpLoader from '@/components/brand/OhpLoader'
 
 import { useEffect, useRef, useState } from 'react'
@@ -16,7 +17,7 @@ import LuxeHero from '@/components/ui/LuxeHero'
 import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import QrBrandPicker from '@/components/settings/QrBrandPicker'
-import { isLight } from '@/components/setup/SetupUi'
+import { isLight, LOGO_ACCEPT, readyLogo } from '@/components/setup/SetupUi'
 import { useAuth } from '@/contexts/AuthContext'
 import { hasAgentHubAccess, hasMlsAccess } from '@/lib/navAccess'
 import { brandLookOf, luxeAllowedFor, modeLabel, brandColorName, useBrandKit, type BrandKitPatch } from '@/lib/brandKit'
@@ -171,13 +172,10 @@ function BrandKitPageInner() {
 
   const handleLogoUpload = async (slot: 'personal' | 'team' | 'brokerage', file: File) => {
     setLogoError('')
-    if (!/(jpe?g|png)$/i.test(file.type) && !/\.(jpe?g|png)$/i.test(file.name)) {
-      setLogoError('Logos need to be a JPG or PNG file.')
-      return
-    }
     setUploadingSlot(slot)
+    const ready = await readyLogo(file)
     await save.track(async () => {
-      const response = await api.studio.uploadBrandLogo(slot, file)
+      const response = await api.studio.uploadBrandLogo(slot, ready)
       if (response.success && response.data) { setKit(response.data); shared.setLocal(response.data); setLogoError('') }
       else setLogoError(response.error || "That logo couldn't be uploaded. Try a different JPG or PNG.")
       return response
@@ -241,7 +239,7 @@ function BrandKitPageInner() {
             {/* Logos */}
             <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-[#151517]">
               <h2 className="text-sm font-black uppercase tracking-widest text-gray-400">Logos</h2>
-              <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">JPG or PNG. Used on your designs, Spotlight and signature.</p>
+              <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">PNG with a clear background looks best. Used on your designs, Spotlight and signature.</p>
               {/* Three small tiles in one row on every screen (they were three tall stacked boxes on phones). */}
               <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-4">
                 <LogoSlot label="Personal" icon={UserIcon} url={kit.personal_logo_url} uploading={uploadingSlot === 'personal'} onUpload={file => handleLogoUpload('personal', file)} onDelete={() => handleLogoDelete('personal')} />
@@ -344,6 +342,7 @@ function BrandKitPreview({ kit }: { kit: BrandKit }) {
   const headingClass = kit.heading_font === 'mono' ? 'font-mono' : kit.heading_font === 'sans' ? 'font-sans' : 'font-serif'
   const bodyClass = kit.body_font === 'mono' ? 'font-mono' : kit.body_font === 'serif' ? 'font-serif' : 'font-sans'
   const logoUrl = kit.personal_logo_url || kit.team_logo_url || kit.brokerage_logo_url
+  const previewTone = useLogoTone(logoUrl ? resolveMediaUrl(logoUrl) : null)
   // white / silver main colors get dark type (the designs do the same)
   const lightBg = isLight(kit.primary_color || '#111827')
   const pillInk = isLight(kit.secondary_color || '#C9A24D') ? '#111827' : '#ffffff'
@@ -360,7 +359,7 @@ function BrandKitPreview({ kit }: { kit: BrandKit }) {
             Just Listed
           </span>
           {logoUrl && (
-            <img src={resolveMediaUrl(logoUrl)} alt="Logo" className="h-7 max-w-[72px] rounded bg-white/90 object-contain p-1" />
+            <img src={resolveMediaUrl(logoUrl)} alt="Logo" className={`h-7 max-w-[72px] rounded object-contain p-1 ${previewTone === 'light' ? 'bg-[#111827]/90' : 'bg-white/90'}`} />
           )}
         </div>
         <div className="flex flex-1 flex-col justify-end gap-1.5 px-4 pb-4">
@@ -397,6 +396,7 @@ function LogoSlot({ label, icon: Icon, url, uploading, onUpload, onDelete }: {
   onDelete: () => void
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const tone = useLogoTone(url ? resolveMediaUrl(url) : null)
   return (
     <div data-testid={`brand-logo-${label.toLowerCase()}`} data-has-logo={url ? '1' : '0'}
       className={`relative min-w-0 rounded-xl border-2 bg-[#fbfaf7] p-2.5 text-center transition dark:bg-[#1A1A1C] sm:p-4 ${url ? `${SELECTED_RING}` : 'border-gray-200 dark:border-gray-700'}`}>
@@ -406,7 +406,7 @@ function LogoSlot({ label, icon: Icon, url, uploading, onUpload, onDelete }: {
         {uploading ? (
           <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
         ) : url ? (
-          <img src={resolveMediaUrl(url)} alt={label} className="h-full w-full object-contain p-1" />
+          <img src={resolveMediaUrl(url)} alt={label} className="h-full w-full object-contain p-1" style={{ background: tone === 'light' ? '#111827' : tone === 'dark' ? '#fff' : undefined }} />
         ) : (
           <Icon className="h-6 w-6 text-gray-300" />
         )}
@@ -426,7 +426,7 @@ function LogoSlot({ label, icon: Icon, url, uploading, onUpload, onDelete }: {
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png"
+        accept={LOGO_ACCEPT}
         className="hidden"
         onChange={event => {
           const file = event.target.files?.[0]

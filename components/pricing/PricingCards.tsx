@@ -228,7 +228,7 @@ export function BasicPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Select
           <SpotlightFeatureCard group={{ label: 'Leads & Follow-Ups', icon: Users, kicker: 'Never Miss One', desc: 'One inbox for every sign-in & form reply, with notes, source & automatic follow-ups' }} alwaysShow />
           <SpotlightFeatureCard group={{ label: 'CMA Builder', ai: true, icon: Calculator, kicker: 'Pricing', desc: 'AI deep-dives listing facts & photos, then builds a detailed, pro-grade report' }} alwaysShow />
           <SpotlightFeatureCard group={{ label: 'Discovery + Manager', icon: DiscoveryManagerIcon, kicker: 'Open House Tools', desc: 'Find opens to host nearby; approve hosts & see guest insights on your listings' }} alwaysShow />
-          <SpotlightFeatureCard group={{ label: 'Calendar & CRM Sync', icon: CalendarClock, iconClass: 'ohp-icon-assemble-calendar', kicker: 'Two-Way Sync', desc: 'Opens, follow-ups & tours sync to your calendar; new leads push to your CRM' }} alwaysShow />
+          <SpotlightFeatureCard group={{ label: 'Calendar & CRM Sync', icon: CalendarClock, iconClass: 'ohp-icon-assemble-calendar', kicker: 'Always In Sync', desc: 'Opens, follow-ups & tours sync to your calendar; new leads push to your CRM' }} alwaysShow />
 
           {/* mt-auto (the wrapper above is now flex-col instead of space-y) pins this pill to the
               bottom of the flex-grow area instead of right after the last feature card - since
@@ -282,7 +282,7 @@ export function PremiumPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Star
           <SpotlightFeatureCard group={{ label: 'Showcases', ai: true, icon: Layout, kicker: 'Client Engagement', desc: 'Guests without an agent automatically get a personal home search to like, comment & request tours - with new-match & price-drop alerts' }} alwaysShow />
           <SpotlightFeatureCard group={{ label: 'Studio', icon: Palette, kicker: 'Design', desc: 'Just Listed, Just Sold & Open House flyers, mailers & social posts in designer styles, auto-filled from property data' }} alwaysShow />
           <SpotlightFeatureCard group={{ label: 'Blogs', ai: true, icon: Newspaper, iconClass: 'ohp-icon-assemble-blog', kicker: 'Local SEO', desc: 'Publish local market updates & neighborhood content to build your authority & SEO in minutes' }} alwaysShow />
-          <SpotlightFeatureCard group={{ label: 'Review Hub', icon: Star, kicker: 'Reputation', desc: 'Send one review link - happy clients go straight to Google & Zillow, while unhappy feedback comes privately to you first' }} alwaysShow />
+          <SpotlightFeatureCard group={{ label: 'Review Hub', icon: Star, kicker: 'Reputation', desc: 'One review link for every client, posted to Google & Zillow in one tap - and you hear about every review right away' }} alwaysShow />
 
           {/* mt-auto - see BasicPricingCard's matching pill for why. */}
           <div className="relative mt-auto rounded-full border border-[#C9A24D]/40 bg-[#C9A24D]/10 px-4 py-3 shadow-sm">
@@ -416,7 +416,7 @@ export function NoMlsPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Select
               come with this plan - so No-MLS Premium ("All of No-MLS Basic, plus") has them too. */}
           <SpotlightFeatureCard group={{ label: 'Forms & Invites', icon: ClipboardList, iconClass: 'ohp-icon-assemble-forms', kicker: 'Capture Leads', desc: 'Branded forms for onboarding, ads, funnels & mailers, plus open house invites with RSVPs. Share one link - every reply flows straight into your Leads' }} alwaysShow />
           <SpotlightFeatureCard group={{ label: 'Leads & Follow-Ups', icon: Users, kicker: 'Track & Convert', desc: 'Every sign-in and inquiry captured in one inbox with notes - plus an automatic next-day follow-up task on your calendar' }} alwaysShow />
-          <SpotlightFeatureCard group={{ label: 'Calendar & CRM Sync', icon: CalendarClock, iconClass: 'ohp-icon-assemble-calendar', kicker: 'Two-Way Sync', desc: 'Opens, follow-up reminders & confirmed tours flow to your Google Calendar; new leads push straight to your CRM' }} alwaysShow />
+          <SpotlightFeatureCard group={{ label: 'Calendar & CRM Sync', icon: CalendarClock, iconClass: 'ohp-icon-assemble-calendar', kicker: 'Always In Sync', desc: 'Opens, follow-up reminders & confirmed tours flow to your Google Calendar; new leads push straight to your CRM' }} alwaysShow />
           {/* Owner 10/24 ("Add both"): two everyday tools this plan already includes, so the card
               reads about as long as No-MLS Premium's. Brand Kit + send-from-your-email are on every plan.
               Wording kept to what's true today: guest emails don't carry the brand color, and Outlook
@@ -479,7 +479,7 @@ export function ProNoMlsPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Sel
           <SpotlightFeatureCard group={{ label: 'Media Lab', ai: true, icon: Sparkles, iconClass: 'ohp-icon-sparkle-all', kicker: 'Photo & Video', desc: 'Twilight, staging & photo-to-video from your photos, plus an animated post editor' }} alwaysShow />
           <SpotlightFeatureCard group={{ label: 'Studio', icon: Palette, kicker: 'Design', desc: 'Create polished flyers, mailers & social posts — auto-filled from the property details you enter, ready to use' }} alwaysShow />
           <SpotlightFeatureCard group={{ label: 'Blogs', ai: true, icon: Newspaper, iconClass: 'ohp-icon-assemble-blog', kicker: 'Local SEO', desc: 'Publish market updates & local content to strengthen your authority & SEO in minutes' }} alwaysShow />
-          <SpotlightFeatureCard group={{ label: 'Review Hub', icon: Star, kicker: 'Reputation', desc: 'Happy clients go straight to Google & Zillow' }} alwaysShow />
+          <SpotlightFeatureCard group={{ label: 'Review Hub', icon: Star, kicker: 'Reputation', desc: 'One link - clients post to Google & Zillow in one tap' }} alwaysShow />
           <SpotlightFeatureCard group={{ label: 'Signature', icon: Mail, iconClass: 'ohp-icon-assemble-mail', kicker: 'Brand', desc: "Your personal branding, in every email, on your site, and everywhere else you show up - shows the listings & sales you manually add, since there's no Bright MLS data to pull from" }} alwaysShow />
         </div>
 

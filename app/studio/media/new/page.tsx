@@ -1,5 +1,6 @@
 'use client'
 
+import { PHOTO_ACCEPT, fitForMediaLab, isPhotoFile } from '@/components/assistant/PhotoDrop'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -197,12 +198,12 @@ function CreateMediaPage() {
   }
 
   const onUpload = async (files: FileList | File[]) => {
-    const list = Array.from(files).filter(f => /^image\/(jpe?g|png|webp)$/i.test(f.type) || /\.(jpe?g|png|webp)$/i.test(f.name))
-    if (!list.length) { setError('Upload JPG, PNG or WebP photos under 12MB.'); return }
+    const list = Array.from(files).filter(isPhotoFile)
+    if (!list.length) { setError('Upload JPG, PNG, WebP or iPhone photos.'); return }
     setUploading(true); setError('')
     for (const file of list) {
-      const { success, data, error: e } = await api.mediaLab.uploadPhoto(file)
-      if (!success || !data) { setError(e || 'Upload failed. Use JPG, PNG or WebP photos under 12MB.'); continue }
+      const { success, data, error: e } = await api.mediaLab.uploadPhoto(await fitForMediaLab(file))
+      if (!success || !data) { setError(e || 'Upload failed. Try a JPG, PNG or WebP photo.'); continue }
       setUploadAssets(prev => (prev.some(a => a.id === data.id) ? prev : [data, ...prev]))
     }
     setUploading(false)
@@ -305,7 +306,7 @@ function CreateMediaPage() {
         {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
         Upload photos
       </button>
-      <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple hidden onChange={(e) => { if (e.target.files?.length) onUpload(e.target.files); e.currentTarget.value = '' }} />
+      <input ref={fileInputRef} type="file" accept={PHOTO_ACCEPT} multiple hidden onChange={(e) => { if (e.target.files?.length) onUpload(e.target.files); e.currentTarget.value = '' }} />
       {uploadPhotos.length > 0 && (
         <div className="mt-2.5 grid max-h-[300px] auto-rows-max grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4 md:grid-cols-5">
           {uploadAssets.map(a => a.result_url && (
@@ -318,7 +319,7 @@ function CreateMediaPage() {
           ))}
         </div>
       )}
-      <p className="mt-2 text-[10px] font-semibold text-gray-400">JPG, PNG or WebP, up to 12MB each. Your library stays across sessions, separate from any listing's photos.</p>
+      <p className="mt-2 text-[10px] font-semibold text-gray-400">JPG, PNG, WebP or iPhone photos. Very large ones are shrunk to fit. Your library stays across sessions, separate from any listing's photos.</p>
     </div>
   )
 
@@ -333,7 +334,7 @@ function CreateMediaPage() {
           <div className="flex flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-[#e0b85f] bg-white/95 px-10 py-9 text-center shadow-2xl dark:bg-[#151517]/95">
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#C9A24D] to-[#e0b85f] text-[#111827]"><ImagePlus className="h-7 w-7" /></span>
             <p className="font-serif text-xl font-black text-[#111827] dark:text-white">Drop to add to your uploads</p>
-            <p className="text-xs font-semibold text-gray-500">JPG, PNG or WebP - up to 12MB each</p>
+            <p className="text-xs font-semibold text-gray-500">JPG, PNG, WebP or iPhone photos</p>
           </div>
         </div>
       )}
@@ -377,7 +378,7 @@ function CreateMediaPage() {
               className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-gray-600 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-300">
               Change <ChevronDown className="h-3.5 w-3.5" />
             </button>
-            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple hidden onChange={(e) => { if (e.target.files?.length) onUpload(e.target.files); e.currentTarget.value = '' }} />
+            <input ref={fileInputRef} type="file" accept={PHOTO_ACCEPT} multiple hidden onChange={(e) => { if (e.target.files?.length) onUpload(e.target.files); e.currentTarget.value = '' }} />
           </div>
         ) : (step === 1 || !canUseListings || usingUploads) && (
           <Section step={1} title="Choose photos" active={step === 1} overflowVisible raised>

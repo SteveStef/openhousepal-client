@@ -15,7 +15,7 @@ import { AGENT } from './realData'
 // the client taps 5 stars on the public review page (app/[slug]/review) -> writes it once ->
 // "Post on Google" copies the review and opens Google in a new tab, where it's pasted and posted
 // (marked posted + saved to OpenHousePal automatically) -> the same for Zillow -> a 1-3 star
-// rating never sees the Google / Zillow buttons: it goes privately to the agent as a heads-up ->
+// rating alerts the agent right away and stays off their hub (every client still gets the same links) ->
 // the review showing on the Agent Hub and the IDX site's testimonials. A pointer does the clicking.
 const REVIEW_TEXT = 'Peter made selling our home effortless - every step explained, every deadline met, and we closed over asking. Cannot recommend him enough.'
 const PRIVATE_TEXT = 'Communication slowed down near closing.'
@@ -30,7 +30,7 @@ const CAPTIONS = [
   { icon: Send, title: 'Send your review link', body: 'By text, email or QR code.' },
   { icon: Star, title: 'Happy client? 5 stars', body: 'They write it once.' },
   { icon: Copy, title: 'Posted to Google & Zillow', body: 'Already copied - they just paste.' },
-  { icon: Lock, title: 'Unhappy? It stays private', body: 'Only you see it.' },
+  { icon: Lock, title: 'Unhappy? You hear right away', body: 'Reach out and make it right.' },
   { icon: Globe, title: 'Shown on your pages', body: 'Agent Hub and website.' },
 ]
 const captionFor = (k: string) => (k === 'send' ? 0 : k === 'stars' || k === 'write' ? 1 : k === 'google' || k === 'posted' ? 2 : k === 'private' ? 3 : 4)
@@ -98,7 +98,7 @@ export default function ReviewsDemo() {
   }, [typed, beat.k])
 
   if (beat.k === 'title') {
-    return <TitleSlide icon={Star} kicker="Reputation" title="Review Hub" body="Happy clients go to Google & Zillow. The rest stay private." durationMs={4600} totalPages={TOTAL_PAGES} url="app.openhousepal.com/studio/reviews" />
+    return <TitleSlide icon={Star} kicker="Reputation" title="Review Hub" body="One link for every client. You hear about every review." durationMs={4600} totalPages={TOTAL_PAGES} url="app.openhousepal.com/studio/reviews" />
   }
 
   const url = beat.k === 'send' ? 'app.openhousepal.com/studio/reviews'
@@ -214,7 +214,7 @@ export default function ReviewsDemo() {
           </div>
         )}
 
-        {/* 6 · 1-3 stars: private, never public */}
+        {/* 6 · 1-3 stars: the agent hears right away, and it stays off their hub */}
         {beat.k === 'private' && (
           <div className="flex h-full items-center justify-center gap-5 px-6 animate-fadeIn max-sm:px-3">
             <div className="w-[300px] text-center max-sm:w-full">
@@ -225,7 +225,7 @@ export default function ReviewsDemo() {
                 <div className="mt-3 animate-fadeIn text-left">
                   <p className="text-[11px] font-black text-[#0B0B0B] dark:text-white">Sorry to hear that. What could {FIRST} have done better?</p>
                   <div className="mt-1.5 min-h-[44px] rounded-xl border-2 border-gray-300 bg-white p-2 text-[10.5px] text-[#111827] dark:border-gray-600 dark:bg-[#151517] dark:text-gray-200"><TypingAnimation text={PRIVATE_TEXT} speed={30} /></div>
-                  <p className="mt-1.5 flex items-center gap-1 text-[9.5px] font-bold text-gray-500"><Lock className="h-3 w-3" /> Sent privately to {FIRST} - no Google or Zillow buttons here.</p>
+                  <p className="mt-1.5 flex items-center gap-1 text-[9.5px] font-bold text-gray-500"><Bell className="h-3 w-3" /> {FIRST} hears about this right away.</p>
                   <span className={`mt-2 flex items-center justify-center gap-1 rounded-xl bg-[#111827] py-2 text-[11px] font-black text-white transition-transform dark:bg-white dark:text-[#111827] ${tick >= 17 && tick <= 18 ? 'scale-95' : ''}`}><Send className="h-3.5 w-3.5" /> Send to {FIRST}</span>
                 </div>
               )}
@@ -233,9 +233,9 @@ export default function ReviewsDemo() {
             {/* Phones: no room beside the form, so the agent's heads-up slides in over its bottom. */}
             <div className={`w-[210px] transition-all duration-700 max-sm:absolute max-sm:inset-x-3 max-sm:bottom-3 max-sm:z-30 max-sm:w-auto ${tick >= 19 ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0'}`}>
               <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-2xl dark:border-gray-700 dark:bg-[#151517]">
-                <p className="flex items-center gap-1.5 text-[11px] font-black text-[#111827] dark:text-white"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#C9A24D] text-[#111827]"><Bell className="h-3 w-3" /></span>Private feedback · 2★</p>
+                <p className="flex items-center gap-1.5 text-[11px] font-black text-[#111827] dark:text-white"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#C9A24D] text-[#111827]"><Bell className="h-3 w-3" /></span>New review · 2★</p>
                 <p className="mt-1.5 text-[10px] italic leading-snug text-gray-600 dark:text-gray-300">&ldquo;{PRIVATE_TEXT}&rdquo;</p>
-                <p className="mt-2 flex items-center gap-1 rounded-lg bg-[#C9A24D]/10 px-2 py-1 text-[9px] font-bold text-[#8b6a2b] dark:text-[#e8c97a]"><Shield className="h-3 w-3" /> Only you see this - a chance to make it right.</p>
+                <p className="mt-2 flex items-center gap-1 rounded-lg bg-[#C9A24D]/10 px-2 py-1 text-[9px] font-bold text-[#8b6a2b] dark:text-[#e8c97a]"><Shield className="h-3 w-3" /> Off your hub - a chance to make it right.</p>
                 <p className="mt-1.5 text-[9px] font-semibold text-gray-400">Follow-up added: Reach out tomorrow</p>
               </div>
             </div>

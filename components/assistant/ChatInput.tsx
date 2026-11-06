@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react'
 import { Send, Loader2, Mic, PhoneCall, Keyboard, ImagePlus, X } from 'lucide-react'
-import { uploadChatPhoto, type DroppedPhoto } from './PhotoDrop'
+import { PHOTO_ACCEPT, isPhotoFile, uploadChatPhoto, type DroppedPhoto } from './PhotoDrop'
 
 interface ChatInputProps {
   // false back = it didn't go through (e.g. too many at once) - their words go back in the box
@@ -21,6 +21,8 @@ interface ChatInputProps {
   // points into the same "agent" - the other half of never running two agents at once is
   // AssistantWidget disabling this whole input while a call (isTalking) is already active.
   onStartCall?: () => void
+  // Phone keyboard up: every line of the screen counts, so the box sits tighter.
+  tight?: boolean
 }
 
 // Minimal shape for the Web Speech API's SpeechRecognition - not in TypeScript's default
@@ -42,7 +44,7 @@ function getSpeechRecognition(): (new () => SpeechRecognitionLike) | null {
   return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null
 }
 
-export default function ChatInput({ onSend, disabled, maxChars = 12000, placeholder, onUserSpeaking, onStartCall }: ChatInputProps) {
+export default function ChatInput({ onSend, disabled, maxChars = 12000, placeholder, onUserSpeaking, onStartCall, tight = false }: ChatInputProps) {
   const [value, setValue] = useState('')
   // The box grows with what's typed so it all shows (owner, 11/03), up to 40% of the screen.
   const boxRef = useRef<HTMLTextAreaElement>(null)
@@ -83,12 +85,14 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
   photosRef.current = photos
   const fileInput = useRef<HTMLInputElement>(null)
   const addFiles = useCallback((files: File[]) => {
-    setPhotoError('')
-    files.filter(f => f.type.startsWith('image/')).slice(0, Math.max(0, 6 - photosRef.current.length)).forEach(file => {
+    const usable = files.filter(isPhotoFile)
+    setPhotoError(usable.length < files.length ? "That isn't a photo - try a JPG, PNG or iPhone photo." : '')
+    usable.slice(0, Math.max(0, 6 - photosRef.current.length)).forEach(file => {
       const key = `${file.name}-${Date.now()}-${Math.random()}`
       setPhotos(list => [...list, { key, preview: URL.createObjectURL(file) }])
       uploadChatPhoto(file).then(({ photo, error }) => {
-        if (photo) setPhotos(list => list.map(p => (p.key === key ? { ...p, photo } : p)))
+        // (the uploaded copy from here on: a computer can't show an iPhone's HEIC file itself)
+        if (photo) setPhotos(list => list.map(p => (p.key === key ? { ...p, photo, preview: photo.url } : p)))
         else { setPhotos(list => list.filter(p => p.key !== key)); setPhotoError(error || "Couldn't add that photo.") }
       })
     })
@@ -207,7 +211,7 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
   const overLimit = value.length > maxChars
 
   return (
-    <div className="border-t border-gray-100 dark:border-zinc-800/60 p-3 sm:p-4 bg-white dark:bg-zinc-900">
+    <div className={`border-t border-gray-100 dark:border-zinc-800/60 bg-white dark:bg-zinc-900 ${tight ? 'px-2 py-1.5' : 'p-3 sm:p-4'}`}>
       {photos.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-2" data-testid="ai-photo-chips">
           {photos.map(p => (
@@ -275,7 +279,7 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
           className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
           <ImagePlus className="h-4 w-4" />
         </button>
-        <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" data-testid="ai-photo-input"
+        <input ref={fileInput} type="file" accept={PHOTO_ACCEPT} multiple className="hidden" data-testid="ai-photo-input"
           onChange={e => { addFiles(Array.from(e.target.files || [])); e.target.value = '' }} />
         <textarea
           value={value}
@@ -285,8 +289,8 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
           placeholder={isListening ? 'Listening...' : placeholder || 'Ask me anything...'}
           rows={1}
           ref={boxRef}
-          className="flex-1 resize-none rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/60 px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/50 focus:border-[#C9A24D]/50 transition-[box-shadow,border-color]"
-          style={{ minHeight: '48px', maxHeight: '40vh', scrollbarGutter: 'stable' }}
+          className={`flex-1 resize-none rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/60 px-4 ${tight ? 'py-2' : 'py-3'} text-base sm:text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#C9A24D]/50 focus:border-[#C9A24D]/50 transition-[box-shadow,border-color]`}
+          style={{ minHeight: tight ? '44px' : '48px', maxHeight: '40vh', scrollbarGutter: 'stable' }}
           // Never switched off while a reply is coming (owner, 10/31): a disabled box drops the
           // cursor, so typing the next message needed a tap back in. They can type ahead; only
           // sending waits (handleSend checks disabledRef).

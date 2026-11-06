@@ -95,7 +95,9 @@ export function sendTextBody(message: string | null, links: string[]): string {
 /** What a text says when the agent's message is off. Never a bare link: on the owner's iPhone that
  *  opened Messages blank, no contact and no text, while words + link worked (11/04). */
 export function sendTextLabel(homes: Property[]): string {
-  return homes.length === 1 ? homeStreet(homes[0]) : `${homes.length} homes`
+  if (homes.length !== 1) return `${homes.length} homes`
+  const p = homes[0]
+  return [homeStreet(p), titleCase(p.City), p.StateOrProvince].filter(Boolean).join(', ')
 }
 
 export function sendEmailSubject(homes: Property[]): string {

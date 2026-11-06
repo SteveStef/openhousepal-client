@@ -13,12 +13,9 @@ export default function AppHeader() {
     return null
   }
 
-  // Landing page gets 'landing' mode
-  if (pathname === '/') {
-    return <Header mode="landing" />
-  }
-
-  // All other pages get 'app' mode (which persists). Today's Rundown window lives here once, so
-  // the bell, Activity and Dash can open it on any page.
-  return <><Header mode="app" /><TodaysRundownHost /></>
+  // One header for every page, in the same spot, so going between pages never rebuilds it - that was
+  // part of the jump between the homepage and the public pages (owner, 11/05). Today's Rundown window
+  // lives here once, so the bell, Activity and Dash can open it on any page.
+  const landing = pathname === '/'
+  return <><Header mode={landing ? 'landing' : 'app'} />{!landing && <TodaysRundownHost />}</>
 }

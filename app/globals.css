@@ -1831,6 +1831,10 @@ input:-webkit-autofill:active {
 .ohp-ai-panel-out { animation: ohpAiPanelOut 0.2s cubic-bezier(0.4, 0, 1, 1) both; transform-origin: calc(100% - 28px) calc(100% - 28px); }
 .ohp-ai-sheet-in { animation: ohpAiSheetIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards; } /* backwards: once in, a swipe can move it */
 .ohp-ai-sheet-out { animation: ohpAiSheetOut 0.22s cubic-bezier(0.4, 0, 1, 1) both; }
+/* Closing with the keyboard up: the chat rides down with it. The sheet is short then, so it has to
+   travel the whole screen, not just its own height. */
+.ohp-ai-sheet-out-kb { animation: ohpAiSheetOutKb 0.3s cubic-bezier(0.32, 0, 0.67, 0) both; }
+@keyframes ohpAiSheetOutKb { 0% { transform: none; } 100% { transform: translateY(100vh); } }
 .ohp-ai-fade { animation: ohpAiFade 0.2s ease-out backwards; }
 .ohp-ai-fade-out { animation: ohpAiFadeOut 0.15s ease-in both; }
 .ohp-ai-morph { animation: ohpAiMorph 0.2s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
@@ -1890,7 +1894,7 @@ input:-webkit-autofill:active {
 }
 @media (prefers-reduced-motion: reduce) {
   .ohp-ai-fab-ring, .ohp-bot-eye, .ohp-bot-light, .ohp-bot-thinking .ohp-bot-eyes, .ohp-ai-fab:hover .ohp-bot, .ohp-ai-panel-in > *, .ohp-ai-sheet-in > *,
-  .ohp-ai-panel-in, .ohp-ai-panel-out, .ohp-ai-sheet-in, .ohp-ai-sheet-out, .ohp-ai-fade, .ohp-ai-fade-out, .ohp-ai-morph, .ohp-ai-fab,
+  .ohp-ai-panel-in, .ohp-ai-panel-out, .ohp-ai-sheet-in, .ohp-ai-sheet-out, .ohp-ai-sheet-out-kb, .ohp-ai-fade, .ohp-ai-fade-out, .ohp-ai-morph, .ohp-ai-fab,
   .ohp-ai-msg-user, .ohp-ai-msg-bot, .ohp-ai-card-in, .ohp-ai-dot, .ohp-ai-shimmer, .ohp-ai-check, .ohp-ai-reveal { animation: none !important; }
   .ohp-ai-shimmer { color: #8b7355; }
 }
@@ -2032,10 +2036,16 @@ div[role="button"]:active {
 .ohp-reveal > *:nth-child(24) { animation-delay: 900ms; }
 @media (prefers-reduced-motion: reduce) { .ohp-reveal > * { animation: none; } }
 
-/* Site-wide (10/24): a quick double tap on a button or link never zooms the page on a phone.
-   Typing-box zoom on iPhone is handled by the viewport in app/layout.tsx. */
+/* Site-wide (10/24): a quick double tap on a button or link never zooms the page on a phone. */
 @media (pointer: coarse) {
   :is(button, a, label, input, select, textarea, [role='button']) { touch-action: manipulation; }
+}
+/* iPhone zooms the whole page into any typing box under 16px (owner, 11/05: "we can never have this").
+   The viewport in app/layout.tsx asks it not to, but that only works when the browser reads it the
+   way we expect, so every typing box on a touch screen is simply 16px and there is nothing to zoom for.
+   Boxes already set bigger keep their size. */
+@media (pointer: coarse), (hover: none) {
+  :is(textarea, select, input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='color'], [type='button'], [type='submit'], [type='reset'], [type='image'])):not([class*='text-lg'], [class*='text-xl'], [class*='text-2xl'], [class*='text-3xl'], [class*='text-4xl'], [class*='text-5xl']) { font-size: 16px !important; }
 }
 
 /* IDX editor: the Publish button breathes while there's something to put live. */
@@ -2053,6 +2063,13 @@ div[role="button"]:active {
    1.07, not 1.14 (user, 10/28: "show the entire photo"): measured on Bright's 2048px photos the
    badge is 73px of 1365 (5.4% of the height), so 1.07 clears it with room to spare - 1.14 was
    throwing away the bottom 12% of every house. */
+/* Small tiles (a Showcase's newest matches, the mailbox): the same badge gone, but zoomed around the
+   middle of the photo so the home stays centered (owner, 11/05). */
+.ohp-mls-tile {
+  scale: 1.14;
+  transform-origin: 50% 30%;
+  object-position: 50% 45%;
+}
 .ohp-mls-crop {
   scale: 1.07;
   transform-origin: 50% 0 !important;
@@ -2081,6 +2098,17 @@ div[role="button"]:active {
 .ohp-work-bar { animation: ohpWorkBar 1.6s cubic-bezier(.45,0,.55,1) infinite; }
 @keyframes ohpWorkBar { 0% { transform: translateX(-110%); } 100% { transform: translateX(320%); } }
 @media (prefers-reduced-motion: reduce) { .ohp-work-orbit, .ohp-work-orb, .ohp-work-line, .ohp-work-bar { animation: none !important; } }
+
+/* An agent's logo (lib/logoTone reads it). Never recolored: a see-through logo that would vanish sits
+   on a small backing, and a logo on its own box (data-tone="plain") is left alone. What's behind it
+   comes from the site's mode, data-on or data-over-dark. */
+.ohp-logo-fit[data-tone='light'] { background: #111827; padding: 4px 8px; border-radius: 8px; }
+.ohp-site[data-mode='dark'] .ohp-logo-fit[data-tone='light'] { background: none; padding: 0; }
+.ohp-site[data-mode='dark'] .ohp-logo-fit[data-tone='dark'] { background: #fff; padding: 4px 8px; border-radius: 8px; }
+.ohp-logo-fit[data-on='light'][data-tone='dark'] { background: none !important; padding: 0 !important; }
+.ohp-logo-fit[data-on='light'][data-tone='light'] { background: #111827 !important; padding: 4px 8px !important; border-radius: 8px !important; }
+.ohp-logo-fit[data-on='dark'][data-tone='light'], .ohp-logo-fit[data-over-dark][data-tone='light'] { background: none !important; padding: 0 !important; }
+.ohp-logo-fit[data-on='dark'][data-tone='dark'], .ohp-logo-fit[data-over-dark][data-tone='dark'] { background: #fff !important; padding: 4px 8px !important; border-radius: 8px !important; }
 
 /* Phone keyboard open over the AI chat: nothing of the page shows through it (AssistantWidget). */
 html[data-ohp-chat-kb] { background: #fff !important; }

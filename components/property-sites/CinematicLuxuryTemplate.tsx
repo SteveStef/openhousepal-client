@@ -8,6 +8,7 @@ import {
   Share2, Sparkles, Star, Trees, Users, X,
 } from 'lucide-react'
 import ExploreNearby from '@/components/website-public/ExploreNearby'
+import FitLogo from '@/components/ui/FitLogo'
 import MlsDisclaimer from '@/components/property-sites/MlsDisclaimer'
 import SpotlightViewBeacon from '@/components/property-sites/SpotlightViewBeacon'
 import FormQrCode from '@/components/forms/FormQrCode'
@@ -310,7 +311,7 @@ function NavBar({ items, m, logoUrl, onShare, allowTour }: { items: NavItem[]; m
               <span className="truncate text-[13px] font-medium leading-tight">{m.agent?.name || p0(m.p.address)}</span>
               {m.agent?.brokerage && <span className="truncate text-[11px] leading-tight text-white/55">{m.agent.brokerage}</span>}
             </span>
-            {logoUrl && <img src={logoUrl} alt={m.agent?.brokerage || ''} className="ml-2 hidden h-7 max-w-[120px] shrink-0 border-l border-white/15 pl-4 object-contain brightness-0 invert lg:block" />}
+            {logoUrl && <FitLogo src={logoUrl} overDark alt={m.agent?.brokerage || ''} className="ml-2 hidden h-7 max-w-[120px] shrink-0 border-l border-white/15 pl-4 object-contain lg:block" />}
           </button>
 
           <div className="hidden items-center gap-0.5 xl:flex">

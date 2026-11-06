@@ -1,5 +1,6 @@
 'use client'
 
+import FitLogo from '@/components/ui/FitLogo'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import dynamic from 'next/dynamic'
@@ -202,7 +203,7 @@ export default function InvitePublicPage({ code, host }: { code: string; host: s
         </div>
         <div className="flex items-center gap-3">
           <Countdown date={days[0]?.date} accent={accent} t={t} />
-          {inv.agent.logo_url && <img src={resolveMediaUrl(inv.agent.logo_url)} alt="" className="h-10 max-w-[140px] object-contain" />}
+          {inv.agent.logo_url && <FitLogo src={resolveMediaUrl(inv.agent.logo_url)} on={t.dark ? 'dark' : 'light'} className="h-10 max-w-[140px] object-contain" />}
         </div>
       </motion.header>
 
@@ -386,7 +387,7 @@ export default function InvitePublicPage({ code, host }: { code: string; host: s
                 </span>
                 <p className="mt-4 text-[24px] font-black leading-tight" style={{ fontFamily: SERIF }}>{inv.agent.name}</p>
                 <p className="mt-0.5 text-sm" style={{ color: t.sub }}>{quietLine(inv.agent)}</p>
-                {inv.agent.logo_url && <img src={resolveMediaUrl(inv.agent.logo_url)} alt="" className="mt-3 h-9 max-w-[140px] object-contain" />}
+                {inv.agent.logo_url && <FitLogo src={resolveMediaUrl(inv.agent.logo_url)} on={t.dark ? 'dark' : 'light'} className="mt-3 h-9 max-w-[140px] object-contain" />}
                 <p className="mt-3 max-w-sm text-[14px] leading-relaxed" style={{ fontFamily: SERIF, fontStyle: 'italic', color: t.dark ? 'rgba(255,255,255,.82)' : t.text }}>
                   &ldquo;{isHome ? `I'll be at the door to welcome you - ask me anything about the home, the neighborhood or the market.` : `I can't wait to see you there - reach out any time with a question.`}&rdquo;
                 </p>

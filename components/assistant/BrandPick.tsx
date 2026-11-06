@@ -1,5 +1,6 @@
 'use client'
 
+import FitLogo from '@/components/ui/FitLogo'
 import { Check, Lock, X } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/api-service'
 import { BRAND_COLOR_GROUPS, BRAND_FINISHES, BRAND_LOOKS, BRAND_MODES } from '@/lib/brandKit'
@@ -92,7 +93,7 @@ export default function BrandPick({ picks, onPicks, idx, notUsing = [], qrAllowe
             <div key={id} className="min-w-0">
               <p className="mb-1 text-[10.5px] font-bold text-gray-500 dark:text-zinc-400">{label}</p>
               {picks.logos[id]
-                ? <div className="relative flex h-16 items-center justify-center rounded-xl bg-white p-1.5 ring-1 ring-black/10"><img src={resolveMediaUrl(picks.logos[id]!)} alt={label} className="max-h-full max-w-full object-contain" />
+                ? <div className="relative flex h-16 items-center justify-center rounded-xl bg-white p-1.5 ring-1 ring-black/10"><FitLogo src={resolveMediaUrl(picks.logos[id]!)} on="light" alt={label} className="max-h-full max-w-full object-contain" />
                     <button type="button" aria-label={`Replace ${label}`} onClick={() => set({ logos: { ...picks.logos, [id]: null } })} className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-white"><X className="h-3 w-3" /></button></div>
                 : <PhotoDrop compact label="Drop or tap" testid={`ai-brand-logo-${id}`} onPhoto={p => set({ logos: { ...picks.logos, [id]: p.png_url || p.url } })} />}
             </div>

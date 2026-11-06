@@ -1,5 +1,6 @@
 'use client'
 
+import FitLogo from '@/components/ui/FitLogo'
 import { useEffect, useState } from 'react'
 import { resolveMediaUrl } from '@/lib/api-service'
 
@@ -38,7 +39,7 @@ export default function SiteLoader({ label, size = 'md', className = '', mark }:
         <span className="ohp-loader-core">
           {logo && logoOk ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={resolveMediaUrl(logo) || logo} alt="" onError={() => setLogoOk(false)} className="ohp-loader-logo" />
+            <FitLogo src={resolveMediaUrl(logo) || logo} onError={() => setLogoOk(false)} className="ohp-loader-logo" />
           ) : (
             <span className="ohp-loader-initials ohp-site-heading">{initials || <span className="ohp-loader-dot" />}</span>
           )}

@@ -36,8 +36,8 @@ module.exports = {
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
         'glow-pulse': {
-          '0%, 100%': { opacity: '0.55', transform: 'scale(1)' },
-          '50%': { opacity: '1', transform: 'scale(1.18)' },
+          '0%, 100%': { opacity: '0.6' },
+          '50%': { opacity: '1' },
         },
         'shimmer-sweep': {
           '0%': { transform: 'translateX(-100%)' },

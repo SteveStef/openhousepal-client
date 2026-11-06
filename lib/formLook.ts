@@ -79,20 +79,14 @@ export const formLookClass = (look: FormLook) => `fr-look ${look.theme === 'luxe
 export const FORM_LOOK_CSS = String.raw`
 .fr-look [data-fill] { background: var(--fr-fill) !important; color: var(--fr-ink) !important; }
 .fr-look [data-fill] svg { color: var(--fr-ink); }
-.fr-luxe.fr-root { background:
-  radial-gradient(110% 60% at 88% -8%, rgba(var(--fr-m-rgb),.20), transparent 62%),
-  radial-gradient(80% 55% at -12% 108%, rgba(var(--fr-m-light-rgb),.20), transparent 62%),
-  linear-gradient(180deg, #fffdf8 0%, #f8f3e9 100%) !important; }
-.dark .fr-luxe.fr-root { background:
-  radial-gradient(110% 60% at 88% -8%, rgba(var(--fr-m-rgb),.16), transparent 62%),
-  radial-gradient(80% 55% at -12% 108%, rgba(var(--fr-m-rgb),.10), transparent 62%),
-  linear-gradient(180deg, #0c0c0e 0%, #121116 100%) !important; }
-.fr-luxe .fr-veil { color: #fffcf6 !important; }
-.dark .fr-luxe .fr-veil { color: #0e0e11 !important; }
+.fr-luxe.fr-root { background: linear-gradient(180deg, #fffdf8 0%, #f8f3e9 100%) !important; }
+.dark .fr-luxe.fr-root { background: linear-gradient(180deg, #0c0c0e 0%, #121116 100%) !important; }
+/* Luxe's background is quiet enough not to need the fade behind the questions: it showed as an oval. */
+.fr-luxe .fr-veil { display: none; }
 .fr-luxe.fr-root::before { content: ""; position: absolute; z-index: 30; left: 0; right: 0; top: 0; height: 2px; pointer-events: none;
   background: linear-gradient(90deg, transparent 0%, var(--fr-m-deep) 18%, var(--fr-m-light) 42%, var(--fr-m-pale) 50%, var(--fr-m-light) 58%, var(--fr-m-deep) 82%, transparent 100%);
   background-size: 200% 100%; animation: frLxLine 7s ease-in-out infinite; }
-@media (min-width: 640px) {
+@media (min-width: 1024px) {
   .fr-luxe.fr-root::after { content: ""; position: absolute; z-index: 0; inset: 16px; border-radius: 26px; pointer-events: none; border: 1px solid rgba(var(--fr-m-rgb),.28); box-shadow: inset 0 0 0 5px rgba(var(--fr-m-rgb),.05); }
 }
 .fr-luxe .fr-title { font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif; font-weight: 800; letter-spacing: -.012em; line-height: 1.12;

@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useState, useEffect, useRef, type ComponentType, type CSSProperties } from 'react'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { Home, Moon, Sun, Menu, X, LogOut, Settings, Layout, ShieldCheck, Palette, LayoutDashboard, Users, AlertCircle, ChevronDown, Globe, Link2, ClipboardList, Newspaper, Search, Building2, Calculator, Lock, HelpCircle, Clapperboard, Mail, ToolCase, CalendarClock, Activity as ActivityIcon, Plug, Send, Star, ListChecks, FileClock, ClipboardCheck, ChevronRight, SwatchBook, Loader2 } from 'lucide-react'
+import { Home, Moon, Sun, Menu, X, LogOut, Settings, Layout, ShieldCheck, Palette, LayoutDashboard, Users, AlertCircle, ChevronDown, Globe, Link2, ClipboardList, Newspaper, Search, Building2, Calculator, Lock, HelpCircle, Clapperboard, Mail, ToolCase, CalendarClock, Activity as ActivityIcon, Plug, Send, Star, ListChecks, FileClock, ClipboardCheck, ChevronRight, SwatchBook, Loader2, Wrench, Tag, BookOpen, Info } from 'lucide-react'
 import api from '@/lib/api-service'
 import { hasValidSubscription } from '@/lib/auth-helpers'
 import { useAuth } from '@/contexts/AuthContext'
@@ -24,8 +24,14 @@ import { ADMIN_SECTIONS, adminHref } from '@/lib/adminNav'
 import { getNavFeatureAccess, isMissingLadderFeatures, type NavFeatureKey } from '@/lib/navAccess'
 import { SpotlightIcon } from '@/components/icons/CustomIcons'
 import { todayLocal } from '@/lib/relativeDays'
+import { MARKETING_LINKS, homeHref } from '@/lib/sitePages'
+import { isMarketingPage } from '@/lib/appChrome'
 
 const UPGRADE_REMINDER_STORAGE_KEY = 'ohp_upgrade_reminder_date'
+
+const SITE_PAGE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  '/tools': Wrench, '/pricing': Tag, '/idx-websites': Globe, '/resources': BookOpen, '/brokerages': Building2, '/faq': HelpCircle, '/about': Info,
+}
 
 interface HeaderProps {
   mode?: 'landing' | 'app' | 'shared'
@@ -122,12 +128,6 @@ export default function Header({ mode = 'app' }: HeaderProps) {
     setMenuGoing(href)
   }
 
-  // Landing nav active-tab tracking - mirrors the gold-underline "you are here" treatment the
-  // logged-in nav already has (isActive(path) + motion.div layoutId="headerNavUnderline"), but
-  // driven by which homepage section is scrolled into view instead of by route, since Features/
-  // Pricing/FAQ are all the same route (/) with different scroll targets.
-  const [landingActiveSection, setLandingActiveSection] = useState<'tools' | 'pricing' | 'faq' | null>(null)
-
   // Thin gold fill along the header's own bottom edge that grows as you scroll down the homepage -
   // lives in the header (not a separate fixed strip above it) so "there's more below" reads as
   // part of the persistent chrome instead of a one-off overlay. rAF-throttled and applied as a
@@ -152,40 +152,6 @@ export default function Header({ mode = 'app' }: HeaderProps) {
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onScroll)
       if (raf) cancelAnimationFrame(raf)
-    }
-  }, [mode, isAuthenticated])
-
-  useEffect(() => {
-    if (mode !== 'landing' || isAuthenticated) return
-    const ids: Array<'tools' | 'pricing' | 'faq'> = ['tools', 'pricing', 'faq']
-    const observer = new IntersectionObserver(
-      entries => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) setLandingActiveSection(entry.target.id as 'tools' | 'pricing' | 'faq')
-        })
-      },
-      { rootMargin: '-50% 0px -50% 0px' } // fires when a section crosses the vertical center of the viewport
-    )
-    const observed = new Set<HTMLElement>()
-    // page.tsx renders a blank placeholder while it's still checking auth, so the #tools/#pricing/
-    // #faq sections don't exist in the DOM yet when this effect first runs on mount - same timing
-    // gap HomeScrollEffects.tsx already had to work around elsewhere. A MutationObserver picks them
-    // up the moment the real homepage content swaps in, instead of observing an empty list forever.
-    const tryObserve = () => {
-      ids.forEach(id => {
-        const el = document.getElementById(id)
-        if (el && !observed.has(el)) {
-          observed.add(el)
-          observer.observe(el)
-        }
-      })
-    }
-    tryObserve()
-    const mutationObserver = new MutationObserver(tryObserve)
-    mutationObserver.observe(document.body, { childList: true, subtree: true })
-    return () => {
-      observer.disconnect()
-      mutationObserver.disconnect()
     }
   }, [mode, isAuthenticated])
 
@@ -337,6 +303,14 @@ export default function Header({ mode = 'app' }: HeaderProps) {
     })
   }
 
+  // The homepage and its pages. Signed in they live under one Home tab; signed out the burger is
+  // the whole menu (owner, 11/05).
+  const onSitePage = pathname === '/' || isMarketingPage(pathname)
+  const sitePageTiles: MobileTile[] = MARKETING_LINKS.map(l => ({ href: l.href, label: l.label, icon: SITE_PAGE_ICONS[l.href], on: pathname === l.href || pathname.startsWith(`${l.href}/`) }))
+  const menuSections: MobileSection[] = isAuthenticated
+    ? [{ key: 'site', label: 'Home', icon: OhpHouse, href: homeHref(true), on: onSitePage, tiles: [{ href: homeHref(true), label: 'Homepage', icon: OhpHouse, on: pathname === '/', wide: true }, ...sitePageTiles] }, ...mobileSections]
+    : [{ key: 'home', label: 'Home', icon: OhpHouse, href: '/', on: pathname === '/', tiles: [] }, ...sitePageTiles.map(t => ({ key: t.href, label: t.label, icon: t.icon, href: t.href, on: !!t.on, tiles: [] }))]
+
   const handleLogout = async () => {
     setIsLoggingOut(true)
     try {
@@ -358,7 +332,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
     // Bumped from a near-flat 1px/0.02-alpha shadow to real elevation (site-wide, not just the
     // homepage) plus a hairline gold bottom edge, to match the gold/depth theme the rest of the
     // site now uses instead of reading flatter than everything below it.
-    <header className={`${mode === 'landing' ? 'sticky top-0' : 'relative'} z-50 bg-white dark:bg-[#0B0B0B] border-b border-[#C9A24D]/15 dark:border-[#C9A24D]/10 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.4)] transition-colors duration-300 print:hidden`}>
+    <header className={`${mode === 'landing' || isMarketingPage(pathname) ? 'sticky top-0' : 'relative'} z-50 bg-white dark:bg-[#0B0B0B] border-b border-[#C9A24D]/15 dark:border-[#C9A24D]/10 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.4)] transition-colors duration-300 print:hidden`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 sm:py-3">
         <div className="flex items-center justify-between">
           {/* Logo - while logged in this normally would just bounce back to /dash (see the
@@ -374,33 +348,6 @@ export default function Header({ mode = 'app' }: HeaderProps) {
             </div>
           </Link>
           
-          {/* Landing Page Navigation (Desktop Only) */}
-          {mode === 'landing' && !isAuthenticated && (
-            <nav className="hidden md:flex items-center space-x-1 absolute left-1/2 transform -translate-x-1/2">
-              <button
-                onClick={() => document.getElementById('tools')?.scrollIntoView({ behavior: 'smooth' })}
-                className="relative px-3 py-2 rounded-lg font-bold text-sm transition-all duration-200 text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                Features
-                {landingActiveSection === 'tools' && <motion.div layoutId="headerNavUnderline" className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full" transition={{ type: 'spring', stiffness: 500, damping: 35 }} />}
-              </button>
-              <button
-                onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
-                className="relative px-3 py-2 rounded-lg font-bold text-sm transition-all duration-200 text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                Pricing
-                {landingActiveSection === 'pricing' && <motion.div layoutId="headerNavUnderline" className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full" transition={{ type: 'spring', stiffness: 500, damping: 35 }} />}
-              </button>
-              <button
-                onClick={() => document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' })}
-                className="relative px-3 py-2 rounded-lg font-bold text-sm transition-all duration-200 text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                FAQ
-                {landingActiveSection === 'faq' && <motion.div layoutId="headerNavUnderline" className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full" transition={{ type: 'spring', stiffness: 500, damping: 35 }} />}
-              </button>
-            </nav>
-          )}
-
           {/* Right Side Actions */}
           <div className="flex items-center space-x-1 sm:space-x-3">
             {/* Logged In View */}
@@ -415,6 +362,29 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                 
                 {/* Desktop Menu */}
                 <div className="hidden xl:flex items-center space-x-1 sm:space-x-3">
+                {/* Home: the homepage, with the public pages in its hover menu. */}
+                <div className="relative group/site">
+                  <Link href={homeHref(true)} data-testid="nav-home"
+                    className="relative px-3 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center group text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <OhpHouse className={`mr-2 h-4 ${onSitePage ? 'text-[#C9A24D]' : 'text-gray-400 group-hover:text-[#111827] dark:group-hover:text-white'}`} />
+                    <span>Home</span>
+                    <ChevronDown className="ml-1 w-3 h-3 text-gray-400 transition-transform duration-200 group-hover/site:rotate-180" />
+                    {onSitePage && <motion.div layoutId="headerNavUnderline" className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#C9A24D] rounded-full" transition={{ type: 'spring', stiffness: 500, damping: 35 }} />}
+                    <span className="ohp-grow-underline" style={{ '--ohp-grow-w': 'calc(100% - 1.5rem)' } as CSSProperties} />
+                  </Link>
+                  <div className="invisible absolute left-0 top-full z-[60] w-56 pt-2 opacity-0 transition-all duration-150 group-hover/site:visible group-hover/site:opacity-100">
+                    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#151517] p-1.5 shadow-2xl">
+                      {[{ href: homeHref(true), label: 'Homepage', icon: OhpHouse as ComponentType<{ className?: string }>, on: pathname === '/' }, ...sitePageTiles].map(t => (
+                        <Link key={t.href} href={t.href}
+                          className={`group relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-bold transition-colors ${t.on ? 'text-[#C9A24D] bg-[#C9A24D]/10' : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                          <t.icon className={`h-4 w-4 shrink-0 ${t.on ? 'text-[#C9A24D]' : 'text-gray-400'}`} />
+                          <span className="flex-1"><span className="ohp-underline-text">{t.label}</span></span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Admin: each big area is its own tab, with its pages in a hover menu (lib/adminNav.ts). */}
                 {user?.is_admin && ADMIN_SECTIONS.map(sec => {
                   const href = sec.key === 'overview' ? '/admin' : `/admin/${sec.key}`
@@ -795,15 +765,19 @@ export default function Header({ mode = 'app' }: HeaderProps) {
             {/* Landing/Public Actions */}
             {!isCheckingAuth && !isAuthenticated && (
               <div className="flex shrink-0 items-center space-x-0.5 sm:space-x-2">
-                <nav aria-label="OpenHousePal" className="mr-2 hidden items-center gap-1 lg:flex">
-                  {[['/tools', 'All Tools'], ['/pricing', 'Pricing'], ['/idx-websites', 'IDX Websites'], ['/resources', 'Resources'], ['/faq', 'FAQ'], ['/about', 'About']].map(([href, label]) => (
-                    <Link key={href} href={href} className="rounded-xl px-3 py-2 text-sm font-black text-[#374151] transition-colors hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800">{label}</Link>
-                  ))}
+                <nav aria-label="OpenHousePal" className="mr-2 hidden items-center gap-0.5 xl:flex">
+                  {[{ href: '/', label: 'Home' }, ...MARKETING_LINKS].map(({ href, label }) => {
+                    const here = href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`)
+                    return (
+                      <Link key={href} href={href} aria-current={here ? 'page' : undefined}
+                        className={`whitespace-nowrap rounded-xl px-2.5 py-2 text-sm font-black transition-colors ${here ? 'text-[#a8803a] dark:text-[#e8c97a]' : 'text-[#374151] hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800'}`}>{label}</Link>
+                    )
+                  })}
                 </nav>
                 <ThemeToggle />
                 <Link
                   href="/login"
-                  className="text-[#111827] dark:text-white font-black text-[13px] sm:text-sm px-1.5 sm:px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all"
+                  className="hidden sm:block text-[#111827] dark:text-white font-black text-[13px] sm:text-sm px-1.5 sm:px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all"
                 >
                   Login
                 </Link>
@@ -813,6 +787,14 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                 >
                   Get Started
                 </Link>
+                <button
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  data-testid="guest-menu"
+                  className="ml-0.5 p-2 rounded-lg text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-all focus:outline-none xl:hidden"
+                  aria-label="Toggle Menu"
+                >
+                  {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                </button>
               </div>
             )}
           </div>
@@ -848,8 +830,8 @@ export default function Header({ mode = 'app' }: HeaderProps) {
               <div className="flex min-w-0 items-center gap-3">
                 <OhpHouse className="h-8 shrink-0 text-[#111827] dark:text-white" title="OpenHousePal" />
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b6a2b] dark:text-[#e8c97a]">{user?.is_admin ? 'Admin menu' : 'Menu'}</p>
-                  <p className="truncate text-[15px] font-black text-[#111827] dark:text-white">{[user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email}</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b6a2b] dark:text-[#e8c97a]">{isAuthenticated && user?.is_admin ? 'Admin menu' : 'Menu'}</p>
+                  <p className="truncate text-[15px] font-black text-[#111827] dark:text-white">{isAuthenticated ? [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email : 'OpenHousePal'}</p>
                 </div>
               </div>
               <button onClick={() => setIsMobileMenuOpen(false)} aria-label="Close menu"
@@ -859,7 +841,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
             </div>
 
             <div ref={menuListRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 py-3">
-              {!user?.is_admin && !user?.broker_authorized && (
+              {isAuthenticated && !user?.is_admin && !user?.broker_authorized && (
                 <Link href="/broker-authorization" onClick={menuGo('/broker-authorization')}
                   className={`flex items-center gap-3 rounded-3xl border bg-white p-3 shadow-[0_8px_24px_-14px_rgba(17,24,39,0.25)] dark:bg-[#151517] ${isActive('/broker-authorization') ? 'border-[#C9A24D]' : 'border-gray-200/80 dark:border-gray-800'}`}>
                   <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#C9A24D]/15 text-[#8b6a2b] dark:text-[#e8c97a]"><ShieldCheck className="h-5 w-5" /></span>
@@ -867,7 +849,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                 </Link>
               )}
 
-              {mobileSections.map(sec => (
+              {menuSections.map(sec => (
                 <section key={sec.key} data-menu-sec={sec.key}
                   className={`rounded-3xl border bg-white p-2.5 shadow-[0_8px_24px_-14px_rgba(17,24,39,0.25)] dark:bg-[#151517] ${sec.on ? 'border-[#C9A24D]/60' : 'border-gray-200/80 dark:border-gray-800'} ${sec.dimmed ? 'pointer-events-none opacity-50 grayscale' : ''}`}>
                   {sec.tiles.length > 0 ? (
@@ -932,13 +914,18 @@ export default function Header({ mode = 'app' }: HeaderProps) {
             </div>
 
             <div className="shrink-0 border-t border-gray-200/80 bg-white px-3 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] dark:border-gray-800 dark:bg-[#111113]">
-              <button
+              {!isAuthenticated ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <Link href="/login" onClick={menuGo('/login')} className="flex h-12 items-center justify-center rounded-2xl border border-gray-200 text-[15px] font-black text-[#111827] dark:border-gray-700 dark:text-white">Login</Link>
+                  <Link href="/register" onClick={menuGo('/register')} className="flex h-12 items-center justify-center rounded-2xl bg-[#111827] text-[15px] font-black text-white dark:bg-white dark:text-[#111827]">Get Started</Link>
+                </div>
+              ) : <button
                 onClick={handleLogout}
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 text-[15px] font-black text-red-600 transition hover:bg-red-50 dark:border-red-500/25 dark:text-red-400 dark:hover:bg-red-900/10"
               >
                 <LogOut className="h-5 w-5" />
                 <span>{isLoggingOut ? 'Logging out...' : 'Log out'}</span>
-              </button>
+              </button>}
             </div>
           </motion.div>
         </motion.div>

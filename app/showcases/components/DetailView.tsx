@@ -5,7 +5,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import api, { resolveMediaUrl } from '@/lib/api-service'
-import { Calendar, CheckSquare, Copy, Check, ArrowUpDown, Mail, MapPin, MessageSquareText, Phone, Share2, User, SlidersHorizontal, X } from 'lucide-react'
+import { Calendar, CheckSquare, Contact, Copy, Check, ArrowUpDown, Mail, MapPin, MessageSquareText, Phone, Share2, User, SlidersHorizontal, X } from 'lucide-react'
 import PropertyGrid, { homeMatches, SHOWCASE_TABS } from '@/components/PropertyGrid'
 import ShowcaseRadiusContextLine from '@/components/ShowcaseRadiusContextLine'
 import PropertyDetailsModal, { type HomeMove } from '@/components/PropertyDetailsModal'
@@ -42,6 +42,8 @@ interface DetailViewProps {
   /** The quick "Comparing to" / "how far" windows (the same ones the buyer gets) - saves just those fields. */
   onQuickSave: (preferences: Partial<import('@/types').CollectionPreferences>) => Promise<{ added: number; removed: number } | void>;
   onDismissRefineRequest: () => void;
+  /** Opens this client's lead card over the page. */
+  onOpenLead?: () => void;
   onStatusToggle: (id: string) => void;
   onNotificationToggle: (id: string, type: 'visitor' | 'agent') => void;
   onViewTours: () => void;
@@ -97,6 +99,7 @@ export const DetailView = memo(function DetailView({
   onShare,
   onQuickSave,
   onDismissRefineRequest,
+  onOpenLead,
   onStatusToggle,
   onNotificationToggle,
   onViewTours,
@@ -380,9 +383,15 @@ export const DetailView = memo(function DetailView({
                     </div>
                   </button>
                   <span className="inline-flex min-w-0 flex-1 items-center gap-1.5 font-black text-gray-900 dark:text-white sm:flex-none sm:shrink" title={customerFullName}>
-                    <User size={14} className="shrink-0 text-[#C9A24D]" />
+                    <User size={14} className="shrink-0 text-[#C9A24D] max-sm:hidden" />
                   <span className="truncate">{customerFullName || customerInitials}</span>
                 </span>
+                {onOpenLead && (
+                  <motion.button type="button" whileTap={{ scale: 0.94 }} onClick={onOpenLead} data-testid="showcase-lead-card" title={`Open ${selectedCollection.customer.firstName || 'their'}'s lead card`}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#C9A24D]/40 bg-[#C9A24D]/10 px-2.5 py-1 text-[11px] font-black text-[#8b7355] transition hover:bg-[#C9A24D]/20 dark:text-[#e8cf8a]">
+                    <Contact size={13} /> Lead card
+                  </motion.button>
+                )}
                 {selectedCollection.customer.email && (
                   <>
                   <button
@@ -669,6 +678,7 @@ export const DetailView = memo(function DetailView({
           }
           compareInfo={matchedPropertiesHeaderInfoNode}
           compactHeader
+          countWord={activeTab === 'all' ? ['Match', 'Matches'] : undefined}
           onRecommend={onRecommend}
           recommendedBy={user?.first_name || null}
           offMarketNotice
@@ -683,7 +693,7 @@ export const DetailView = memo(function DetailView({
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
           sortControl={
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2 lg:flex-none">
               {/* Select mode: pick several homes, then send / recommend / love / pass / remove them at once. */}
               {onBulkAction && (
                 <motion.button
@@ -692,18 +702,18 @@ export const DetailView = memo(function DetailView({
                   onClick={() => (selectMode ? endSelect() : setSelectMode(true))}
                   aria-pressed={selectMode}
                   data-select-toggle
-                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-[11px] font-black uppercase tracking-widest shadow-sm transition-colors ${selectMode
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-2 text-[11px] font-black shadow-sm transition-colors sm:gap-1.5 sm:px-3 sm:uppercase sm:tracking-widest ${selectMode
                     ? 'border-[#C9A24D] bg-[#C9A24D] text-[#16130e]'
                     : 'border-gray-200 bg-white text-gray-600 hover:border-[#C9A24D]/50 hover:text-[#8b7355] dark:border-gray-800 dark:bg-[#151517] dark:text-gray-300'}`}
                 >
                   {selectMode ? <Check size={13} /> : <CheckSquare size={13} />}
-                  {selectMode ? 'Done' : 'Select'}
+                  <span className="max-[379px]:sr-only">{selectMode ? 'Done' : 'Select'}</span>
                 </motion.button>
               )}
               {/* The app's own menu (a pull-up sheet on phones that drags down to close - user,
                   10/24) instead of the browser's native picker. */}
               <LuxeSelect
-                className={`${onBulkAction ? 'w-[9rem] sm:w-44' : 'w-44'} [&>button]:rounded-full [&>button]:py-2 [&>button]:shadow-sm`}
+                className="min-w-0 flex-1 sm:w-44 sm:flex-none [&>button]:rounded-full [&>button]:py-2 [&>button]:shadow-sm max-sm:[&>button]:px-2.5 max-sm:[&>button]:text-[12px] max-sm:[&>button>span:first-child]:hidden"
                 ariaLabel="Sort homes"
                 sheetOnPhone
                 sheetTitle="Sort the homes"
@@ -728,7 +738,7 @@ export const DetailView = memo(function DetailView({
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
                 title={sortOrder === 'asc' ? 'Low to high' : 'High to low'}
                 aria-label={sortOrder === 'asc' ? 'Sort ascending, click for descending' : 'Sort descending, click for ascending'}
-                className="shrink-0 p-2 bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-800 rounded-full text-gray-500 dark:text-gray-400 hover:text-[#C9A24D] hover:border-[#C9A24D]/40 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/5 transition-all shadow-sm"
+                className="shrink-0 p-1.5 sm:p-2 bg-white dark:bg-[#151517] border border-gray-200 dark:border-gray-800 rounded-full text-gray-500 dark:text-gray-400 hover:text-[#C9A24D] hover:border-[#C9A24D]/40 focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/5 transition-all shadow-sm"
               >
                 <svg className={`w-3.5 h-3.5 transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" /></svg>
               </button>

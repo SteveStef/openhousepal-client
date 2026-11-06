@@ -1019,6 +1019,7 @@ class ApiService {
 
     /** Send a home: the agent's saved intro + email app, whether this client already got the intro by text,
      *  and every home sent to them before (how and when). */
+    leadFor: (collectionId: string) => this.request<{ lead_id: string | null }>(`/collections/${collectionId}/lead`),
     sendHomeState: (collectionId: string) =>
       this.request<{ message: string | null; mail_app: 'gmail' | 'outlook' | 'default' | null; intro_texted_at: string | null; sends?: HomeSend[] }>(`/collections/${collectionId}/send-home`),
 

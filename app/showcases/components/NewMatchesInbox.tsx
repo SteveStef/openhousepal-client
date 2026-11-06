@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowUpRight, Check, ChevronRight, Sparkles, X } from 'lucide-react'
+import { ArrowUpRight, Check, ChevronRight, Search, Sparkles, X } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import { useEscapeToClose } from '@/components/ui/windowMotion'
@@ -18,6 +18,7 @@ export default function NewMatchesInbox({ isOpen, onClose, onChanged }: { isOpen
   const { user } = useAuth()
   const [items, setItems] = useState<MatchHome[] | null>(null)
   const [who, setWho] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
   const [viewing, setViewing] = useState<MatchHome | null>(null)
   useEscapeToClose(onClose, isOpen && !viewing)
 
@@ -25,7 +26,7 @@ export default function NewMatchesInbox({ isOpen, onClose, onChanged }: { isOpen
     const r = await api.collections.getNewMatches()
     if (r.success && r.data) { setItems(r.data.items); onChanged(r.data.count) }
   }, [onChanged])
-  useEffect(() => { if (isOpen) { setWho(null); load() } }, [isOpen, load])
+  useEffect(() => { if (isOpen) { setWho(null); setQuery(''); load() } }, [isOpen, load])
   // Came back to the tab - something may have been looked at elsewhere
   useEffect(() => {
     if (!isOpen) return
@@ -41,7 +42,10 @@ export default function NewMatchesInbox({ isOpen, onClose, onChanged }: { isOpen
     }
     return Array.from(m.values()).sort((a, b) => b.n - a.n)
   }, [items])
-  const shown = (items || []).filter(it => !who || it.collection_id === who)
+  // Typing a client's name (or a street) narrows the list (owner, 11/05).
+  const needle = query.trim().toLowerCase()
+  const shown = (items || []).filter(it => (!who || it.collection_id === who) &&
+    (!needle || [it.client, it.client_email, it.address, it.city].some(v => (v || '').toLowerCase().includes(needle))))
 
   const open = (it: MatchHome) => {
     api.collections.trackPropertyView(it.collection_id, it.property_id).catch(() => {})
@@ -79,6 +83,17 @@ export default function NewMatchesInbox({ isOpen, onClose, onChanged }: { isOpen
             </div>
           </div>
 
+          {(items?.length || 0) > 0 && (
+            <div className="border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+              <label className="relative block">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search a client's name" aria-label="Search a client's name" data-testid="new-matches-search"
+                  className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-9 text-sm font-semibold text-[#111827] outline-none transition placeholder:text-gray-400 focus:border-[#C9A24D] dark:border-gray-800 dark:bg-[#0B0B0B] dark:text-white" />
+                {query && <button type="button" onClick={() => setQuery('')} aria-label="Clear the search" className="absolute right-2 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-white"><X className="h-3.5 w-3.5" /></button>}
+              </label>
+            </div>
+          )}
+
           {clients.length > 1 && (
             <div className="flex gap-1.5 overflow-x-auto border-b border-gray-100 px-3 py-2 [scrollbar-width:none] dark:border-gray-800">
               {[{ id: null as string | null, name: 'Everyone', n: items?.length || 0 }, ...clients].map(c => (
@@ -102,6 +117,8 @@ export default function NewMatchesInbox({ isOpen, onClose, onChanged }: { isOpen
                 <p className="font-serif text-lg font-black text-[#111827] dark:text-white">All caught up</p>
                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">New homes land here the moment they match a client&apos;s search.</p>
               </motion.div>
+            ) : shown.length === 0 ? (
+              <p className="py-10 text-center text-sm font-semibold text-gray-500 dark:text-gray-400" data-testid="new-matches-none">Nothing matches that name.</p>
             ) : (
               <ul className="space-y-2">
                 <AnimatePresence initial={true}>
@@ -113,7 +130,7 @@ export default function NewMatchesInbox({ isOpen, onClose, onChanged }: { isOpen
                       <div className="flex items-stretch">
                         <button type="button" onClick={() => open(it)} data-testid="new-match" aria-label={`Open ${niceStreet(it.address)}`} className="flex min-w-0 flex-1 items-center gap-3 p-2 text-left">
                           <span className="relative h-[68px] w-[92px] shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
-                            {it.photo && <img src={resolveMediaUrl(it.photo)} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />}
+                            {it.photo && <img src={resolveMediaUrl(it.photo)} alt="" loading="lazy" className="ohp-mls-tile h-full w-full object-cover" />}
                             <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-1.5 pb-1 pt-3 text-[11px] font-black text-white">{shortPrice(it.price)}</span>
                           </span>
                           <span className="min-w-0 flex-1">

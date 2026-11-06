@@ -8,6 +8,8 @@ import Link from 'next/link'
 import { Camera, Loader2, ShieldCheck } from 'lucide-react'
 import api from '@/lib/api-service'
 import type { ProfileGap } from '@/lib/studio/designCompliance'
+import { readyHeadshot } from '@/components/setup/SetupUi'
+import { PHOTO_ACCEPT } from '@/components/assistant/PhotoDrop'
 
 const formatPhone = (v: string) => {
   const d = v.replace(/\D/g, '').replace(/^1(?=\d{10})/, '')
@@ -17,7 +19,7 @@ const formatPhone = (v: string) => {
 const HINT: Record<ProfileGap['key'], string> = {
   name: 'As clients should see it.',
   brokerage: 'Every ad has to name your brokerage.',
-  photo: 'A clear JPG headshot - it goes on your designs (you can hide it per design).',
+  photo: 'A clear headshot - it goes on your designs (you can hide it per design).',
   phone: 'The number clients call or text you on.',
   officePhone: 'Printed under your number on mailers, flyers and door hangers - most states require the brokerage\'s phone on print ads.',
 }
@@ -47,9 +49,8 @@ export default function ProfileGate({ gaps, onSaved, compact = false }: { gaps: 
       if (!r.success) { setSaving(false); setError(r.error || 'Could not save. Please try again.'); return }
     }
     if (photo) {
-      if (photo.type !== 'image/jpeg') { setSaving(false); setError('Please choose a JPG photo.'); return }
-      const r = await api.setup.uploadPhoto(photo)
-      if (!r.success) { setSaving(false); setError(r.error || 'Could not upload the photo. Please try a JPG under 5MB.'); return }
+      const r = await api.setup.uploadPhoto(await readyHeadshot(photo))
+      if (!r.success) { setSaving(false); setError(r.error || 'That photo didn’t upload - please try another one.'); return }
     }
     await onSaved()
     setSaving(false)
@@ -72,7 +73,7 @@ export default function ProfileGate({ gaps, onSaved, compact = false }: { gaps: 
             {g.key === 'photo' ? (
               <>
                 {/* The real picker stays hidden - the browser's own "Choose File" looked out of place. */}
-                <input type="file" accept="image/jpeg" className="sr-only" onChange={e => setPhoto(e.target.files?.[0] || null)} />
+                <input type="file" accept={PHOTO_ACCEPT} className="sr-only" onChange={e => setPhoto(e.target.files?.[0] || null)} />
                 <span className="mt-1.5 flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-[#C9A24D]/60 bg-white px-3 py-2.5 transition hover:border-[#C9A24D] hover:bg-[#fffaf0] dark:border-[#C9A24D]/40 dark:bg-[#0B0B0B] dark:hover:bg-[#C9A24D]/[0.08]">
                   {photo ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -82,7 +83,7 @@ export default function ProfileGate({ gaps, onSaved, compact = false }: { gaps: 
                   )}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-black text-[#111827] dark:text-white">{photo ? photo.name : 'Choose your headshot'}</span>
-                    <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{photo ? 'Tap to pick a different one' : 'A JPG photo of you'}</span>
+                    <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{photo ? 'Tap to pick a different one' : 'A photo of you'}</span>
                   </span>
                   <span className="shrink-0 rounded-lg bg-[#111827] px-3 py-1.5 text-xs font-black text-white dark:bg-white dark:text-[#111827]">{photo ? 'Change' : 'Upload'}</span>
                 </span>

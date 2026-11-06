@@ -120,7 +120,7 @@ export function useToolConnectionStatus(planTier?: string): ToolConnectionStatus
         : 'Not set up yet'
   const reviewsDetail = !reviewsAvailable
     ? (planTier === 'NO_MLS' ? 'Available on No-MLS Premium' : 'Available on Premium & IDX')
-    : `${reviewsSummary?.received ?? 0} review${reviewsSummary?.received === 1 ? '' : 's'} received · 1-3★ stay private`
+    : `${reviewsSummary?.received ?? 0} review${reviewsSummary?.received === 1 ? '' : 's'} received · 1-3★ stay off your hub`
 
   // ---- Follow-ups
   const onRules = rules?.rules.filter(r => r.enabled).length ?? 0

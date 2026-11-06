@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
-import { AgentFormConfig, BrandKit, CampaignLookup, DesignBlock, DesignColorMode, DesignProject, DesignStyleId, FormCampaign, LinkedProperty, OpenHouse } from '@/types'
+import { AgentFormConfig, BrandKit, BrandingMode, CampaignLookup, DesignBlock, DesignColorMode, DesignProject, DesignStyleId, FormCampaign, LinkedProperty, OpenHouse } from '@/types'
 import { useOwnDomainBase, agentFormUrl } from '@/lib/ownDomainLinks'
 import { DESIGN_FORMAT_META, DESIGN_FORMATS, DESIGN_STYLES, formatRatioLabel, getDesignFormat } from '@/lib/studio/designFormats'
 import { pickBestForm } from '@/lib/studio/formFit'
@@ -209,6 +209,14 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
   const [createError, setCreateError] = useState('')
 
   const [brandKit, setBrandKit] = useState<BrandKit | null>(null)
+  // Which logo goes on the design, or none (owner, 11/05). Starts on the first one they have.
+  const [logoPick, setLogoPick] = useState<BrandingMode | null>(null)
+  const logoOptions = useMemo(() => ([
+    { mode: 'personal' as const, label: 'My logo', url: brandKit?.personal_logo_url },
+    { mode: 'team' as const, label: 'Team', url: brandKit?.team_logo_url },
+    { mode: 'brokerage' as const, label: 'Brokerage', url: brandKit?.brokerage_logo_url },
+  ]).filter(l => !!l.url), [brandKit])
+  const brandingMode: BrandingMode = logoPick ?? logoOptions[0]?.mode ?? 'personal'
   const [hub, setHub] = useState<{ slug?: string | null; config?: Record<string, any> | null } | null>(null)
   const [hubLoaded, setHubLoaded] = useState(false)
   const [forms, setForms] = useState<AgentFormConfig[]>([])
@@ -367,9 +375,9 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
     if (!format) return null
     return {
       format, styleId: style, colorMode: color, composition: t.composition, layoutHints: t.layoutHints, situation: situationId,
-      property: previewProperty, ...agent, brandKit, brandingMode: 'personal',
+      property: previewProperty, ...agent, brandKit, brandingMode,
     }
-  }, [format, situationId, previewProperty, agent, brandKit])
+  }, [format, situationId, previewProperty, agent, brandKit, brandingMode])
 
   // ---- Selection handlers ----
   const selectSituation = (id: DesignSituationId) => {
@@ -469,7 +477,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
       name: name.trim() || defaultName,
       linked_property: leadGen ? null : property,
       blocks: withCrop(template.buildBlocks(leadGen ? null : withBlurb(property, blurbText || (blurb?.key === blurbKey ? blurb.text : null)), messaging, buildOptions)),
-      branding_mode: 'personal',
+      branding_mode: brandingMode,
       campaign_id: attachCampaignId,
     })
     if (response.success && response.data) {
@@ -997,6 +1005,23 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
                             <p className="text-[11px] font-semibold text-gray-400">{agentPhotoOn ? 'On the design, beside your name' : 'Off - just your name and contact'}</p>
                           </div>
                           <OhpSwitch on={agentPhotoOn} onChange={setAgentPhotoOn} label="Show your headshot on this design" />
+                        </div>
+                        <div className="rounded-2xl border border-gray-100 px-4 py-3 dark:border-white/10" data-testid="flow-logo">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-black text-[#111827] dark:text-white">Your logo</p>
+                              <p className="text-[11px] font-semibold text-gray-400">{!logoOptions.length ? 'None yet - add one in Branding' : brandingMode === 'none' ? 'Off - no logo on this design' : 'On the design'}</p>
+                            </div>
+                            {logoOptions.length > 0 && <OhpSwitch on={brandingMode !== 'none'} onChange={v => setLogoPick(v ? logoOptions[0].mode : 'none')} label="Show your logo on this design" />}
+                          </div>
+                          {brandingMode !== 'none' && logoOptions.length > 1 && (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {logoOptions.map(l => (
+                                <button key={l.mode} type="button" onClick={() => setLogoPick(l.mode)} aria-pressed={brandingMode === l.mode}
+                                  className={`rounded-full border px-2.5 py-1 text-[11px] font-black transition-colors ${brandingMode === l.mode ? 'border-[#111827] bg-[#111827] text-white dark:border-[#C9A24D] dark:bg-[#C9A24D] dark:text-[#111827]' : 'border-gray-200 text-gray-600 hover:border-[#C9A24D]/60 dark:border-white/10 dark:text-gray-300'}`}>{l.label}</button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <p className="text-xs font-semibold leading-relaxed text-gray-400">
                           Next: download it right away {format.isPrint ? '(print-ready PDF or PNG)' : '(full-resolution PNG)'} - or click Edit to change the photo, words, price or look.

@@ -3,20 +3,12 @@ import Link from 'next/link'
 import { ArrowRight, Check } from 'lucide-react'
 import Footer from '@/components/Footer'
 import MarketingMotion, { HeroMotif, type MotifName } from '@/components/marketing/MarketingMotion'
+import HomeLink from '@/components/marketing/HomeLink'
 import { TRIAL_PERIOD_DAYS } from '@/lib/pricing'
+import { MARKETING_LINKS } from '@/lib/sitePages'
 
 // openhousepal.com's own pages (owner, 11/05): the pages Google should show under OpenHousePal,
 // instead of agents' pages. Rendered on the server so the words are in the page itself.
-export const MARKETING_LINKS = [
-  { href: '/tools', label: 'All Tools' },
-  { href: '/pricing', label: 'Pricing' },
-  { href: '/idx-websites', label: 'IDX Websites' },
-  { href: '/resources', label: 'Resources' },
-  { href: '/brokerages', label: 'For Brokerages' },
-  { href: '/faq', label: 'FAQ' },
-  { href: '/about', label: 'About' },
-]
-
 export function marketingMeta(path: string, title: string, description: string) {
   const url = `https://openhousepal.com${path}`
   return {
@@ -64,8 +56,9 @@ export function MarketingNav({ path, crumb, onDark = false }: { path: string; cr
     ],
   }
   return (
-    <nav aria-label="OpenHousePal" className="flex flex-wrap gap-1.5">
+    <nav aria-label="OpenHousePal" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden [&>a]:shrink-0">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(crumbs) }} />
+      <HomeLink className={`rounded-full px-3.5 py-1.5 text-[13px] font-black transition-colors ${onDark ? 'bg-white/10 text-gray-200 hover:bg-white/20' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:ring-[#C9A24D] dark:bg-[#151517] dark:text-gray-300 dark:ring-white/10'}`}>Home</HomeLink>
       {MARKETING_LINKS.map(l => (
         <Link key={l.href} href={l.href} aria-current={l.href === here?.href ? 'page' : undefined}
           className={`rounded-full px-3.5 py-1.5 text-[13px] font-black transition-colors ${l.href === here?.href

@@ -26,6 +26,7 @@ import { DashboardView } from './components/DashboardView'
 import { DetailView } from './components/DetailView'
 import type { BulkAction } from '@/components/showcases/ShowcaseSelectBar'
 import ShowcaseActivityInbox from './components/ShowcaseActivityInbox'
+import LeadDetailModal from '@/components/leads/LeadDetailModal'
 import NewMatchesInbox from './components/NewMatchesInbox'
 import { CreateCollectionModal, type ShowcaseClientInfo } from './components/CreateCollectionModal'
 import { copyText } from '@/lib/copyText'
@@ -97,6 +98,13 @@ function ShowcaseContent() {
   // Header inboxes - tour requests still waiting on the agent + client activity, across Showcases.
   const [inbox, setInbox] = useState<ShowcaseInbox>({ tours: [], activity: [], unread_activity: 0 })
   const [isActivityInboxOpen, setIsActivityInboxOpen] = useState(false)
+  // A client's lead card, open over the page so nothing loses its spot (owner, 11/05).
+  const [leadCardId, setLeadCardId] = useState<string | null>(null)
+  const openLeadCard = useCallback(async (collectionId: string) => {
+    const { success, data } = await api.collections.leadFor(collectionId)
+    if (success && data?.lead_id) setLeadCardId(data.lead_id)
+    else showToast("This client doesn't have a lead card yet", 'info')
+  }, [showToast])
   // The New Matches mailbox; ?new=1 opens it (the AI helper's button).
   const [isNewMatchesOpen, setIsNewMatchesOpen] = useState(false)
   const [newMatchCount, setNewMatchCount] = useState(0)
@@ -1089,6 +1097,7 @@ function ShowcaseContent() {
             return { added, removed }
           }}
           onDismissRefineRequest={() => handleDismissRefineRequest(selectedCollection.id)}
+          onOpenLead={() => openLeadCard(selectedCollection.id)}
           onStatusToggle={handleStatusToggle}
           onNotificationToggle={handleNotificationToggle}
           onViewTours={() => handleViewTours()}
@@ -1144,6 +1153,7 @@ function ShowcaseContent() {
           unreadActivityCount={inbox.unread_activity}
           onOpenTourInbox={handleOpenTourInbox}
           onOpenActivityInbox={handleOpenActivityInbox}
+          onOpenLead={openLeadCard}
           newMatchCount={newMatchCount}
           onOpenNewMatches={() => setIsNewMatchesOpen(true)}
         />
@@ -1166,6 +1176,7 @@ function ShowcaseContent() {
       <NewMatchesInbox isOpen={isNewMatchesOpen} onChanged={setNewMatchCount}
         onClose={() => { setIsNewMatchesOpen(false); fetchCollections() }} />
 
+      <LeadDetailModal leadId={leadCardId} onClose={() => setLeadCardId(null)} backLabel="Showcases" />
       <ShowcaseActivityInbox
         isOpen={isActivityInboxOpen}
         onClose={handleCloseActivityInbox}

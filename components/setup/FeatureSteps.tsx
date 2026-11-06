@@ -3,6 +3,7 @@
 // The plan-feature steps: sales, reviews, brand, Agent Hub, forms, email signature. Each reads and
 // writes the feature's own saved settings (the same ones its full editor uses), so whatever the
 // agent sets here is exactly what they find later in that feature, and the other way round.
+import FitLogo from '@/components/ui/FitLogo'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, Copy, ExternalLink, Facebook, Globe, ImageIcon, Instagram, Layers, Loader2, Moon, MoveRight, Music2, Sparkles, Sun, Trash2, UserRound, Youtube } from 'lucide-react'
@@ -22,7 +23,7 @@ import { HUB_MOBILE_HEADERS } from '@/components/agent-hub/HubLuxeTheme'
 import { LUXE_METALS, LUXE_METAL_ORDER, metalOf, type LuxeMetal } from '@/lib/luxeMetals'
 import { ACCENT_COLORS } from '@/lib/accentSwatches'
 import { BRAND_MAIN_COLORS, brandFormLook, brandSignaturePatch, modeLabel, useBrandKit, type BrandLook } from '@/lib/brandKit'
-import { BigToggle, ChoiceCard, Field, isLight, MiniFlow, StepCtx, SubHead, Swatches, toJpeg, useGate, useMiniFlow } from './SetupUi'
+import { BigToggle, ChoiceCard, Field, isLight, MiniFlow, LOGO_ACCEPT, readyLogo, StepCtx, SubHead, Swatches, useGate, useMiniFlow } from './SetupUi'
 import ZillowLinkHelp, { ZILLOW_REVIEW_PLACEHOLDER } from '@/components/reviews/ZillowLinkHelp'
 import QrBrandPicker from '@/components/settings/QrBrandPicker'
 import FormLookPicker, { FormPhonePreview } from '@/components/forms/FormLookPicker'
@@ -98,16 +99,18 @@ export function ReviewsStep({ ctx }: { ctx: StepCtx }) {
 export function BrandStep({ ctx }: { ctx: StepCtx }) {
   const { kit, setLocal, save } = useBrandKit()
   const [busy, setBusy] = useState<string | null>(null)
+  const [logoError, setLogoError] = useState('')
   useGate(ctx, { ok: true, onContinue: async () => { await api.setup.setState({ confirm: 'brand' }) } }, [])
   const flow = useMiniFlow(ctx, ['Logos', 'Look', 'Color', 'QR'])
   if (!kit) return <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
   const upload = async (slot: 'personal' | 'team' | 'brokerage', file?: File) => {
     if (!file) return
-    setBusy(slot)
-    const f = file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'image/svg+xml' || file.type === 'image/webp' ? file : await toJpeg(file)
+    setBusy(slot); setLogoError('')
+    const f = await readyLogo(file)
     await ctx.markSaving(async () => {
       const r = await api.studio.uploadBrandLogo(slot, f)
       if (r.success && r.data) setLocal(r.data)
+      else setLogoError(r.error || 'That logo didn’t upload - please try a PNG or JPG.')
       return r
     }, `logo-${slot}`)
     setBusy(null)
@@ -139,7 +142,7 @@ export function BrandStep({ ctx }: { ctx: StepCtx }) {
             <div key={s.slot} className="rounded-[18px] border-2 border-[#ece5d6] bg-white p-2 dark:border-white/10 dark:bg-[#141416] sm:rounded-[22px] sm:p-3">
               <label className="flex h-20 cursor-pointer items-center justify-center overflow-hidden rounded-2xl sm:h-28 bg-[repeating-conic-gradient(#f4efe5_0%_25%,#fff_0%_50%)] bg-[length:16px_16px] dark:bg-[repeating-conic-gradient(#1c1c1f_0%_25%,#141416_0%_50%)]">
                 {busy === s.slot ? <Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /> : s.url ? <img src={s.url} alt={s.label} className="max-h-[85%] max-w-[85%] object-contain" /> : <span className="flex flex-col items-center gap-1 text-[#8b6a2b] dark:text-[#e8c97a]"><ImageIcon className="h-6 w-6 sm:h-7 sm:w-7" /><span className="text-[12px] font-black">Add</span></span>}
-                <input type="file" accept="image/*" className="sr-only" onChange={e => { upload(s.slot, e.target.files?.[0]); e.target.value = '' }} />
+                <input type="file" accept={LOGO_ACCEPT} className="sr-only" onChange={e => { upload(s.slot, e.target.files?.[0]); e.target.value = '' }} />
               </label>
               <div className="mt-2 flex items-center justify-between gap-2 px-1">
                 <span className="text-[12px] font-black leading-tight text-[#111827] dark:text-white sm:text-[14px]">{s.label}</span>
@@ -148,6 +151,7 @@ export function BrandStep({ ctx }: { ctx: StepCtx }) {
             </div>
           ))}
         </div>
+        {logoError && <p role="alert" className="mt-3 text-[13px] font-bold text-red-600 dark:text-red-400">{logoError}</p>}
       </div>,
       <div key="look">
         <SubHead sub="Your Agent Hub, website, forms and email signature all wear this look - each one can still choose its own later.">Your look</SubHead>
@@ -158,7 +162,7 @@ export function BrandStep({ ctx }: { ctx: StepCtx }) {
         <Swatches label="Main color" colors={BRAND_MAIN_COLORS} value={kit.primary_color || '#111827'} onChange={setMain} />
         <div className="mt-4 overflow-hidden rounded-[22px] border-2 border-[#ece5d6] dark:border-white/10">
           <div className="flex flex-wrap items-center gap-4 px-5 py-5" style={{ background: kit.primary_color }}>
-            {(kit.brokerage_logo_url || kit.personal_logo_url) && <img src={kit.personal_logo_url || kit.brokerage_logo_url || ''} alt="" className="h-10 max-w-[120px] object-contain" />}
+            {(kit.brokerage_logo_url || kit.personal_logo_url) && <FitLogo src={kit.personal_logo_url || kit.brokerage_logo_url || ''} on={isLight(kit.primary_color) ? 'light' : 'dark'} className="h-10 max-w-[120px] object-contain" />}
             <div className="min-w-0">
               <p className="font-serif text-[20px] font-black" style={{ color: isLight(kit.primary_color) ? '#111827' : '#ffffff' }}>{ctx.data.info.name || 'Your name'}</p>
               <p className="text-[12px] font-black uppercase tracking-[0.2em]" style={{ color: kit.secondary_color }}>{ctx.data.info.brokerage || 'Your brokerage'}</p>

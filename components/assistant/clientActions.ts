@@ -37,6 +37,13 @@ export async function designProfileMissing(formatId: string, user: User | null):
   return labels.length > 1 ? `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}` : labels[0] || ''
 }
 
+// The logo they picked on the card, else the first one they have (like the Studio's own flow).
+async function designLogo(p: Record<string, any>) {
+  if (['personal', 'team', 'brokerage', 'none'].includes(p.branding_mode)) return p.branding_mode
+  const kit = (await api.studio.getBrandKit()).data
+  return kit?.personal_logo_url ? 'personal' : kit?.team_logo_url ? 'team' : kit?.brokerage_logo_url ? 'brokerage' : 'personal'
+}
+
 async function createDesign(p: Record<string, any>, user: User | null): Promise<ClientResult> {
   const situation = getSituation(p.situation)
   const format = getDesignFormat(p.format)
@@ -80,7 +87,7 @@ async function createDesign(p: Record<string, any>, user: User | null): Promise<
     name,
     linked_property: situation.propertyAttached ? property : null,
     blocks,
-    branding_mode: 'personal',
+    branding_mode: await designLogo(p),
     campaign_id: null,
   } as any)
   if (!res.success || !res.data) return { ok: false, message: res.error || 'Something went wrong making that design.' }
