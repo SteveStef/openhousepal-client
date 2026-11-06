@@ -98,7 +98,7 @@ function HomeFirstPaint() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(HOME_SCHEMA) }} />
       <div className="sr-only">
         <h1>Less Busywork. More Business.</h1>
-        <p>The most capable platform in real estate.</p>
+        <h2>Open houses, leads and marketing in one platform for real estate agents.</h2>
         <nav aria-label="OpenHousePal">
           {[['/tools', 'All Tools'], ['/pricing', 'Pricing'], ['/idx-websites', 'IDX Websites'], ['/resources', 'Resources'], ['/brokerages', 'For Brokerages'], ['/faq', 'FAQ'], ['/about', 'About'], ['/register', 'Create Your Account']].map(([href, label]) => <Link key={href} href={href}>{label}</Link>)}
         </nav>
@@ -493,9 +493,9 @@ function HomePageContent() {
               </span>
             </h1>
 
-            <p className="text-lg sm:text-xl text-[#4b5563] dark:text-gray-300 font-medium mb-2 sm:mb-3 max-w-xl mx-auto text-balance">
-              The most capable platform in real estate.
-            </p>
+            <h2 className="text-lg sm:text-xl text-[#4b5563] dark:text-gray-300 font-medium mb-2 sm:mb-3 max-w-xl mx-auto text-balance">
+              Open houses, leads and marketing in one platform for real estate agents.
+            </h2>
             <p className="text-base sm:text-lg font-medium text-[#6B7280] dark:text-gray-400 mb-8 sm:mb-10 h-9 flex items-center justify-center" aria-label="Built by real estate agents. Used by real estate agents.">
               <HeroTagline />
             </p>

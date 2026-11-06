@@ -21,7 +21,7 @@ const SITE_URL =
     ? process.env.NEXT_PUBLIC_CLIENT_URL
     : `https://${process.env.NEXT_PUBLIC_OHP_BASE_DOMAIN || 'openhousepal.com'}`
 
-const SITE_TITLE = 'OpenHousePal — The tools agents actually need'
+const SITE_TITLE = 'Real Estate Agent Software for Open Houses & Leads | OpenHousePal'
 const SITE_DESCRIPTION =
   'The toolkit real estate agents actually use: open house sign-in kits, client showcases, your own IDX website, forms, blogs, AI listing media, AI CMAs, a lead pipeline, and much more — all in one place.'
 

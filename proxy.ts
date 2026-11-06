@@ -70,6 +70,11 @@ export async function proxy(request: NextRequest) {
   const rawHost = (request.headers.get('x-forwarded-host') || request.headers.get('host') || '').toLowerCase()
   const hostWithoutPort = rawHost.split(':')[0]
 
+  // One address per page: www. forwards to the bare domain, or Google lists both (owner, 11/06).
+  if (hostWithoutPort === `www.${OHP_BASE_DOMAIN}`) {
+    return NextResponse.redirect(`https://${OHP_BASE_DOMAIN}${request.nextUrl.pathname}${request.nextUrl.search}`, 308)
+  }
+
   if (!rawHost || APP_HOSTNAMES.has(rawHost) || APP_HOSTNAMES.has(hostWithoutPort)) {
     const res = await appHostResponse(request)
     const path = request.nextUrl.pathname.replace(/\/+$/, '') || '/'
