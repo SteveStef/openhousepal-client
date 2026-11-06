@@ -273,7 +273,7 @@ function ReviewsPageInner() {
                   { key: 'hub', on: showOnHub, onClick: toggleHub, icon: LayoutTemplate, title: 'Show on my Agent Hub', sub: 'Adds a Client Reviews section to your public page.', locked: false },
                   { key: 'idx', on: showOnIdx && hasIdx, onClick: toggleIdx, icon: Globe, title: 'Show on my IDX website', sub: hasIdx ? 'Adds a Reviews page (and menu link) to your website.' : 'Comes with the IDX plan (your own website).', locked: !hasIdx },
                   { key: 'min', on: minRating >= 4, onClick: toggleMinRating, icon: Star, title: 'Only show 4 and 5 stars', sub: 'Lower ones stay saved here, just not shown publicly.', locked: false },
-                ] as const).map(row => (
+                ] as const).filter(row => row.key !== 'idx' || !['NO_MLS', 'PRO_NO_MLS'].includes(user?.plan_tier || '')).map(row => (
                   <div key={row.key} className={`flex items-start justify-between gap-4 ${row.locked ? 'opacity-60' : ''}`}>
                     <div className="flex items-start gap-3">
                       <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${row.on ? 'bg-[#C9A24D] text-[#111827]' : 'bg-gray-100 text-gray-400 dark:bg-white/5'}`}><row.icon className="h-[18px] w-[18px]" /></span>

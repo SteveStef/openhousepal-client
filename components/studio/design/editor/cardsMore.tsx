@@ -162,7 +162,7 @@ function FinePrintInput({ value, onCommit }: { value: string; onCommit: (v: stri
 // ---------------------------------------------------------------------------------------------
 // Look - layout, style, color. Every tile is the agent's own design rendered that way.
 // ---------------------------------------------------------------------------------------------
-function LookTile({ selected, label, onClick, luxe, locked, children, swatch, soon }: { selected: boolean; label: string; onClick: () => void; luxe?: boolean; locked?: boolean; children: React.ReactNode; swatch?: [string, string]; soon?: boolean }) {
+function LookTile({ selected, label, onClick, luxe, locked, lockLabel, children, swatch, soon }: { selected: boolean; label: string; onClick: () => void; luxe?: boolean; locked?: boolean; lockLabel?: string; children: React.ReactNode; swatch?: [string, string]; soon?: boolean }) {
   // not signed off yet (user 10/12): shown so agents see what's coming, but it can't be picked
   if (soon && !selected && luxe) return (
     <div aria-disabled="true" title="Coming soon" className="relative cursor-not-allowed select-none overflow-hidden rounded-xl border-2 border-[#C9A24D]/45 bg-gradient-to-br from-[#111827] to-[#2a2218] text-left">
@@ -183,7 +183,7 @@ function LookTile({ selected, label, onClick, luxe, locked, children, swatch, so
     <button type="button" onClick={onClick} className={`relative overflow-hidden rounded-xl border-2 text-left transition ${selected ? 'border-[#C9A24D] shadow-[0_10px_24px_-14px_rgba(201,162,77,.9)]' : 'border-gray-200 hover:border-[#C9A24D]/60 dark:border-white/10'} ${luxe ? 'bg-gradient-to-br from-[#111827] to-[#2a2218]' : 'bg-white dark:bg-white/[0.03]'}`}>
       <div className="p-1.5">{children}</div>
       <div className="flex items-center justify-between gap-1 px-2 pb-2">
-        <span className={`truncate text-[11px] font-black ${luxe ? 'text-[#f3dfa8]' : 'text-[#111827] dark:text-white'}`}>{label}{locked ? ' · IDX' : ''}</span>
+        <span className={`truncate text-[11px] font-black ${luxe ? 'text-[#f3dfa8]' : 'text-[#111827] dark:text-white'}`}>{label}{locked ? ` · ${lockLabel}` : ''}</span>
         {swatch ? <span className="flex -space-x-1">{swatch.map((c, i) => <span key={i} className="h-3 w-3 rounded-full border border-black/10" style={{ backgroundColor: c }} />)}</span> : selected ? <Check className="h-3.5 w-3.5 text-[#C9A24D]" /> : null}
       </div>
       {luxe && <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#b8913f] to-[#e8c97a] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-[#111827]">{locked ? <Crown className="h-2.5 w-2.5" /> : <Sparkles className="h-2.5 w-2.5" />} Luxe</span>}
@@ -200,16 +200,16 @@ export function LookCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open:
   const layoutLabel = layouts.find(t => t.id === ctl.design.template_id)?.label
   return (
     <Card icon={Palette} title="Look" hint={[layoutLabel, styleLabel, colorLabel].filter(Boolean).join(' · ') || 'Layout, style and color'} open={open} onToggle={onToggle} flash={flash}>
-      {pitch && !ctl.isIdx && <LuxeUpgradePitch feature="Studio Luxe" text="The Luxe layout and Luxe theme come with IDX." />}
+      {pitch && !ctl.luxeOk && <LuxeUpgradePitch feature="Studio Luxe" tier={ctl.luxeUp.tier} tierLabel={ctl.luxeUp.label} text={`The Luxe layout and Luxe theme come with ${ctl.luxeUp.label}.`} />}
       {layouts.length > 1 && (
         <div>
           <p className={labelCls}>Layout</p>
           <p className="mt-0.5 text-[11px] font-semibold text-gray-400">Same words and photos, arranged differently. Nothing you typed is lost when you switch.</p>
           <div className="mt-2 grid grid-cols-2 gap-2">
             {layouts.map(t => {
-              const locked = t.composition === 'luxe' && !ctl.isIdx
+              const locked = t.composition === 'luxe' && !ctl.luxeOk
               return (
-                <LookTile key={t.id} soon={!isCompositionReady(t.composition)} selected={ctl.design.template_id === t.id} label={COMPOSITION_LABELS[t.composition]?.label || t.label} luxe={t.composition === 'luxe'} locked={locked} onClick={() => { if (locked) { setPitch(true); return } ctl.changeLook({ template_id: t.id }) }}>
+                <LookTile key={t.id} soon={!isCompositionReady(t.composition)} selected={ctl.design.template_id === t.id} label={COMPOSITION_LABELS[t.composition]?.label || t.label} luxe={t.composition === 'luxe'} locked={locked} lockLabel={ctl.luxeUp.label} onClick={() => { if (locked) { setPitch(true); return } ctl.changeLook({ template_id: t.id }) }}>
                   <DesignPreview blocks={ctl.blocks} ctx={{ ...ctl.ctx, composition: t.composition, layoutHints: t.layoutHints }} rounded={false} />
                 </LookTile>
               )
@@ -232,17 +232,17 @@ export function LookCard({ ctl, open, onToggle, flash }: { ctl: EditorCtl; open:
         <p className={labelCls}>Color theme</p>
         <div className="mt-2 grid grid-cols-3 gap-2">
           {DESIGN_COLOR_MODES.map(c => {
-            const locked = c.id === 'luxe' && !ctl.isIdx
+            const locked = c.id === 'luxe' && !ctl.luxeOk
             const swatch: [string, string] = c.id === 'brand' ? brandSwatch(ctl.brandKit) : c.swatch
             return (
-              <LookTile key={c.id} selected={baseColor === c.id} label={c.label} luxe={c.id === 'luxe'} locked={locked} swatch={swatch} onClick={() => { if (locked) { setPitch(true); return } ctl.changeLook({ color_mode: joinColorMode(c.id, metal) }) }}>
+              <LookTile key={c.id} selected={baseColor === c.id} label={c.label} luxe={c.id === 'luxe'} locked={locked} lockLabel={ctl.luxeUp.label} swatch={swatch} onClick={() => { if (locked) { setPitch(true); return } ctl.changeLook({ color_mode: joinColorMode(c.id, metal) }) }}>
                 <DesignPreview blocks={ctl.blocks} ctx={{ ...ctl.ctx, colorMode: joinColorMode(c.id, metal) }} rounded={false} />
               </LookTile>
             )
           })}
         </div>
         <div className="mt-3">
-          <LuxeFinishPicker compact value={metal} goldTheme={baseColor === 'luxe' || ctl.ctx.composition === 'luxe'} locked={!ctl.isIdx} onChange={m => { if (m && !ctl.isIdx) { setPitch(true); return } ctl.changeLook({ color_mode: joinColorMode(baseColor, m) }) }} />
+          <LuxeFinishPicker compact value={metal} goldTheme={baseColor === 'luxe' || ctl.ctx.composition === 'luxe'} locked={!ctl.luxeOk} onChange={m => { if (m && !ctl.luxeOk) { setPitch(true); return } ctl.changeLook({ color_mode: joinColorMode(baseColor, m) }) }} />
         </div>
         <p className="mt-2 text-[11px] font-semibold text-gray-400">Brand uses your brand color from Branding. <a href="/studio/brand-kit" target="_blank" rel="noreferrer" className="font-black text-[#8b7355] hover:underline">Open Branding</a></p>
       </div>

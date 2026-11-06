@@ -81,6 +81,15 @@ export const BRANDING_CSS = `.bc-tint *{transition:background-color .5s ease,col
 // ---------------------------------------------------------------------------------------------
 // 1. The color + "where it shows"
 // ---------------------------------------------------------------------------------------------
+// No-MLS plans only see the features they have (never the IDX website or Listing Spotlight).
+function useOnPlan() {
+  const planTier = useOptionalAuth()?.user?.plan_tier
+  const noMls = !!planTier && !hasMlsAccess(planTier)
+  const onPlan = (id: FeatureId) => !noMls
+    || (id === 'hub' ? hasAgentHubAccess(planTier) : id === 'signature' ? hasEmailSignatureAccess(planTier) : id === 'designs' ? hasStudioDesignAccess(planTier) : id !== 'idx' && id !== 'spotlight')
+  return onPlan
+}
+
 export function BrandColorStage({ kit, look, luxeAllowed, onChange, usage, idxPlan, onApplied, applyAll, pickerRef }: {
   kit: BrandKit
   look: BrandLook
@@ -97,10 +106,7 @@ export function BrandColorStage({ kit, look, luxeAllowed, onChange, usage, idxPl
   const hex = look.theme === 'luxe' ? LUXE_METALS[look.metal].base : look.accent
   // No-MLS plans: only list what their plan has (no Agent Hub / Signature / Studio on plain No-MLS,
   // never IDX or Spotlight) - "Every feature already uses it" must be about THEIR features.
-  const planTier = useOptionalAuth()?.user?.plan_tier
-  const noMls = !!planTier && !hasMlsAccess(planTier)
-  const onPlan = (id: FeatureId) => !noMls
-    || (id === 'hub' ? hasAgentHubAccess(planTier) : id === 'signature' ? hasEmailSignatureAccess(planTier) : id === 'designs' ? hasStudioDesignAccess(planTier) : id !== 'idx' && id !== 'spotlight')
+  const onPlan = useOnPlan()
   const statuses = BRAND_FEATURES.filter(f => onPlan(f.id)).map(f => ({ f, s: featureStatus(f.id, usage, idxPlan) }))
   const toSwitch = statuses.filter(x => x.s.switchable)
   const [confirm, setConfirm] = useState(false)
@@ -206,11 +212,13 @@ export function BrandColorStage({ kit, look, luxeAllowed, onChange, usage, idxPl
 const BENTO: Record<FeatureId, string> = {
   idx: 'lg:col-span-2', hub: '', forms: '', signature: '', invites: '', spotlight: 'lg:col-span-2', designs: '',
 }
-const ORDER: FeatureId[] = ['idx', 'hub', 'forms', 'signature', 'invites', 'spotlight', 'designs']
+const ALL_FEATURES: FeatureId[] = ['idx', 'hub', 'forms', 'signature', 'invites', 'spotlight', 'designs']
 
 export function FeatureShowcase({ kit, look, usage, idxPlan, person, agent }: {
   kit: BrandKit; look: BrandLook; usage: BrandUsage | null; idxPlan: boolean; person: Person; agent: DesignAgentInfo
 }) {
+  const onPlan = useOnPlan()
+  const ORDER = ALL_FEATURES.filter(onPlan)
   const [open, setOpen] = useState<FeatureId | null>(null)
   // null until measured, then true from 1024px up
   const [wide, setWide] = useState<boolean | null>(null)
@@ -221,7 +229,7 @@ export function FeatureShowcase({ kit, look, usage, idxPlan, person, agent }: {
     mq.addEventListener('change', on)
     return () => mq.removeEventListener('change', on)
   }, [])
-  const [last, setLast] = useState<FeatureId>('idx')
+  const [last, setLast] = useState<FeatureId>(ORDER[0] || 'forms')
   useEffect(() => { if (open) setLast(open) }, [open])
   const feature = (id: FeatureId) => BRAND_FEATURES.find(f => f.id === id)!
   const shown = feature(open || last)

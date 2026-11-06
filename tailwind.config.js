@@ -44,8 +44,8 @@ module.exports = {
           '100%': { transform: 'translateX(100%)' },
         },
         'shimmer-mini': {
-          '0%, 15%': { left: '-25%' },
-          '65%, 100%': { left: '125%' },
+          '0%, 15%': { translate: '-100%' },
+          '65%, 100%': { translate: '620%' },
         },
         'tab-in-left': {
           '0%': { opacity: '0', transform: 'translateX(-28px) scale(0.97)' },
@@ -100,7 +100,7 @@ module.exports = {
         'step-in': 'step-in 0.4s ease-out',
         'glow-pulse': 'glow-pulse 3s ease-in-out infinite',
         'shimmer-sweep': 'shimmer-sweep 2.5s ease-in-out infinite',
-        'shimmer-mini': 'shimmer-mini 3.5s ease-in-out infinite',
+        'shimmer-mini': 'shimmer-mini 3.5s linear infinite',
         'tab-in-left': 'tab-in-left 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
         'tab-in-right': 'tab-in-right 0.45s cubic-bezier(0.16, 1, 0.3, 1)',
         'plan-in-left': 'plan-in-left 0.6s cubic-bezier(0.22, 1, 0.36, 1) both',

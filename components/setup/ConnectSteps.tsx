@@ -15,7 +15,7 @@ import FeaturedPagePicker, { DEFAULT_FEATURED } from './FeaturedPagePicker'
 import SendAsPanel from '@/components/integrations/SendAsPanel'
 import { CLASSIC_ACCENTS, CLASSIC_DEFAULT_ACCENT, normalizeSiteTheme, siteLuxeMetal } from '@/lib/siteTheme'
 import { LUXE_METALS, LUXE_METAL_ORDER } from '@/lib/luxeMetals'
-import { BigToggle, ChoiceCard, Field, MiniFlow, MoreOptions, SplitPreview, StepCtx, SubHead, Swatches, emailOk, useGate, useMiniFlow } from './SetupUi'
+import { BigToggle, ChoiceCard, Field, MiniFlow, MoreOptions, SplitPreview, StepCtx, SubHead, Swatches, emailOk, useGate, useMiniFlow, Reveal } from './SetupUi'
 import { ohpHostUrl } from '@/lib/publicResourceLinks'
 import SiteMiniPreview from '@/components/studio/website/SiteMiniPreview'
 import { accentLabel } from '@/lib/accentSwatches'
@@ -74,11 +74,11 @@ export function AlertsStep({ ctx }: { ctx: StepCtx }) {
             badge={<span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">Best</span>} />
           <ChoiceCard on={!followOn} disabled={enabled === null || saving} onClick={() => setEnabled(false)} title="No, my CRM does this" blurb="We stop making follow-ups and hide them everywhere. Turn it back on any time." />
         </div>
-        {followOn && (
+        <Reveal open={followOn}>
           <p className="border-t border-[#C9A24D]/20 px-5 py-3 text-[13.5px] font-medium text-gray-600 dark:text-gray-300 sm:px-6">
             Want to change the timing or the messages? <a href="/leads/tasks" target="_blank" rel="noreferrer" className="font-black text-[#8b6a2b] underline-offset-2 hover:underline dark:text-[#e8c97a]">Open Follow-up settings</a> - and connect your calendar in the next step so they pop up on your phone.
           </p>
-        )}
+        </Reveal>
       </div>,
 
       <div key="leads">

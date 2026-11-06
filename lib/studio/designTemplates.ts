@@ -139,7 +139,7 @@ function withHorizon(ids: DesignCompositionId[], group: PlacementGroup): DesignC
 }
 
 // Floating Card is retired from new designs (old ones still open and render as saved) - its slot
-// goes to the next art direction that isn't already offered. Luxe (IDX) closes every list.
+// goes to the next art direction that isn't already offered. Luxe closes every list.
 const BACKFILL: DesignCompositionId[] = ['cinematic', 'band', 'magazine', 'seal', 'mosaic', 'split']
 // The signature set (Keepsake, Billboard, Slant, Postage, Filmstrip) is on every Instagram /
 // Facebook / Story list and every mailer, flyer and door hanger, in the same order everywhere - so

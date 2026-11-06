@@ -12,7 +12,7 @@ import api, { type EmailSettings } from '@/lib/api-service'
 import { syncPrintPrefs, writePrintPref, type PrintPref } from '@/lib/printPrefs'
 import { hasMlsAccess, hasShowcaseAccess } from '@/lib/navAccess'
 import { planHasBragSheet } from '@/lib/bragSheetData'
-import { BigToggle, ChoiceCard, MiniFlow, StepCtx, SubHead, useGate, useMiniFlow } from './SetupUi'
+import { BigToggle, ChoiceCard, MiniFlow, StepCtx, SubHead, useGate, useMiniFlow, Reveal } from './SetupUi'
 import { SignInPhone } from '@/app/open-houses/components/KitReviewDialog'
 
 const DELAY_LABEL: Record<number, string> = { 0: 'Right away', 15: 'In 15 min', 30: 'In 30 min', 60: 'In 1 hour' }
@@ -50,7 +50,7 @@ export function OpenHouseStep({ ctx }: { ctx: StepCtx }) {
             <BigToggle on={invite.on} onChange={on => saveEs({ client: { showcase_invite: { on } } }, { ...es, client: es.client.map(c => (c.key === 'showcase_invite' ? { ...c, on } : c)) })}
               title="Send them a Showcase automatically"
               blurb="A short personal note from you with their own Showcase - homes like the one they just saw, updated as new ones come up. Each guest gets it once." />
-            {invite.on && (
+            <Reveal open={invite.on}>
               <div className="px-4 pb-3 pt-4">
                 <p className="text-[14px] font-black text-[#111827] dark:text-white">When should it go out?</p>
                 <div className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -65,7 +65,7 @@ export function OpenHouseStep({ ctx }: { ctx: StepCtx }) {
                   })}
                 </div>
               </div>
-            )}
+            </Reveal>
           </div>
           <p className="mt-3 flex items-start gap-2 text-[13.5px] font-medium text-gray-500 dark:text-gray-400">
             <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#C9A24D]" />

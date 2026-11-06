@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { CalendarDays } from 'lucide-react'
 import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
-import { SEEN_EVENT, openTodaysRundown } from './TodaysRundown'
+import { SEEN_EVENT, openTodaysRundown, rundownIsEmpty, useRundown } from './TodaysRundown'
 
 type Status = { date: string; seen: boolean; new_since: number }
 
@@ -36,6 +36,7 @@ export default function BriefingButton({ word = 'inline', compact = false }: { w
   const reduce = useReducedMotion()
   const [st, setSt] = useState<Status | null>(null)
   const on = isAuthenticated && !!user && !user.is_admin
+  const { data } = useRundown(on)
 
   const load = useCallback(() => {
     fetchStatus().then(s => { if (s) setSt(s) })
@@ -55,8 +56,9 @@ export default function BriefingButton({ word = 'inline', compact = false }: { w
     }
   }, [on, load])
 
-  // Not looked at yet, or something new since - the big card is showing.
-  if (!on || !st || !st.seen || st.new_since > 0) return null
+  // Not looked at yet, or something new since - the big card is showing (unless today is still empty).
+  if (!on || !st) return null
+  if ((!st.seen || st.new_since > 0) && !(data && rundownIsEmpty(data))) return null
 
   const [y, m, d] = st.date.split('-').map(Number)
   const day = new Date(y, (m || 1) - 1, d || 1)

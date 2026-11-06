@@ -9,7 +9,8 @@ import { RefObject, useEffect, useRef, useState } from 'react'
 // key wakes it. Entrance animations (they end on their own) are never touched. JavaScript loops
 // (the tagline, the demo player) use usePlayWhenSeen below.
 const SWEEP_MS = 1500
-const MARGIN = 120
+const SCROLL_SWEEP_MS = 300 // while scrolling; every frame made the browser re-measure the whole page (owner, 11/06: lag)
+const MARGIN = 400 // loops wake well before they reach the screen, so none is caught paused
 
 // Resting = nobody has touched the page for a while (shared by CalmLoops and usePlayWhenSeen).
 let resting = false
@@ -77,7 +78,7 @@ export default function CalmLoops({ idleMs = 40000 }: { idleMs?: number }) {
     coverMo.observe(html, { attributes: true, attributeFilter: ['style'] })
     const onScroll = () => {
       wake()
-      if (!frame) frame = requestAnimationFrame(sweep)
+      if (!frame) frame = window.setTimeout(sweep, SCROLL_SWEEP_MS)
     }
 
     const opts = { passive: true } as AddEventListenerOptions
@@ -93,7 +94,7 @@ export default function CalmLoops({ idleMs = 40000 }: { idleMs?: number }) {
       coverMo.disconnect()
       if (idleTimer) clearTimeout(idleTimer)
       if (sweepTimer) clearInterval(sweepTimer)
-      if (frame) cancelAnimationFrame(frame)
+      if (frame) clearTimeout(frame)
       rested.forEach(a => { try { a.play() } catch {} })
       setResting(false)
     }

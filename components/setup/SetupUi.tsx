@@ -4,7 +4,7 @@
 // a website form before: large type, one plain label per box, a short hint under it, and choices
 // as tappable cards instead of dropdowns.
 import { useEffect, useRef, useState } from 'react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Check, ChevronDown, Lock } from 'lucide-react'
 import type { SetupData, SetupInfoPatch } from '@/lib/api-service'
 import OhpSwitch from '@/components/ui/OhpSwitch'
@@ -292,15 +292,31 @@ export function SubHead({ children, sub }: { children: React.ReactNode; sub?: st
   )
 }
 
+/** A part of a step that opens and closes smoothly instead of popping in. */
+export function Reveal({ open, children }: { open: boolean; children: React.ReactNode }) {
+  return (
+    <AnimatePresence initial={false}>
+      {open && (
+        <motion.div key="reveal" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }} className="overflow-hidden">
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
 export function MoreOptions({ label, children, defaultOpen = false }: { label: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
     <div className="rounded-2xl border-2 border-dashed border-[#e7dfcf] dark:border-white/10">
       <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left text-[15px] font-black text-[#111827] dark:text-white">
         {label}
-        <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && <div className="space-y-5 border-t-2 border-dashed border-[#e7dfcf] px-5 pb-5 pt-4 dark:border-white/10">{children}</div>}
+      <Reveal open={open}>
+        <div className="space-y-5 border-t-2 border-dashed border-[#e7dfcf] px-5 pb-5 pt-4 dark:border-white/10">{children}</div>
+      </Reveal>
     </div>
   )
 }

@@ -57,6 +57,11 @@ export type Rundown = {
   seen?: { seen: boolean; seen_at: string | null; via: 'app' | 'email' | null; new_since: number }
 }
 
+/** Nothing in today's Rundown yet: it stays small, the same as after it's been looked at, and the big
+ * card comes back the moment something happens (owner, 11/06). */
+export const rundownIsEmpty = (d: Rundown) => !d.happened_count && !d.to_do_count && !d.briefing.sent
+  && !d.showcase?.new && !d.showcase?.drops && d.stats.every(s => !s.value)
+
 // The last Rundown fetched - a reopen shows it instantly while the fresh one loads.
 let cached: Rundown | null = null
 // One request at a time for the whole app, and a fresh copy is reused for a few seconds: the Dash
@@ -682,8 +687,9 @@ export function RundownDashCard({ className = '' }: { className?: string }) {
     )
   }
   // Looked at already today and nothing new since - it lives in the header now ("Oct 26 Briefing",
-  // BriefingButton). Anything new after they looked brings the big card back (owner, 10/28).
-  if (data.seen?.seen && !data.seen.new_since) return null
+  // BriefingButton). Anything new after they looked brings the big card back (owner, 10/28). A day
+  // with nothing in it yet starts there too.
+  if ((data.seen?.seen && !data.seen.new_since) || rundownIsEmpty(data)) return null
   const status = briefingStatus(data)
   const top = data.stats.filter(s => s.value > 0).slice(0, 3)
   const fresh = data.briefing.sent && data.unread_today > 0

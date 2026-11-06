@@ -2,7 +2,7 @@
 
 // "Luxe finish" - the Email Signature's gold, silver and bronze as a design's accent, on any layout,
 // style and color theme. Same metal chips as the signature (a polished gradient that catches the
-// light on hover); "None" keeps the theme's own accent. IDX plans apply it; others see it locked.
+// light on hover); "None" keeps the theme's own accent. Plans with Luxe apply it; others see it locked.
 import { Check, Crown } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { LUXE_METALS, LUXE_METAL_ORDER, type LuxeMetal } from '@/lib/luxeMetals'

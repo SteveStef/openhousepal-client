@@ -62,6 +62,8 @@ function BrandKitPageInner() {
   const [logoError, setLogoError] = useState('')
   const { user } = useAuth()
   const luxeAllowed = luxeAllowedFor(user)
+  // The IDX website rows - not Luxe, so No-MLS Premium stays out of this one.
+  const idxPlan = user?.plan_tier === 'IDX'
   // The shared copy (lib/brandKit) - a save here updates every open "My Brand Kit" preview too.
   const shared = useBrandKit()
   // One save status for the page (components/ui/SaveStatus): Saving… -> All changes saved, or
@@ -219,13 +221,13 @@ function BrandKitPageInner() {
 
         {/* 1. the color + where it shows (owner 10/24: Brand Kit -> a Branding center) */}
         <motion.div className="mt-5" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
-          <BrandColorStage kit={kit} look={shownLook} luxeAllowed={luxeAllowed} onChange={changeLook} usage={usage} idxPlan={luxeAllowed}
+          <BrandColorStage kit={kit} look={shownLook} luxeAllowed={luxeAllowed} onChange={changeLook} usage={usage} idxPlan={idxPlan}
             pickerRef={pickerRef} applyAll={applyAll} onApplied={u => setUsage(u)} />
         </motion.div>
 
         {/* 2. every feature in the color */}
         <div ref={showcaseRef}>
-          <FeatureShowcase kit={kit} look={shownLook} usage={usage} idxPlan={luxeAllowed} person={person} agent={designAgent} />
+          <FeatureShowcase kit={kit} look={shownLook} usage={usage} idxPlan={idxPlan} person={person} agent={designAgent} />
         </div>
 
         {/* 3. logos, QR codes, fonts, disclaimer */}

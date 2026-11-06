@@ -7,7 +7,7 @@
 //   <BrandStepLook />                      // look + color + Ivory/Midnight + live preview
 //   <BrandStepLook onSaved={() => ...} />  // e.g. mark the step confirmed after the first pick
 //
-// Same choices as Studio -> Brand Kit (components/studio/BrandLookPicker): Classic / Luxe (IDX),
+// Same choices as Studio -> Brand Kit (components/studio/BrandLookPicker): Classic / Luxe (IDX and No-MLS Premium),
 // the Agent Hub / IDX color palette (lib/brandKit BRAND_COLORS) or Luxe's gold / silver / bronze,
 // and Ivory / Midnight. Every feature still on "My Brand Kit" (Agent Hub, IDX website, forms, email
 // signature) changes with it.

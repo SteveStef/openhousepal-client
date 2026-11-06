@@ -5,7 +5,7 @@ import { MapPin, Play } from 'lucide-react'
 import BlogCoverArt from '@/components/BlogCoverArt'
 import { sizedBg } from '@/lib/siteImage'
 
-// OpenHousePal Luxe - the Agent Hub's second theme (IDX only; other plans can preview it). Same
+// OpenHousePal Luxe - the Agent Hub's second theme (IDX and No-MLS Premium; other plans can preview it). Same
 // sections, links and data as Classic; Luxe re-dresses all of it in the Listing Spotlight / IDX
 // language and goes further: a cinematic entry (a gold ring draws around the agent's photo, their
 // name glints in, then the curtain parts on a gold seam), an ivory-and-gold page with drifting

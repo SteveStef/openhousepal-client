@@ -1,7 +1,7 @@
 'use client'
 
-// The same multi-layer background system built for the homepage (app/page.tsx) - a color mesh,
-// an architectural blueprint grid, and a fine dot texture - extracted here so the other
+// The same multi-layer background system built for the homepage (app/page.tsx) - an
+// architectural blueprint grid and a fine dot texture (the soft glows came out 11/06: they showed as a haze around cards) - extracted here so the other
 // marketing-adjacent pages (login, register, privacy, terms) can share the same premium look
 // instead of the flatter two-blur-orb treatment they had before. No vignette layer (removed
 // site-wide) - it faded to a near-opaque cream/black wash in the corners, reading as a fog.
@@ -15,9 +15,6 @@
 export default function PageBackgroundGrid({ className = '' }: { className?: string }) {
   return (
     <div className={`absolute inset-0 overflow-hidden pointer-events-none -z-10 ${className}`}>
-      <div className="animate-bg-blob-in absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] bg-[radial-gradient(closest-side,rgba(201,162,77,.1),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.05),transparent)] rounded-full" />
-      <div className="animate-bg-blob-in delay-200 absolute top-[18%] right-[-12%] w-[820px] h-[820px] bg-[radial-gradient(closest-side,rgba(17,24,39,.05),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.05),transparent)] rounded-full" />
-      <div className="animate-bg-blob-in delay-400 absolute top-[46%] left-[38%] w-[520px] h-[520px] bg-[radial-gradient(closest-side,rgba(240,212,148,.14),transparent)] dark:bg-[radial-gradient(closest-side,rgba(240,212,148,.04),transparent)] rounded-full" />
 
       {/* Architectural blueprint grid - 1.5px lines at 0.22 opacity, not the more "reasonable"
           looking 0.03-0.09 tried first, which is invisible on screen: a 1.5px line spaced 140px

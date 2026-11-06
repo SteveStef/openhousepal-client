@@ -2064,7 +2064,6 @@ export default function OpenHouseDiscovery() {
                     // grey lines looked broken), not just "no results".
                     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 240, damping: 26 }}
                       className="relative mx-auto flex max-w-lg flex-col items-center overflow-hidden rounded-[2rem] border border-[#C9A24D]/25 bg-white px-6 py-12 text-center shadow-[0_30px_70px_-50px_rgba(17,24,39,.6)] dark:bg-[#111113] sm:py-14">
-                      <span aria-hidden className="pointer-events-none absolute -top-24 left-1/2 h-56 w-[420px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.22),transparent)]" />
                       <div className="relative grid h-20 w-20 place-items-center">
                         {[0, 1].map(i => (
                           <motion.span key={i} aria-hidden className="absolute inset-0 rounded-full border border-[#C9A24D]/40"

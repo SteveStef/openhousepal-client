@@ -12,7 +12,7 @@ import { ArrowUpRight, Calendar, Check, CheckCircle2, Clapperboard, DollarSign, 
 import api, { type SetupHubLink } from '@/lib/api-service'
 import type { AgentFormConfig, PublicBlogSummary } from '@/types'
 import GoogleVisibilityNote from '@/components/ui/GoogleVisibilityNote'
-import { BigToggle, inputCls, StepCtx } from './SetupUi'
+import { BigToggle, inputCls, StepCtx, Reveal } from './SetupUi'
 import { BigChoices, hubSectionOn, hubSectionPatch, MiniLabel, Note, patchHubConfig, QuestionCard, useSerialSaves } from './FeatureUi'
 
 type Video = { id: string; title: string; link: string; image?: string; pinned?: boolean; description?: string }
@@ -181,12 +181,12 @@ export function HubContentPicker({ ctx, onSaved }: { ctx: StepCtx; onSaved: () =
               {videos.length > 6 && <p className="mt-2 text-[12.5px] font-semibold text-gray-500">+ {videos.length - 6} more</p>}
             </div>
           )}
-          {!autoSync && (
+          <Reveal open={!autoSync}>
             <div>
               <MiniLabel>{videos.length ? `${videos.length} picked - tap to add or remove` : 'Tap the videos you want to show'}</MiniLabel>
               {pickable.length ? <VideoGrid videos={pickable} picked={new Set(videos.map(v => v.link))} onToggle={togglePick} /> : loading ? <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div> : <Note>Load your channel above to choose from your videos.</Note>}
             </div>
-          )}
+          </Reveal>
         </div>
       </QuestionCard>
     </div>

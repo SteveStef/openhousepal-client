@@ -10,6 +10,8 @@ import type { BrandKit } from '@/types'
 import { BRAND_COLOR_GROUPS, BRAND_FINISHES, BRAND_MODES, brandColorName, brandLookOf, type BrandKitPatch, type BrandLook } from '@/lib/brandKit'
 import { LUXE_METALS } from '@/lib/luxeMetals'
 import { formPaint } from '@/lib/formLook'
+import { useOptionalAuth } from '@/contexts/AuthContext'
+import { luxeUpgrade } from '@/lib/navAccess'
 import SelectedMark, { SELECTED_RING } from '@/components/ui/SelectedMark'
 
 const inkOn = (hex: string) => {
@@ -32,6 +34,7 @@ export default function BrandLookPicker({ kit, luxeAllowed, onChange, showPrevie
   /** A small live preview under the choices (the setup step uses it; the Brand Kit page has its own). */
   showPreview?: boolean
 }) {
+  const luxePlan = luxeUpgrade(useOptionalAuth()?.user?.plan_tier).label
   const look = brandLookOf(kit)
   const theme = look.theme === 'luxe' && luxeAllowed ? 'luxe' : 'classic'
   const [customOpen, setCustomOpen] = useState(false)
@@ -43,7 +46,7 @@ export default function BrandLookPicker({ kit, luxeAllowed, onChange, showPrevie
       <div>
         <Label>Look</Label>
         <div className="grid grid-cols-2 gap-2.5">
-          {([['classic', 'Classic', 'Clean and bright, in your color.', Sparkles], ['luxe', 'Luxe', luxeAllowed ? 'Metal shine, serif type, cinematic light.' : 'Included with the IDX plan.', Crown]] as const).map(([id, name, blurb, Icon]) => {
+          {([['classic', 'Classic', 'Clean and bright, in your color.', Sparkles], ['luxe', 'Luxe', luxeAllowed ? 'Metal shine, serif type, cinematic light.' : `Included with the ${luxePlan} plan.`, Crown]] as const).map(([id, name, blurb, Icon]) => {
             const on = theme === id
             const locked = id === 'luxe' && !luxeAllowed
             return (
@@ -55,7 +58,7 @@ export default function BrandLookPicker({ kit, luxeAllowed, onChange, showPrevie
                 <span className="mt-2 flex items-center gap-1.5 px-0.5">
                   <Icon className={`h-3.5 w-3.5 ${on ? 'text-[#C9A24D]' : 'text-gray-400'}`} />
                   <span className="text-sm font-black text-[#111827] dark:text-white">{name}</span>
-                  {locked && <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-[#111827] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#e8c97a]"><Lock className="h-2.5 w-2.5" /> IDX</span>}
+                  {locked && <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-[#111827] px-2 py-0.5 text-[9px] font-black uppercase leading-tight tracking-wider text-[#e8c97a]"><Lock className="h-2.5 w-2.5 shrink-0" /> {luxePlan}</span>}
                   {on && !locked && <span className="ml-auto rounded-full bg-[#C9A24D] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">Selected</span>}
                 </span>
                 <span className="mt-0.5 block px-0.5 text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400">{blurb}</span>

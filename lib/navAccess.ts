@@ -18,14 +18,18 @@ const EMAIL_SIGNATURE_ACCESS_TIERS: PlanTierId[] = ['PRO_NO_MLS', 'IDX']
 const STUDIO_DESIGN_ACCESS_TIERS: PlanTierId[] = ['PRO_NO_MLS', 'PREMIUM', 'IDX']
 const STUDIO_MEDIA_ACCESS_TIERS: PlanTierId[] = ['PRO_NO_MLS', 'IDX']
 
-// Luxe article theme: IDX + No-MLS Premium. Keep in sync with LUXE_BLOG_THEME_ACCESS_TIERS in
-// backend auth.py. luxeBlogUpgrade = the plan that unlocks it from this plan's track.
-export function luxeBlogAllowed(planTier?: string | null): boolean {
+// OpenHousePal Luxe (every look, the article theme included) and their own logo / initials in QR
+// codes: IDX + No-MLS Premium. Keep in sync with LUXE_THEME_ACCESS_TIERS / QR_BRAND_ACCESS_TIERS in
+// backend auth.py. luxeUpgrade = the plan that unlocks them from this plan's track, for every lock
+// label and pitch: a No-MLS plan can never buy IDX, so it's only ever told about No-MLS Premium.
+export function luxeAllowed(planTier?: string | null): boolean {
   return planTier === 'IDX' || planTier === 'PRO_NO_MLS'
 }
-export function luxeBlogUpgrade(planTier?: string | null): { tier: PlanTierId; label: string } {
-  return planTier === 'NO_MLS' ? { tier: 'PRO_NO_MLS', label: 'No-MLS Premium' } : { tier: 'IDX', label: 'IDX' }
+export function luxeUpgrade(planTier?: string | null): { tier: PlanTierId; label: string } {
+  return planTier === 'NO_MLS' || planTier === 'PRO_NO_MLS' ? { tier: 'PRO_NO_MLS', label: 'No-MLS Premium' } : { tier: 'IDX', label: 'IDX' }
 }
+export const luxeBlogAllowed = luxeAllowed
+export const luxeBlogUpgrade = luxeUpgrade
 
 export function hasMlsAccess(planTier?: string | null): boolean {
   return !!planTier && planTier !== 'NO_MLS' && planTier !== 'PRO_NO_MLS'

@@ -22,7 +22,8 @@ import { HUB_CLASSIC_ACCENTS, hubAccentOf } from '@/components/agent-hub/HubClas
 import { HUB_MOBILE_HEADERS } from '@/components/agent-hub/HubLuxeTheme'
 import { LUXE_METALS, LUXE_METAL_ORDER, metalOf, type LuxeMetal } from '@/lib/luxeMetals'
 import { ACCENT_COLORS } from '@/lib/accentSwatches'
-import { BRAND_MAIN_COLORS, brandFormLook, brandSignaturePatch, modeLabel, useBrandKit, type BrandLook } from '@/lib/brandKit'
+import { BRAND_MAIN_COLORS, brandFormLook, brandSignaturePatch, luxeAllowedFor, modeLabel, useBrandKit, type BrandLook } from '@/lib/brandKit'
+import { luxeUpgrade } from '@/lib/navAccess'
 import { BigToggle, ChoiceCard, Field, isLight, MiniFlow, LOGO_ACCEPT, readyLogo, StepCtx, SubHead, Swatches, useGate, useMiniFlow } from './SetupUi'
 import ZillowLinkHelp, { ZILLOW_REVIEW_PLACEHOLDER } from '@/components/reviews/ZillowLinkHelp'
 import QrBrandPicker from '@/components/settings/QrBrandPicker'
@@ -243,17 +244,17 @@ function HubPhonePreview({ src, look, label, width = 260 }: { src: string; look:
   )
 }
 
-/** The hub keys for the Brand Kit's look (Luxe stays IDX-only). */
-const brandHubLook = (b: BrandLook, isIdx: boolean) => ({ hubTheme: b.theme === 'luxe' && isIdx ? 'luxe' : 'classic', hubAccent: b.accent, hubLuxeMetal: b.metal, visitorDarkMode: b.dark })
+/** The hub keys for the Brand Kit's look (Luxe only on the plans that have it). */
+const brandHubLook = (b: BrandLook, luxeOk: boolean) => ({ hubTheme: b.theme === 'luxe' && luxeOk ? 'luxe' : 'classic', hubAccent: b.accent, hubLuxeMetal: b.metal, visitorDarkMode: b.dark })
 
 export function HubStep({ ctx }: { ctx: StepCtx }) {
   const look = ctx.data.look || {}
-  const isIdx = ctx.plan === 'IDX'
+  const luxeOk = luxeAllowedFor({ plan_tier: ctx.plan })
   const { look: brand } = useBrandKit()
   // "My Brand Kit" unless the hub chose its own (legacy hubs with a saved look keep it - brand_look_service).
   const legacyOwn = !!(look.hubTheme || look.hubAccent || look.hubLuxeMetal || look.visitorDarkMode === true)
   const [source, setSource] = useState<'brand' | 'own'>(look.lookSource === 'brand' ? 'brand' : look.lookSource === 'own' || legacyOwn ? 'own' : 'brand')
-  const [theme, setTheme] = useState<string>(isIdx && look.hubTheme === 'luxe' ? 'luxe' : 'classic')
+  const [theme, setTheme] = useState<string>(luxeOk && look.hubTheme === 'luxe' ? 'luxe' : 'classic')
   const [accent, setAccent] = useState<string>(hubAccentOf(look.hubAccent))
   const [metal, setMetal] = useState<LuxeMetal>(metalOf(look.hubLuxeMetal))
   const [dark, setDark] = useState<boolean>(look.visitorDarkMode === true)
@@ -263,7 +264,7 @@ export function HubStep({ ctx }: { ctx: StepCtx }) {
   const [reload, setReload] = useState(0)
   const saveLook = (patch: Record<string, string | boolean>) => ctx.saveInfo({ look: patch })
   const own = { hubTheme: theme, hubAccent: accent, hubLuxeMetal: metal, visitorDarkMode: dark }
-  const shownLook = source === 'brand' ? brandHubLook(brand, isIdx) : own
+  const shownLook = source === 'brand' ? brandHubLook(brand, luxeOk) : own
   const phoneLook: HubLook = { ...shownLook, mobileHeader: header }
   useGate(ctx, {
     ok: slugState !== 'taken' && slugState !== 'checking',
@@ -289,11 +290,11 @@ export function HubStep({ ctx }: { ctx: StepCtx }) {
       setSlugState(r.success && r.data?.available ? 'ok' : 'taken')
     }, 450)
   }
-  const pickBrand = () => { setSource('brand'); saveLook({ ...brandHubLook(brand, isIdx), lookSource: 'brand' }) }
+  const pickBrand = () => { setSource('brand'); saveLook({ ...brandHubLook(brand, luxeOk), lookSource: 'brand' }) }
   // "Choose my own" starts from the look it wears now, so nothing changes until they pick.
   const pickOwn = () => {
     if (source === 'own') return
-    const from = brandHubLook(brand, isIdx)
+    const from = brandHubLook(brand, luxeOk)
     setTheme(from.hubTheme); setAccent(hubAccentOf(from.hubAccent)); setMetal(metalOf(from.hubLuxeMetal)); setDark(from.visitorDarkMode)
     setSource('own'); saveLook({ ...from, lookSource: 'own' })
   }
@@ -308,8 +309,8 @@ export function HubStep({ ctx }: { ctx: StepCtx }) {
         <div>
           <SubHead sub="Wear your Brand Kit, or give your hub a look of its own.">Look</SubHead>
           <div className="grid gap-3 sm:grid-cols-2">
-            <ChoiceCard on={source === 'brand'} onClick={pickBrand} title="My Brand Kit" blurb={lookName(brand.theme === 'luxe' && isIdx, brand.metal, colorLabel(brand.accent), brand.dark)}>
-              <div className="relative"><LookTile luxe={brand.theme === 'luxe' && isIdx} metal={brand.metal} accent={brand.accent} dark={brand.dark} /><span className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-[#8b6a2b] shadow-sm dark:bg-black/60 dark:text-[#e8c97a]"><Layers className="h-3.5 w-3.5" /></span></div>
+            <ChoiceCard on={source === 'brand'} onClick={pickBrand} title="My Brand Kit" blurb={lookName(brand.theme === 'luxe' && luxeOk, brand.metal, colorLabel(brand.accent), brand.dark)}>
+              <div className="relative"><LookTile luxe={brand.theme === 'luxe' && luxeOk} metal={brand.metal} accent={brand.accent} dark={brand.dark} /><span className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-[#8b6a2b] shadow-sm dark:bg-black/60 dark:text-[#e8c97a]"><Layers className="h-3.5 w-3.5" /></span></div>
             </ChoiceCard>
             <ChoiceCard on={source === 'own'} onClick={pickOwn} title="Choose my own" blurb={source === 'own' ? lookName(theme === 'luxe', metal, colorLabel(accent), dark) : 'Pick a style, color and Ivory or Midnight.'}>
               <div className="relative"><LookTile luxe={source === 'own' && theme === 'luxe'} metal={metal} accent={source === 'own' ? accent : '#2563EB'} dark={source === 'own' && dark} /><span className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-white/90 text-[#8b6a2b] shadow-sm dark:bg-black/60 dark:text-[#e8c97a]"><Sparkles className="h-3.5 w-3.5" /></span></div>
@@ -325,7 +326,7 @@ export function HubStep({ ctx }: { ctx: StepCtx }) {
                   <ChoiceCard on={theme === 'classic'} onClick={() => { setTheme('classic'); saveLook({ hubTheme: 'classic' }) }} title="Classic" blurb="Clean and bright.">
                     <div className="flex h-24 items-center justify-center rounded-2xl bg-[#f7f5f1]"><div className="h-16 w-24 rounded-xl border border-gray-200 bg-white p-2 shadow-sm"><div className="mx-auto h-4 w-4 rounded-full bg-gray-300" /><div className="mx-auto mt-1.5 h-1.5 w-12 rounded bg-[#111827]" /><div className="mt-1.5 h-2.5 rounded" style={{ background: accent }} /></div></div>
                   </ChoiceCard>
-                  <ChoiceCard on={theme === 'luxe'} disabled={!isIdx} onClick={() => { setTheme('luxe'); saveLook({ hubTheme: 'luxe' }) }} title="Luxe" blurb={isIdx ? 'Gold light and a cinematic entrance.' : 'Included with the IDX plan.'} badge={!isIdx ? <span className="rounded-full bg-[#111827] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#e8c97a]">IDX</span> : undefined}>
+                  <ChoiceCard on={theme === 'luxe'} disabled={!luxeOk} onClick={() => { setTheme('luxe'); saveLook({ hubTheme: 'luxe' }) }} title="Luxe" blurb={luxeOk ? 'Gold light and a cinematic entrance.' : `Included with the ${luxeUpgrade(ctx.plan).label} plan.`} badge={!luxeOk ? <span className="rounded-full bg-[#111827] px-2 py-0.5 text-center text-[10px] font-black uppercase leading-tight tracking-wider text-[#e8c97a]">{luxeUpgrade(ctx.plan).label}</span> : undefined}>
                     <div className="flex h-24 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0b0f0e] via-[#111827] to-[#2a2218]"><div className="h-16 w-24 rounded-xl border border-[#C9A24D]/50 bg-[#151517] p-2"><div className="mx-auto h-4 w-4 rounded-full" style={{ background: `conic-gradient(${LUXE_METALS[metal].deep}, ${LUXE_METALS[metal].light}, ${LUXE_METALS[metal].base})` }} /><div className="mx-auto mt-1.5 h-1.5 w-12 rounded bg-white" /><div className="mt-1.5 h-2.5 rounded" style={{ background: `linear-gradient(90deg, ${LUXE_METALS[metal].deep}, ${LUXE_METALS[metal].light})` }} /></div></div>
                   </ChoiceCard>
                 </div>
@@ -412,7 +413,7 @@ export function HubStep({ ctx }: { ctx: StepCtx }) {
 // The phone is the real What's My Home Worth page repainting live (?preview=1).
 export function FormsStep({ ctx }: { ctx: StepCtx }) {
   const look = ctx.data.look || {}
-  const luxeAllowed = ctx.plan === 'IDX'
+  const luxeAllowed = luxeAllowedFor({ plan_tier: ctx.plan })
   const { kit } = useBrandKit()
   const hubLook = formLookOf({ theme: look.hubTheme === 'luxe' && luxeAllowed ? 'luxe' : 'classic', accent: hubAccentOf(look.hubAccent), metal: look.hubLuxeMetal, dark: look.visitorDarkMode === true })
   const brandLook = brandFormLook(kit, luxeAllowed)
@@ -527,7 +528,7 @@ const SIG_SOCIALS = [
 export function SignatureStep({ ctx }: { ctx: StepCtx }) {
   const { user } = useAuth()
   const { look: brand } = useBrandKit()
-  const luxeAllowed = ctx.plan === 'IDX'
+  const luxeAllowed = luxeAllowedFor({ plan_tier: ctx.plan })
   const [cfg, setCfg] = useState<SignatureConfig | null>(null)
   const [hub, setHub] = useState<{ config: any; slug: string }>({ config: {}, slug: '' })
   const [forms, setForms] = useState<AgentFormConfig[]>([])

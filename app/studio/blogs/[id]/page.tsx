@@ -822,7 +822,7 @@ function BlogEditorPageInner() {
                 >
                   {t.idx ? <Crown className="h-3 w-3" /> : <span className="h-3 w-3 rounded-full ring-1 ring-black/10" style={{ background: `linear-gradient(135deg, ${t.bg} 50%, ${t.accent} 50%)` }} />}
                   {t.label}
-                  {locked && <span className="rounded-full bg-[#C9A24D] px-1 text-[8px] leading-[14px] text-[#111827]">IDX</span>}
+                  {locked && <span className="rounded-full bg-[#C9A24D] px-1 text-[8px] leading-[14px] text-[#111827]">{luxeBlogUpgrade(user?.plan_tier).label}</span>}
                 </button>
               )
             })}

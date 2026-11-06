@@ -236,7 +236,7 @@ function SetupFlow() {
   const headFolded = !!mini && mini.part > 0
   const frame = `mx-auto transition-[max-width] duration-500 ${wide ? 'max-w-[1760px]' : 'max-w-[1220px]'}`
 
-  const stepList = (
+  const stepList = (railId: string) => (
     <nav aria-label="Setup steps" className="space-y-6">
       {GROUPS.map(g => {
         const items = data.steps.filter(s => g.ids.includes(s.id))
@@ -250,13 +250,14 @@ function SetupFlow() {
                 const on = s.id === current
                 return (
                   <li key={s.id}>
-                    <button type="button" onClick={() => goTo(s.id)} aria-current={on ? 'step' : undefined} className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition ${on ? 'bg-[#111827] text-white shadow-[0_14px_30px_-18px_rgba(17,24,39,.9)] dark:bg-white dark:text-[#111827]' : 'text-[#111827] hover:bg-white/80 dark:text-white dark:hover:bg-white/5'}`}>
-                      <StatusDot status={s.status} on={on} />
-                      <span className="min-w-0 flex-1 truncate text-[14.5px] font-bold">{c.label}</span>
-                      {newIds.includes(s.id) && <span className="rounded-full bg-[#C9A24D] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">New</span>}
-                      {s.status === 'skipped' && !on && <span className="text-[11px] font-bold text-gray-400">Skipped</span>}
-                      {s.status === 'not_using' && !on && <span className="text-[11px] font-bold text-gray-400">Not using</span>}
-                      {s.required && s.status !== 'done' && !on && <span className="text-[11px] font-black text-[#a8803a]">Required</span>}
+                    <button type="button" onClick={() => goTo(s.id)} aria-current={on ? 'step' : undefined} className={`relative flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors duration-200 ${on ? 'text-white dark:text-[#111827]' : 'text-[#111827] hover:bg-white/80 dark:text-white dark:hover:bg-white/5'}`}>
+                      {on && <motion.span layoutId={railId} aria-hidden className="absolute inset-0 rounded-2xl bg-[#111827] shadow-[0_14px_30px_-18px_rgba(17,24,39,.9)] dark:bg-white" transition={{ type: 'spring', stiffness: 420, damping: 32 }} />}
+                      <span className="relative"><StatusDot status={s.status} on={on} /></span>
+                      <span className="relative min-w-0 flex-1 truncate text-[14.5px] font-bold">{c.label}</span>
+                      {newIds.includes(s.id) && <span className="relative rounded-full bg-[#C9A24D] px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">New</span>}
+                      {s.status === 'skipped' && !on && <span className="relative text-[11px] font-bold text-gray-400">Skipped</span>}
+                      {s.status === 'not_using' && !on && <span className="relative text-[11px] font-bold text-gray-400">Not using</span>}
+                      {s.required && s.status !== 'done' && !on && <span className="relative text-[11px] font-black text-[#a8803a]">Required</span>}
                     </button>
                   </li>
                 )
@@ -307,7 +308,7 @@ function SetupFlow() {
                 <p className="mt-1 text-[12.5px] font-bold text-gray-500 dark:text-gray-400">steps finished</p>
               </div>
             </div>
-            {stepList}
+            {stepList('setup-rail')}
           </div>
         </aside>
 
@@ -345,7 +346,6 @@ function SetupFlow() {
                 className="overflow-clip rounded-[32px] border border-[#C9A24D]/25 bg-white shadow-[0_50px_90px_-60px_rgba(139,106,43,.85)] dark:border-white/[0.08] dark:bg-[#121214]">
                 {/* step header */}
                 <div className="relative overflow-hidden border-b border-[#C9A24D]/15 bg-gradient-to-br from-[#fffaf0] via-white to-[#f8f1e2] px-6 pb-7 pt-7 dark:border-white/[0.06] dark:from-[#1a1712] dark:via-[#141416] dark:to-[#121214] sm:px-10 sm:pt-9">
-                  <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(closest-side,rgba(232,201,122,.3),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.15),transparent)]" />
                   <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/70 to-transparent" />
                   {/* Phones: the icon sits small on the "Step x of y" line and the title gets the full
                       width (it used to push all the words right, leaving a gap under it - owner 10/22). */}
@@ -449,7 +449,7 @@ function SetupFlow() {
                 <p className="font-serif text-[22px] font-black">{doneCount} of {total} finished</p>
                 <button onClick={() => setSheetOpen(false)} aria-label="Close" className="rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/5"><X className="h-5 w-5" /></button>
               </div>
-              {stepList}
+              {stepList('setup-rail-sheet')}
             </motion.div>
           </motion.div>
         )}
@@ -513,9 +513,6 @@ function ProgressRing({ pct, small = false }: { pct: number; small?: boolean }) 
 function SetupBackdrop() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
-      <div className="absolute -left-40 top-24 h-[520px] w-[520px] rounded-full bg-[radial-gradient(closest-side,rgba(232,201,122,.25),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,.1),transparent)]" />
-      <div className="absolute -right-32 top-[40%] h-[460px] w-[460px] rounded-full bg-[radial-gradient(closest-side,rgba(27,111,88,.07),transparent)] dark:bg-[radial-gradient(closest-side,rgba(27,111,88,.15),transparent)]" />
-      <div className="absolute bottom-[-160px] left-1/3 h-[420px] w-[620px] rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.15),transparent)] dark:bg-[radial-gradient(closest-side,rgba(44,74,150,.12),transparent)]" />
       <div className="absolute inset-0 opacity-[0.5] [background-image:linear-gradient(rgba(139,106,43,.06)_1px,transparent_1px),linear-gradient(90deg,rgba(139,106,43,.06)_1px,transparent_1px)] [background-size:44px_44px] [mask-image:radial-gradient(70%_50%_at_50%_0%,#000,transparent)] dark:[background-image:linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px)]" />
     </div>
   )

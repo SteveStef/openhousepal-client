@@ -280,7 +280,6 @@ export function OpenHouseFormRequestsPanel({ variant = 'card', limit = 8, onActi
   return (
     <section id="requests" ref={sectionRef} className="relative mt-8 scroll-mt-24 overflow-hidden rounded-3xl border border-[#C9A24D]/25 bg-gradient-to-br from-[#fffdf8] via-white to-[#fbf6ec] p-5 shadow-[0_24px_50px_-38px_rgba(139,115,85,.8)] dark:border-white/[0.08] dark:from-[#151517] dark:via-[#121214] dark:to-[#1a1712] sm:p-6">
       <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/70 to-transparent" />
-      <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.12),transparent)]" />
       <div className="relative mb-4 flex flex-wrap items-end justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-md ring-1 ring-[#C9A24D]/30"><QrCode className="h-5 w-5" /></span>

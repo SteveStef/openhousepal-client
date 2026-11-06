@@ -45,7 +45,7 @@ export function stepCopy(id: SetupStepId, plan: string | null, hasMls: boolean):
     case 'license':
       return {
         icon: BadgeCheck, label: 'License number', title: ['Your real estate ', 'license'],
-        intro: 'Type it once. After it’s saved it locks, so it always matches your MLS record.',
+        intro: `Type it once. After it’s saved it locks, so it always matches your ${mls ? 'MLS' : 'state'} record.`,
         powers: where([], [[mls && hub, 'Finding your closed sales'], [idx, 'Shown on your website as required'], [!idx, 'Kept on file - never shown to the public']]),
       }
     case 'photo':
@@ -157,11 +157,16 @@ export function stepCopy(id: SetupStepId, plan: string | null, hasMls: boolean):
         intro: 'Add the towns you work in. These become the neighborhoods on your website - each one gets its own page with local market numbers. You can change them any time in your website editor.',
         powers: ['Neighborhoods on your website', 'Town pages', 'Area market trends'],
         skip: 'Your website has no neighborhood pages.',
-      } : {
+      } : mls ? {
         icon: MapPin, label: 'Towns you serve', title: ['The towns ', 'you serve'],
         intro: 'Add the towns you work in. We use them to suggest the right homes on your forms and match buyers to your towns' + (studio ? ', and for town cards in your blog articles.' : '.') + ' (With the IDX plan, these also become the neighborhoods on your website.)',
         powers: where(['Your forms', 'Matching buyers to towns'], [[studio, 'Blog town cards']]),
         skip: 'Forms suggest homes from anywhere in the MLS.',
+      } : {
+        icon: MapPin, label: 'Towns you serve', title: ['The towns ', 'you serve'],
+        intro: 'Add the towns you work in. We use them on your forms and to match buyers to your towns' + (studio ? ', and for town cards in your blog articles.' : '.'),
+        powers: where(['Your forms', 'Matching buyers to towns'], [[studio, 'Blog town cards']]),
+        skip: 'Your forms won’t be matched to any towns.',
       }
     case 'homes':
       return {

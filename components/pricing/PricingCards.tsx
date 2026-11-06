@@ -37,7 +37,6 @@ export function FeatureTile({ group, dark = false }: { group: PricingFeatureGrou
       <div className={`relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d] ${group.desc ? 'group-hover:[transform:rotateY(180deg)]' : ''}`}>
         {/* Front */}
         <div className={`absolute inset-0 flex flex-col justify-center overflow-hidden rounded-xl border p-3 shadow-[0_8px_20px_-12px_rgba(0,0,0,0.25)] [backface-visibility:hidden] ${dark ? 'border-white/10 bg-gradient-to-br from-white/[0.09] to-white/[0.03]' : 'border-gray-100 bg-gradient-to-br from-gray-50 to-white dark:border-gray-800 dark:from-white/5 dark:to-white/[0.02]'}`}>
-          <div className="absolute -right-3 -top-3 h-10 w-10 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.35),transparent)] animate-glow-pulse" />
           <div className="absolute bottom-0 left-0 h-0.5 w-full bg-gradient-to-r from-[#C9A24D] via-[#f1d58b] to-[#C9A24D]" />
           <div className="relative flex items-center gap-2.5">
             <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${dark ? 'bg-[#C9A24D]/20' : 'bg-[#C9A24D]/15'}`}>
@@ -73,8 +72,7 @@ export function FeatureTile({ group, dark = false }: { group: PricingFeatureGrou
 export function SpotlightFeatureCard({ group, dark = false, alwaysShow = false }: { group: PricingFeatureGroup; dark?: boolean; alwaysShow?: boolean }) {
   if (alwaysShow) {
     return (
-      <div className={`group relative overflow-hidden rounded-xl border p-3.5 transition-all duration-300 hover:-translate-y-0.5 ${dark ? 'border-[#C9A24D]/20 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-[#C9A24D]/[0.06] shadow-[0_10px_24px_-16px_rgba(0,0,0,0.5)] hover:shadow-[0_16px_32px_-14px_rgba(201,162,77,0.35)]' : 'border-[#C9A24D]/35 bg-gradient-to-br from-[#111827] via-[#172033] to-[#4a3820] shadow-[0_14px_32px_-16px_rgba(201,162,77,0.65)] hover:shadow-[0_22px_48px_-14px_rgba(201,162,77,0.85)]'}`}>
-        <div className={`absolute -right-6 -top-6 h-20 w-20 rounded-full ${dark ? 'bg-[radial-gradient(closest-side,rgba(201,162,77,.18),transparent)]' : 'bg-[radial-gradient(closest-side,rgba(201,162,77,.26),transparent)]'}`} />
+      <div className={`group relative overflow-hidden rounded-xl border p-3.5 transition-all duration-300 hover:-translate-y-0.5 ${dark ? 'border-[#C9A24D]/20 bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-[#C9A24D]/[0.06] shadow-[0_10px_24px_-16px_rgba(0,0,0,0.5)]' : 'border-[#C9A24D]/35 bg-gradient-to-br from-[#111827] via-[#172033] to-[#4a3820]'}`}>
         <div className={`absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r ${dark ? 'from-[#C9A24D]/40 via-[#f1d58b]/40 to-[#C9A24D]/40' : 'from-[#C9A24D] via-[#f1d58b] to-[#C9A24D]'}`} />
         {group.ai && <AiCorner dim={dark} />}
         <div className="relative flex items-center gap-2.5">
@@ -94,8 +92,7 @@ export function SpotlightFeatureCard({ group, dark = false, alwaysShow = false }
     <div className="group relative h-[4.75rem] [perspective:1200px]">
       <div className={`relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d] ${group.desc ? 'group-hover:[transform:rotateY(180deg)]' : ''}`}>
         {/* Front */}
-        <div className={`absolute inset-0 overflow-hidden rounded-xl border p-3.5 shadow-[0_14px_32px_-16px_rgba(201,162,77,0.65)] transition-shadow duration-300 group-hover:shadow-[0_22px_48px_-14px_rgba(201,162,77,0.85)] [backface-visibility:hidden] ${dark ? 'border-[#C9A24D]/45 bg-gradient-to-br from-white/[0.15] via-white/[0.08] to-[#C9A24D]/15' : 'border-[#C9A24D]/35 bg-gradient-to-br from-[#111827] via-[#172033] to-[#4a3820]'}`}>
-          <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.4),transparent)] animate-glow-pulse transition-transform duration-500 group-hover:scale-125" />
+        <div className={`absolute inset-0 overflow-hidden rounded-xl border p-3.5 [backface-visibility:hidden] ${dark ? 'border-[#C9A24D]/45 bg-gradient-to-br from-white/[0.15] via-white/[0.08] to-[#C9A24D]/15' : 'border-[#C9A24D]/35 bg-gradient-to-br from-[#111827] via-[#172033] to-[#4a3820]'}`}>
           <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
           <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-[#C9A24D] via-[#f1d58b] to-[#C9A24D]" />
           {group.ai && <AiCorner />}
@@ -120,7 +117,7 @@ export function SpotlightFeatureCard({ group, dark = false, alwaysShow = false }
         </div>
         {/* Back */}
         {group.desc && (
-          <div className="absolute inset-0 flex flex-col justify-center gap-1 rounded-xl border border-[#C9A24D]/45 bg-gradient-to-br from-[#C9A24D] to-[#b38e3e] p-3.5 shadow-[0_14px_32px_-16px_rgba(201,162,77,0.65)] [backface-visibility:hidden] [transform:rotateY(180deg)]">
+          <div className="absolute inset-0 flex flex-col justify-center gap-1 rounded-xl border border-[#C9A24D]/45 bg-gradient-to-br from-[#C9A24D] to-[#b38e3e] p-3.5 [backface-visibility:hidden] [transform:rotateY(180deg)]">
             <div className="flex items-center gap-1.5">
               <group.icon className="h-3.5 w-3.5 text-[#111827]" />
               <span className="text-[10px] font-black uppercase tracking-widest text-[#111827]">{group.label}</span>
@@ -207,7 +204,7 @@ export function BasicPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Select
     // opaque background-image always paints over a background-color, so the cream/white gradient
     // was rendering on top of dark:bg-[#111827] regardless of theme (this bug predates any recent
     // change; the dark: color was always there, it just never had a chance to show).
-    <div className={`bg-gradient-to-br from-white via-[#FAF7F0] to-[#F1E7D2] dark:bg-[#111827] dark:bg-none rounded-[2rem] p-6 sm:p-8 border-2 border-gray-200 dark:border-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-24px_rgba(0,0,0,0.5)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative flex flex-col h-full overflow-hidden transition-all duration-300 hover:border-gray-300 hover:shadow-[0_30px_60px_rgba(0,0,0,0.1)]`}>
+    <div className={`bg-gradient-to-br from-white via-[#FAF7F0] to-[#F1E7D2] dark:bg-[#111827] dark:bg-none rounded-[2rem] p-6 sm:p-8 border-2 border-gray-200 dark:border-gray-800 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative flex flex-col h-full overflow-hidden transition-all duration-300 hover:border-gray-300`}>
       <div className="absolute inset-0 z-0 opacity-[0.04] dark:opacity-[0.05]" style={DOT_TEXTURE} />
 
       <div className="relative z-10 flex flex-col h-full">
@@ -250,13 +247,13 @@ export function BasicPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Select
   )
 }
 
-export function PremiumPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Start Premium Trial', current = false, onCtaClick, ctaDisabled }: TierCardProps) {
+export function PremiumPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Select Premium', current = false, onCtaClick, ctaDisabled }: TierCardProps) {
   // Same always-dark navy-and-gold treatment as IdxPricingCard/NoMlsPricingCard, in both light and
   // dark theme - no separate light-mode look anymore. Keeps its own "Most Popular" badge/border
   // for identity, but the card fill, texture, and text colors are IDX's exact palette so all
   // three read as one consistent family instead of Premium having its own one-off color story.
   return (
-    <div className={`relative rounded-[2rem] border-2 border-[#C9A24D] shadow-[0_20px_55px_-18px_rgba(201,162,77,0.35)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} flex flex-col h-full transition-all duration-300 hover:shadow-[0_28px_70px_-16px_rgba(201,162,77,0.5)]`}>
+    <div className={`relative rounded-[2rem] border-2 border-[#C9A24D] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} flex flex-col h-full transition-all duration-300`}>
       <span className="absolute -top-3 left-1/2 z-20 -translate-x-1/2 rounded-full bg-[#C9A24D] px-4 py-1 text-[10px] font-black uppercase tracking-widest text-[#111827] shadow-md">
         <span className="relative mr-1.5 inline-flex h-1.5 w-1.5 -translate-y-px">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#111827] opacity-60" />
@@ -308,9 +305,8 @@ export function IdxPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Select I
   // as PremiumPricingCard's "Most Popular" pill, so it can poke above the card edge without being
   // clipped by the inner layer's overflow-hidden (which clips the shimmer/texture instead).
   return (
-    <div className={`relative rounded-[2rem] border-2 border-[#C9A24D] shadow-[0_25px_70px_-15px_rgba(201,162,77,0.55)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} transition-all flex flex-col h-full`}>
+    <div className={`relative rounded-[2rem] border-2 border-[#C9A24D] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} transition-all flex flex-col h-full`}>
       <span className="absolute -top-3.5 left-1/2 z-20 -translate-x-1/2">
-        <span className="absolute -inset-1.5 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.75),transparent)] animate-glow-pulse" />
         <span className="relative flex items-center gap-1.5 rounded-full border border-[#C9A24D]/60 bg-gradient-to-r from-[#0B0B0B] via-[#172033] to-[#0B0B0B] px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#f1d58b] shadow-[0_10px_24px_-8px_rgba(0,0,0,0.55)]">
           <Sparkles className="h-3 w-3 text-[#C9A24D]" />
           Full Website
@@ -333,8 +329,7 @@ export function IdxPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Select I
 
           {/* Flagship callout - the headline reason to pay for IDX - leads the list, with AI
               Property Media right beneath it as the second-billed highlight. */}
-          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0B0B0B] via-[#172033] to-[#4a3820] p-5 border border-[#C9A24D]/60 shadow-[0_18px_50px_-12px_rgba(201,162,77,0.55)] transition-shadow duration-300 hover:shadow-[0_18px_60px_-8px_rgba(201,162,77,0.75)]">
-            <div className="absolute -top-10 -right-10 w-36 h-36 bg-[radial-gradient(closest-side,rgba(201,162,77,.5),transparent)] rounded-full" />
+          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0B0B0B] via-[#172033] to-[#4a3820] p-5 border border-[#C9A24D]/60">
             <div className="pointer-events-none absolute inset-y-0 w-1/5 -skew-x-12 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-shimmer-mini" />
             <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-[#C9A24D] via-[#f1d58b] to-[#C9A24D]" />
             <div className="relative mb-4 flex items-center justify-between gap-3">
@@ -392,7 +387,7 @@ export function NoMlsPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Select
   // so ProNoMlsPricingCard (which keeps the always-dark flagship look) reads as the clear
   // step-up, the same way BasicPricingCard/PremiumPricingCard split on the Bright-MLS tab.
   return (
-    <div className={`bg-gradient-to-br from-white via-[#FAF7F0] to-[#F1E7D2] dark:bg-[#111827] dark:bg-none rounded-[2rem] p-6 sm:p-8 border-2 border-gray-200 dark:border-gray-800 shadow-[0_20px_50px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_-24px_rgba(0,0,0,0.5)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative flex flex-col h-full overflow-hidden transition-all duration-300 hover:border-gray-300 hover:shadow-[0_30px_60px_rgba(0,0,0,0.1)]`}>
+    <div className={`bg-gradient-to-br from-white via-[#FAF7F0] to-[#F1E7D2] dark:bg-[#111827] dark:bg-none rounded-[2rem] p-6 sm:p-8 border-2 border-gray-200 dark:border-gray-800 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} relative flex flex-col h-full overflow-hidden transition-all duration-300 hover:border-gray-300`}>
       <div className="absolute inset-0 z-0 opacity-[0.04] dark:opacity-[0.05]" style={DOT_TEXTURE} />
 
       <div className="relative z-10 flex flex-col h-full">
@@ -450,9 +445,8 @@ export function ProNoMlsPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Sel
   // AGENT_HUB_ACCESS_TIERS in lib/navAccess.ts and backend app/utils/auth.py - keep in sync).
   // Reuses the No-MLS card's always-dark flagship treatment.
   return (
-    <div className={`relative rounded-[2rem] border-2 border-[#C9A24D] shadow-[0_25px_70px_-15px_rgba(201,162,77,0.55)] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} transition-all flex flex-col`}>
+    <div className={`relative rounded-[2rem] border-2 border-[#C9A24D] transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-0'} transition-all flex flex-col`}>
       <span className="absolute -top-3.5 left-1/2 z-20 -translate-x-1/2">
-        <span className="absolute -inset-1.5 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.75),transparent)] animate-glow-pulse" />
         <span className="relative flex items-center gap-1.5 rounded-full border border-[#C9A24D]/60 bg-gradient-to-r from-[#0B0B0B] via-[#172033] to-[#0B0B0B] px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#f1d58b] shadow-[0_10px_24px_-8px_rgba(0,0,0,0.55)]">
           <Sparkles className="h-3 w-3 text-[#C9A24D]" />
           Most Popular

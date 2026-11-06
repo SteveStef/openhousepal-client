@@ -83,7 +83,6 @@ function BrokerAuthorizationContent() {
     <div className="min-h-screen flex flex-col bg-[#FAFAF7] dark:bg-[#0B0B0B] transition-colors duration-300">
       <div className="flex-1 flex flex-col items-center px-4 py-8 sm:px-6 sm:py-12 relative overflow-hidden">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-[-5%] left-[-10%] w-[800px] h-[800px] bg-[radial-gradient(closest-side,rgba(201,162,77,.05),transparent)] rounded-full" />
         </div>
 
         <div className="max-w-4xl w-full relative z-10">

@@ -37,7 +37,6 @@ export default function MissedShowcasesBanner({ compact = false, ctaHref = '/upg
 
   return (
     <div className={`${className} relative overflow-hidden rounded-2xl border border-[#C9A24D]/50 bg-gradient-to-br from-[#111827] via-[#172033] to-[#4a3820] p-4 sm:p-5 text-white shadow-[0_14px_40px_-14px_rgba(201,162,77,0.6)]`}>
-      <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.25),transparent)]" />
       <div className={`relative flex ${compact ? 'flex-col gap-3' : 'flex-col gap-4 sm:flex-row sm:items-center'}`}>
         <div className="flex min-w-0 flex-1 items-start gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#C9A24D] text-[#111827] shadow-md">

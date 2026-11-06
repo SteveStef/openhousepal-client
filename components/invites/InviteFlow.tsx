@@ -10,7 +10,7 @@ import {
 import FlowDock from '@/components/ui/FlowDock'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
-import { hasMlsAccess } from '@/lib/navAccess'
+import { hasMlsAccess, luxeUpgrade } from '@/lib/navAccess'
 import { copyText } from '@/lib/copyText'
 import { smsHref } from '@/lib/smsLink'
 import {
@@ -515,7 +515,7 @@ function PlaceStep({ draft, set, onAddress }: { draft: InviteDraft; set: (p: Par
 // ------------------------------------------------------------------ step 6: the look
 
 /** The colour row (user, 10/24): the same colours as the Brand Kit / Agent Hub - "Brand" first (their
- *  Brand Kit's look), then the palette, then Luxe in its three metals (Luxe is IDX only, like
+ *  Brand Kit's look), then the palette, then Luxe in its three metals (Luxe is IDX and No-MLS Premium, like
  *  everywhere else). */
 function ColorPicker({ draft, set, brandAccent }: { draft: InviteDraft; set: (p: Partial<InviteDraft>) => void; brandAccent: string }) {
   const { user } = useAuth()
@@ -554,7 +554,7 @@ function ColorPicker({ draft, set, brandAccent }: { draft: InviteDraft; set: (p:
         </div>
       </div>
       <div>
-        <p className="mb-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Luxe {!luxeOk && <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[9px] tracking-wider text-gray-500 dark:bg-white/10 dark:text-gray-300"><Lock className="h-2.5 w-2.5" /> IDX plan</span>}</p>
+        <p className="mb-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Luxe {!luxeOk && <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[9px] tracking-wider text-gray-500 dark:bg-white/10 dark:text-gray-300"><Lock className="h-2.5 w-2.5" /> {luxeUpgrade(user?.plan_tier).label} plan</span>}</p>
         <div className="grid grid-cols-3 gap-2">
           {LUXE_METAL_ORDER.map(id => {
             const mt = LUXE_METALS[id]

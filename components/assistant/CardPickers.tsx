@@ -17,7 +17,8 @@ import { getSituation } from '@/lib/studio/designSituations'
 import { getTemplatesFor, isCompositionReady } from '@/lib/studio/designTemplates'
 import { designAgentFrom, SAMPLE_DESIGN_AGENT } from '@/lib/studio/designAgent'
 import { fetchLinkedProperty } from '@/components/studio/PropertySelector'
-import { BRAND_COLORS, brandFormLook, type BrandLook } from '@/lib/brandKit'
+import { BRAND_COLORS, brandFormLook, luxeAllowedFor, type BrandLook } from '@/lib/brandKit'
+import { luxeUpgrade } from '@/lib/navAccess'
 import type { FormLook } from '@/lib/formLook'
 import { HUB_CLASSIC_ACCENTS } from '@/components/agent-hub/HubClassicTheme'
 import { LUXE_METALS, LUXE_METAL_ORDER, type LuxeMetal } from '@/lib/luxeMetals'
@@ -324,7 +325,7 @@ function FormPreview({ title, questions, home, backgroundEffects, welcomeTextEff
     .map(q => ({ ...q, locked: false })), [questions, oneContact, firstLast])
   const screens = useMemo(() => ['welcome', ...all.map(q => q.id), 'thankyou'], [all])
   const i = Math.min(at, screens.length - 1)
-  const luxeOk = user?.plan_tier === 'IDX' || !!user?.is_admin
+  const luxeOk = luxeAllowedFor(user) || !!user?.is_admin
   useEffect(() => {
     const on = (e: MessageEvent) => { if (e.origin === window.location.origin && e.data?.type === 'ohp-form-preview-ready' && e.source === frame.current?.contentWindow) setReady(true) }
     window.addEventListener('message', on)
@@ -370,7 +371,7 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
   // The look: the brand look until they pick something else, then the form's own look with only
   // that changed - the same choices as the form editor's picker (owner, 11/04).
   const { user, kit } = useAgentBits()
-  const luxeOk = user?.plan_tier === 'IDX' || !!user?.is_admin
+  const luxeOk = luxeAllowedFor(user) || !!user?.is_admin
   const brandLook = useMemo(() => brandFormLook(kit, luxeOk), [kit, luxeOk])
   const isDark = picks.dark ?? brandLook.dark
   const wanted: FormLook = { ...brandLook, ...(picks.style || {}), dark: isDark }
@@ -619,7 +620,7 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
               {([['classic', 'Classic'], ['luxe', 'Luxe']] as const).map(([t, label]) => (
                 <button key={t} type="button" aria-pressed={wanted.theme === t} disabled={t === 'luxe' && !luxeOk} onClick={() => pickStyle({ theme: t })} data-testid={`ai-form-${t}`}
                   className={`ohp-ai-press h-10 rounded-xl text-[13px] font-black transition-colors disabled:opacity-60 ${wanted.theme === t ? 'bg-[#111827] text-white dark:bg-[#C9A24D] dark:text-[#111827]' : 'bg-white text-gray-600 ring-1 ring-black/10 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-white/10'}`}>
-                  {label}{t === 'luxe' && !luxeOk && <span className="ml-1.5 rounded-full bg-[#111827] px-1.5 py-0.5 text-[9px] font-black tracking-wider text-[#e8c97a]">IDX</span>}
+                  {label}{t === 'luxe' && !luxeOk && <span className="ml-1.5 whitespace-nowrap rounded-full bg-[#111827] px-1.5 py-0.5 text-[9px] font-black tracking-wider text-[#e8c97a]">{luxeUpgrade(user?.plan_tier).label}</span>}
                 </button>
               ))}
             </div>

@@ -80,8 +80,6 @@ export function MarketingHero({ path, crumb, kicker, title, accent, lead, motif,
     <section className="relative isolate overflow-hidden bg-[radial-gradient(120%_130%_at_50%_-20%,#2c2418_0%,#111827_52%,#0b0b0b_100%)] pb-16 pt-6 sm:pb-20 sm:pt-10">
       <style dangerouslySetInnerHTML={{ __html: MOTION_CSS }} />
       <span aria-hidden className="absolute inset-x-0 top-0 h-px overflow-hidden"><span className="mk-sweep block h-full w-full bg-gradient-to-r from-transparent via-[#f3dfa8] to-transparent" /></span>
-      <span aria-hidden className="mk-orb absolute -right-24 -top-28 -z-10 h-96 w-96 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.3),transparent)]" />
-      <span aria-hidden className="mk-orb absolute -bottom-36 -left-24 -z-10 h-96 w-96 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.18),transparent)] [animation-delay:-7s]" />
       {SPARKS.map(([l, t, d]) => <span key={l + t} aria-hidden className="mk-spark absolute -z-10 h-1 w-1 rounded-full bg-[#f3dfa8]" style={{ left: l, top: t, animationDelay: d }} />)}
       <div className={`relative mx-auto px-4 sm:px-6 ${narrow ? 'max-w-3xl' : 'max-w-6xl'}`}>
         <MarketingNav path={path} crumb={crumb} onDark />
@@ -124,7 +122,6 @@ export function MarketingSection({ title, lead, children }: { title: string; lea
 export function TrialBand({ idx = false }: { idx?: boolean }) {
   return (
     <section data-reveal="" className="relative isolate mt-16 overflow-hidden rounded-3xl bg-[radial-gradient(120%_160%_at_50%_-30%,#2c2418_0%,#111827_55%,#0b0b0b_100%)] px-6 py-12 text-center ring-1 ring-[#C9A24D]/30 sm:mt-20">
-      <span aria-hidden className="mk-orb absolute -right-16 -top-20 -z-10 h-64 w-64 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.28),transparent)]" />
       <h2 className="font-serif text-3xl font-black text-white sm:text-4xl">{idx ? 'Ready for your own website' : 'Try it on your next open house'}</h2>
       {!idx && (
         <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-sm font-semibold text-gray-300">

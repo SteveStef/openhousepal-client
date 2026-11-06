@@ -27,7 +27,8 @@ import PhotoGridGate from '@/components/ui/PhotoGridGate'
 import PropertySelector from '@/components/studio/PropertySelector'
 import ProfileGate from '@/components/studio/design/ProfileGate'
 import { PROPERTY_RULE_ATTEST, profileGaps, propertyRuleFor } from '@/lib/studio/designCompliance'
-import { hasMlsAccess } from '@/lib/navAccess'
+import { hasMlsAccess, luxeUpgrade } from '@/lib/navAccess'
+import { luxeAllowedFor } from '@/lib/brandKit'
 import OhpSwitch from '@/components/ui/OhpSwitch'
 import { WhenSheet } from '@/components/ui/WhenPicker'
 import { DesignPreview } from '@/components/studio/design/StyleThumbnail'
@@ -248,9 +249,10 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
   }
   const propertyRule = leadGen ? null : propertyRuleFor(situationId)
   const needAttest = !!propertyRule && (skipProperty || (!!property && !!user && !hasMlsAccess(user.plan_tier)))
-  // OpenHousePal Luxe (the Luxe layout and the Luxe color theme) is IDX only: other plans can
-  // click it and see it on their own design, but can't continue with it. IDX sees Luxe first.
-  const isIdx = user?.plan_tier === 'IDX'
+  // OpenHousePal Luxe (the Luxe layout and the Luxe color theme) is IDX and No-MLS Premium: other plans can
+  // click it and see it on their own design, but can't continue with it.
+  const luxeOk = luxeAllowedFor(user)
+  const luxeUp = luxeUpgrade(user?.plan_tier)
   const templates: DesignTemplateDef[] = useMemo(() => {
     return situationId && designType ? getTemplatesFor(situationId, designType) : []
   }, [situationId, designType])
@@ -400,9 +402,9 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
     if (p) setSkipProperty(false)
   }
 
-  const luxeLayoutLocked = !isIdx && template?.composition === 'luxe'
+  const luxeLayoutLocked = !luxeOk && template?.composition === 'luxe'
   const { base: baseColor, metal: luxeMetal } = splitColorMode(colorMode)
-  const luxeThemeLocked = !isIdx && (baseColor === 'luxe' || !!luxeMetal)
+  const luxeThemeLocked = !luxeOk && (baseColor === 'luxe' || !!luxeMetal)
   const canContinue: Record<StepId, boolean> = {
     situation: !!situationId,
     format: !!designType,
@@ -412,7 +414,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
     theme: !luxeThemeLocked,
     crop: true,
     tracking: linkableForms.length === 0 || (qrMode === 'default' ? !leadsRequired : !!qrForm && (campaignMode !== 'existing' || !!campaignId)),
-    review: !creating && !(!isIdx && isLuxeDesign(template?.composition, colorMode)),
+    review: !creating && !(!luxeOk && isLuxeDesign(template?.composition, colorMode)),
   }
   if (gaps.length && !created) (Object.keys(canContinue) as StepId[]).forEach(k => { canContinue[k] = false })
 
@@ -863,7 +865,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
                       {templates.map(t => {
                         const ctx = ctxFor(t, styleId, colorMode)
                         return ctx && (
-                          <PreviewTile key={t.id} soon={!isCompositionReady(t.composition)} luxe={t.composition === 'luxe'} locked={t.composition === 'luxe' && !isIdx} selected={t.id === template.id} onClick={() => setTemplateId(t.id)} onDoubleClick={() => { setTemplateId(t.id); if (isIdx || t.composition !== 'luxe') goTo('style') }} label={t.label} description={t.description}>
+                          <PreviewTile key={t.id} soon={!isCompositionReady(t.composition)} luxe={t.composition === 'luxe'} locked={t.composition === 'luxe' && !luxeOk} lockLabel={luxeUp.label} selected={t.id === template.id} onClick={() => setTemplateId(t.id)} onDoubleClick={() => { setTemplateId(t.id); if (luxeOk || t.composition !== 'luxe') goTo('style') }} label={t.label} description={t.description}>
                             <DesignPreview blocks={blocksByTemplate.get(t.id) || []} ctx={ctx} rounded={false} />
                           </PreviewTile>
                         )
@@ -871,7 +873,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
                     </PreviewGrid>
                   )}
                   {step === 'layout' && luxeLayoutLocked && (
-                    <LuxeUpgradePitch className="mt-5" feature="Studio Luxe" text="That's your design in Luxe. Upgrade to IDX to make it - or pick another layout to keep going." />
+                    <LuxeUpgradePitch className="mt-5" feature="Studio Luxe" tier={luxeUp.tier} tierLabel={luxeUp.label} text={`That's your design in Luxe. Upgrade to ${luxeUp.label} to make it - or pick another layout to keep going.`} />
                   )}
 
                   {step === 'style' && template && (
@@ -897,10 +899,11 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
                             <PreviewTile
                               key={cm.id}
                               luxe={cm.id === 'luxe'}
-                              locked={cm.id === 'luxe' && !isIdx}
+                              locked={cm.id === 'luxe' && !luxeOk}
+                              lockLabel={luxeUp.label}
                               selected={cm.id === baseColor}
                               onClick={() => setColorMode(joinColorMode(cm.id, luxeMetal))}
-                              onDoubleClick={() => { setColorMode(joinColorMode(cm.id, luxeMetal)); if (isIdx || (cm.id !== 'luxe' && !luxeMetal)) goTo('crop') }}
+                              onDoubleClick={() => { setColorMode(joinColorMode(cm.id, luxeMetal)); if (luxeOk || (cm.id !== 'luxe' && !luxeMetal)) goTo('crop') }}
                               label={cm.label}
                               description={cm.description}
                               adornment={<span className="flex -space-x-1">{swatch.map((c, i) => <span key={i} className="h-3.5 w-3.5 rounded-full border border-black/10 dark:border-white/20" style={{ backgroundColor: c }} />)}</span>}
@@ -911,9 +914,9 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
                         })}
                       </PreviewGrid>
                       <div className="mt-5 rounded-2xl border border-[#C9A24D]/30 bg-[#C9A24D]/[0.04] p-4">
-                        <LuxeFinishPicker value={luxeMetal} goldTheme={baseColor === 'luxe' || template?.composition === 'luxe'} locked={!isIdx} onChange={m => setColorMode(joinColorMode(baseColor, m))} />
+                        <LuxeFinishPicker value={luxeMetal} goldTheme={baseColor === 'luxe' || template?.composition === 'luxe'} locked={!luxeOk} onChange={m => setColorMode(joinColorMode(baseColor, m))} />
                       </div>
-                      {luxeThemeLocked && <LuxeUpgradePitch className="mt-5" feature="Studio Luxe" text={luxeMetal && baseColor !== 'luxe' ? "That's your design with a Luxe finish. Upgrade to IDX to use it - or choose None to keep going." : "That's your design in the Luxe theme. Upgrade to IDX to use it - or pick another theme to keep going."} />}
+                      {luxeThemeLocked && <LuxeUpgradePitch className="mt-5" feature="Studio Luxe" tier={luxeUp.tier} tierLabel={luxeUp.label} text={luxeMetal && baseColor !== 'luxe' ? `That's your design with a Luxe finish. Upgrade to ${luxeUp.label} to use it - or choose None to keep going.` : `That's your design in the Luxe theme. Upgrade to ${luxeUp.label} to use it - or pick another theme to keep going.`} />}
                       <p className="mt-4 text-xs font-semibold text-gray-400">
                         Brand uses your brand color (from Branding) on your print background, with your logo. <a href="/studio/brand-kit" target="_blank" rel="noreferrer" className="font-black text-[#8b7355] hover:underline">Open Branding</a>
                       </p>
@@ -1066,7 +1069,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
             </button>
             <div className="flex items-center gap-4">
               <span className="hidden text-xs font-semibold text-gray-400 sm:inline">
-                {canContinue[step] ? <>Press <Kbd>Enter</Kbd></> : (step === 'layout' && luxeLayoutLocked) || (step === 'theme' && luxeThemeLocked) ? <span className="inline-flex items-center gap-1 font-black text-[#8b6a2b]"><Crown className="h-3.5 w-3.5" /> Luxe comes with IDX</span> : step === 'property' && !leadGen ? 'Choose a property, or skip' : step === 'situation' ? 'Pick one to continue' : step === 'format' ? 'Pick a placement' : ''}
+                {canContinue[step] ? <>Press <Kbd>Enter</Kbd></> : (step === 'layout' && luxeLayoutLocked) || (step === 'theme' && luxeThemeLocked) ? <span className="inline-flex items-center gap-1 font-black text-[#8b6a2b]"><Crown className="h-3.5 w-3.5" /> Luxe comes with {luxeUp.label}</span> : step === 'property' && !leadGen ? 'Choose a property, or skip' : step === 'situation' ? 'Pick one to continue' : step === 'format' ? 'Pick a placement' : ''}
               </span>
               <button
                 type="button"
@@ -1315,9 +1318,9 @@ function PreviewGrid({ columns, children }: { columns: 'normal' | 'four' | 'five
   return <div className={`ohp-stagger grid gap-4 ${cls}`}>{children}</div>
 }
 
-function PreviewTile({ selected, onClick, onDoubleClick, label, description, adornment, children, luxe = false, locked = false, soon = false }: {
+function PreviewTile({ selected, onClick, onDoubleClick, label, description, adornment, children, luxe = false, locked = false, lockLabel = 'IDX', soon = false }: {
   selected: boolean; onClick: () => void; onDoubleClick?: () => void; label: string; description: string; adornment?: ReactNode; children: ReactNode
-  luxe?: boolean; locked?: boolean; soon?: boolean
+  luxe?: boolean; locked?: boolean; lockLabel?: string; soon?: boolean
 }) {
   if (soon && luxe) return (
     <div aria-disabled="true" title="Coming soon" className="relative flex cursor-not-allowed select-none flex-col overflow-hidden rounded-2xl border-2 border-[#C9A24D]/45 bg-gradient-to-br from-[#111827] via-[#151a22] to-[#2a2218] text-left">
@@ -1352,7 +1355,7 @@ function PreviewTile({ selected, onClick, onDoubleClick, label, description, ado
       className={`group relative flex flex-col overflow-hidden rounded-2xl border-2 text-left transition duration-200 hover:-translate-y-1 focus:outline-none focus-visible:ring-4 focus-visible:ring-[#C9A24D]/25 ${luxe ? 'bg-gradient-to-br from-[#111827] via-[#151a22] to-[#2a2218]' : 'bg-white dark:bg-white/[0.02]'} ${selected ? 'border-[#C9A24D] shadow-[0_14px_40px_rgba(201,162,77,0.22)]' : luxe ? 'border-[#C9A24D]/55 hover:border-[#C9A24D] hover:shadow-[0_18px_44px_rgba(201,162,77,0.35)]' : 'border-gray-200 hover:border-[#C9A24D] hover:ring-4 hover:ring-[#C9A24D]/15 hover:shadow-[0_18px_44px_rgba(17,24,39,0.14)] dark:border-white/10'}`}
     >
       {luxe && <span aria-hidden className="pointer-events-none absolute inset-x-6 top-0 z-10 h-px bg-gradient-to-r from-transparent via-[#e8c97a] to-transparent" />}
-      {luxe && <span className="absolute left-2.5 top-2.5 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#b8913f] via-[#C9A24D] to-[#e8c97a] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#111827] shadow-md">{locked ? <><Crown className="h-2.5 w-2.5" /> IDX · preview</> : <><Sparkles className="h-2.5 w-2.5" /> Luxe</>}</span>}
+      {luxe && <span className="absolute left-2.5 top-2.5 z-10 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#b8913f] via-[#C9A24D] to-[#e8c97a] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#111827] shadow-md">{locked ? <><Crown className="h-2.5 w-2.5" /> {lockLabel} · preview</> : <><Sparkles className="h-2.5 w-2.5" /> Luxe</>}</span>}
       {selected && <SelectedBadge />}
       <div className={`relative p-3 ${luxe ? 'bg-black/30' : 'bg-[#f4f2ee] dark:bg-black/30'}`}>
         <div className="shadow-[0_8px_24px_rgba(0,0,0,0.16)] transition duration-300 group-hover:scale-[1.02] group-hover:shadow-[0_16px_36px_rgba(0,0,0,0.24)]">{children}</div>

@@ -58,8 +58,6 @@ export default function CmaShareLinksModal({ isOpen, onClose, openHousePalUrl, w
           >
             {/* gold-lit header */}
             <div className="relative overflow-hidden bg-[#0f1115] px-5 pb-5 pt-2 text-white sm:px-6 sm:pt-6">
-              <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.25),transparent)]" />
-              <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-10 h-48 w-48 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.1),transparent)]" />
               <div aria-hidden className="mx-auto mb-3 h-[5px] w-10 rounded-full bg-white/25 sm:hidden" />
               <div className="relative flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">

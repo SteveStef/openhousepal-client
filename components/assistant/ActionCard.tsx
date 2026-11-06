@@ -7,6 +7,8 @@ import api, { resolveMediaUrl } from '@/lib/api-service'
 import { isTouchPhone, saveFile } from '@/lib/mobileShare'
 import { AIToolCallRef } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
+import { luxeAllowedFor } from '@/lib/brandKit'
+import { luxeUpgrade } from '@/lib/navAccess'
 import { designProfileMissing, runClientAction } from './clientActions'
 import LinkPreviewCard from './LinkPreviewCard'
 import BrandPick, { type BrandPicks } from './BrandPick'
@@ -99,23 +101,23 @@ const stepChip = (on: boolean) => `ohp-ai-press rounded-full border px-3 py-1.5 
 const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ')
 
 // A design's look, picked right on the card before "Make it" (owner, 10/30: "I wasn't able to
-// customize it") - the Studio's own steps: layout, colors (+ the Luxe finish on IDX, like the
+// customize it") - the Studio's own steps: layout, colors (+ the Luxe finish on plans with Luxe, like the
 // Studio's), and the photo (the listing's main one first). Home and photo fold once picked; layout,
 // colors and the finish stay open to browse until their check (owner, 11/01). After the photo,
 // everything folds and the picture grows - drag it to move the photo in its frame.
-function DesignPick({ payload: given, look, onLook, idx }: { payload: Record<string, any>; look: Look; onLook: (l: Look) => void; idx: boolean }) {
+function DesignPick({ payload: given, look, onLook, luxeOk }: { payload: Record<string, any>; look: Look; onLook: (l: Look) => void; luxeOk: boolean }) {
   // Another of their homes picked on the card (owner, 11/01) - everything below follows it.
   const homes = (given.homes || []) as DesignHome[]
   const payload = look.home ? { ...given, listing_key: look.home.listing_key, address: look.home.address } : given
   const property = useDesignProperty(payload)
   const layouts = getTemplatesFor(payload.situation, payload.format).filter(t => isCompositionReady(t.composition))
     .filter((t, i, all) => all.findIndex(o => o.composition === t.composition) === i)
-    .filter(t => idx || t.composition !== 'luxe')
-  const colors = DESIGN_COLOR_MODES.filter(c => idx || c.id !== 'luxe')
+    .filter(t => luxeOk || t.composition !== 'luxe')
+  const colors = DESIGN_COLOR_MODES.filter(c => luxeOk || c.id !== 'luxe')
   const layout = look.layout || layouts[0]?.composition || null
   const photos = Array.from(new Set([...(property?.photos || []), property?.image_url].filter(Boolean) as string[])).slice(0, 12)
   const photo = look.photo || photos[0] || null
-  const ids = [homes.length > 1 && 'home', layouts.length > 1 && 'layout', 'colors', idx && 'finish', 'logo', photos.length > 1 && 'photo'].filter(Boolean) as string[]
+  const ids = [homes.length > 1 && 'home', layouts.length > 1 && 'layout', 'colors', luxeOk && 'finish', 'logo', photos.length > 1 && 'photo'].filter(Boolean) as string[]
   // Which logo goes on it, or none (owner, 11/05) - the first one they have to start.
   const { kit } = useAgentBits()
   const logos = ([['personal', 'My logo', kit?.personal_logo_url], ['team', 'Team', kit?.team_logo_url], ['brokerage', 'Brokerage', kit?.brokerage_logo_url]] as const).filter(l => !!l[2])
@@ -183,7 +185,7 @@ function DesignPick({ payload: given, look, onLook, idx }: { payload: Record<str
           <StepDone onDone={() => steps.done('colors')} />
         </div>
       </CardStep>
-      {idx && (
+      {luxeOk && (
         <CardStep id="finish" n={n('finish')} title="Luxe finish" summary={look.metal ? LUXE_METALS[look.metal].label : 'None'} steps={steps}>
           {/* The Studio's Luxe finish: the metal takes over every accent (the price, rules, buttons). */}
           <div className="flex flex-wrap gap-1.5">
@@ -274,7 +276,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
     return () => { live = false }
   }, [isDesign, action.status, action.payload?.format, user])
   const [look, setLook] = useState<Look>({ layout: (action.payload?.layout as string) || null, colors: splitColorMode((action.payload?.colors as string) || 'light').base, metal: splitColorMode(action.payload?.colors as string).metal, photo: null, home: null, focal: null, logo: (action.payload?.branding_mode as LogoMode) || null })
-  const idx = user?.plan_tier === 'IDX' || !!user?.is_admin
+  const luxeOk = luxeAllowedFor(user) || !!user?.is_admin
   // Branding: the card's swatches start from what they have now (payload.current) - sent as picks on Save.
   const cur = (action.payload?.current || {}) as Record<string, any>
   // A color they named ("navy") starts the card on it, not on what they have now (11/02)
@@ -462,10 +464,10 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
           </Link>
         </div>
       )}
-      {isDesign && choosing && <DesignPick payload={action.payload as Record<string, any>} look={look} onLook={setLook} idx={idx} />}
+      {isDesign && choosing && <DesignPick payload={action.payload as Record<string, any>} look={look} onLook={setLook} luxeOk={luxeOk} />}
       {isBrand && choosing && (
         <PickShell testid="ai-brand-shell" side={300} preview={<BrandLivePreview picks={brand} />}>
-          <BrandPick picks={brand} onPicks={setBrand} idx={!!cur.idx} notUsing={((action.payload as any)?.current?.not_using || []) as string[]} qrAllowed={!!cur.qr?.allowed} />
+          <BrandPick picks={brand} onPicks={setBrand} luxeOk={luxeAllowedFor(user)} upgradeLabel={luxeUpgrade(user?.plan_tier).label} notUsing={((action.payload as any)?.current?.not_using || []) as string[]} qrAllowed={!!cur.qr?.allowed} />
         </PickShell>
       )}
       {isSpotlight && choosing && <SpotlightPick payload={action.payload as Record<string, any>} picks={spot} onPicks={setSpot} />}

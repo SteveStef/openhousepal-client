@@ -253,7 +253,7 @@ function PhotoLayer({ photos, photoIndex, withBottomGradient }: { photos: string
 // distinct, purpose-built layouts (not one squeezed into both shapes) and switches between them
 // live via CSS orientation media queries, so physically rotating the tablet just works.
 function SignInSheetDisplay({ property, signInUrl }: { property: Property; signInUrl: string }) {
-  // The QR's centre is the hosting agent's choice (OpenHousePal house, or IDX: their logo / initials).
+  // The QR's centre is the hosting agent's choice (OpenHousePal house, or IDX and No-MLS Premium: their logo / initials).
   if (property.agentId) setQrOwner(property.agentId)
   const photos = property.photos?.length ? property.photos : (property.ListPictureURL ? [property.ListPictureURL] : [])
   const [photoIndex, setPhotoIndex] = useState(0)

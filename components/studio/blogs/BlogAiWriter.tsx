@@ -934,7 +934,7 @@ export default function BlogAiWriter({
                         className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-black transition hover:-translate-y-0.5 ${on ? 'border-[#C9A24D] bg-[#C9A24D] text-[#111827]' : 'border-gray-200 text-gray-600 hover:border-[#C9A24D]/60 dark:border-gray-700 dark:text-gray-300'}`}>
                         <span className="h-3 w-3 rounded-full ring-1 ring-black/10" style={{ background: `linear-gradient(135deg, ${t.bg} 50%, ${t.accent} 50%)` }} />
                         {t.label}
-                        {locked && <span className="rounded-full bg-[#111827] px-1 text-[8px] leading-[14px] text-[#e8c97a]">IDX</span>}
+                        {locked && <span className="rounded-full bg-[#111827] px-1 text-[8px] leading-[14px] text-[#e8c97a]">{luxeBlogUpgrade(user?.plan_tier).label}</span>}
                         {on && <Check className="h-3 w-3" />}
                       </motion.button>
                     )

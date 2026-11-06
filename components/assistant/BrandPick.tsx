@@ -18,7 +18,7 @@ const QRS: [string, string, boolean][] = [['ohp', 'OpenHousePal mark', false], [
 // The Branding page's own choices, right on the helper's card (owner, 10/31: "show me every color we
 // have, like I was on that page") - the look, the color (Classic) or finish (Luxe), Ivory / Midnight.
 // Nothing saves until Save on the card; the server checks the picks again (ai_actions_catalog._adjust_brand).
-export default function BrandPick({ picks, onPicks, idx, notUsing = [], qrAllowed = false }: { picks: BrandPicks; onPicks: (p: BrandPicks) => void; idx: boolean; notUsing?: string[]; qrAllowed?: boolean }) {
+export default function BrandPick({ picks, onPicks, luxeOk, upgradeLabel, notUsing = [], qrAllowed = false }: { picks: BrandPicks; onPicks: (p: BrandPicks) => void; luxeOk: boolean; upgradeLabel: string; notUsing?: string[]; qrAllowed?: boolean }) {
   const set = (patch: Partial<BrandPicks>) => onPicks({ ...picks, ...patch })
   const chip = (on: boolean) => `ohp-ai-press rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${on
     ? 'border-[#111827] bg-[#111827] text-white dark:border-[#C9A24D] dark:bg-[#C9A24D] dark:text-[#111827]'
@@ -35,10 +35,10 @@ export default function BrandPick({ picks, onPicks, idx, notUsing = [], qrAllowe
       <CardStep id="look" n={n('look')} title="Look" summary={luxe ? 'Luxe' : 'Classic'} steps={steps}>
         <div className="flex flex-wrap gap-1.5">
           {BRAND_LOOKS.map(l => {
-            const locked = l.idxOnly && !idx
+            const locked = l.gated && !luxeOk
             return (
               <button key={l.id} type="button" disabled={locked} onClick={() => { set({ theme: l.id }); steps.picked('look') }} aria-pressed={picks.theme === l.id}
-                title={locked ? 'Comes with the IDX plan' : l.blurb} className={`${chip(picks.theme === l.id)} ${locked ? 'cursor-not-allowed opacity-50' : ''}`}>
+                title={locked ? `Comes with the ${upgradeLabel} plan` : l.blurb} className={`${chip(picks.theme === l.id)} ${locked ? 'cursor-not-allowed opacity-50' : ''}`}>
                 {locked && <Lock className="-mt-0.5 mr-1 inline h-3 w-3" />}{l.label}
               </button>
             )
@@ -127,7 +127,7 @@ export default function BrandPick({ picks, onPicks, idx, notUsing = [], qrAllowe
         <div className="flex flex-wrap gap-1.5">
           {QRS.map(([id, name, gated]) => {
             const locked = gated && !qrAllowed
-            return <button key={id} type="button" disabled={locked} title={locked ? 'Comes with the IDX plan' : undefined} onClick={() => { set({ qr: id }); steps.picked('qr') }} aria-pressed={picks.qr === id} className={`${chip(picks.qr === id)} ${locked ? 'cursor-not-allowed opacity-50' : ''}`}>{locked && <Lock className="-mt-0.5 mr-1 inline h-3 w-3" />}{name}</button>
+            return <button key={id} type="button" disabled={locked} title={locked ? `Comes with the ${upgradeLabel} plan` : undefined} onClick={() => { set({ qr: id }); steps.picked('qr') }} aria-pressed={picks.qr === id} className={`${chip(picks.qr === id)} ${locked ? 'cursor-not-allowed opacity-50' : ''}`}>{locked && <Lock className="-mt-0.5 mr-1 inline h-3 w-3" />}{name}</button>
           })}
         </div>
       </CardStep>

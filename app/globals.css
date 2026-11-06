@@ -517,15 +517,20 @@ html.ohp-home-snap-active .ohp-home-scroll-section.ohp-section-observed.ohp-sect
 }
 
 /* Wide card-level shimmer sweeps (IDX/No-MLS pricing cards) - transform-based instead of the
-   `left`-animating shimmer-mini utility, which triggers a layout recalculation every frame and
-   visibly hitches on a wide element (thin bars like the underline above don't notice it, but a
-   near-full-card-width sweep does). translateX is GPU-composited, so no more starting hitch. */
+   narrower shimmer-mini utility. Both move by transform/translate, so the graphics chip does the
+   work: shimmer-mini used to animate `left`, which re-laid out the page on every frame. */
 @keyframes cardShimmerSweep {
-  0%, 15% { transform: translateX(-120%); }
-  65%, 100% { transform: translateX(420%); }
+  0% { translate: -130% 0; }
+  45%, 100% { translate: 420% 0; }
+}
+.animate-shimmer-mini {
+  left: 0;
+  will-change: translate;
 }
 .animate-card-shimmer {
-  animation: cardShimmerSweep 3.5s ease-in-out infinite;
+  /* One steady speed from off the card: easing made it creep and hesitate at the edge (owner, 11/06). */
+  animation: cardShimmerSweep 5s linear infinite;
+  will-change: translate;
 }
 
 /* Homepage hero subhead - each phrase swap (keyed remount in app/page.tsx) reveals the text
@@ -1989,6 +1994,8 @@ div[role="button"]:active {
    loader fades in - unless the page is already there (the cover is removed by then). */
 .ohp-gate-cover.ohp-gate-pending { opacity: 0; pointer-events: none; animation: ohpGatePendingIn .35s ease-out .3s forwards, ohpGateCoverOff .4s ease-out 10s forwards; }
 @keyframes ohpGatePendingIn { to { opacity: 1; } }
+/* The homepage's wait: nothing for a blink, then the loader, so a quick load never flashes it. */
+.ohp-home-wait { opacity: 0; animation: ohpGatePendingIn .35s ease-out .35s forwards; }
 @keyframes ohpGateShow { to { visibility: visible; } }
 @keyframes ohpGateCoverOff { to { opacity: 0; visibility: hidden; pointer-events: none; } }
 

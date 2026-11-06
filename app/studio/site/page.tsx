@@ -28,7 +28,7 @@ import { AfterSubmitSettings, EffectsSettings, RevertButton, SaveFormButton } fr
 import { hasAgentHubAccess } from '@/lib/navAccess'
 import { formLookOf, type FormLookFields } from '@/lib/formLook'
 import { editQuestion, removeQuestion, tidyChoicesForSave } from '@/lib/formForks'
-import { brandFormLook, brandHubPatch, brandColorName, modeLabel, useBrandKit } from '@/lib/brandKit'
+import { brandFormLook, brandHubPatch, brandColorName, luxeAllowedFor, modeLabel, useBrandKit } from '@/lib/brandKit'
 import FormQrCode from '@/components/forms/FormQrCode'
 import FormTypeArt, { hasFormTypeArt } from '@/components/forms/FormTypeArt'
 import InboxWindow from '@/components/ui/InboxWindow'
@@ -62,7 +62,7 @@ import { AgentFormConfig, BlogListItem, FormQuestion, FormQuestionType, FormSubm
 import StatCard from '@/components/stats/StatCard'
 import PageHeader from '@/components/PageHeader'
 import LuxeHero, { LuxeTabs } from '@/components/ui/LuxeHero'
-import { hasMlsAccess, hasShowcaseAccess } from '@/lib/navAccess'
+import { hasMlsAccess, hasShowcaseAccess, luxeUpgrade } from '@/lib/navAccess'
 import {
   ArrowDown,
   ArrowRight,
@@ -1498,9 +1498,10 @@ function AgentHubContent() {
 
   // Linked YouTube channel refreshes itself daily (backend agent_hub_video_sync) unless turned off.
   const [hubTheme, setHubTheme] = useState<HubThemeId>('classic')
-  // Luxe is IDX only: any other plan can preview it (the live preview switches, with the upgrade
+  // Luxe is IDX and No-MLS Premium: any other plan can preview it (the live preview switches, with the upgrade
   // pitch under the picker) but the saved theme - and what visitors see - stays Classic.
-  const hubLuxeAllowed = user?.plan_tier === 'IDX'
+  const hubLuxeAllowed = luxeAllowedFor(user)
+  const luxeUp = luxeUpgrade(user?.plan_tier)
   const [luxePeek, setLuxePeek] = useState(false)
   const [hubIntroNonce, setHubIntroNonce] = useState(0)
   const shownHubTheme: HubThemeId = luxePeek ? 'luxe' : hubTheme === 'luxe' && !hubLuxeAllowed ? 'classic' : hubTheme
@@ -3581,7 +3582,7 @@ function AgentHubContent() {
                           </div>
                           <div className="mt-2.5 flex items-center gap-2 px-1">
                             <p className="font-serif text-base font-black text-[#111827] dark:text-white">{t.label}</p>
-                            {luxe && <span className="rounded-full bg-[#111827] px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#e8c97a]">{hubLuxeAllowed ? 'IDX' : 'IDX · Preview'}</span>}
+                            {luxe && !(hubLuxeAllowed && user?.plan_tier === 'PRO_NO_MLS') && <span className="rounded-full bg-[#111827] px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#e8c97a]">{hubLuxeAllowed ? luxeUp.label : `${luxeUp.label} · Preview`}</span>}
                             {on && <Check className="ml-auto h-4 w-4 text-[#C9A24D]" />}
                           </div>
                           <p className="px-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400">{t.blurb}</p>
@@ -3645,7 +3646,7 @@ function AgentHubContent() {
                   </AnimatePresence>
                   {luxePeek && (
                     <div className="px-5 pb-5">
-                      <LuxeUpgradePitch feature="Agent Hub Luxe" text="The live preview shows your hub in Luxe. Upgrade to IDX to publish it - visitors see Classic until then." />
+                      <LuxeUpgradePitch feature="Agent Hub Luxe" tier={luxeUp.tier} tierLabel={luxeUp.label} text={`The live preview shows your hub in Luxe. Upgrade to ${luxeUp.label} to publish it - visitors see Classic until then.`} />
                     </div>
                   )}
                 </HubCollapse>

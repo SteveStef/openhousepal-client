@@ -3,7 +3,7 @@ import QRCode from 'qrcode'
 import { styledQrSvgString, type QrCenter } from './qrStyle'
 
 // ---- What goes in the middle of every QR (user, 10/17): the OpenHousePal house logo by default;
-// IDX agents can pick their Brand Kit logo or initials (backend qr_brand_routes). The page tells us
+// IDX and No-MLS Premium agents can pick their Brand Kit logo or initials (backend qr_brand_routes). The page tells us
 // whose code it is drawing - the signed-in agent (AuthContext) or, on a guest page, the agent who
 // owns it - and every code drawn afterwards uses that agent's choice.
 let activeOwner: string | null = null

@@ -9,7 +9,7 @@ import api from '@/lib/api-service'
 import DraggableAvatarPhoto from '@/components/agent-hub/DraggableAvatarPhoto'
 import { AiWriteButton } from '@/components/ai/AiWriteButton'
 import { BIO_MAX_CHARS, fitBio } from '@/lib/agentBio'
-import { emailOk, Field, formatPhone, inputCls, LockedValue, MoreOptions, phoneOk, readyHeadshot, StepCtx, useGate } from './SetupUi'
+import { emailOk, Field, formatPhone, inputCls, LockedValue, MoreOptions, phoneOk, readyHeadshot, StepCtx, useGate, Reveal } from './SetupUi'
 import { PHOTO_ACCEPT } from '@/components/assistant/PhotoDrop'
 
 const TITLE_SUGGESTIONS = ['REALTOR®', 'Real Estate Agent', 'Associate Broker', 'Broker', 'Team Leader']
@@ -87,7 +87,7 @@ export function ContactStep({ ctx }: { ctx: StepCtx }) {
         <input type="checkbox" checked={sameText} onChange={e => { setSameText(e.target.checked); save(v, e.target.checked) }} className="h-6 w-6 shrink-0 accent-[#C9A24D]" />
         <span className="text-[16px] font-bold text-[#111827] dark:text-white">I text from this same number</span>
       </label>
-      {!sameText && <Field label="Number you text from" required value={textValue} onChange={x => set('text', x)} onBlur={() => blurPhone('text')} type="tel" inputMode="tel" placeholder="(610) 555-0199" invalid={touched.text && !phoneOk(v.text)} />}
+      <Reveal open={!sameText}><Field label="Number you text from" required value={textValue} onChange={x => set('text', x)} onBlur={() => blurPhone('text')} type="tel" inputMode="tel" placeholder="(610) 555-0199" invalid={touched.text && !phoneOk(v.text)} /></Reveal>
       <Field label="Email for clients" required value={v.email} onChange={x => set('email', x)} onBlur={() => setTouched(t => ({ ...t, email: true }))} type="email" inputMode="email" autoComplete="email" placeholder="jane@yourbrokerage.com" invalid={touched.email && !emailOk(v.email)} hint="Where client emails and form replies should go. It can be different from your login." />
       <Field label="Office phone (optional)" value={v.officePhone} onChange={x => set('officePhone', x)} onBlur={() => blurPhone('officePhone')} type="tel" inputMode="tel" placeholder="(610) 555-0123" invalid={touched.officePhone && !!v.officePhone.trim() && !phoneOk(v.officePhone)} hint="Your own office or direct line, if you have one. It goes on your Save Contact card." />
       <Field label="Your brokerage's phone" required value={v.brokeragePhone} onChange={x => set('brokeragePhone', x)} onBlur={() => blurPhone('brokeragePhone')} type="tel" inputMode="tel" placeholder="(610) 555-0100" invalid={touched.brokeragePhone && !phoneOk(v.brokeragePhone)} hint="Your brokerage's main number. Most states require it on print ads, so it's printed on your mailers, flyers and door hangers. It never goes on your Save Contact card." />

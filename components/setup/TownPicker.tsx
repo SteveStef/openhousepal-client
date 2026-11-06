@@ -247,7 +247,7 @@ export default function TownPicker({ idx = true }: { idx?: boolean }) {
           </AnimatePresence>
           </PopupPortal>
           {mode === 'city' && open && q.trim().length >= 2 && !searching && suggestions.length === 0 && (
-            <p className="mt-2 text-[13.5px] font-semibold text-gray-500">No town by that name in the MLS yet - check the spelling, or add it as a neighborhood.</p>
+            <p className="mt-2 text-[13.5px] font-semibold text-gray-500">No town by that name yet - check the spelling, or add it as a neighborhood.</p>
           )}
         </div>
         {error && <p className="mt-2.5 text-[14px] font-bold text-rose-600">{error}</p>}

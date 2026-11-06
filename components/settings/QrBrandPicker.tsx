@@ -1,7 +1,7 @@
 'use client'
 
 // What sits in the middle of every QR code this agent prints or shares (user, 10/17): the
-// OpenHousePal house logo for everyone, or - IDX plan - their own Brand Kit logo or initials.
+// OpenHousePal house logo for everyone, or - IDX and No-MLS Premium - their own Brand Kit logo or initials.
 // Old printed codes keep scanning (the link inside never changes); everything drawn from now on
 // uses the new look. Used in Branding (Studio -> Branding, owner 10/31 - it was in Settings ->
 // Profile) and the setup flow's brand step.
@@ -14,6 +14,7 @@ import api from '@/lib/api-service'
 import { styledQrSvg, type QrCenter } from '@/lib/qrStyle'
 import { setQrOwner } from '@/lib/qr'
 import { useAuth } from '@/contexts/AuthContext'
+import { luxeUpgrade } from '@/lib/navAccess'
 import { useSaveTracker } from '@/components/ui/SaveStatus'
 import SelectedMark, { SELECTED_RING } from '@/components/ui/SelectedMark'
 
@@ -55,6 +56,7 @@ export default function QrBrandPicker({ compact = false, logosAbove = false }: {
 
   if (!info) return <div className="h-28 animate-pulse rounded-2xl bg-gray-100 dark:bg-white/[0.04]" />
   const initials = info.initials || '?'
+  const upgradePlan = luxeUpgrade(user?.plan_tier).label
   const options: { id: Choice; title: string; sub: string; center: QrCenter; needsLogo?: boolean }[] = [
     { id: 'ohp', title: 'OpenHousePal', sub: 'Our house logo', center: { kind: 'ohp' } },
     { id: 'logo', title: 'Your logo', sub: info.has_logo ? (logosAbove ? 'Your Personal logo' : 'From your Brand Kit') : (logosAbove ? 'Add one above' : 'Add one in Brand Kit'), center: info.logo ? { kind: 'logo', logo: info.logo } : { kind: 'ohp' }, needsLogo: !info.has_logo },
@@ -85,13 +87,13 @@ export default function QrBrandPicker({ compact = false, logosAbove = false }: {
               <div className="aspect-square w-full max-w-[96px] p-1"><Preview center={o.center} /></div>
               <div className="min-w-0">
                 <p className="truncate text-[12px] font-black text-[#111827] dark:text-white">{busy === o.id ? 'Saving...' : o.title}</p>
-                <p className="truncate text-[10.5px] font-semibold text-gray-500 dark:text-gray-400">{locked ? 'IDX plan' : o.sub}</p>
+                <p className={`${locked ? 'leading-tight' : 'truncate'} text-[10.5px] font-semibold text-gray-500 dark:text-gray-400`}>{locked ? `${upgradePlan} plan` : o.sub}</p>
               </div>
             </motion.button>
           )
         })}
       </div>
-      {!info.allowed && <p className="mt-2 text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">Your own logo or initials in your QR codes comes with the IDX plan.</p>}
+      {!info.allowed && <p className="mt-2 text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">Your own logo or initials in your QR codes comes with the {upgradePlan} plan.</p>}
       {info.allowed && !info.has_logo && logosAbove && <p className="mt-2 text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">Want your logo? Add a Personal logo under Logos, then pick it here.</p>}
       {info.allowed && !info.has_logo && !logosAbove && <p className="mt-2 text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">Want your logo? <Link href="/studio/brand-kit" className="font-black text-[#8b7355] underline dark:text-[#e8c97a]">Add it in your Brand Kit</Link>, then pick it here.</p>}
       {err && <p className="mt-2 text-xs font-bold text-rose-600">{err}</p>}

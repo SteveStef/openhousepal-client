@@ -310,7 +310,6 @@ function HelpPageContent() {
           <div className={`${mobileShowThread ? 'flex' : 'hidden md:flex'} min-h-[480px] flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_24px_50px_-34px_rgba(139,115,85,.5)] dark:border-gray-800 dark:bg-[#151517]`}>
             {!selectedId && (
               <div className="relative flex flex-1 flex-col items-center justify-center gap-3 overflow-hidden p-10 text-center">
-                <div className="pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.1),transparent)]" />
                 <motion.span
                   animate={{ y: [0, -6, 0] }}
                   transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}

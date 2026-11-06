@@ -13,7 +13,7 @@ export type QrStyle = {
   eye?: string
   /** Show the centre mark (default true). */
   mark?: boolean
-  /** What sits in the middle (user, 10/17): the OpenHousePal house logo (default), or - IDX agents -
+  /** What sits in the middle (user, 10/17): the OpenHousePal house logo (default), or - IDX and No-MLS Premium agents -
    *  their own Brand Kit logo (a PNG data URL) or their initials. */
   center?: QrCenter
 }

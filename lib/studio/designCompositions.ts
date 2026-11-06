@@ -16,7 +16,7 @@ export type DesignCompositionId =
   | 'magazine' // a cover: masthead across the photo, cover lines, the agent as byline
   | 'mosaic' // a hero plus supporting shots in a tight grid, the story in a band
   | 'seal' // full-bleed photo with a round stamp - the news inside, the address on the rim
-  | 'luxe' // OpenHousePal Luxe (IDX): the photo framed in gold light, a midnight plate with the story
+  | 'luxe' // OpenHousePal Luxe (IDX and No-MLS Premium): the photo framed in gold light, a midnight plate with the story
   | 'keepsake' // social: the photo as a taped instant print on soft paper, a handwritten headline
   | 'billboard' // social: giant poster type, the photo as a card over it, a ticker of the facts
   | 'slant' // social: full-bleed photo, a diagonal color slab, a round price sticker
@@ -35,7 +35,7 @@ export type DesignCompositionId =
 
 export type DesignFamily = 'square' | 'story' | 'portrait' | 'tall' | 'landscape' | 'banner'
 
-// Luxe pieces (the Luxe layout or the Luxe color theme) are IDX only - other plans can preview them.
+// Luxe pieces (the Luxe layout or the Luxe color theme) are IDX and No-MLS Premium - other plans can preview them.
 export const LUXE_COMPOSITION: DesignCompositionId = 'luxe'
 // A Luxe finish ("dark@gold") counts too - see splitColorMode in designColors.ts.
 export const isLuxeDesign = (composition?: string | null, colorMode?: string | null) => composition === 'luxe' || (colorMode || '').split('@')[0] === 'luxe' || (colorMode || '').includes('@')

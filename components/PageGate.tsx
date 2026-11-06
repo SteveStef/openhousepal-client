@@ -92,9 +92,16 @@ async function untilImagesIn(root: HTMLElement | null) {
 // level where the page actually splits into header / toolbar / list, then the ones in view.
 // Measured by the part ON SCREEN: a long list (Leads, Showcases) is most of the page's full height,
 // so the walk used to step into the list and the header above it just appeared (owner, 10/27).
+const isBackdrop = (el: HTMLElement) => {
+  const s = getComputedStyle(el)
+  return s.position === 'fixed' || (s.position === 'absolute' && s.pointerEvents === 'none')
+}
 function sectionsOf(root: HTMLElement): HTMLElement[] {
   const kids = (el: Element) => Array.from(el.children).filter((c): c is HTMLElement =>
-    c instanceof HTMLElement && c.tagName !== 'STYLE' && c.tagName !== 'SCRIPT' && c.offsetHeight > 0)
+    c instanceof HTMLElement && c.tagName !== 'STYLE' && c.tagName !== 'SCRIPT' && c.offsetHeight > 0
+    // A background layer fills the screen, so the walk stepped into it: the background rose in while
+    // the words just appeared (owner, 11/06: the homepage and the locked-feature page).
+    && !isBackdrop(c))
   const onScreen = (el: Element) => { const r = el.getBoundingClientRect(); return Math.max(0, Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0)) }
   let node: HTMLElement = root
   for (let depth = 0; depth < 6; depth++) {
@@ -203,9 +210,10 @@ export default function PageGate({ children }: { children: React.ReactNode }) {
       await sleep(COVER_OUT_MS + 40)
       if (alive()) setPhase('done')
     } else {
-      // Ready before the loader was needed: the page just appears (a quick rise, no logo).
+      // Ready before the loader was needed: the page just appears (a quick rise, no logo). The rise
+      // starts while the page is still held, or the whole page flashes for a frame first (11/06).
+      reveal(root.current)
       setPhase('done')
-      requestAnimationFrame(() => reveal(root.current))
     }
   }, [])
 

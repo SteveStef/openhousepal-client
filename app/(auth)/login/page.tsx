@@ -323,10 +323,8 @@ function LoginContent() {
         <div className="absolute top-0 right-0 w-full h-full opacity-10" 
              style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }}>
         </div>
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-[radial-gradient(closest-side,rgba(139,115,85,1),transparent)] rounded-full opacity-40"></div>
-        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-[radial-gradient(closest-side,rgba(139,115,85,1),transparent)] rounded-full opacity-40"></div>
 
-        <div className="relative z-10 p-12 lg:p-16 flex flex-col h-full overflow-y-auto">
+        <div className="relative z-10 p-12 lg:p-16 flex flex-col h-full overflow-x-hidden overflow-y-auto">
           <div className="max-w-xl mx-auto lg:mx-0 my-auto">
             <h3 className="mb-2 text-4xl font-black uppercase tracking-tight"><GoldPal /></h3>
             <p className="text-gray-300 text-lg mb-6 font-light whitespace-nowrap">The all-in-one platform for modern real estate agents.</p>

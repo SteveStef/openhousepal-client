@@ -8,6 +8,8 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Download, Loader2, Minus, Move, MousePointerClick, Plus, Printer, Redo2, Smartphone, Square, Undo2, X } from 'lucide-react'
 import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
+import { luxeAllowedFor } from '@/lib/brandKit'
+import { luxeUpgrade } from '@/lib/navAccess'
 import { useToast } from '@/contexts/ToastContext'
 import { smartBack } from '@/lib/navHistory'
 import { useOwnDomainBase, agentFormUrl } from '@/lib/ownDomainLinks'
@@ -61,7 +63,8 @@ export default function DesignEditor({ designId }: { designId: string }) {
   // A download waits until the profile has what advertising rules need (lib/studio/designCompliance).
   const [gateOpen, setGateOpen] = useState(false)
   const { showToast } = useToast()
-  const isIdx = user?.plan_tier === 'IDX'
+  const luxeOk = luxeAllowedFor(user)
+  const luxeUp = luxeUpgrade(user?.plan_tier)
 
   const [design, setDesign] = useState<DesignProject | null>(null)
   const [brandKit, setBrandKit] = useState<BrandKit | null>(null)
@@ -464,7 +467,7 @@ export default function DesignEditor({ designId }: { designId: string }) {
   const ctl: EditorCtl = {
     draws,
     design, blocks: design.blocks, property: design.linked_property || null, situation: design.situation || null, leadGen, format, fam, composition, agent, brandKit, agentForms, linkedOpenHouses,
-    libraryPhotos: situationDef?.photoLibrary || [], updateBlock, addBlock, removeBlock, reposition, setReposition, focusBlockId: selectedBlockId, ctx, isIdx,
+    libraryPhotos: situationDef?.photoLibrary || [], updateBlock, addBlock, removeBlock, reposition, setReposition, focusBlockId: selectedBlockId, ctx, luxeOk, luxeUp,
     setBrandingMode, changeLook, openPropertyPicker: () => setShowPropertyPicker(true), resetToListing, campaignInfo, trackingUrl, changeCampaign,
   }
 

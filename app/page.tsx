@@ -9,6 +9,8 @@ import { FEATURE_TABS, type FeatureTabKey } from '@/components/home/featureTabsD
 import { MARKETING_LINKS } from '@/lib/sitePages'
 import { HOME_CSS } from '@/components/home/homeCss'
 import ToolTabs from '@/components/home/ToolTabs'
+import HomeStars from '@/components/home/HomeStars'
+import OhpLoader from '@/components/brand/OhpLoader'
 import { HouseMotif, PinRouteMotif, KeyMotif, ChatMotif, QrBadge, StarBadge, ShieldBadge, MailBadge } from '@/components/home/LineArtMotifs'
 import { PRICING_PLANS, TRIAL_PERIOD_DAYS } from '@/lib/pricing'
 import { useAuth } from '@/contexts/AuthContext'
@@ -51,7 +53,6 @@ function FAQItem({ faq, index, isVisible }: { faq: { question: string; answer: s
 }
 
 // Hero sparkles: left/top %, twinkle delay.
-const HERO_SPARKS: [string, string, number][] = [['6%', '18%', 0], ['92%', '12%', 1.4], ['14%', '78%', 2.6], ['86%', '70%', 0.8], ['48%', '4%', 3.4], ['70%', '92%', 2]]
 
 // The gold serif italic used for the last words of every homepage heading (same as the app's page
 // headers), with a slow shimmer through it.
@@ -88,15 +89,21 @@ const HOME_SCHEMA = {
   ],
 }
 
+// What shows until the real homepage is ready (owner, 11/06: a plain text version of the page flashed
+// up first, then glitched away). The words and links stay in the page for Google but people never
+// see them: they get nothing for a blink, then the house loader only if it's really taking a moment.
 function HomeFirstPaint() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#FAFAF7] px-6 text-center dark:bg-[#0B0B0B]">
+    <div className="min-h-screen">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(HOME_SCHEMA) }} />
-      <h1 className="font-serif text-[3rem] font-black leading-[0.95] text-[#0B0B0B] dark:text-white sm:text-[4.5rem]">Less Busywork. More Business.</h1>
-      <p className="mt-5 text-lg font-medium text-[#4b5563] dark:text-gray-300">The most capable platform in real estate.</p>
-      <nav aria-label="OpenHousePal" className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm font-black text-[#8b7355] dark:text-[#e8c97a]">
-        {[['/tools', 'All Tools'], ['/pricing', 'Pricing'], ['/idx-websites', 'IDX Websites'], ['/resources', 'Resources'], ['/brokerages', 'For Brokerages'], ['/faq', 'FAQ'], ['/about', 'About'], ['/register', 'Create Your Account']].map(([href, label]) => <Link key={href} href={href}>{label}</Link>)}
-      </nav>
+      <div className="sr-only">
+        <h1>Less Busywork. More Business.</h1>
+        <p>The most capable platform in real estate.</p>
+        <nav aria-label="OpenHousePal">
+          {[['/tools', 'All Tools'], ['/pricing', 'Pricing'], ['/idx-websites', 'IDX Websites'], ['/resources', 'Resources'], ['/brokerages', 'For Brokerages'], ['/faq', 'FAQ'], ['/about', 'About'], ['/register', 'Create Your Account']].map(([href, label]) => <Link key={href} href={href}>{label}</Link>)}
+        </nav>
+      </div>
+      <div className="ohp-home-wait"><OhpLoader label="Loading OpenHousePal" /></div>
     </div>
   )
 }
@@ -120,6 +127,8 @@ function HomePageContent() {
   // etc.) has no such param and keeps defaulting to /dash exactly as before.
   const viewMarketingAnyway = searchParams.get('view') === 'marketing'
   const { user, isAuthenticated, isLoading: isCheckingAuth } = useAuth()
+  // The page had to wait for the sign-in check, so it fades in rather than popping (first open).
+  const waited = useRef(false)
   const [isVisible, setIsVisible] = useState(false)
   const [pricingAudience, setPricingAudience] = useState<'bright' | 'no_mls'>('bright')
   // Mobile-only plan-select bar under the audience toggle: below `md` only the selected plan's
@@ -251,6 +260,7 @@ function HomePageContent() {
       raf = 0
       const reached = elements.filter(([, el]) => el.getBoundingClientRect().top < window.innerHeight).map(([id]) => id)
       setSeenSections(prev => (reached.every(id => prev.has(id)) ? prev : new Set([...Array.from(prev), ...reached])))
+      if (reached.length === elements.length) window.removeEventListener('scroll', onScroll)
     }
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(markReached) }
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -373,6 +383,7 @@ function HomePageContent() {
 
 
   if (isCheckingAuth || (isAuthenticated && !viewMarketingAnyway)) {
+    waited.current = true
     return <HomeFirstPaint />
   }
 
@@ -420,49 +431,7 @@ function HomePageContent() {
     // behind the real root layer instead of behind this page's own content. Confirmed by sampling
     // rendered pixels, not just the computed style, which looked correct the whole time.
     <div className="min-h-screen overflow-x-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B] relative z-0 transition-colors duration-300">
-      {/* Sophisticated Background Architecture - fixed to the viewport (not the scrollable
-          content) so it stays put behind every snap section instead of only covering the first
-          screen's worth of height. */}
-      {/* No mix-blend-mode and no continuous animation here - this layer now spans the whole
-          multi-screen page (fixed, behind every section) instead of just one screen, and
-          blend-mode compositing has to be recalculated every frame as content scrolls over it,
-          which was the main cause of scroll feeling low-frame-rate on this page specifically. */}
-      {/* transform-gpu promotes this whole layer to its own compositor layer so its large blurred
-          blobs aren't repainted every frame as the sections scroll over it - that repaint was the
-          main thing making desktop scroll feel low-frame-rate here. */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10 transform-gpu">
-        {/* Layer 1 - color mesh: mixing in the dark navy brand tone so the wash reads as a proper
-            gradient mesh (varied hue + size + depth) rather than one color repeated. The two
-            bottom blobs were removed - at that size/blur they read as a washed-out white/cream
-            fog in the bottom corners rather than a deliberate accent. */}
-        <div className="animate-bg-blob-in absolute top-[-10%] left-[-10%] w-[1000px] h-[1000px] rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,0.16),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,0.08),transparent)]" />
-        <div className="animate-bg-blob-in delay-200 absolute top-[18%] right-[-12%] w-[820px] h-[820px] rounded-full bg-[radial-gradient(closest-side,rgba(17,24,39,0.08),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,0.08),transparent)]" />
-        <div className="animate-bg-blob-in delay-400 absolute top-[46%] left-[38%] w-[520px] h-[520px] rounded-full bg-[radial-gradient(closest-side,rgba(240,212,148,0.224),transparent)] dark:bg-[radial-gradient(closest-side,rgba(240,212,148,0.064),transparent)]" />
-
-        {/* Layer 2 - architectural blueprint grid: a large-scale line grid (not dots), the actual
-            "floor plan" texture a real estate site earns, layered under the fine dot grid below so
-            the two read as macro + micro structure instead of one flat pattern. A 1px line spaced
-            140px apart covers ~1.4% of the area even at full opacity, so a normal-looking opacity
-            coefficient on it is still invisible on screen - confirmed by sampling actual rendered
-            pixels, not just eyeballing a screenshot. Went to a 1.5px line and 0.22 opacity, which
-            is what it actually takes for a hairline that sparse to read as a visible grid. */}
-        <div className="animate-bg-fade-in delay-600 absolute inset-0" style={{
-          backgroundImage:
-            'linear-gradient(to right, #C9A24D 1.5px, transparent 1.5px), linear-gradient(to bottom, #C9A24D 1.5px, transparent 1.5px)',
-          backgroundSize: '140px 140px',
-          '--ohp-bg-target-opacity': 0.22,
-        } as React.CSSProperties} />
-
-        {/* Layer 3 - fine dot grid: the micro texture that keeps layer 2 from feeling empty
-            between its lines. Same visibility-math fix as layer 2 - a 1px-radius dot every 48px
-            covers a tiny fraction of the area, so this needed a bigger dot and higher opacity too. */}
-        <div className="animate-bg-fade-in delay-900 absolute inset-0" style={{
-          backgroundImage: 'radial-gradient(circle at 2px 2px, #C9A24D 1.75px, transparent 0)',
-          backgroundSize: '48px 48px',
-          '--ohp-bg-target-opacity': 0.18,
-        } as React.CSSProperties}></div>
-
-      </div>
+      <HomeStars />
 
       <style>{HOME_CSS}</style>
       {/* Navigation */}
@@ -490,18 +459,8 @@ function HomePageContent() {
         {/* The section already starts below the header, so it's sized to exactly the visible area
             under it (--ohp-header-h, measured in JS) and flex-centered - no upward shift here, unlike
             the sections below; the old -8% shift + 82dvh height pinned the badge under the header. */}
-        <div className="max-w-4xl mx-auto px-6 w-full text-center">
+        <div className={`max-w-4xl mx-auto px-6 w-full text-center ${waited.current ? 'animate-fadeIn' : ''}`}>
           <div className="relative pt-4 sm:pt-8 lg:pt-10 pb-6 sm:pb-10 lg:pb-12">
-            {/* Layered glow - bigger and doubled-up now that it's the sole visual behind a
-                centered statement, for more depth than a single flat blur. */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] -z-10">
-              <div className="absolute top-0 left-1/4 w-80 h-80 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,0.32),transparent)]"></div>
-              <div className="absolute bottom-0 right-1/4 w-80 h-80 rounded-full bg-[radial-gradient(closest-side,rgba(17,24,39,0.16),transparent)] dark:bg-[radial-gradient(closest-side,rgba(201,162,77,0.16),transparent)]"></div>
-            </div>
-
-            {/* A few gold sparkles twinkling around the statement (opacity/scale only - cheap). */}
-            {HERO_SPARKS.map((sp, k) => <span key={k} aria-hidden className="ohp-home-spark pointer-events-none absolute hidden sm:block" style={{ left: sp[0], top: sp[1], animationDelay: `${sp[2]}s` }} />)}
-
             {/* Trusted badge - hidden on mobile to save vertical space */}
             <div className="relative hidden sm:inline-flex items-center gap-2 overflow-hidden px-3.5 py-1.5 bg-gradient-to-r from-white/90 to-[#fbf3df]/90 dark:from-[#151517]/90 dark:to-[#C9A24D]/10 rounded-full border border-[#C9A24D]/40 mb-6 shadow-[0_8px_24px_-10px_rgba(201,162,77,0.55)] ">
               <span className="pointer-events-none absolute inset-y-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/70 dark:via-white/10 to-transparent animate-shimmer-mini" />
@@ -542,7 +501,6 @@ function HomePageContent() {
             </p>
 
             <div className="relative inline-block">
-              <div aria-hidden className="pointer-events-none absolute -inset-x-16 -inset-y-10 -z-10 bg-[radial-gradient(closest-side,rgba(201,162,77,.3),transparent)]"></div>
               <Link
                 href="/register"
                 className="group relative inline-flex items-center px-12 py-6 bg-gradient-to-r from-[#111827] via-[#1f2937] to-[#111827] dark:from-white dark:via-gray-50 dark:to-white text-white dark:text-[#111827] rounded-2xl font-bold text-xl overflow-hidden shadow-[0_16px_40px_-8px_rgba(17,24,39,0.45)] transform transition-all duration-300 hover:scale-105 hover:shadow-[0_24px_55px_-8px_rgba(201,162,77,0.55)] active:scale-95 whitespace-nowrap"
@@ -576,7 +534,7 @@ function HomePageContent() {
         id="tools"
         ref={el => { sectionRefs.current.tools = el }}
         data-section="tools"
-        className="ohp-home-scroll-section scroll-mt-20 snap-start relative z-10 flex items-center pt-4 pb-14 sm:pt-6 sm:pb-20"
+        className="ohp-home-scroll-section scroll-mt-20 snap-start relative z-10 flex items-center pt-10 pb-14 sm:pt-16 sm:pb-20"
       >
         <SectionSeam />
         <div className="relative max-w-7xl mx-auto px-6 w-full">
@@ -618,7 +576,7 @@ function HomePageContent() {
                       </div>
                     </span>
                   </h2>
-                  <span className="mt-6 flex items-center justify-center gap-3 text-[11px] sm:text-xs font-black uppercase tracking-[0.32em] text-[#8b7355] dark:text-[#e8c97a] lg:justify-start"><span className="h-px w-8 bg-gradient-to-r from-transparent to-[#C9A24D] lg:hidden" />One Platform. Every Tool:<span className="h-px w-8 bg-gradient-to-l from-transparent to-[#C9A24D]" /></span>
+                  <span className="mt-6 flex items-center justify-center gap-2 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a] sm:gap-3 sm:text-xs sm:tracking-[0.32em] lg:justify-start"><span className="h-px w-5 bg-gradient-to-r from-transparent to-[#C9A24D] sm:w-8 lg:hidden" />One Platform. Every Tool<span className="h-px w-5 bg-gradient-to-l from-transparent to-[#C9A24D] sm:w-8" /></span>
                 </div>
 
                 <div className="relative order-3">
@@ -675,11 +633,6 @@ function HomePageContent() {
                     {demoLive ? <ActiveDemo /> : <div aria-hidden style={{ height: demoHeight.current || 520 }} />}
                   </div>
                 </div>
-
-                {/* Visual Glow Backdrop */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[130%] h-[130%] -z-10">
-                  <div className="absolute inset-0 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,0.22),rgba(17,24,39,0.06)_60%,transparent)]"></div>
-                </div>
               </div>
             </div>
             <p className="mt-6 text-center"><Link href="/tools" className="text-sm font-black text-[#8b7355] underline underline-offset-4 dark:text-[#e8c97a]">See all tools</Link></p>
@@ -714,7 +667,6 @@ function HomePageContent() {
               OpenHousePal enabled Peter Stefanatos to sell $15M+ in his first year in real estate - one of the highest volumes in PA - all through open houses run with the right system, the OpenHousePal System.
             </p>
           </div>
-          <div aria-hidden className={`pointer-events-none absolute -inset-x-10 bottom-0 top-1/3 -z-10 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,0.4),transparent)] transition-opacity duration-1000 ${seenSections.has('story') ? 'opacity-100' : 'opacity-0'}`} />
           <div className={`relative rounded-[28px] overflow-hidden p-1.5 bg-gradient-to-br from-[#f1d58b]/70 via-white/60 to-[#C9A24D]/50 dark:from-[#C9A24D]/40 dark:via-white/5 dark:to-[#C9A24D]/30 shadow-[0_40px_80px_-30px_rgba(139,115,85,0.6)] transform transition-all duration-1000 delay-500 ${seenSections.has('story') ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           <div className="relative rounded-[22px] overflow-hidden ring-1 ring-black/5 dark:ring-white/10">
             <div className="aspect-video bg-gray-100 dark:bg-gray-900 relative">
@@ -864,12 +816,10 @@ function HomePageContent() {
         id="pricing"
         ref={el => { sectionRefs.current.pricing = el }}
         data-section="pricing"
-        className="ohp-home-scroll-section scroll-mt-20 snap-start py-14 sm:py-20 relative z-10 overflow-hidden"
+        className="ohp-home-scroll-section scroll-mt-20 snap-start pt-7 pb-14 sm:pt-9 sm:pb-20 relative z-10 overflow-hidden"
       >
         <SectionSeam />
         <div className="relative">
-        {/* Background Accent */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,0.048),transparent)] -z-10" />
         <div className={`relative max-w-3xl mx-auto text-center mb-6 transform transition-all duration-1000 delay-300 ${seenSections.has('pricing') ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           {/* Flanking "Invest in Your Growth" itself (not the section's outer edges) - right-full/
               left-full relative to this narrow heading column puts them right next to the claim,
@@ -1018,14 +968,12 @@ function HomePageContent() {
   )
 }
 
-// The seam between homepage sections: a gold hairline that fades out at both ends, a soft glow
-// pooled beneath it and a small diamond at its center - so one section flows into the next
+// The seam between homepage sections: a gold hairline that fades out at both ends, and a small diamond at its center - so one section flows into the next
 // instead of a screen of empty space between them.
 function SectionSeam() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
       <div className="relative h-px w-[min(880px,82%)] bg-gradient-to-r from-transparent via-[#C9A24D]/55 to-transparent">
-        <div className="absolute left-1/2 top-0 h-16 w-2/3 -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.1),transparent)]" />
         <div className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-[#C9A24D]/70 bg-[#FAFAF7] dark:bg-[#0B0B0B]" />
       </div>
     </div>

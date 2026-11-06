@@ -7,6 +7,29 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import api from '@/lib/api-service'
 
+function PasswordEye({ shown, onToggle, label }: { shown: boolean; onToggle: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={`${shown ? 'Hide' : 'Show'} ${label}`}
+      aria-pressed={shown}
+      className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 transition-colors hover:text-[#111827] focus:outline-none focus-visible:text-[#111827] dark:hover:text-white dark:focus-visible:text-white"
+    >
+      {shown ? (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.9 5.2A9.9 9.9 0 0112 5c4.5 0 8.3 2.9 9.5 7a10 10 0 01-3 4.5M6.5 6.6A10 10 0 002.5 12c1.2 4.1 5 7 9.5 7 1.5 0 2.9-.3 4.2-.9" />
+        </svg>
+      ) : (
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        </svg>
+      )}
+    </button>
+  )
+}
+
 function ResetPasswordForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -27,6 +50,8 @@ function ResetPasswordForm() {
     color: string
   }>({ score: 0, label: '', color: '' })
   const [resetSuccess, setResetSuccess] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   // Get token from URL
   useEffect(() => {
@@ -156,10 +181,9 @@ function ResetPasswordForm() {
     return (
       <div className="relative min-h-screen overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center px-6 transition-colors duration-300">
       <AuthLuxeStyle />
-      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.15),transparent)]" />
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <Link href="/" className="mb-8 inline-flex items-center text-[28px] text-[#111827] dark:text-white"><GoldPal animate /></Link>
+            <div className="mb-8 flex justify-center"><Link href="/" aria-label="OpenHousePal home" className="block text-[28px] text-[#111827] dark:text-white"><GoldPal animate /></Link></div>
           </div>
           <div className="ohp-auth-card relative bg-white dark:bg-[#151517] rounded-3xl p-8 border border-gray-100 dark:border-gray-800 shadow-xl">
             <div className="text-center space-y-4">
@@ -192,7 +216,6 @@ function ResetPasswordForm() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center px-6 transition-colors duration-300">
       <AuthLuxeStyle />
-      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.15),transparent)]" />
       {/* Notification Toast */}
       {notification.type && (
         <div className={`fixed bottom-4 right-4 z-50 max-w-md p-4 rounded-lg shadow-lg transform transition-all duration-300 ${
@@ -238,9 +261,9 @@ function ResetPasswordForm() {
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <Link href="/" className="mb-8 inline-flex items-center">
-            <span className="text-[28px] text-[#111827] dark:text-white"><GoldPal animate /></span>
-          </Link>
+          <div className="mb-8 flex justify-center">
+            <Link href="/" aria-label="OpenHousePal home" className="block text-[28px] text-[#111827] dark:text-white"><GoldPal animate /></Link>
+          </div>
           <div><AuthKicker>Account help</AuthKicker></div>
           <h2 className="mb-2 font-serif text-4xl font-black tracking-[-0.02em] text-[#0B0B0B] dark:text-white">Create new <em className="ohp-home-em">password</em></h2>
           <p className="font-medium text-[#6B7280] dark:text-gray-400">Enter a strong password for your account</p>
@@ -278,18 +301,22 @@ function ResetPasswordForm() {
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   New password
                 </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  value={formData.password}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 bg-white dark:bg-[#0B0B0B] border rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    fieldErrors.password ? 'border-red-500 ring-2 ring-red-200 focus:ring-red-300' : 'border-gray-300 dark:border-gray-700 focus:ring-[#8b7355] focus:border-[#8b7355]'
-                  }`}
-                  placeholder="Enter new password"
-                />
+                <div className="relative">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    required
+                    value={formData.password}
+                    onChange={handleChange}
+                    className={`w-full pl-4 pr-12 py-3 bg-white dark:bg-[#0B0B0B] border rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                      fieldErrors.password ? 'border-red-500 ring-2 ring-red-200 focus:ring-red-300' : 'border-gray-300 dark:border-gray-700 focus:ring-[#8b7355] focus:border-[#8b7355]'
+                    }`}
+                    placeholder="Enter new password"
+                  />
+                  <PasswordEye shown={showPassword} onToggle={() => setShowPassword(v => !v)} label="new password" />
+                </div>
                 {fieldErrors.password && (
                   <p className="text-red-500 text-xs mt-1 flex items-center">
                     <svg className="w-3 h-3 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -327,18 +354,22 @@ function ResetPasswordForm() {
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Confirm new password
                 </label>
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  required
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-3 bg-white dark:bg-[#0B0B0B] border rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 ${
-                    fieldErrors.confirmPassword ? 'border-red-500 ring-2 ring-red-200 focus:ring-red-300' : 'border-gray-300 dark:border-gray-700 focus:ring-[#8b7355] focus:border-[#8b7355]'
-                  }`}
-                  placeholder="Confirm your password"
-                />
+                <div className="relative">
+                  <input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type={showConfirm ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    required
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className={`w-full pl-4 pr-12 py-3 bg-white dark:bg-[#0B0B0B] border rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-300 ${
+                      fieldErrors.confirmPassword ? 'border-red-500 ring-2 ring-red-200 focus:ring-red-300' : 'border-gray-300 dark:border-gray-700 focus:ring-[#8b7355] focus:border-[#8b7355]'
+                    }`}
+                    placeholder="Confirm your password"
+                  />
+                  <PasswordEye shown={showConfirm} onToggle={() => setShowConfirm(v => !v)} label="confirmed password" />
+                </div>
                 {fieldErrors.confirmPassword && (
                   <p className="text-red-500 text-xs mt-1 flex items-center">
                     <svg className="w-3 h-3 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -389,10 +420,9 @@ export default function ResetPasswordPage() {
     <Suspense fallback={
       <div className="relative min-h-screen overflow-hidden bg-[#FAFAF7] dark:bg-[#0B0B0B] flex items-center justify-center px-6 transition-colors duration-300">
       <AuthLuxeStyle />
-      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 h-[480px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.15),transparent)]" />
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <Link href="/" className="mb-8 inline-flex items-center text-[28px] text-[#111827] dark:text-white"><GoldPal animate /></Link>
+            <div className="mb-8 flex justify-center"><Link href="/" aria-label="OpenHousePal home" className="block text-[28px] text-[#111827] dark:text-white"><GoldPal animate /></Link></div>
           </div>
           <div className="ohp-auth-card relative bg-white dark:bg-[#151517] rounded-3xl p-8 border border-gray-100 dark:border-gray-800 shadow-xl">
             <div className="text-center space-y-4">

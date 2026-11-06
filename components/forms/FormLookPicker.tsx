@@ -3,7 +3,7 @@
 // How a form looks (user, 10/18 - "make forms colors customizable just like agent hub, same colors
 // and themes ... and in setup flow make this a part"): match the Agent Hub (the default), or its own
 // look from the hub's choices - Classic in one of the hub colours, Luxe in gold / silver / bronze
-// (IDX), light or dark. Used in a form's Settings, the Showcase form's theme window and the setup
+// (IDX and No-MLS Premium), light or dark. Used in a form's Settings, the Showcase form's theme window and the setup
 // flow; FormPhonePreview shows the real form page changing as each choice is tapped.
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -11,6 +11,8 @@ import { Check, Layers, Loader2, Moon, Sparkles, Sun } from 'lucide-react'
 import { HUB_CLASSIC_ACCENTS } from '@/components/agent-hub/HubClassicTheme'
 import { LUXE_METALS, LUXE_METAL_ORDER, type LuxeMetal } from '@/lib/luxeMetals'
 import { formLookLabel, formPaint, resolveFormLook, type FormLook, type FormLookFields } from '@/lib/formLook'
+import { useOptionalAuth } from '@/contexts/AuthContext'
+import { luxeUpgrade } from '@/lib/navAccess'
 
 const colorName = (hex: string) => HUB_CLASSIC_ACCENTS.find(a => a.color.toLowerCase() === hex.toLowerCase())?.label || null
 export const formLookName = (look: FormLook) => formLookLabel(look, colorName)
@@ -119,6 +121,7 @@ export default function FormLookPicker({ value, hubLook, brandLook, luxeAllowed,
   onApplyAll?: () => Promise<boolean>
   applyAllLabel?: string
 }) {
+  const luxePlan = luxeUpgrade(useOptionalAuth()?.user?.plan_tier).label
   // Brand mode: a legacy "match my hub" form reads as "My Brand Kit" when the hub wears the Brand
   // Kit (same look), else as its own look (the hub's) - so what visitors see never changes.
   const legacyHub = !!brandLook && value.look_mode !== 'custom' && value.look_mode !== 'brand'
@@ -185,8 +188,8 @@ export default function FormLookPicker({ value, hubLook, brandLook, luxeAllowed,
                   <FormLookThumb look={{ ...shown, theme: 'classic' }} className="h-20" />
                 </Tile>
                 <Tile on={theme === 'luxe'} disabled={!luxeAllowed} onClick={() => pick({ look_theme: 'luxe' })} title="Luxe"
-                  blurb={luxeAllowed ? 'Metal shine and a serif title.' : 'Included with the IDX plan.'}
-                  badge={!luxeAllowed ? <span className="rounded-full bg-[#111827] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#e8c97a]">IDX</span> : undefined}>
+                  blurb={luxeAllowed ? 'Metal shine and a serif title.' : `Included with the ${luxePlan} plan.`}
+                  badge={!luxeAllowed ? <span className="rounded-full bg-[#111827] px-2 py-0.5 text-center text-[10px] font-black uppercase leading-tight tracking-wider text-[#e8c97a]">{luxePlan}</span> : undefined}>
                   <FormLookThumb look={{ ...shown, theme: 'luxe' }} className="h-20" />
                 </Tile>
               </div>

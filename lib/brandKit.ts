@@ -8,7 +8,7 @@
 //                           colors (lib/accentSwatches - one list) incl. the newer everyday colors.
 //   BRAND_COLOR_GROUPS      the same palette in display rows (gold + colors / everyday / black).
 //   BRAND_MAIN_COLORS       picks for a main / background color (the palette + silver + white).
-//   BRAND_LOOKS             the looks: Classic, Luxe (Luxe = IDX plan only).
+//   BRAND_LOOKS             the looks: Classic, Luxe (Luxe = IDX and No-MLS Premium).
 //   BRAND_FINISHES          Luxe's three finishes: Gold, Silver, Bronze (lib/luxeMetals).
 //   BRAND_MODES             Ivory (light) / Midnight (dark) - the user-facing names for light / dark.
 //   modeLabel(dark)         'Ivory' | 'Midnight'.
@@ -17,7 +17,7 @@
 //   DEFAULT_BRAND_LOOK
 //   brandLookOf(kit)        BrandKit (API) -> BrandLook (always complete).
 //   brandClassicAccent(hex) a kit color made safe as a Classic accent (near-white -> Original gold).
-//   luxeAllowedFor(user)    Luxe is IDX only.
+//   luxeAllowedFor(user)    the one Luxe rule (lib/navAccess luxeAllowed): IDX and No-MLS Premium.
 //   useBrandKit()           { kit, look, loading, save(patch), reload } - shared, cached, and every
 //                           mounted copy updates when any of them saves.
 //   resolveLook(feature, kit)  "brand kit unless the feature overrides": feature = { source?:
@@ -38,6 +38,7 @@ import api from '@/lib/api-service'
 import type { BrandKit, BrandKitLook, SiteTheme } from '@/types'
 import { ACCENT_COLORS, ACCENT_SWATCHES } from '@/lib/accentSwatches'
 import { LUXE_METALS, LUXE_METAL_ORDER, metalOf, type LuxeMetal } from '@/lib/luxeMetals'
+import { luxeAllowed } from '@/lib/navAccess'
 import type { FormLook } from '@/lib/formLook'
 
 export type BrandColor = { color: string; label: string }
@@ -62,8 +63,8 @@ export const BRAND_COLORS: BrandColor[] = BRAND_COLOR_GROUPS.flat()
 export const BRAND_MAIN_COLORS: BrandColor[] = [...BRAND_COLORS.filter(c => c !== ORIGINAL_GOLD), ...ACCENT_COLORS.filter(c => ['silver', 'white'].includes(c.label.toLowerCase()))]
 
 export const BRAND_LOOKS = [
-  { id: 'classic', label: 'Classic', blurb: 'Clean and bright, in your color.', idxOnly: false },
-  { id: 'luxe', label: 'Luxe', blurb: 'Metal shine, serif type, cinematic light.', idxOnly: true },
+  { id: 'classic', label: 'Classic', blurb: 'Clean and bright, in your color.', gated: false },
+  { id: 'luxe', label: 'Luxe', blurb: 'Metal shine, serif type, cinematic light.', gated: true },
 ] as const
 export type BrandLookTheme = (typeof BRAND_LOOKS)[number]['id']
 
@@ -124,7 +125,7 @@ export function brandLookOf(kit: Partial<BrandKit> | null | undefined): BrandLoo
   }
 }
 
-export const luxeAllowedFor = (user: { plan_tier?: string | null } | null | undefined) => user?.plan_tier === 'IDX'
+export const luxeAllowedFor = (user: { plan_tier?: string | null } | null | undefined) => luxeAllowed(user?.plan_tier)
 
 // ---------- the shared hook ----------
 

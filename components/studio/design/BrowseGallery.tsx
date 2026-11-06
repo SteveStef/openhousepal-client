@@ -8,6 +8,8 @@ import { getDesignFormat } from '@/lib/studio/designFormats'
 import { getTemplatesFor, isCompositionReady } from '@/lib/studio/designTemplates'
 import { COMPOSITION_LABELS } from '@/lib/studio/designCompositions'
 import type { DesignAgentInfo } from '@/lib/studio/designAgent'
+import { useOptionalAuth } from '@/contexts/AuthContext'
+import { luxeUpgrade } from '@/lib/navAccess'
 import StyleThumbnail from './StyleThumbnail'
 
 export interface BrowsePick {
@@ -102,6 +104,8 @@ function LazyThumb({ item, brandKit, agent }: { item: BrowseItem; brandKit: Bran
 const PAGE = 15
 
 export default function BrowseGallery({ brandKit, agent, onPick }: { brandKit: BrandKit | null; agent: DesignAgentInfo; onPick: (pick: BrowsePick) => void }) {
+  const luxeTier = useOptionalAuth()?.user?.plan_tier
+  const luxePlan = luxeTier === 'PRO_NO_MLS' ? '' : luxeUpgrade(luxeTier).label
   const [situation, setSituation] = useState<string>('all')
   const [placement, setPlacement] = useState<string>('all')
   const [shown, setShown] = useState(PAGE)
@@ -146,7 +150,7 @@ export default function BrowseGallery({ brandKit, agent, onPick }: { brandKit: B
             className="ohp-rise group relative block w-full overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#C9A24D] hover:shadow-lg hover:ring-4 hover:ring-[#C9A24D]/15 dark:border-gray-800 dark:bg-[#151517]"
           >
             <LazyThumb item={item} brandKit={brandKit} agent={agent} />
-            {item.layoutLabel === 'Luxe' && <span className="pointer-events-none absolute left-2 top-2 inline-flex items-center rounded-full bg-gradient-to-r from-[#b8913f] via-[#C9A24D] to-[#e8c97a] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#111827] shadow-md">Luxe · IDX</span>}
+            {item.layoutLabel === 'Luxe' && <span className="pointer-events-none absolute left-2 top-2 inline-flex items-center rounded-full bg-gradient-to-r from-[#b8913f] via-[#C9A24D] to-[#e8c97a] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#111827] shadow-md">Luxe{luxePlan ? ` · ${luxePlan}` : ''}</span>}
             <span className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-end p-2 opacity-0 transition group-hover:opacity-100">
               <span className="inline-flex items-center gap-1 rounded-full bg-[#111827]/90 px-2.5 py-1 text-[10px] font-black text-white shadow">Use this <ArrowRight className="h-3 w-3" /></span>
             </span>

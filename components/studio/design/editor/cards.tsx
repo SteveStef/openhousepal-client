@@ -48,7 +48,8 @@ export interface EditorCtl {
   ctx: DesignCanvasContext
   /** Whether this design draws the social button / a logo at all (DesignFeatureProbe); null = not checked yet. */
   draws: { button: boolean; logo: boolean } | null
-  isIdx: boolean
+  luxeOk: boolean
+  luxeUp: { tier: string; label: string }
   setBrandingMode: (mode: DesignProject['branding_mode']) => void
   changeLook: (patch: { template_id?: string; style_id?: DesignStyleId; color_mode?: DesignColorMode }) => void
   openPropertyPicker: () => void

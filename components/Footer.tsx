@@ -34,8 +34,6 @@ export default function Footer() {
       {/* gold edge, soft gold light and a faint grid - the same language as the page headers */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/80 to-transparent" />
       <div className="ohp-foot-sweep pointer-events-none absolute inset-x-0 top-0 h-px" />
-      <div className="pointer-events-none absolute -top-40 left-1/4 h-80 w-[36rem] rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.16),transparent)]" />
-      <div className="pointer-events-none absolute -bottom-40 right-0 h-80 w-80 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.11),transparent)]" />
       <div className="ohp-foot-grid pointer-events-none absolute inset-0" />
       <style>{`.ohp-foot-sweep{background:linear-gradient(90deg,transparent 30%,#f1d58b 50%,transparent 70%);background-size:220% 100%;animation:ohpFootSweep 8s ease-in-out infinite}@keyframes ohpFootSweep{0%{background-position:160% 0}100%{background-position:-60% 0}}.ohp-foot-grid{background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:38px 38px;-webkit-mask-image:radial-gradient(60% 70% at 20% 0%,#000,transparent 75%);mask-image:radial-gradient(60% 70% at 20% 0%,#000,transparent 75%)}@media (prefers-reduced-motion:reduce){.ohp-foot-sweep{animation:none}}`}</style>
       <div className="relative max-w-7xl mx-auto px-6">

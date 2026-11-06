@@ -10,7 +10,8 @@ export const AUTH_CSS = `
 @keyframes ohpHomeEm{0%,100%{background-position:100% 0}50%{background-position:0% 0}}
 .ohp-motif-float{animation:ohpMotifFloat 9s ease-in-out infinite}
 @keyframes ohpMotifFloat{0%,100%{translate:0 0;rotate:0deg}50%{translate:0 -12px;rotate:-3deg}}
-.ohp-auth-card{position:relative;border-color:rgba(201,162,77,.22)!important;box-shadow:0 30px 70px -40px rgba(139,115,85,.65)!important}
+.ohp-auth-card{position:relative;border-color:rgba(201,162,77,.22)!important;box-shadow:0 12px 30px -20px rgba(17,24,39,.22)!important}
+.dark .ohp-auth-card{box-shadow:none!important}
 .ohp-auth-card::before{content:"";position:absolute;left:10%;right:10%;top:0;height:1px;background:linear-gradient(90deg,transparent,#C9A24D,transparent);opacity:.8}
 .ohp-auth-btn{position:relative;overflow:hidden}
 .ohp-auth-btn::after{content:"";position:absolute;inset:0;width:35%;transform:translateX(-120%) skewX(-12deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);animation:ohpAuthSweep 3.6s ease-in-out infinite}

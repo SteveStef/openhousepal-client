@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { Crown, ArrowRight } from 'lucide-react'
 
-// The one upgrade pitch every OpenHousePal Luxe option shows to a plan below IDX (Agent Hub
+// The one upgrade pitch every OpenHousePal Luxe option shows to a plan without Luxe (Agent Hub
 // theme, Luxe article theme): they can look at Luxe all they like, this is how they keep it.
+// Pass tier / tierLabel from lib/navAccess luxeUpgrade, so No-MLS plans are never told about IDX.
 export const LUXE_UPGRADE_HREF = (feature: string, tier = 'IDX') => `/upgrade-required?feature=${encodeURIComponent(feature)}&tier=${tier}`
 
 export default function LuxeUpgradePitch({ feature, text, className = '', floating = false, tier = 'IDX', tierLabel = 'IDX' }: { feature: string; text?: string; className?: string; floating?: boolean; tier?: string; tierLabel?: string }) {

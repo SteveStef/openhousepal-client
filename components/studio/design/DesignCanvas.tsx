@@ -2465,7 +2465,7 @@ function Card({ c, t, fam, S, sel }: CompProps) {
   )
 }
 
-// ── Luxe (IDX): the OpenHousePal signature. The photo sits framed in a fine double gold line with
+// ── Luxe (IDX and No-MLS Premium): the OpenHousePal signature. The photo sits framed in a fine double gold line with
 // diamond corners; it melts into a midnight plate that carries the story - a diamond-flanked gold
 // kicker, the address set large, the town, the facts strung on gold diamonds, a gold price, and
 // the agent's sign-off under a gold hairline. The palette's own deep tone tints the midnight and its
