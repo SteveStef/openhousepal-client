@@ -1,5 +1,6 @@
 'use client'
 
+import LeadStar from '@/components/leads/LeadStar'
 import { useState } from 'react'
 import { Building2, Calendar, CalendarClock, ClipboardList, Copy, Globe2, Heart, Home, Inbox, Mail, MessageSquare, Phone, ShieldAlert, Star, ThumbsDown, Trash2, Users } from 'lucide-react'
 import { tidyAllCaps } from '@/lib/cheatSheetContent'
@@ -241,6 +242,7 @@ export default function DashLeadCard({ lead, onOpenLead }: { lead: Lead; onOpenL
             them it was squeezed down to a letter). */}
         <div className="flex min-w-0 items-center gap-1.5 sm:pr-32">
           <p title={lead.name || 'Unnamed Lead'} className="min-w-0 truncate font-serif text-[15px] font-black leading-tight text-[#111827] dark:text-white">{abbreviateName(lead.name)}</p>
+          <LeadStar leadId={lead.id} email={lead.email} />
           {lead.email && <CopyIconButton icon={Mail} title="Click to copy email" onClick={event => copy(event, lead.email!, 'Email')} />}
           {lead.phone && <CopyIconButton icon={Phone} title="Click to copy phone number" onClick={event => copy(event, lead.phone!, 'Phone number')} />}
         </div>

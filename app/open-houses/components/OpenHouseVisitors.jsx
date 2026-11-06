@@ -5,7 +5,8 @@ import { useRouter, useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Copy, Check, Mail, Phone, Users, UserCheck, UserPlus, Star, Activity, Pencil, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
-import { VisitorStar, StarShowcaseAsk, PassActivitySheet, VisitorShowcaseSwitch, VisitorReach, ContactedChip, reachedBy } from './VisitorExtras'
+import { starChanged } from '@/lib/starredPeople'
+import { VisitorStar, PassActivitySheet, VisitorShowcaseSwitch, VisitorReach, ContactedChip, reachedBy } from './VisitorExtras'
 import { useToast } from '@/contexts/ToastContext'
 import LuxeHero, { LuxeStats } from '@/components/ui/LuxeHero'
 import { formatPhone } from '@/lib/leadEventDetails'
@@ -57,7 +58,6 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
   const showcasesOn = showcasesOnProp ?? (openHouse ? openHouse.autoShowcase !== false || !!openHouse.passShowcase : true)
   // "534 Holly Knoll" - for the Text / Email greeting (owner, 11/01)
   const ohStreet = toTitleCase(String(openHouse?.address || '').split(',')[0].trim())
-  const [askShowcaseFor, setAskShowcaseFor] = useState(null)
   const [activityFor, setActivityFor] = useState(null)
   // Edit Showcase straight from the guest (owner, 11/01)
   const [editFor, setEditFor] = useState(null)
@@ -77,7 +77,8 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
     patchVisitor(visitor.id, { is_favorite: next })
     const { success } = await api.leads.update(visitor.lead_id, { is_favorite: next })
     if (!success) { patchVisitor(visitor.id, { is_favorite: !next }); return }
-    if (next && (visitor.showcase_switchable ? visitor.showcase_on : showcasesOn) && visitor.showcase_id && !visitor.showcase_starred) setAskShowcaseFor({ ...visitor, is_favorite: true })
+    starChanged()
+    if (visitor.showcase_id) patchVisitor(visitor.id, { showcase_starred: next })   // one star: the lead's save stars their Showcase too
   }
   // Per-visitor Showcase switch (user, 10/25): flips at once, saves in order (a quick on-then-off
   // is two saves, the second cancels the first's invite), and flips back if a save fails.
@@ -108,12 +109,6 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
       }
     }
     showcaseQueue.current[visitor.id] = (showcaseQueue.current[visitor.id] || Promise.resolve()).then(run, run)
-  }
-  const starShowcase = async (visitor) => {
-    if (!visitor.showcase_id) return
-    patchVisitor(visitor.id, { showcase_starred: true })
-    const { success } = await api.collections.setFavorite(visitor.showcase_id, true)
-    if (!success) patchVisitor(visitor.id, { showcase_starred: false })
   }
 
   const handleCopy = (field, value) => {
@@ -677,7 +672,6 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
       )}
       </AnimatePresence>, document.body)}
 
-      <StarShowcaseAsk visitor={askShowcaseFor} onClose={() => setAskShowcaseFor(null)} onYes={starShowcase} />
       <PassActivitySheet visitor={activityFor} onClose={() => setActivityFor(null)} />
       <QuickEditShowcase open={!!editFor} onClose={() => setEditFor(null)} leadId={editFor?.lead_id} initialId={editFor?.showcase_id} who={editFor?.full_name} />
     </div>

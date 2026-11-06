@@ -1,5 +1,6 @@
 'use client'
 
+import LeadStar from '@/components/leads/LeadStar'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
@@ -542,6 +543,7 @@ function GuestRow({ r, audience, days }: { r: InviteRsvp; audience: string; days
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
             <span className="truncate text-[14.5px] font-black text-[#111827] dark:text-white">{r.name || 'Guest'}</span>
+            <LeadStar email={r.email} />
             {!r.is_seen && <span className="h-2 w-2 shrink-0 rounded-full bg-red-500" />}
           </span>
           <span className="block truncate text-[12px] font-semibold text-gray-500">

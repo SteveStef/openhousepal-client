@@ -113,7 +113,7 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
   }, [autoSpeak, isSending, messages, speak, conversationId])
 
   return (
-    <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto overscroll-contain px-3 sm:px-6 py-4 sm:py-6 space-y-5">
+    <div ref={scrollRef} onScroll={onScroll} className="ohp-ai-thread flex-1 overflow-y-auto overscroll-contain px-3 sm:px-6 py-4 sm:py-6 space-y-5">
       {messages.map((msg, idx) => {
         const isUser = msg.role === 'user'
         // A photo they dropped in is kept as a note in the message; here it's the picture.

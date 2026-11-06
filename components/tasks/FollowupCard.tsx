@@ -9,6 +9,7 @@
 //   steps    - showings: 1) book it in ShowingTime (listing agent + MLS#), 2) text the client
 //   client   - who, and one-tap copy of phone / email / the ready-to-send message
 // Everything that's "copy onto my clipboard" is a same-size button, three to a row.
+import LeadStar from '@/components/leads/LeadStar'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
@@ -558,6 +559,7 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
                 <div className="mb-1.5 flex min-w-0 items-center gap-2 text-[12px]">
                   <Avatar name={client} />
                   <span className="truncate font-semibold text-gray-900 dark:text-white">{client || clientRole}</span>
+                  <LeadStar leadId={t.lead_id} />
                   <span className="shrink-0 text-gray-500 dark:text-gray-400">· {clientRole}</span>
                 </div>
               )}

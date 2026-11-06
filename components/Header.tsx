@@ -166,7 +166,9 @@ export default function Header({ mode = 'app' }: HeaderProps) {
   const pendingHostRequestCount = listingAgentCount + hostCount + openRequestsCount
   const formsActionCount = useFormsActionCount()
   const showcasesActionCount = useShowcasesActionCount()
-  const { anyMissing: settingsIncomplete } = useSettingsCompleteness()
+  const { anyMissing: settingsIncomplete, setup: setupFlow } = useSettingsCompleteness()
+  // Once setup is finished it lives in Settings only (owner, 11/06).
+  const setupOpen = !!setupFlow && !setupFlow.complete
   const supportUnreadCount = useSupportUnreadCount()
   const adminUnread = useAdminUnread()
 
@@ -296,7 +298,7 @@ export default function Header({ mode = 'app' }: HeaderProps) {
   if (!user?.is_admin) {
     mobileSections.push({
       key: 'account', label: 'Account', icon: Settings, href: '/settings', on: false, tiles: [
-        { href: '/setup', label: 'Account setup', icon: ClipboardCheck, on: pathname === '/setup' },
+        ...(setupOpen ? [{ href: '/setup', label: 'Account setup', icon: ClipboardCheck, on: pathname === '/setup' }] : []),
         { href: '/settings', label: 'Settings', icon: Settings, alert: settingsIncomplete, on: pathname.startsWith('/settings') && !pathname.startsWith('/settings/help') },
         { href: '/settings/help', label: 'Help', icon: HelpCircle, badge: supportUnreadCount, on: pathname.startsWith('/settings/help') },
       ],
@@ -686,8 +688,8 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                       inert. */}
                   <div className="flex items-center space-x-1 px-2 border-l border-gray-100 dark:border-gray-800 ml-2">
                     {/* Account setup - the step-by-step setup flow, reopened at the first unfinished step
-                        (or wherever they pick) any time (owner, 10/22). */}
-                    {!user?.is_admin && (
+                        (or wherever they pick) until it's finished (owner, 10/22). */}
+                    {!user?.is_admin && setupOpen && (
                     <Link
                         href="/setup"
                         title="Account setup"

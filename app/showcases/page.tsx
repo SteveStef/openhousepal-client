@@ -5,6 +5,7 @@ import OhpLoader from '@/components/brand/OhpLoader'
 
 import { useState, useEffect, useMemo, useRef, Suspense, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { starChanged } from '@/lib/starredPeople'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Collection, CollectionPreferences, Property, Comment, TourRequest, PropertyTour, Site, SiteDomain, ShowcaseInbox, ShowcaseActivityItem } from '@/types'
 import Footer from '@/components/Footer'
@@ -105,7 +106,7 @@ function ShowcaseContent() {
     if (success && data?.lead_id) setLeadCardId(data.lead_id)
     else showToast("This client doesn't have a lead card yet", 'info')
   }, [showToast])
-  // The New Matches mailbox; ?new=1 opens it (the AI helper's button).
+  // The New Matches mailbox; ?matches=1 opens it (the AI helper's button). ?new=1 is New Showcase only.
   const [isNewMatchesOpen, setIsNewMatchesOpen] = useState(false)
   const [newMatchCount, setNewMatchCount] = useState(0)
   // Re-read whenever homes get seen some other way than the mailbox: a Showcase opened, or dismissed.
@@ -113,7 +114,11 @@ function ShowcaseContent() {
     api.collections.getNewMatches().then(r => { if (r.success && r.data) setNewMatchCount(r.data.count) }).catch(() => {})
   }, [])
   useEffect(() => { refreshNewMatchCount() }, [refreshNewMatchCount])
-  useEffect(() => { if (searchParams.get('new') === '1') setIsNewMatchesOpen(true) }, [searchParams])
+  useEffect(() => {
+    if (searchParams.get('matches') !== '1') return
+    setIsNewMatchesOpen(true)
+    router.replace('/showcases', { scroll: false })   // so closing it can't reopen it
+  }, [searchParams, router])
   const [deleteAlsoRemoves, setDeleteAlsoRemoves] = useState<string[] | null>(null)
   const [deleteModalState, setDeleteModalState] = useState<{ isOpen: boolean, collection: Collection | null }>({
     isOpen: false,
@@ -314,6 +319,8 @@ function ShowcaseContent() {
   const markedSeenRef = useRef<Set<string>>(new Set())
   useEffect(() => {
     if (!selectedCollection?.id || markedSeenRef.current.has(selectedCollection.id)) return
+    // Came from the mailbox to look at one home: the client's other new homes stay in the mailbox.
+    if (searchParams.get('from') === 'matches') return
     markedSeenRef.current.add(selectedCollection.id)
     Promise.resolve(api.collections.markSeen(selectedCollection.id)).catch(() => {}).finally(refreshNewMatchCount)
     // Opening it = seeing its new matches: the card's NEW photos + "N NEW" clear (server does the
@@ -673,6 +680,7 @@ function ShowcaseContent() {
     const next = collection.favoritedAt ? null : new Date().toISOString()
     setCollections(prev => prev.map(c => c.id === collectionId ? { ...c, favoritedAt: next } : c))
     const { success, data, error } = await api.collections.setFavorite(collectionId, !!next)
+    if (success) starChanged()
     if (!success) {
       setCollections(prev => prev.map(c => c.id === collectionId ? { ...c, favoritedAt: collection.favoritedAt ?? null } : c))
       showToast(error || 'Could not save the star', 'error')

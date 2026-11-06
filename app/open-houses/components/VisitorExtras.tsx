@@ -105,39 +105,6 @@ export function VisitorStar({ on, onToggle, size = 'md' }: { on: boolean; onTogg
   )
 }
 
-/** After starring a lead who has a Showcase: "Also star their Showcase so it stays highlighted?"
- *  (never asked when this open house's Showcases are off). */
-export function StarShowcaseAsk({ visitor, onClose, onYes }: { visitor: VisitorRow | null; onClose: () => void; onYes: (v: VisitorRow) => void }) {
-  const v = useLastValue(visitor)
-  const first = (v?.full_name || '').split(' ')[0]
-  return (
-    <OhSheet
-      open={!!visitor}
-      onClose={onClose}
-      width="max-w-md"
-      title={`${first || 'Lead'} is starred`}
-      subtitle="Their Showcase is a separate star"
-      icon={<Star className="h-5 w-5" fill="currentColor" />}
-      footer={
-        <div className="flex gap-2.5">
-          <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={onClose}
-            className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-[#111827] dark:border-white/10 dark:bg-white/5 dark:text-white">
-            Just the lead
-          </motion.button>
-          <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={() => { if (v) onYes(v); onClose() }}
-            className="flex flex-[1.3] items-center justify-center gap-1.5 rounded-xl bg-[#111827] px-4 py-3 text-sm font-black text-white shadow-lg shadow-black/20 dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827]">
-            <Sparkles className="h-4 w-4" /> Star Showcase too
-          </motion.button>
-        </div>
-      }
-    >
-      <p className="text-sm font-medium leading-relaxed text-gray-600 dark:text-gray-300">
-        Also favorite {first ? `${first}'s` : 'their'} Showcase so it stays highlighted on your Showcases page (and never goes to sleep)?
-      </p>
-    </OhSheet>
-  )
-}
-
 type PassActivity = Awaited<ReturnType<typeof api.openHouses.getVisitorPassActivity>>['data']
 
 const EVENT_LOOK: Record<string, { icon: React.ComponentType<{ className?: string }>; tone: string }> = {

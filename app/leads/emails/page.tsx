@@ -3,6 +3,7 @@
 // Every email an agent's clients got (from the agent's own Gmail / Outlook or from OpenHousePal),
 // whether it was opened and clicked, and who is on daily / weekly / no automatic emails and why -
 // the engagement rules in backend client_email_service.
+import LeadStar from '@/components/leads/LeadStar'
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -299,6 +300,7 @@ function Who({ name, email, leadId, badge }: { name?: string | null; email: stri
           {leadId
             ? <Link href={`/leads?lead=${leadId}`} title="Open their lead" className="min-w-0 truncate hover:[&>span]:text-[#8b7355] dark:hover:[&>span]:text-[#e8c97a]">{title}</Link>
             : title}
+          <LeadStar leadId={leadId} email={email} />
           {badge}
         </div>
         <p className="mt-0.5 truncate text-[12px] font-semibold text-gray-500 dark:text-gray-400">{email}</p>

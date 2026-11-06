@@ -1,5 +1,6 @@
 'use client'
 
+import { starChanged } from '@/lib/starredPeople'
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -246,6 +247,7 @@ function LeadsPageInner() {
     setLeads(prev => prev.map(flip(next)))
     setHiddenLeads(prev => prev ? prev.map(flip(next)) : prev)
     const r = await api.leads.update(lead.id, { is_favorite: next })
+    if (r.success) starChanged()
     if (!r.success) {
       setLeads(prev => prev.map(flip(!next)))
       setHiddenLeads(prev => prev ? prev.map(flip(!next)) : prev)

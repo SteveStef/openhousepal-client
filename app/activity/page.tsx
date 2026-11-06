@@ -13,6 +13,7 @@ import api from '@/lib/api-service'
 import { Notification } from '@/types'
 import LuxeHero, { LuxeTabs, luxePill } from '@/components/ui/LuxeHero'
 import Pager from '@/components/ui/Pager'
+import LeadStar from '@/components/leads/LeadStar'
 import { AUTO_HIDE_WHEN_READ_TYPES, getNotificationMeta, visibleNotifications } from '@/lib/notificationDisplay'
 import { formatDateTime } from '@/lib/relativeDays'
 import { isRundownNotification, openTodaysRundown } from '@/components/rundown/TodaysRundown'
@@ -345,7 +346,7 @@ export default function ActivityPage() {
                         <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${className}`}><Icon className="h-4 w-4" /></span>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start gap-2">
-                            <p className={`min-w-0 flex-1 text-[13.5px] leading-snug text-[#111827] dark:text-white ${n.isRead ? 'font-bold' : 'font-black'}`}>{n.title}</p>
+                            <p className={`min-w-0 flex-1 text-[13.5px] leading-snug text-[#111827] dark:text-white ${n.isRead ? 'font-bold' : 'font-black'}`}><LeadStar link={n.link} showcaseId={n.collectionId} name={n.visitorName} text={`${n.title} ${n.message}`} className="mr-1 -mt-0.5" />{n.title}</p>
                             {!n.isRead && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#C9A24D]" aria-label="Unread" />}
                           </div>
                           {n.message && <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-gray-500 dark:text-gray-400">{n.message}</p>}

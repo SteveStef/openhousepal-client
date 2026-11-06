@@ -7,8 +7,9 @@ import Link from 'next/link'
 import { pageRiseFrom, pageRiseTo, pageRiseTransition } from '@/components/ui/PageReveal'
 import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Bell, BellOff, Building2, Check, Compass, Copy, Eye, EyeOff, Heart, Home, Loader2, Mail,
-  MailX, MessageCircle, Pencil, Phone, Plus, Send, Sparkles, Tag, ThumbsDown, Trash2, X,
+  MailX, MessageCircle, Pencil, Phone, Plus, Send, Sparkles, Star, Tag, ThumbsDown, Trash2, X,
 } from 'lucide-react'
+import { starChanged } from '@/lib/starredPeople'
 import OhSheet from '@/components/open-house-manager/OhSheet'
 import api from '@/lib/api-service'
 import { contactLabel, contactWhen } from '@/lib/contactLog'
@@ -211,7 +212,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
     setLead({ ...lead, ...patch, ...(mark_contacted ? { last_contacted_at: new Date().toISOString(), status: lead.status === 'new' ? 'contacted' : lead.status } : {}) } as LeadDetail)
     setSaving(true)
     const r = await api.leads.update(lead.id, data)
-    if (r.success && r.data) { setLead(r.data); onChanged?.() } else { setLead(previous); showToast(r.error || "Couldn't save that", 'error') }
+    if (r.success && r.data) { setLead(r.data); onChanged?.(); if ('is_favorite' in data) starChanged() } else { setLead(previous); showToast(r.error || "Couldn't save that", 'error') }
     setSaving(false)
     return r.success
   }
@@ -358,6 +359,11 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
               <>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <h1 className="break-words font-serif text-[22px] font-black leading-tight text-[#111827] dark:text-white sm:text-3xl">{lead.name || 'No name given'}</h1>
+                  <button type="button" onClick={() => applyUpdate({ is_favorite: !lead.is_favorite })} data-testid="lead-star" aria-pressed={!!lead.is_favorite}
+                    aria-label={lead.is_favorite ? 'Unstar this lead' : 'Star this lead'} title={lead.is_favorite ? 'Starred - tap to unstar' : 'Star this lead'}
+                    className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border transition active:scale-90 ${lead.is_favorite ? 'border-[#C9A24D] bg-[#C9A24D]/15 text-[#C9A24D]' : 'border-gray-200 text-gray-400 hover:border-[#C9A24D] hover:text-[#C9A24D] dark:border-gray-700'}`}>
+                    <Star className="h-[18px] w-[18px]" fill={lead.is_favorite ? 'currentColor' : 'none'} strokeWidth={2.2} />
+                  </button>
                   <button onClick={() => { setEditName(lead.name || ''); setEditEmail(lead.email || ''); setEditPhone(lead.phone || ''); setEditing(true) }}
                     title="Edit name, email or phone"
                     className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-gray-500 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-400">

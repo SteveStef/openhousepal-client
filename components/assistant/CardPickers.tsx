@@ -91,8 +91,11 @@ export function useSteps(ids: string[], start?: string | null) {
 }
 
 // A card's cream box (owner, 11/04: "desktop full open view should have more thoughtful layouts"):
-// in a wide chat (the computer's big window) the preview sits on the left and the steps on the right;
-// in a narrow one (a phone, the corner panel) they stack. Goes by the card's own width, not the screen's.
+// in a wide chat (the computer's big window) the preview sits on the left and the whole flow in one
+// column on its right, kept to a comfortable width so a button never ends up far from what it goes
+// with (owner, 11/06); in a narrow one (a phone, the corner panel) they stack. Goes by the card's own
+// width, not the screen's.
+export const WIDE_CARD_COLUMNS = (side: number) => `${side}px minmax(0,680px)`
 export function PickShell({ testid, preview, side = 280, children }: { testid: string; preview?: React.ReactNode; side?: number; children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(0)
@@ -107,7 +110,7 @@ export function PickShell({ testid, preview, side = 280, children }: { testid: s
   return (
     <div ref={ref} className="group/pick mt-3 rounded-xl bg-[#faf7f0] p-1.5 sm:p-2.5 dark:bg-zinc-800/50" data-testid={testid} data-wide={wide ? 'yes' : 'no'}>
       {wide ? (
-        <div className="grid items-start gap-4" style={{ gridTemplateColumns: `${side}px minmax(0,1fr)` }}>
+        <div className="grid items-start justify-center gap-5" style={{ gridTemplateColumns: WIDE_CARD_COLUMNS(side) }}>
           <div className="sticky top-2 min-w-0">{preview}</div>
           <div className="ohp-steps min-w-0">{children}</div>
         </div>
@@ -129,10 +132,10 @@ export function CardStep({ id, n, title, summary, steps, children }: {
     <div className={`rounded-xl transition-colors ${open ? 'bg-white shadow-sm ring-1 ring-[#C9A24D]/35 dark:bg-zinc-900' : 'bg-white/60 ring-1 ring-black/5 dark:bg-zinc-900/50 dark:ring-white/10'}`}
       data-testid={`ai-step-${id}`} data-open={open ? 'yes' : 'no'}>
       <button type="button" onClick={() => steps.toggle(id)} aria-expanded={open} className="flex w-full items-center gap-2 px-2.5 py-2 text-left">
-        <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${open ? 'bg-[#111827] text-white dark:bg-[#C9A24D] dark:text-[#111827]' : 'bg-[#C9A24D] text-white'}`}>
+        <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black group-data-[wide=yes]/pick:h-6 group-data-[wide=yes]/pick:w-6 group-data-[wide=yes]/pick:text-[11.5px] ${open ? 'bg-[#111827] text-white dark:bg-[#C9A24D] dark:text-[#111827]' : 'bg-[#C9A24D] text-white'}`}>
           {open ? n : <Check className="h-3 w-3" strokeWidth={3.5} />}
         </span>
-        <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#C9A24D]">{title}</span>
+        <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.16em] text-[#8b7355] group-data-[wide=yes]/pick:text-[11.5px] dark:text-[#C9A24D]">{title}</span>
         <span className={`ml-auto min-w-0 truncate text-xs font-bold text-[#111827] transition-opacity dark:text-white ${open ? 'opacity-0' : 'opacity-100'}`}>{summary}</span>
         <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -419,17 +422,17 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
   // Every screen as a numbered step, between Back and Next - tap to jump. Theirs are gold, the contact
   // and welcome / thank-you screens grey; the one they're on is filled (owner, 11/04).
   const stepNumbers = (
-<div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-x-0.5 gap-y-1" data-testid="ai-form-steps">
+<div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-x-0.5 gap-y-1 group-data-[wide=yes]/pick:gap-x-1.5" data-testid="ai-form-steps">
           {Array.from({ length: last + 1 }, (_, k) => {
             const on = k === i, mine = k >= firstOwn && k < last
             return (
               <button key={k} type="button" onClick={() => setAt(k)} aria-current={on ? 'step' : undefined}
                 aria-label={k === 0 ? 'Welcome screen' : k === last ? 'Thank-you screen' : `Question ${k}`}
-                className={`ohp-ai-press grid h-[22px] min-w-[22px] place-items-center rounded-full px-0.5 text-[10px] font-black transition ${on
+                className={`ohp-ai-press grid h-[22px] min-w-[22px] place-items-center rounded-full px-0.5 text-[10px] font-black transition group-data-[wide=yes]/pick:h-9 group-data-[wide=yes]/pick:min-w-9 group-data-[wide=yes]/pick:text-[14px] ${on
                   ? 'bg-[#111827] text-white ring-2 ring-[#C9A24D] ring-offset-1 ring-offset-white dark:bg-[#C9A24D] dark:text-[#111827] dark:ring-offset-zinc-900'
                   : mine ? 'bg-[#C9A24D]/15 text-[#8b7355] ring-1 ring-[#C9A24D]/40 dark:text-[#e8c97a]'
                   : 'bg-gray-100 text-gray-400 dark:bg-zinc-800 dark:text-zinc-500'}`}>
-                {k === 0 ? <Home className="h-3 w-3" strokeWidth={3} /> : k === last ? <Check className="h-3 w-3" strokeWidth={3.5} /> : k}
+                {k === 0 ? <Home className="h-3 w-3 group-data-[wide=yes]/pick:h-4 group-data-[wide=yes]/pick:w-4" strokeWidth={3} /> : k === last ? <Check className="h-3 w-3 group-data-[wide=yes]/pick:h-4 group-data-[wide=yes]/pick:w-4" strokeWidth={3.5} /> : k}
               </button>
             )
           })}
@@ -446,7 +449,7 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
-  const wide = cardW >= 600
+  const wide = cardW >= 720
   const afterChoices: [string, string][] = [
     ...(picks.listing_key ? [['property', 'That home'] as [string, string]] : []),
     ['agent_hub', 'My Agent Hub'], ['website', 'My website'], ['none', 'Stay on the thank-you'], ['custom', 'My own link'],
@@ -457,7 +460,10 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
   const tight = cardW < 480
   const navBtn = `ohp-ai-press inline-flex h-12 shrink-0 items-center justify-center rounded-xl font-black shadow-sm disabled:opacity-30 ${tight ? 'w-[46px] flex-col text-[10.5px] leading-tight' : 'gap-1 px-4 text-[13px]'}`
   return (
-    <div ref={wrapRef} className="mt-3 space-y-2 rounded-xl bg-[#faf7f0] p-1.5 sm:p-2.5 dark:bg-zinc-800/50" data-testid="ai-form-pick">
+    <div ref={wrapRef} className="group/pick mt-3 rounded-xl bg-[#faf7f0] p-1.5 sm:p-2.5 dark:bg-zinc-800/50" data-testid="ai-form-pick" data-wide={wide ? 'yes' : 'no'}>
+     <div className={wide ? 'grid items-start justify-center gap-5' : undefined} style={wide ? { gridTemplateColumns: WIDE_CARD_COLUMNS(300) } : undefined}>
+      {wide && <div className="sticky top-2 min-w-0"><FormPreview title={title} questions={picks.questions} backgroundEffects={picks.background_effects} welcomeTextEffects={picks.welcome_text_effects} oneContact={picks.one_contact} firstLast={picks.first_last} look={shownLook} home={home || null} at={steps.isOpen('look') ? 0 : i} /></div>}
+     <div className="ohp-steps min-w-0">
       {onOpenEditor && (
         <div className="flex items-center gap-2 rounded-xl bg-white px-2.5 py-2 ring-1 ring-black/5 dark:bg-zinc-900 dark:ring-white/10">
           <p className="min-w-0 flex-1 text-[11.5px] font-semibold leading-snug text-gray-600 dark:text-zinc-300">Rather edit it in the full form editor?</p>
@@ -470,13 +476,13 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
       <CardStep id="questions" n={1} title="Questions" summary={`${picks.questions.length} + name, email, phone`} steps={steps}>
         <div className="mb-2 flex items-center justify-between gap-2">
           <span className="text-[13.5px] font-black text-[#111827] dark:text-white" data-testid="ai-form-preview-label">{screenName}</span>
-          <button type="button" onClick={() => setPreview(v => !v)} aria-expanded={preview} data-testid="ai-form-preview-toggle"
+          {!wide && <button type="button" onClick={() => setPreview(v => !v)} aria-expanded={preview} data-testid="ai-form-preview-toggle"
             className="ohp-ai-press inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[10.5px] font-black text-[#8b7355] ring-1 ring-[#C9A24D]/40 dark:bg-zinc-900 dark:text-[#e8c97a]">
             <Eye className="h-3 w-3" strokeWidth={3} /> {preview ? 'Hide preview' : 'Preview'}
-          </button>
+          </button>}
         </div>
-        <div className={preview && wide ? 'grid grid-cols-[200px_minmax(0,1fr)] items-start gap-4' : undefined}>
-        {preview && <div className={wide ? 'sticky top-2' : undefined}><FormPreview title={title} questions={picks.questions} backgroundEffects={picks.background_effects} welcomeTextEffects={picks.welcome_text_effects} oneContact={picks.one_contact} firstLast={picks.first_last} look={shownLook} home={home || null} at={i} /></div>}
+        <div>
+        {preview && !wide && <FormPreview title={title} questions={picks.questions} backgroundEffects={picks.background_effects} welcomeTextEffects={picks.welcome_text_effects} oneContact={picks.one_contact} firstLast={picks.first_last} look={shownLook} home={home || null} at={i} />}
         <div className="min-w-0">
         {/* This screen: greyed when there's nothing to change, else the question with its fix bar */}
         <div className="ohp-ai-card-in rounded-xl bg-[#faf7f0]/60 p-2 ring-1 ring-black/5 sm:p-2.5 dark:bg-zinc-800/40 dark:ring-white/10" key={i} data-testid="ai-form-screen">
@@ -484,7 +490,7 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
             <>
               <div className="flex items-start gap-2">
                 <span className="mt-px grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#C9A24D]/15 text-[10px] font-black text-[#8b7355] dark:text-[#e8c97a]">{i}</span>
-                <p className="min-w-0 flex-1 text-[13px] font-bold leading-snug text-[#111827] dark:text-white">{q.label}</p>
+                <p className="min-w-0 flex-1 text-[13px] font-bold leading-snug text-[#111827] group-data-[wide=yes]/pick:text-[15px] dark:text-white">{q.label}</p>
                 <button type="button" aria-label={`Take off: ${q.label}`} title="Take it off"
                   onClick={() => onPicks({ ...picks, questions: picks.questions.filter((_, k) => k !== own) })}
                   className="ohp-ai-press -mr-1 -mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-zinc-800">
@@ -606,8 +612,8 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
       </CardStep>
       <CardStep id="look" n={2} title="Look" summary={`${lookName} · ${isDark ? 'Dark' : 'Light'}`} steps={steps}>
         {/* The same choices as the form editor, with the form beside them (owner, 11/04) */}
-        <div className={wide ? 'grid grid-cols-[200px_minmax(0,1fr)] items-start gap-4' : undefined}>
-          {steps.isOpen('look') && <FormPreview title={title} questions={picks.questions} backgroundEffects={picks.background_effects} welcomeTextEffects={picks.welcome_text_effects} oneContact={picks.one_contact} firstLast={picks.first_last} look={shownLook} home={home || null} at={0} />}
+        <div>
+          {!wide && steps.isOpen('look') && <FormPreview title={title} questions={picks.questions} backgroundEffects={picks.background_effects} welcomeTextEffects={picks.welcome_text_effects} oneContact={picks.one_contact} firstLast={picks.first_last} look={shownLook} home={home || null} at={0} />}
           <div className="min-w-0 space-y-1.5" data-testid="ai-form-look">
             <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Style">
               {([['classic', 'Classic'], ['luxe', 'Luxe']] as const).map(([t, label]) => (
@@ -690,6 +696,8 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
             className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[13px] font-medium text-gray-800 outline-none focus:border-[#C9A24D] sm:text-xs dark:border-zinc-700 dark:bg-zinc-900 dark:text-white" />
         )}
       </CardStep>
+     </div>
+     </div>
     </div>
   )
 }

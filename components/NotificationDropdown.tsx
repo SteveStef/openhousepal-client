@@ -1,5 +1,6 @@
 'use client'
 
+import LeadStar from '@/components/leads/LeadStar'
 import Link from 'next/link'
 import { Notification } from '@/types'
 import { Calendar, X } from 'lucide-react'
@@ -124,7 +125,7 @@ export default function NotificationDropdown({
                     {/* Headline - backend sets a type-appropriate title for every notification,
                         e.g. "New Open House Visitor: Jane Doe" or "New time confirmed" */}
                     <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                      {notification.title}
+                      <LeadStar link={notification.link} showcaseId={notification.collectionId} name={notification.visitorName} text={`${notification.title} ${notification.message}`} className="mr-1 -mt-0.5" />{notification.title}
                     </p>
 
                     {/* Type Badge */}

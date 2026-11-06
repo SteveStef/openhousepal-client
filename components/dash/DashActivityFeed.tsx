@@ -1,5 +1,6 @@
 'use client'
 
+import LeadStar from '@/components/leads/LeadStar'
 import { Notification } from '@/types'
 import { getNotificationMeta } from '@/lib/notificationDisplay'
 import { formatDateTime } from '@/lib/relativeDays'
@@ -42,7 +43,7 @@ export default function DashActivityFeed({ notifications, onRead }: { notificati
               <Icon className="h-3.5 w-3.5" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-black text-[#111827] dark:text-white">{notification.title}</p>
+              <p className="truncate text-xs font-black text-[#111827] dark:text-white"><LeadStar link={notification.link} showcaseId={notification.collectionId} name={notification.visitorName} text={`${notification.title} ${notification.message}`} className="mr-1 -mt-0.5" />{notification.title}</p>
               {(notification.propertyAddress || notification.message) && (
                 <p className="truncate text-[10px] font-semibold text-gray-400">{notification.propertyAddress || notification.message}</p>
               )}

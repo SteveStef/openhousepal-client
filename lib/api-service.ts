@@ -1122,6 +1122,10 @@ class ApiService {
         method: 'POST',
       }),
 
+    /** New Matches mailbox: dismiss a home, or put it back. It never touches the client's Showcase. */
+    setAgentSeen: (collectionId: string, propertyId: string, seen: boolean) =>
+      this.request<{ success: boolean }>(`/collections/${collectionId}/properties/${propertyId}/agent-seen`, { method: 'POST', body: JSON.stringify({ seen }) }),
+
     markSeen: (collectionId: string) =>
       this.request<any>(`/collections/${collectionId}/mark-seen`, {
         method: 'POST',
@@ -1976,6 +1980,8 @@ class ApiService {
 
     markHandled: (leadId: string, kind: string) =>
       this.request<LeadDetail>(`/leads/${leadId}/handled`, { method: 'POST', body: JSON.stringify({ kind }) }),
+
+    starred: () => this.request<{ lead_ids: string[]; showcase_ids: string[]; emails: string[]; names: string[] }>('/leads/starred'),
 
     update: (leadId: string, data: { name?: string; email?: string; phone?: string; status?: LeadStatus; represented?: LeadRepresented; tags?: string[]; notes?: string; mark_contacted?: boolean; is_favorite?: boolean }) =>
       this.request<LeadDetail>(`/leads/${leadId}`, { method: 'PATCH', body: JSON.stringify(data) }),

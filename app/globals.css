@@ -2118,6 +2118,8 @@ html[data-ohp-chat-kb] [data-ohp-chat-panel] { visibility: visible; }
 
 /* A chat card's steps (owner, 11/05: use the room on a computer): one column on a phone; in a wide
    card, the folded steps sit side by side and the open one takes the full row. */
+/* The chat in its full-size window: one comfortable column, however wide the monitor (owner, 11/06). */
+.ohp-ai-thread > * { max-width: 1180px; margin-left: auto; margin-right: auto; }
 .ohp-steps { display: grid; gap: .5rem; grid-template-columns: minmax(0, 1fr); align-items: start; }
 [data-wide="yes"] .ohp-steps { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
 [data-wide="yes"] .ohp-steps > * { grid-column: 1 / -1; }
