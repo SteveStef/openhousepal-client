@@ -10,7 +10,7 @@ import { MatchActivity, MatchHome, NewTag, homeFacts, matchedAgo, niceStreet, sh
 /** The 3 newest homes in this lead's Showcase, seen or not (owner, 11/04): small, a quick look at price
  *  and stats, NEW until the agent opens that home, and what the client did with it. Showing them here
  *  clears nothing - opening one marks just that home seen. */
-export default function LeadRecentMatches({ leadId }: { leadId: string }) {
+export default function LeadRecentMatches({ leadId, onOpenMailbox }: { leadId: string; onOpenMailbox?: () => void }) {
   const { user } = useAuth()
   const [homes, setHomes] = useState<MatchHome[]>([])
   const [viewing, setViewing] = useState<string | null>(null)
@@ -29,7 +29,10 @@ export default function LeadRecentMatches({ leadId }: { leadId: string }) {
 
   return (
     <div className="mt-3 border-t border-gray-100 pt-3 dark:border-white/10" data-testid="lead-recent-matches">
-      <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-gray-400">Newest matches</p>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-gray-400">Newest matches</p>
+        {onOpenMailbox && <button type="button" onClick={onOpenMailbox} data-testid="lead-open-mailbox" className="text-[10.5px] font-black text-[#8b7355] hover:underline dark:text-[#e8c97a]">Open mailbox</button>}
+      </div>
       <div className="space-y-1">
         {homes.map((h, i) => (
           <motion.button key={`${h.collection_id}-${h.property_id}`} type="button" onClick={() => open(h)} data-testid="lead-match"

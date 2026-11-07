@@ -148,7 +148,7 @@ export default function OpenHouseSecondVisitRequestPage() {
     <div className={`min-h-screen bg-[#FAFAF7] dark:bg-[#0B0B0B] flex flex-col items-center justify-center p-4 transition-colors duration-300 ${darkClass}`}>
       <div className="flex-1 flex items-center justify-center w-full">
         <div className="w-full max-w-lg">
-          <SecondVisit property={property} onSubmit={handleTourSubmit} onSent={() => setSuccess(true)} />
+          <SecondVisit property={property} onSubmit={handleTourSubmit} onSent={() => setSuccess(true)} loadBusy={() => api.properties.getOpenHouseBusy(openHouseEventId)} />
         </div>
       </div>
       <ComplianceFooter />
@@ -160,10 +160,11 @@ export default function OpenHouseSecondVisitRequestPage() {
 // 10/22): the home is already known, so the window opens straight away - pick a day, then the part
 // of the day, then the times (up to 3), then your details. The page behind keeps the home and the
 // "seller's disclosure too?" question, and a button to reopen the window.
-function SecondVisit({ property, onSubmit, onSent }: {
+function SecondVisit({ property, onSubmit, onSent, loadBusy }: {
   property: Property
   onSubmit: (d: TourRequest, wantsDisclosure: boolean) => Promise<void>
   onSent: () => void
+  loadBusy: () => Promise<{ start: string; end: string }[]>
 }) {
   const [open, setOpen] = useState(false)
   const [wantsDisclosure, setWantsDisclosure] = useState(false)
@@ -203,6 +204,7 @@ function SecondVisit({ property, onSubmit, onSent }: {
         isOpen={open}
         onClose={() => { setOpen(false); if (sent.current) onSent() }}
         onSubmit={async d => { await onSubmit(d, wantsDisclosure); sent.current = true }}
+        loadBusy={loadBusy}
         showContactFields
         contactStyle="full"
       />

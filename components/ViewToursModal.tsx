@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { X, Calendar, Phone, Mail, User, MapPin, AlertTriangle, Check } from 'lucide-react'
 import { PropertyTour } from '@/types'
 import { useEscapeToClose } from '@/components/ui/windowMotion'
+import { CalendarConnectNote, useMyCalendar } from '@/components/ui/WhenPicker'
 
 interface ViewToursModalProps {
   isOpen: boolean
@@ -31,6 +32,13 @@ export default function ViewToursModal({
   subtitle
 }: ViewToursModalProps) {
   const [updatingTourId, setUpdatingTourId] = useState<string | null>(null)
+  // Their picks that clash with the agent's calendar get a Busy tag - it's still the agent's call.
+  const calendar = useMyCalendar(isOpen)
+  const isBusy = (date: string, time: string) => {
+    const a = Date.parse(`${date}T${time.length === 5 ? `${time}:00` : time}`)
+    if (Number.isNaN(a)) return false
+    return calendar.busy.some(b => Date.parse(b.start) < a + 30 * 60000 && Date.parse(b.end) > a)
+  }
   // Tour whose "confirm this?" warning panel is expanded, and which of its offered slots is picked
   const [confirmingTourId, setConfirmingTourId] = useState<string | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<{ date: string; time: string } | null>(null)
@@ -234,6 +242,7 @@ export default function ViewToursModal({
                               <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 dark:bg-gray-800 rounded-md text-[10px] font-semibold text-[#111827] dark:text-gray-200 border border-gray-100 dark:border-gray-700">
                                 <span className="text-[#C9A24D]">{i + 1}.</span>
                                 {formatDate(date)} at {formatTime(time)}
+                                {isBusy(date, time) && <span data-testid="tour-busy" className="font-black text-amber-600 dark:text-amber-300">· Busy</span>}
                               </span>
                             ))}
                           </div>
@@ -266,7 +275,7 @@ export default function ViewToursModal({
                                         : 'bg-white dark:bg-[#151517] text-[#111827] dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:border-[#C9A24D]/50'
                                     }`}
                                   >
-                                    {formatDate(date)} at {formatTime(time)}
+                                    {formatDate(date)} at {formatTime(time)}{isBusy(date, time) ? ' · Busy' : ''}
                                   </button>
                                 ))}
                               </div>

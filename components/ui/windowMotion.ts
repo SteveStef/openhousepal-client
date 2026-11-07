@@ -76,7 +76,9 @@ export function useSheetMotion() {
   return {
     initial: { y: off },
     animate: { y: 0, transition: SHEET_SPRING },
-    exit: { y: off, transition: { duration: 0.26, ease: [0.32, 0, 0.67, 0] as const } },
+    // A spring picks up the speed of the finger: a swipe carries straight on off the screen instead of
+    // stopping dead and starting again (owner, 11/07). It aims past the edge so the tail isn't seen.
+    exit: { y: off * 1.25, transition: { type: 'spring' as const, stiffness: 300, damping: 34, mass: 0.9, restDelta: 40, restSpeed: 200 } },
   }
 }
 
@@ -97,8 +99,8 @@ export function useSwipeToClose(onClose: () => void, enabled: boolean): { sheetR
   closeRef.current = onClose
   useEffect(() => {
     if (!enabled || !sheet) return
-    let startX = 0, startY = 0, lastY = 0, lastT = 0, vel = 0
-    let decided = false, active = false
+    let startX = 0, startY = 0, lastY = 0, lastT = 0, vel = 0, moveY = 0
+    let decided = false, active = false, sideways = false
     const scrolledAbove = (target: EventTarget | null) => {
       for (let el = target as HTMLElement | null; el && el !== sheet.parentElement; el = el.parentElement) {
         if (el.scrollTop > 0 && el.scrollHeight > el.clientHeight + 1) return true
@@ -108,20 +110,26 @@ export function useSwipeToClose(onClose: () => void, enabled: boolean): { sheetR
     const blocked = (target: EventTarget | null) =>
       !!(target as HTMLElement | null)?.closest?.('[data-no-sheet-drag], .gm-style, input, textarea, select, [contenteditable="true"]')
     const onStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) { decided = true; active = false; return }
+      if (e.touches.length !== 1) { decided = true; active = false; sideways = true; return }
       const t = e.touches[0]
-      startX = t.clientX; startY = t.clientY; lastY = t.clientY; lastT = e.timeStamp; vel = 0
-      decided = false; active = false
+      startX = t.clientX; startY = t.clientY; lastY = t.clientY; moveY = t.clientY; lastT = e.timeStamp; vel = 0
+      decided = false; active = false; sideways = false
     }
     const onMove = (e: TouchEvent) => {
       const t = e.touches[0]
       if (!t) return
       const dx = t.clientX - startX, dy = t.clientY - startY
+      const goingDown = t.clientY > moveY
+      moveY = t.clientY
       if (!decided) {
         if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
         decided = true
-        active = dy > 0 && Math.abs(dy) > Math.abs(dx) * 1.2 && !blocked(e.target) && !scrolledAbove(e.target)
+        sideways = Math.abs(dy) <= Math.abs(dx) * 1.2 || blocked(e.target)
+        active = dy > 0 && !sideways && !scrolledAbove(e.target)
         if (active) startY = t.clientY // start from here so the sheet doesn't jump by the slop
+      } else if (!active && !sideways && goingDown && !scrolledAbove(e.target)) {
+        // Scrolled the list back to its top with the same finger: carry straight on into the pull.
+        active = true; startY = t.clientY; lastY = t.clientY; lastT = e.timeStamp; vel = 0
       }
       if (!active) return
       if (e.cancelable) e.preventDefault()

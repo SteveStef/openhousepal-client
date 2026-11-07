@@ -3,9 +3,13 @@
 // Client email tracking + the daily / weekly / off rules (backend client_email_service), shown in
 // three places: the Emails page (/leads/emails), each lead's card, and the Leads list.
 import { useCallback, useEffect, useState } from 'react'
-import Link from 'next/link'
+import { AnimatePresence, motion } from 'framer-motion'
 import { CalendarClock, Check, Loader2, Mail, MailCheck, MailOpen, MailX, MousePointerClick, Send } from 'lucide-react'
 import api from '@/lib/api-service'
+import { OhpSpinner } from '@/components/brand/OhpLoader'
+import OhSheet from '@/components/open-house-manager/OhSheet'
+import LuxeSelect from '@/components/ui/LuxeSelect'
+import Pager from '@/components/ui/Pager'
 import { useToast } from '@/contexts/ToastContext'
 import { timeAgo } from '@/lib/leadActivity'
 import type { ClientEmailRow, EmailMode, EmailPerson } from '@/types'
@@ -13,6 +17,7 @@ import type { ClientEmailRow, EmailMode, EmailPerson } from '@/types'
 export const MODE_META: Record<EmailMode, { label: string; short: string; icon: typeof Mail; pill: string }> = {
   daily: { label: 'Emails on', short: 'On', icon: MailCheck, pill: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300' },
   weekly: { label: 'Weekly only', short: 'Weekly', icon: CalendarClock, pill: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300' },
+  biweekly: { label: 'Every 2 weeks', short: '2 weeks', icon: CalendarClock, pill: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300' },
   off: { label: 'Emails off', short: 'Off', icon: MailX, pill: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300' },
 }
 
@@ -56,7 +61,7 @@ export function PersonSwitch({ p, onChanged, size = 'sm' }: { p: EmailPerson; on
     return <span className="text-[11px] font-semibold text-gray-400">{p.code === 'bounced' ? 'Fix their email address to send again'
       : p.code === 'spam' ? 'They marked you as spam - emails stay off' : 'Only they can turn emails back on'}</span>
   }
-  const turnOn = p.mode !== 'daily'
+  const turnOn = p.mode === 'off' || (p.mode !== 'daily' && p.code !== 'chosen')
   const go = async () => {
     setBusy(true)
     const r = await api.clientEmails.setPerson(p.email, turnOn)
@@ -123,6 +128,7 @@ export function EmailRowLine({ e, showTo = false }: { e: ClientEmailRow; showTo?
 export function LeadEmailCard({ email, initial }: { email?: string | null; initial?: EmailPerson | null }) {
   const [person, setPerson] = useState<EmailPerson | null>(initial || null)
   const [rows, setRows] = useState<ClientEmailRow[] | null>(null)
+  const [allOpen, setAllOpen] = useState(false)
   const load = useCallback(async () => {
     if (!email) return
     const r = await api.clientEmails.log({ email, limit: 4 })
@@ -138,8 +144,9 @@ export function LeadEmailCard({ email, initial }: { email?: string | null; initi
         <h3 className="inline-flex items-center gap-2 text-sm font-black text-[#111827] dark:text-white"><Mail className="h-4 w-4 text-[#C9A24D]" /> Emails</h3>
         <ModePill mode={p.mode} code={p.code} />
       </div>
+      <EmailFrequencySelect person={p} onChanged={setPerson} className="mt-2.5" />
       {p.mode !== 'daily' && p.reason && (
-        <p className={`mt-2 rounded-xl px-3 py-2 text-xs font-semibold leading-relaxed ${p.mode === 'weekly' ? 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200' : 'bg-rose-50 text-rose-800 dark:bg-rose-500/10 dark:text-rose-200'}`}>
+        <p className={`mt-2 rounded-xl px-3 py-2 text-xs font-semibold leading-relaxed ${p.mode !== 'off' ? 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200' : 'bg-rose-50 text-rose-800 dark:bg-rose-500/10 dark:text-rose-200'}`}>
           <b>Why:</b> {p.reason}
         </p>
       )}
@@ -152,9 +159,102 @@ export function LeadEmailCard({ email, initial }: { email?: string | null; initi
           {rows.map(e => <EmailRowLine key={e.id} e={e} />)}
         </div>
       )}
-      <Link href={`/leads/emails?email=${encodeURIComponent(email)}`} className="mt-3 inline-flex text-[11px] font-black text-[#8b7355] hover:underline dark:text-[#e8c97a]">
+      <button type="button" onClick={() => setAllOpen(true)} data-testid="lead-all-emails" className="mt-3 inline-flex text-[11px] font-black text-[#8b7355] hover:underline dark:text-[#e8c97a]">
         All emails →
-      </Link>
+      </button>
+      <PersonEmailsSheet email={allOpen ? email : null} onClose={() => setAllOpen(false)} />
     </section>
+  )
+}
+
+const FREQUENCY_OPTIONS = [
+  { value: 'daily', label: 'Daily', hint: 'Slows down by itself if they stop opening' },
+  { value: 'weekly', label: 'Weekly', hint: 'Stays weekly, opened or not' },
+  { value: 'biweekly', label: 'Every 2 weeks', hint: 'Stays every 2 weeks, opened or not' },
+] as const
+type Frequency = (typeof FREQUENCY_OPTIONS)[number]['value']
+
+/** How often this person gets automatic emails (owner, 11/07). Pass `person` when it's already loaded,
+ *  or `email` to read it. Daily runs the normal rules from today; weekly and every 2 weeks stay put. */
+export function EmailFrequencySelect({ person, email, onChanged, className = '', compact = false }: {
+  person?: EmailPerson; email?: string | null; onChanged?: (next: EmailPerson) => void; className?: string; compact?: boolean
+}) {
+  const { showToast } = useToast()
+  const [loaded, setLoaded] = useState<EmailPerson | null>(null)
+  const [saving, setSaving] = useState(false)
+  useEffect(() => {
+    if (person || !email) return
+    let live = true
+    api.clientEmails.status(email).then(r => { if (live && r.success && r.data) setLoaded({ ...r.data, email }) })
+    return () => { live = false }
+  }, [person, email])
+  const p = person || loaded
+  if (!p || p.code === 'unsubscribed' || p.code === 'bounced' || p.code === 'spam' || p.code === 'lead_deleted') return null
+  const value = p.frequency || (p.mode === 'off' ? 'off' : p.mode)
+  const go = async (v: string) => {
+    if (v === value || v === 'off') return
+    setSaving(true)
+    const r = await api.clientEmails.setFrequency(p.email, v as Frequency)
+    setSaving(false)
+    if (r.success && r.data) {
+      const next = { ...p, ...r.data }
+      setLoaded(next); onChanged?.(next)
+      showToast(`Emails set to ${FREQUENCY_OPTIONS.find(o => o.value === v)?.label.toLowerCase()}`, 'success')
+    } else showToast(r.error || "Couldn't change that - try again", 'error')
+  }
+  return (
+    <div className={`flex items-center gap-2 ${className}`} data-testid="email-frequency">
+      {!compact && <span className="text-[11px] font-black text-gray-500 dark:text-gray-400">How often</span>}
+      <LuxeSelect<string>
+        className={compact ? 'w-[132px]' : 'w-[150px]'}
+        ariaLabel="How often they get automatic emails"
+        value={value}
+        onChange={go}
+        align="left"
+        menuWidth={260}
+        options={[...FREQUENCY_OPTIONS.map(o => ({ value: o.value as string, label: o.label, hint: o.hint })), ...(value === 'off' ? [{ value: 'off', label: 'Off', hint: 'No automatic emails right now' }] : [])]}
+      />
+    </div>
+  )
+}
+
+const LOG_PAGE = 20
+
+/** One person's emails, opened over the page you're on (owner, 11/07: no separate log page). */
+export function PersonEmailsSheet({ email, name, onClose }: { email: string | null; name?: string | null; onClose: () => void }) {
+  const [shownFor, setShownFor] = useState<string | null>(null)
+  const [rows, setRows] = useState<ClientEmailRow[] | null>(null)
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  useEffect(() => { if (email) { setShownFor(email); setPage(1) } }, [email])
+  useEffect(() => {
+    if (!email) return
+    let live = true
+    setRows(null)
+    api.clientEmails.log({ email, limit: LOG_PAGE, offset: (page - 1) * LOG_PAGE }).then(r => {
+      if (!live) return
+      if (r.success && r.data) { setRows(r.data.emails); setTotal(r.data.total) } else setRows([])
+    })
+    return () => { live = false }
+  }, [email, page])
+  const pages = Math.max(1, Math.ceil(total / LOG_PAGE))
+  return (
+    <OhSheet open={!!email} onClose={onClose} width="max-w-xl" title="Their emails" subtitle={name || shownFor || undefined} icon={<Mail className="h-5 w-5" />}>
+      <div data-testid="person-emails">
+        {rows === null ? (
+          <div className="flex min-h-[200px] items-center justify-center"><OhpSpinner size={28} label="Loading emails" /></div>
+        ) : rows.length === 0 ? (
+          <p className="py-12 text-center text-sm font-semibold text-gray-500 dark:text-gray-400">No emails sent to them yet.</p>
+        ) : (
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={page} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6, transition: { duration: 0.1 } }}
+              transition={{ type: 'spring', stiffness: 420, damping: 34 }} className="space-y-3">
+              {rows.map(e => <EmailRowLine key={e.id} e={e} />)}
+            </motion.div>
+          </AnimatePresence>
+        )}
+        {pages > 1 && <Pager page={page} pages={pages} onChange={setPage} prevLabel="Newer" nextLabel="Older" className="mt-4" />}
+      </div>
+    </OhSheet>
   )
 }

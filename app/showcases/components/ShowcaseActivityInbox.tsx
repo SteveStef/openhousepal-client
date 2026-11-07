@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, Heart, ThumbsDown, MessageSquare, Calendar, SlidersHorizontal, Eye, Inbox, Search } from 'lucide-react'
+import { X, Heart, ThumbsDown, MessageSquare, Calendar, SlidersHorizontal, Eye, Inbox, Search, Mail, MousePointerClick, Ticket } from 'lucide-react'
 import type { ShowcaseActivityItem } from '@/types'
 import { useEscapeToClose } from '@/components/ui/windowMotion'
 import MotionModal from '@/components/ui/MotionModal'
@@ -14,7 +14,12 @@ interface ShowcaseActivityInboxProps {
 }
 
 // One look per kind of thing a client did in their Showcase.
-const kindOf = (item: ShowcaseActivityItem) => {
+export const activityKind = (item: ShowcaseActivityItem) => {
+  if (item.type === 'GUEST_PASS_ACTIVITY') return { icon: Ticket, tone: 'bg-[#C9A24D]', label: 'Guest Pass' }
+  if (item.type === 'SHOWCASE_OPENED') return { icon: Eye, tone: 'bg-sky-500', label: 'Opened their Showcase' }
+  if (item.type === 'SHOWCASE_VIEW') return { icon: Eye, tone: 'bg-gray-400', label: 'Looked at a home' }
+  if (item.type === 'SHOWCASE_EMAIL') return item.message?.startsWith('Clicked')
+    ? { icon: MousePointerClick, tone: 'bg-sky-500', label: 'Clicked a Showcase email' } : { icon: Mail, tone: 'bg-emerald-500', label: 'Opened a Showcase email' }
   if (item.type === 'PROPERTY_COMMENT') return { icon: MessageSquare, tone: 'bg-blue-500', label: 'Comment' }
   if (item.type === 'TOUR_REQUEST') return { icon: Calendar, tone: 'bg-red-500', label: 'Tour request' }
   if (item.type === 'REFINE_SEARCH_REQUEST') return { icon: MessageSquare, tone: 'bg-[#C9A24D]', label: 'Message' }
@@ -24,7 +29,7 @@ const kindOf = (item: ShowcaseActivityItem) => {
   return { icon: Eye, tone: 'bg-gray-400', label: 'Activity' }
 }
 
-const ago = (iso: string) => {
+export const activityAgo = (iso: string) => {
   const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000))
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins}m ago`
@@ -34,7 +39,7 @@ const ago = (iso: string) => {
   return days === 1 ? 'yesterday' : `${days}d ago`
 }
 
-const street = (address?: string | null) => {
+export const activityStreet = (address?: string | null) => {
   const s = (address || '').split(',')[0].trim()
   return s === s.toUpperCase() ? s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : s
 }
@@ -56,8 +61,8 @@ export default function ShowcaseActivityInbox({ isOpen, onClose, items, onOpenIt
               <Inbox className="text-white dark:text-[#111827]" size={16} />
             </div>
             <div>
-              <h2 className="text-base font-black text-[#111827] dark:text-white tracking-tight">Showcase Activity</h2>
-              <p className="text-[#6B7280] dark:text-gray-400 font-medium text-[11px]">What your clients did in their Showcases - last 30 days</p>
+              <h2 className="text-base font-black text-[#111827] dark:text-white tracking-tight">Client Activity</h2>
+              <p className="text-[#6B7280] dark:text-gray-400 font-medium text-[11px]">What your clients did in their Showcases and Guest Passes - last 30 days</p>
             </div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-[#111827] dark:hover:text-white transition-all p-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-full">
@@ -83,12 +88,12 @@ export default function ShowcaseActivityInbox({ isOpen, onClose, items, onOpenIt
                 <Inbox className="h-6 w-6 text-gray-300 dark:text-gray-600" />
               </div>
               <h3 className="text-sm font-bold text-[#111827] dark:text-white mb-1">Nothing yet</h3>
-              <p className="text-xs text-[#6B7280] dark:text-gray-400">Likes, comments, tour requests and search changes show up here.</p>
+              <p className="text-xs text-[#6B7280] dark:text-gray-400">Visits, homes they open, likes, comments, tour requests, Showcase emails and Guest Pass activity show up here.</p>
             </div>
           ) : (
             <div className="space-y-1.5">
               {shown.map((item) => {
-                const k = kindOf(item)
+                const k = activityKind(item)
                 const Icon = k.icon
                 return (
                   <button
@@ -114,11 +119,11 @@ export default function ShowcaseActivityInbox({ isOpen, onClose, items, onOpenIt
                         {item.showcase_name || 'Client'} <span className="font-medium text-gray-500 dark:text-gray-400">· {k.label}</span>
                       </p>
                       <p className="text-[11px] text-[#6B7280] dark:text-gray-400 truncate">
-                        {item.property_address ? street(item.property_address) : item.message}
+                        {item.type !== 'GUEST_PASS_ACTIVITY' && item.property_address ? activityStreet(item.property_address) : item.message}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <span className="text-[10px] font-medium text-gray-400 whitespace-nowrap">{ago(item.created_at)}</span>
+                      <span className="text-[10px] font-medium text-gray-400 whitespace-nowrap">{activityAgo(item.created_at)}</span>
                       {!item.is_read && <span className="w-2 h-2 rounded-full bg-[#C9A24D]" aria-label="New" />}
                     </div>
                   </button>

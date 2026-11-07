@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Check, ChevronLeft, ChevronRight, Clapperboard, Loader2, Moon, MousePointer2, Sofa, Video } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Clapperboard, Loader2, Moon, Sofa, Video } from 'lucide-react'
 import BrowserFrame from '@/components/home/BrowserFrame'
 import TitleSlide from './TitleSlide'
+import DemoCursor, { useCursorCues, type CursorCue } from './DemoCursor'
 import { PLACEHOLDER_PROPERTY } from '@/lib/studio/designFormats'
 import { DEMO_PLACEHOLDER_PHOTOS } from './realData'
 
@@ -119,13 +120,18 @@ function CompareSlider({ before, after, label }: { before: string; after: string
   )
 }
 
-function ClickCursor() {
-  return (
-    <span className="pointer-events-none absolute -bottom-1.5 -right-1.5 z-10">
-      <span className="absolute inset-0 rounded-full bg-[#C9A24D]/40 animate-ping" />
-      <MousePointer2 className="relative h-3.5 w-3.5 text-[#111827] drop-shadow dark:text-white" fill="currentColor" />
-    </span>
-  )
+// The pointer's script: each selection screen, it glides over, then clicks 900ms before the next
+// screen - the choice lights up on that click, so choices read as clicks.
+const CLICK_AHEAD_MS = 900
+function cursorCues(phase: Phase): CursorCue[] {
+  const pick = (target: string): CursorCue[] => [{ at: 0, click: false }, { at: 400, target }, { at: DURATIONS[phase] - CLICK_AHEAD_MS, click: true }]
+  switch (phase) {
+    case 'tw-select': return pick('[data-cursor="photo"]')
+    case 'tw-effect': case 'vs-effect': return pick('[data-cursor="effect"]')
+    case 'vid-photos': return pick('[data-cursor="make-video"]')
+    case 'tw-generating': case 'vs-generating': case 'vid': return [{ at: 0, target: null, click: false }]
+    default: return []
+  }
 }
 
 function Generating({ src, label }: { src: string; label: string }) {
@@ -151,10 +157,9 @@ function EffectList({ selected, clicking }: { selected: string; clicking: boolea
       {EFFECTS.map(e => {
         const on = e.id === selected
         return (
-          <div key={e.id} className={`relative rounded-lg border-2 p-1.5 transition-all duration-150 ${on ? `border-[#C9A24D] bg-[#C9A24D]/10 ${clicking ? 'scale-95' : ''}` : 'border-gray-200 dark:border-gray-700'}`}>
+          <div key={e.id} data-cursor={on ? 'effect' : undefined} className={`relative rounded-lg border-2 p-1.5 transition-all duration-150 ${on && clicking ? 'scale-95 border-[#C9A24D] bg-[#C9A24D]/10' : 'border-gray-200 dark:border-gray-700'}`}>
             <p className="text-[9px] font-black leading-tight text-[#111827] dark:text-white">{e.label}</p>
             <p className="mt-0.5 text-[7px] font-semibold leading-snug text-gray-400 line-clamp-2">{e.blurb}</p>
-            {on && clicking && <ClickCursor />}
           </div>
         )
       })}
@@ -169,14 +174,9 @@ export default function AiMediaDemo() {
   const chapter = CHAPTER[phase]
   const videoRef = useRef<HTMLVideoElement>(null)
 
-  // A short "press" right after each selection screen appears, so choices read as clicks.
-  const [clicking, setClicking] = useState(false)
-  useEffect(() => {
-    setClicking(false)
-    if (showTitle) return
-    const t = setTimeout(() => setClicking(true), Math.max(600, DURATIONS[phase] - 900))
-    return () => clearTimeout(t)
-  }, [i, phase, showTitle])
+  const stage = useRef<HTMLDivElement>(null)
+  const cursor = useCursorCues(showTitle ? 'title' : i, showTitle ? [] : cursorCues(phase))
+  const clicking = cursor.click
 
   useEffect(() => {
     if (!showTitle) return
@@ -223,7 +223,7 @@ export default function AiMediaDemo() {
       url="app.openhousepal.com/studio/media"
       progress={{ pages: TOTAL_SLIDES, current: chapter, durationMs: CHAPTER_MS[chapter - 1] }}
     >
-      <div className="flex h-[420px] items-center justify-center bg-black/45 p-3">
+      <div ref={stage} className="relative flex h-[420px] items-center justify-center bg-black/45 p-3">
         <style>{`@keyframes ohpDemoShimmer{0%{background-position:-40% 0}100%{background-position:140% 0}}`}</style>
         <div className="flex max-h-full w-full max-w-[370px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-[#151517]">
           {isIntro ? (
@@ -249,13 +249,10 @@ export default function AiMediaDemo() {
                     <p className="mb-2.5 text-[9.5px] font-semibold leading-snug text-gray-500 dark:text-gray-400">Pulled straight from this listing&apos;s photos - no separate upload needed.</p>
                     <div className="grid grid-cols-3 gap-1.5">
                       {property.photos!.slice(0, 6).map((src, idx) => (
-                        <div key={src + idx} className={`relative aspect-[4/3] overflow-hidden rounded-lg border-2 transition-all duration-150 ${idx === 0 ? `border-[#C9A24D] ${clicking ? 'scale-95' : ''}` : 'border-transparent opacity-60'}`}>
+                        <div key={src + idx} data-cursor={idx === 0 ? 'photo' : undefined} className={`relative aspect-[4/3] overflow-hidden rounded-lg border-2 transition-all duration-150 ${idx === 0 ? (clicking ? 'scale-95 border-[#C9A24D]' : 'border-transparent') : 'border-transparent opacity-60'}`}>
                           <Image src={idx === 0 ? TWILIGHT.before : src} alt="" fill sizes="110px" className="object-cover" unoptimized />
                           {idx === 0 && clicking && (
-                            <>
-                              <div className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#C9A24D] text-[#111827]"><Check className="h-2.5 w-2.5" /></div>
-                              <ClickCursor />
-                            </>
+                            <div className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#C9A24D] text-[#111827]"><Check className="h-2.5 w-2.5" /></div>
                           )}
                         </div>
                       ))}
@@ -326,9 +323,8 @@ export default function AiMediaDemo() {
                       ))}
                     </div>
                     <div className="mt-3 flex justify-end">
-                      <span className={`relative inline-flex items-center gap-1 rounded-lg bg-[#111827] px-3 py-1.5 text-[10px] font-black text-white transition-transform duration-150 dark:bg-white dark:text-[#111827] ${clicking ? 'scale-95' : ''}`}>
+                      <span data-cursor="make-video" className={`relative inline-flex items-center gap-1 rounded-lg bg-[#111827] px-3 py-1.5 text-[10px] font-black text-white transition-transform duration-150 dark:bg-white dark:text-[#111827] ${clicking ? 'scale-95' : ''}`}>
                         <Video className="h-3 w-3" /> Make Video
-                        {clicking && <ClickCursor />}
                       </span>
                     </div>
                   </div>
@@ -356,6 +352,7 @@ export default function AiMediaDemo() {
             </>
           )}
         </div>
+        <DemoCursor container={stage} target={cursor.target} click={cursor.click} />
       </div>
     </BrowserFrame>
   )

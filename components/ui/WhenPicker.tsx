@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CalendarDays, CalendarPlus, Check, ChevronLeft, ChevronRight, Clock, Moon, Sparkles, Sun, Sunrise, X } from 'lucide-react'
 import { backdropMotion, useIsPhone, useSheetMotion, useSwipeToClose } from './windowMotion'
+import api from '@/lib/api-service'
 
 // One date & time picker for everything that isn't the open-house flows (user, 10/22 - "make it
 // like we really have it"): the same pieces as the showing window and the host flows, step-locked
@@ -614,6 +615,10 @@ export type WhenSheetProps = Omit<WhenPickerProps, 'value' | 'onChange'> & {
   /** ...and what this is for ("26 Old Gulph Rd", "Follow up with Robin"), with a small gold line under it. */
   context?: string | null
   contextSub?: string | null
+  /** The agent is picking a time for themselves: cross out their busy times, and say so if no calendar is connected. */
+  agentCalendar?: boolean
+  /** A day-only pick that keeps this time (HH:MM): days busy then are crossed out. */
+  keepTime?: string | null
 }
 
 /** The picker in the house window (the same look as the showing / host flows): a lit photo or
@@ -639,7 +644,39 @@ const STEP_NAMES: Record<WhenMode, string[]> = {
   range: ['Pick a day', 'Pick the hours'],
 }
 
-function SheetWindow({ onClose, value, onDone, title, kicker = 'Pick a time', intro, doneLabel = 'Done', photo, context, contextSub, ...picker }: WhenSheetProps) {
+/** The agent's own busy times, and whether a calendar is connected (null until it's known). */
+export function useMyCalendar(on: boolean) {
+  const [state, setState] = useState<{ connected: boolean | null; busy: { start: string; end: string }[] }>({ connected: null, busy: [] })
+  useEffect(() => {
+    if (!on) return
+    let live = true
+    api.integrations.myBusy().then(r => { if (live && r.success && r.data) setState(r.data) })
+    return () => { live = false }
+  }, [on])
+  return state
+}
+
+/** Shown when an agent picks a time with no calendar connected. Opens that setting in a new tab. */
+export function CalendarConnectNote({ className = '' }: { className?: string }) {
+  return (
+    <p data-testid="calendar-connect-note" className={`flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-[11.5px] font-semibold leading-snug text-amber-800 dark:bg-amber-500/10 dark:text-amber-200 ${className}`}>
+      <CalendarPlus className="mt-px h-3.5 w-3.5 shrink-0" />
+      <span>Your calendar isn&apos;t connected, so busy times can&apos;t be crossed out. <a href="/studio/calendar" target="_blank" rel="noopener noreferrer" className="font-black underline">Connect your calendar</a></span>
+    </p>
+  )
+}
+
+function SheetWindow({ onClose, value, onDone, title, kicker = 'Pick a time', intro, doneLabel = 'Done', photo, context, contextSub, agentCalendar = false, keepTime = null, ...picker }: WhenSheetProps) {
+  const myCalendar = useMyCalendar(agentCalendar)
+  const busy = picker.busy ?? myCalendar.busy
+  const clashes = (day: string) => {
+    if (!keepTime) return false
+    const d = parseYmd(day); d.setHours(0, toMin(keepTime), 0, 0)
+    const a = d.getTime(), b = a + (picker.slotMinutes ?? 30) * 60000
+    return busy.some(x => Date.parse(x.start) < b && Date.parse(x.end) > a)
+  }
+  const dayOff = keepTime ? (day: string) => picker.dayOff?.(day) || (clashes(day) ? 'Busy at that time' : null) : picker.dayOff
+  const offNote = picker.offNote ?? (busy.length && agentCalendar ? 'Crossed-out times are busy on your calendar' : undefined)
   const [draft, setDraft] = useState<WhenValue>(() => ({ ...emptyWhen, ...(value || {}) }))
   const sheetMotion = useSheetMotion()
   const isPhone = useIsPhone()
@@ -741,7 +778,8 @@ function SheetWindow({ onClose, value, onDone, title, kicker = 'Pick a time', in
             <button type="button" onClick={onClose} aria-label="Close" className="hidden h-9 w-9 shrink-0 place-items-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-white/10 dark:hover:text-white sm:grid"><X className="h-5 w-5" /></button>
           </div>
           <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 pb-4 pt-3 [scrollbar-width:none] sm:px-8">
-            <WhenPicker {...picker} showSummary={isPhone && picker.showSummary !== false} value={draft} onChange={setDraft} />
+            {agentCalendar && myCalendar.connected === false && <CalendarConnectNote className="mb-3" />}
+            <WhenPicker {...picker} busy={busy} dayOff={dayOff} offNote={offNote} showSummary={isPhone && picker.showSummary !== false} value={draft} onChange={setDraft} />
           </div>
           <div className="flex items-center gap-2 border-t border-gray-100 px-5 py-4 dark:border-white/[0.07] sm:px-8" style={{ paddingBottom: 'max(1rem, var(--ohp-sab,env(safe-area-inset-bottom)))' }}>
             <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={onClose}

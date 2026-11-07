@@ -28,6 +28,7 @@ import Link from 'next/link'
 import { Eye } from 'lucide-react'
 import { SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
 import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
+import ClientEmailFrequency from '@/components/showcases/ClientEmailFrequency'
 
 export default function CustomerShowcasePage() {
   return (
@@ -197,6 +198,7 @@ function ShowcaseContent() {
         if (data.matchedProperties) {
           setMatchedProperties(data.matchedProperties)
         }
+        api.public.showcaseOpened(shareToken)
       } else {
         setError(apiError || 'Failed to load showcase')
       }
@@ -1205,7 +1207,8 @@ function ShowcaseContent() {
                   <LiveIndicator checkedAt={checkedAt} compact className="h-9 !px-2 sm:hidden" />
                   <LiveIndicator checkedAt={checkedAt} className="hidden h-9 !rounded-xl !py-0 !pl-2.5 !pr-3 sm:inline-flex" />
                   <div className="flex h-9 items-center gap-1.5 rounded-xl border border-[#C9A24D]/25 bg-[#C9A24D]/10 px-1.5 text-xs shadow-sm dark:border-gray-800/50 dark:bg-white/5 sm:gap-2 sm:px-3">
-                    <span className={`font-black uppercase tracking-wide text-[9px] sm:text-[10px] whitespace-nowrap ${showcase.customer?.is_blacklisted ? 'text-[#9CA3AF] dark:text-gray-500' : 'text-[#8b7355] dark:text-[#e8cf8a]'}`}>Emails</span>
+                    <ClientEmailFrequency shareToken={shareToken} on={!!showcase.notifyVisitor && !showcase.customer?.is_blacklisted}
+                      fallback={<span className={`font-black uppercase tracking-wide text-[9px] sm:text-[10px] whitespace-nowrap ${showcase.customer?.is_blacklisted ? 'text-[#9CA3AF] dark:text-gray-500' : 'text-[#8b7355] dark:text-[#e8cf8a]'}`}>Emails</span>} />
                     <button
                       onClick={() => {
                         if (!showcase.customer?.is_blacklisted) {

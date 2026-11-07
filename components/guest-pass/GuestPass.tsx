@@ -21,7 +21,7 @@ import PropertyDetailView from '@/components/PropertyDetailView'
 import SimilarHomesView, { listingKeyOf, useScoredSimilar } from './SimilarHomesView'
 import CheatSheetView from './CheatSheetView'
 import GuestPassIntro from './GuestPassIntro'
-import { usePassTracking } from './usePassTracking'
+import { trackPass, useHomeTime, usePassTracking } from './usePassTracking'
 import {
   ComplianceFooter, GuestPassData, RequestKind, RequestState, cityLine, formatPhone, img, initials, money, possessive, streetOf,
 } from './shared'
@@ -79,7 +79,8 @@ export default function GuestPass({ token, openHouseEventId }: { token: string; 
   const [quick, setQuick] = useState(false)
   const loaded = !!data
   // Visits / time spent / map use for the agent's activity log (group 02, 10/24).
-  usePassTracking(token, loaded)
+  usePassTracking(token, loaded, { agentId: data?.agent.id, hub: data?.agent.hub_url, website: data?.agent.website_url, spotlight: data?.spotlight_url })
+  useHomeTime(token, openKey, loaded)
   const introChecked = useRef(false)
   useEffect(() => {
     if (introChecked.current) return
@@ -130,7 +131,7 @@ export default function GuestPass({ token, openHouseEventId }: { token: string; 
     const k = `${v}:${openKey || ''}`
     if (seen.current.has(k)) return
     seen.current.add(k)
-    api.public.guestPassSeen(token, v, openKey).catch(() => {})
+    trackPass(token, v, openKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, view, openKey, token])
 
@@ -182,7 +183,7 @@ export default function GuestPass({ token, openHouseEventId }: { token: string; 
   const openShowcase = useCallback(async () => {
     if (!data?.showcase || buildingShowcase) return
     setShowcaseError(null)
-    api.public.guestPassSeen(token, 'showcase').catch(() => {})
+    trackPass(token, 'showcase')
     if (data.showcase.url) {
       window.open(data.showcase.url, '_blank', 'noopener')
       return
@@ -323,6 +324,7 @@ export default function GuestPass({ token, openHouseEventId }: { token: string; 
               agentId={agent.id}
               prefill={{ name: guest.full_name, contact: guest.email || guest.phone }}
               cameFrom={{ src: 'pass', oh: openHouseEventId }}
+              onAsked={(what) => trackPass(token, what === 'tour' ? 'home_tour' : 'home_question', openKey)}
               onBack={() => back('similar')}
               backLabel="Back to Similar Homes"
               hideFooter
@@ -584,7 +586,9 @@ const prefersReducedMotion = () =>
 
 // The open house's photos: flips on its own every few seconds until the guest takes over (an arrow
 // tap or a swipe), then stays wherever they leave it.
-function PhotoCarousel({ photos, alt, coverPosition, children }: {
+function PhotoCarousel({ photos, alt, coverPosition, onBrowsed, children }: {
+  /** They moved to another photo themselves (it also turns on its own). */
+  onBrowsed?: () => void
   photos: string[]; alt: string; coverPosition?: { x: number; y: number } | null; children?: React.ReactNode
 }) {
   const stripRef = useRef<HTMLDivElement>(null)
@@ -624,9 +628,9 @@ function PhotoCarousel({ photos, alt, coverPosition, children }: {
     const n = Math.round(el.scrollLeft / Math.max(1, el.clientWidth))
     idxRef.current = n
     setIdx(n)
-    if (!auto) browsing()
+    if (!auto) { browsing(); if (n > 0) onBrowsed?.() }
   }
-  const step = (d: number) => { setAuto(false); browsing(); scrollTo(idxRef.current + d) }
+  const step = (d: number) => { setAuto(false); browsing(); scrollTo(idxRef.current + d); onBrowsed?.() }
 
   return (
     <div className="relative">
@@ -681,6 +685,12 @@ function HomeView({ data, token, street, onSimilar, onOpenSimilar, onCheat, onRe
     home.sqft ? { icon: Ruler, v: Number(home.sqft).toLocaleString(), l: 'Sq Ft' } : null,
   ].filter(Boolean) as { icon: any; v: any; l: string }[]
   const small = [data.cheat_sheet ? 'cheat' : null, 'disclosure', 'second_visit'].filter(Boolean)
+  const browsed = useRef(false)
+  const noteBrowsed = useCallback(() => {
+    if (browsed.current) return
+    browsed.current = true
+    trackPass(token, 'photos')
+  }, [token])
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-4 pt-4 sm:pt-10">
@@ -722,7 +732,7 @@ function HomeView({ data, token, street, onSimilar, onOpenSimilar, onCheat, onRe
             </span>
           </a>
         )}
-        <PhotoCarousel photos={home.photos} alt={street} coverPosition={home.cover_position}>
+        <PhotoCarousel photos={home.photos} alt={street} coverPosition={home.cover_position} onBrowsed={noteBrowsed}>
           {money(home.price) && <p className="text-3xl font-black tracking-tight sm:text-4xl">{money(home.price)}</p>}
           <p className="mt-0.5 truncate text-sm font-bold text-white/85">{street}{cityLine(home.city, home.state) ? `, ${cityLine(home.city, home.state)}` : ''}</p>
         </PhotoCarousel>

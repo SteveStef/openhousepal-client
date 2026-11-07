@@ -1,13 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import NextImage from 'next/image'
 import { Bell, Check, Copy, ExternalLink, Globe, Link2, Lock, Mail, MessageSquare, QrCode, Send, Shield, Star } from 'lucide-react'
 import TypingAnimation from '@/components/TypingAnimation'
 import BrowserFrame from '@/components/home/BrowserFrame'
 import TitleSlide from './TitleSlide'
-import DemoPointer from './DemoPointer'
-import usePhoneLayout from './usePhoneLayout'
+import DemoCursor, { useCursorCues, type CursorCue } from './DemoCursor'
 import { DemoStep, DEMO_NOTE_CSS } from './DemoNote'
 import { AGENT } from './realData'
 
@@ -58,11 +57,31 @@ function Avatar({ size }: { size: number }) {
   )
 }
 
+// The pointer's script, aimed at the real controls. Each glide takes 850ms and starts from the last spot, so every click waits for it to land. On
+// the 5 stars it rests on the first, then sweeps to the last as they fill.
+const CUR = {
+  text: '[data-cursor="text"]', star1: '[data-cursor="stars"] span:nth-child(1)', star5: '[data-cursor="stars"] span:nth-child(5)',
+  postGoogle: '[data-cursor="post-google"]', box: '[data-cursor="google-box"]', post: '[data-cursor="google-post"]',
+  privateStar: '[data-cursor="private-stars"] span:nth-child(2)', privateSend: '[data-cursor="private-send"]',
+}
+function cursorCues(beat: Beat, typed: boolean): CursorCue[] {
+  switch (beat.k) {
+    case 'send': return [{ at: 500, target: CUR.text }, { at: 1500, click: true }, { at: 2000, click: false }]
+    case 'stars': return [{ at: 0, target: CUR.star1 }, { at: 1000, target: CUR.star5 }, { at: 2000, click: true }, { at: 2500, click: false }]
+    case 'write': return typed ? [{ at: 0, target: CUR.postGoogle }, { at: 1050, click: true }, { at: 1550, click: false }] : [{ at: 0, target: null }]
+    case 'google': return [{ at: 0, target: CUR.box }, { at: 1000, click: true }, { at: 1500, click: false }, { at: 1900, target: CUR.post }, { at: 2850, click: true }, { at: 3300, click: false }]
+    case 'posted': return [{ at: 0, target: null, click: false }]
+    case 'private': return [{ at: 0, target: CUR.privateStar }, { at: 1000, click: true }, { at: 1500, click: false }, { at: 3300, target: CUR.privateSend }, { at: 4250, click: true }, { at: 4750, click: false }]
+    case 'live': return [{ at: 0, target: null, click: false }]
+    default: return []
+  }
+}
+
 function Stars({ filled, size = 20, gap = 4 }: { filled: number; size?: number; gap?: number }) {
   return (
     <div className="flex items-center" style={{ gap }}>
       {[0, 1, 2, 3, 4].map(k => (
-        <Star key={k} className={`transition-all duration-200 ${k < filled ? 'scale-110 text-[#C9A24D]' : 'text-gray-300 dark:text-gray-600'}`} fill={k < filled ? '#C9A24D' : 'none'} style={{ width: size, height: size }} strokeWidth={2} />
+        <span key={k} className="block"><Star className={`transition-all duration-200 ${k < filled ? 'scale-110 text-[#C9A24D]' : 'text-gray-300 dark:text-gray-600'}`} fill={k < filled ? '#C9A24D' : 'none'} style={{ width: size, height: size }} strokeWidth={2} /></span>
       ))}
     </div>
   )
@@ -74,9 +93,9 @@ export default function ReviewsDemo() {
   const [i, setI] = useState(0)
   const [tick, setTick] = useState(0)
   const [typed, setTyped] = useState(false)
-  // Phones stack the side-by-side screens, so the pointer aims at the stacked spots there.
-  const phone = usePhoneLayout()
   const beat = BEATS[i]
+  const stage = useRef<HTMLDivElement>(null)
+  const cursor = useCursorCues(`${i}-${typed}`, cursorCues(beat, typed))
   const advance = () => setI(n => (n + 1) % BEATS.length)
 
   useEffect(() => {
@@ -90,7 +109,6 @@ export default function ReviewsDemo() {
 
   // 'write': once typing finishes, the pointer goes to "Post on Google", clicks, then moves on.
   const [typedAt, setTypedAt] = useState(0)
-  useEffect(() => { if (typed) setTypedAt(tick) }, [typed]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (beat.k !== 'write' || !typed) return
     const t = setTimeout(advance, 2600)
@@ -106,11 +124,12 @@ export default function ReviewsDemo() {
     : beat.k === 'live' ? 'openhousepal.com/peter-stefanatos'
     : 'openhousepal.com/peter-stefanatos/review'
   const progress = { pages: TOTAL_PAGES, current: i, durationMs: beatDuration(beat) ?? 7000 }
+  const copied = typed && tick - typedAt >= 6 // just after the pointer's click lands on Post on Google
 
   return (
     <BrowserFrame url={url} progress={progress}>
       <style>{DEMO_NOTE_CSS}</style>
-      <div className="relative h-[420px] overflow-hidden pt-[52px] bg-[radial-gradient(90%_80%_at_80%_0%,rgba(201,162,77,.14),transparent_60%),#faf8f3] dark:bg-[radial-gradient(90%_80%_at_80%_0%,rgba(201,162,77,.12),transparent_60%),#0B0B0B]">
+      <div ref={stage} className="relative h-[420px] overflow-hidden pt-[52px] bg-[radial-gradient(90%_80%_at_80%_0%,rgba(201,162,77,.14),transparent_60%),#faf8f3] dark:bg-[radial-gradient(90%_80%_at_80%_0%,rgba(201,162,77,.12),transparent_60%),#0B0B0B]">
 
         {(() => { const c = captionFor(beat.k); return <DemoStep id={String(c)} step={c + 1} count={CAPTIONS.length} title={CAPTIONS[c].title} body={CAPTIONS[c].body} icon={CAPTIONS[c].icon} /> })()}
         {/* 1 · the agent sends their review link */}
@@ -125,7 +144,7 @@ export default function ReviewsDemo() {
               </div>
               <div className="mt-3 grid grid-cols-4 gap-1.5">
                 {[{ I: MessageSquare, l: 'Text' }, { I: Mail, l: 'Email' }, { I: Copy, l: 'Copy link' }, { I: QrCode, l: 'QR code' }].map((b, k) => (
-                  <span key={b.l} className={`flex flex-col items-center gap-1 rounded-xl border py-2 text-[9px] font-black transition-all duration-300 ${k === 0 && tick >= 7 ? 'border-[#C9A24D] bg-[#C9A24D] text-[#111827]' : 'border-gray-200 text-[#111827] dark:border-gray-700 dark:text-white'}`}><b.I className="h-4 w-4" />{b.l}</span>
+                  <span key={b.l} data-cursor={k === 0 ? 'text' : undefined} className={`flex flex-col items-center gap-1 rounded-xl border py-2 text-[9px] font-black transition-all duration-300 ${k === 0 && tick >= 7 ? 'border-[#C9A24D] bg-[#C9A24D] text-[#111827]' : 'border-gray-200 text-[#111827] dark:border-gray-700 dark:text-white'}`}><b.I className="h-4 w-4" />{b.l}</span>
                 ))}
               </div>
               <p className="mt-2.5 flex items-center gap-1 truncate text-[9px] font-semibold text-gray-400 max-sm:hidden"><Link2 className="h-3 w-3" /> openhousepal.com/peter-stefanatos/review</p>
@@ -137,7 +156,6 @@ export default function ReviewsDemo() {
                 <p className="mt-1 text-right text-[7px] font-semibold text-gray-400">Delivered</p>
               </div>
             </div>
-            <DemoPointer x={tick < 3 ? 70 : phone ? 17 : 15} y={tick < 3 ? 80 : phone ? 50 : 60} click={tick === 6 || tick === 7} />
           </div>
         )}
 
@@ -147,9 +165,8 @@ export default function ReviewsDemo() {
             <Avatar size={64} />
             <p className="mt-3 font-serif text-[20px] font-black text-[#0B0B0B] dark:text-white">How was working with {FIRST}?</p>
             <p className="mt-1 text-[11px] font-semibold text-gray-400">Tap a star to leave a quick review.</p>
-            <div className="mt-4"><Stars filled={Math.max(0, Math.min(5, tick - 3))} size={34} gap={8} /></div>
+            <div className="mt-4" data-cursor="stars"><Stars filled={Math.max(0, Math.min(5, tick - 3))} size={34} gap={8} /></div>
             <p className={`mt-3 text-[11px] font-black text-[#8b6a2b] transition-opacity duration-300 dark:text-[#e8c97a] ${tick >= 9 ? 'opacity-100' : 'opacity-0'}`}>Thank you! One more step…</p>
-            <DemoPointer x={tick < 3 ? 70 : 36 + Math.min(5, Math.max(0, tick - 3)) * 5.6} y={tick < 3 ? 85 : 64} click={tick === 8 || tick === 9} />
           </div>
         )}
 
@@ -162,16 +179,15 @@ export default function ReviewsDemo() {
                 <div className="min-w-0"><Stars filled={5} size={13} /><p className="mt-0.5 truncate text-[11px] font-black text-[#0B0B0B] dark:text-white">A 5-star review for {AGENT.name}</p></div>
               </div>
               <div className="mt-2.5 min-h-[74px] rounded-xl border-2 border-[#C9A24D] bg-white p-3 text-[11px] leading-snug text-[#111827] dark:bg-[#151517] dark:text-gray-200">
-                <TypingAnimation text={REVIEW_TEXT} speed={22} onComplete={() => setTyped(true)} />
+                <TypingAnimation text={REVIEW_TEXT} speed={22} onComplete={() => { setTypedAt(tick); setTyped(true) }} />
               </div>
-              <p className="mt-2.5 text-center text-[10px] font-bold text-gray-500 dark:text-gray-400">{typed && tick - typedAt >= 5 ? 'Copied - just paste it on Google' : 'Post it where clients look:'}</p>
+              <p className="mt-2.5 text-center text-[10px] font-bold text-gray-500 dark:text-gray-400">{copied ? 'Copied - just paste it on Google' : 'Post it where clients look:'}</p>
               <div className="mt-1.5 grid grid-cols-2 gap-2">
-                <span className={`relative flex items-center justify-center gap-1.5 rounded-xl border-2 py-3 text-[12px] font-black transition-all duration-200 ${typed && tick - typedAt >= 5 ? 'scale-95 border-[#4285F4] bg-[#4285F4] text-white' : 'border-[#4285F4]/50 bg-white text-[#4285F4] dark:bg-[#151517]'}`}><GoogleG /> Post on Google <ExternalLink className="h-3 w-3" /></span>
+                <span data-cursor="post-google" className={`relative flex items-center justify-center gap-1.5 rounded-xl border-2 py-3 text-[12px] font-black transition-all duration-200 ${copied ? 'scale-95 border-[#4285F4] bg-[#4285F4] text-white' : 'border-[#4285F4]/50 bg-white text-[#4285F4] dark:bg-[#151517]'}`}><GoogleG /> Post on Google <ExternalLink className="h-3 w-3" /></span>
                 <span className="flex items-center justify-center gap-1.5 rounded-xl border-2 border-[#006AFF]/50 bg-white py-3 text-[12px] font-black text-[#006AFF] dark:bg-[#151517]">Z Post on Zillow <ExternalLink className="h-3 w-3" /></span>
               </div>
-              {typed && tick - typedAt >= 5 && <p className="mt-2 flex items-center justify-center gap-1 text-[10px] font-black text-emerald-600 animate-fadeIn"><Check className="h-3.5 w-3.5" /> Review copied · saved to {FIRST}&apos;s page</p>}
+              {copied && <p className="mt-2 flex items-center justify-center gap-1 text-[10px] font-black text-emerald-600 animate-fadeIn"><Check className="h-3.5 w-3.5" /> Review copied · saved to {FIRST}&apos;s page</p>}
             </div>
-            <DemoPointer x={typed ? (phone ? 26 : 31) : 75} y={typed ? 68 : 92} click={typed && tick - typedAt >= 4 && tick - typedAt <= 6} show={typed} />
           </div>
         )}
 
@@ -184,16 +200,15 @@ export default function ReviewsDemo() {
                 <div><p className="text-[12px] font-bold text-[#202124] dark:text-white">{AGENT.name} - {AGENT.brokerage}</p><p className="text-[9px] text-gray-500">Real estate agent · Posting publicly</p></div>
               </div>
               <div className="mt-3"><Stars filled={5} size={24} gap={6} /></div>
-              <div className="mt-3 min-h-[76px] rounded-lg border border-gray-300 p-2.5 text-[10.5px] leading-snug text-[#202124] dark:border-gray-600 dark:text-gray-100">
-                {tick >= 5 ? <span className="animate-fadeIn">{REVIEW_TEXT}</span> : <span className="text-gray-400">Share details of your own experience…</span>}
+              <div data-cursor="google-box" className="mt-3 min-h-[76px] rounded-lg border border-gray-300 p-2.5 text-[10.5px] leading-snug text-[#202124] dark:border-gray-600 dark:text-gray-100">
+                {tick >= 6 ? <span className="animate-fadeIn">{REVIEW_TEXT}</span> : <span className="text-gray-400">Share details of your own experience…</span>}
               </div>
-              {tick >= 3 && tick < 6 && <p className="mt-1.5 inline-flex items-center gap-1 rounded bg-[#202124] px-1.5 py-0.5 text-[9px] font-bold text-white animate-fadeIn">Paste <span className="text-white/50">Ctrl+V</span></p>}
+              {tick >= 4 && tick < 7 && <p className="mt-1.5 inline-flex items-center gap-1 rounded bg-[#202124] px-1.5 py-0.5 text-[9px] font-bold text-white animate-fadeIn">Paste <span className="text-white/50">Ctrl+V</span></p>}
               <div className="mt-3 flex justify-end gap-2">
                 <span className="px-3 py-1.5 text-[11px] font-bold text-[#1a73e8]">Cancel</span>
-                <span className={`rounded-full px-4 py-1.5 text-[11px] font-bold text-white transition-all duration-200 ${tick >= 11 ? 'scale-95 bg-[#1557b0]' : 'bg-[#1a73e8]'}`}>{tick >= 12 ? 'Posted ✓' : 'Post'}</span>
+                <span data-cursor="google-post" className={`rounded-full px-4 py-1.5 text-[11px] font-bold text-white transition-all duration-200 ${tick >= 12 ? 'scale-95 bg-[#1557b0]' : 'bg-[#1a73e8]'}`}>{tick >= 13 ? 'Posted ✓' : 'Post'}</span>
               </div>
             </div>
-            <DemoPointer x={tick < 8 ? 45 : 74} y={tick < 8 ? 50 : 69} click={(tick >= 3 && tick <= 4) || (tick >= 11 && tick <= 12)} />
           </div>
         )}
 
@@ -220,13 +235,13 @@ export default function ReviewsDemo() {
             <div className="w-[300px] text-center max-sm:w-full">
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">A different client</p>
               <p className="mt-1 font-serif text-[17px] font-black text-[#0B0B0B] dark:text-white">How was working with {FIRST}?</p>
-              <div className="mt-2 flex justify-center"><Stars filled={tick >= 4 ? 2 : Math.min(2, Math.max(0, tick - 2))} size={28} gap={7} /></div>
+              <div className="mt-2 flex justify-center" data-cursor="private-stars"><Stars filled={tick >= 5 ? 2 : Math.min(1, Math.max(0, tick - 2))} size={28} gap={7} /></div>
               {tick >= 6 && (
                 <div className="mt-3 animate-fadeIn text-left">
                   <p className="text-[11px] font-black text-[#0B0B0B] dark:text-white">Sorry to hear that. What could {FIRST} have done better?</p>
                   <div className="mt-1.5 min-h-[44px] rounded-xl border-2 border-gray-300 bg-white p-2 text-[10.5px] text-[#111827] dark:border-gray-600 dark:bg-[#151517] dark:text-gray-200"><TypingAnimation text={PRIVATE_TEXT} speed={30} /></div>
                   <p className="mt-1.5 flex items-center gap-1 text-[9.5px] font-bold text-gray-500"><Bell className="h-3 w-3" /> {FIRST} hears about this right away.</p>
-                  <span className={`mt-2 flex items-center justify-center gap-1 rounded-xl bg-[#111827] py-2 text-[11px] font-black text-white transition-transform dark:bg-white dark:text-[#111827] ${tick >= 17 && tick <= 18 ? 'scale-95' : ''}`}><Send className="h-3.5 w-3.5" /> Send to {FIRST}</span>
+                  <span data-cursor="private-send" className={`mt-2 flex items-center justify-center gap-1 rounded-xl bg-[#111827] py-2 text-[11px] font-black text-white transition-transform dark:bg-white dark:text-[#111827] ${tick >= 17 && tick <= 18 ? 'scale-95' : ''}`}><Send className="h-3.5 w-3.5" /> Send to {FIRST}</span>
                 </div>
               )}
             </div>
@@ -239,7 +254,6 @@ export default function ReviewsDemo() {
                 <p className="mt-1.5 text-[9px] font-semibold text-gray-400">Follow-up added: Reach out tomorrow</p>
               </div>
             </div>
-            <DemoPointer x={tick < 2 ? 30 : tick < 13 ? 25 : 30} y={tick < 2 ? 85 : tick < 13 ? 38 : 71} click={(tick >= 3 && tick <= 4) || (tick >= 17 && tick <= 18)} />
           </div>
         )}
 
@@ -269,6 +283,7 @@ export default function ReviewsDemo() {
             </div>
           </div>
         )}
+        <DemoCursor container={stage} target={cursor.target} click={cursor.click} />
       </div>
     </BrowserFrame>
   )

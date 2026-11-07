@@ -24,6 +24,10 @@ import { getToken, removeToken } from './token';
 import { loginUrlForHere } from './loginRedirect';
 import { tidyAllCaps } from './cheatSheetContent';
 import { passSessionId } from './passSession';
+import type { PassView } from '@/components/guest-pass/usePassTracking';
+
+/** One thing a guest did on their Guest Pass. `text` is the plain line the agent reads. */
+type PassEvent = { kind: string; key: string | null; label: string | null; at: string; seconds: number | null; text: string }
 
 /** Something wrong with an agent's own domain right now, in plain words + the fix (domain_health_service). */
 /** One home from GET /api/properties/address/search (see backend address_search_service.py). */
@@ -401,6 +405,12 @@ class ApiService {
       }),
     }),
 
+    /** The hosting agent's busy blocks for an open house's second-visit window. */
+    getOpenHouseBusy: async (openHouseEventId: string) => {
+      const r = await this.request<{ busy: { start: string; end: string }[] }>(`/api/properties/open-house/${openHouseEventId}/busy`, {}, false)
+      return r.success && r.data ? r.data.busy : []
+    },
+
     /** An agent's busy blocks (start/end only) for the Listing Page's showing window. */
     getAgentBusy: async (agentId: string) => {
       const r = await this.request<{ busy: { start: string; end: string }[] }>(`/api/properties/agent/${agentId}/busy`, {}, false)
@@ -541,10 +551,12 @@ class ApiService {
     }>(`/api/visitors/${visitorId}/showcase`, { method: 'PUT', body: JSON.stringify({ on }) }),
     // Everything this guest did on their Guest Pass (visits, time spent, homes opened...).
     getVisitorPassActivity: (visitorId: string) => this.request<{
-      visits: { session: string | null; started_at: string; last_seen_at: string | null; seconds: number; events: { kind: string; key: string | null; label: string | null; at: string }[] }[]
-      other: { kind: string; key: string | null; label: string | null; at: string }[]
+      visits: { session: string | null; started_at: string; last_seen_at: string | null; seconds: number; events: PassEvent[] }[]
+      other: PassEvent[]
       total_seconds: number; visit_count: number; days: string[]; came_back: boolean; signed_in_at: string | null
     }>(`/api/visitors/${visitorId}/pass-activity`),
+    /** The agent opened this guest's Guest Activity: it stops showing as new. */
+    markVisitorPassSeen: (visitorId: string) => this.request<{ ok: boolean }>(`/api/visitors/${visitorId}/pass-seen`, { method: 'POST' }),
     addVisitorNote: (visitorId: string, data: { text: string; open_house_event_id?: string }) =>
       this.request<LeadNote>(`/api/visitors/${visitorId}/notes`, { method: 'POST', body: JSON.stringify(data) }),
     updateVisitorNoteThread: (noteId: string, text: string) =>
@@ -1102,6 +1114,7 @@ class ApiService {
         body: JSON.stringify({ favorite }),
       }),
 
+    mailbox: (collectionId: string) => this.request<{ homes: import('@/components/showcases/MatchBits').MatchHome[]; activity: import('@/types').ShowcaseActivityItem[]; new_matches: number }>(`/collections/${collectionId}/mailbox`),
     updateNotifications: (collectionId: string, notifyVisitor: boolean, notifyAgent: boolean) =>
       this.request<{ success: boolean; message: string; notify_visitor: boolean; notify_agent: boolean }>(`/collections/${collectionId}/notifications`, {
         method: 'PATCH',
@@ -2080,7 +2093,10 @@ class ApiService {
    */
   // Emails sent to clients: open / click tracking + the daily / weekly / off rules (backend client_email_routes).
   public clientEmails = {
-    people: () => this.request<{ people: EmailPerson[]; totals: { people: number; daily: number; weekly: number; off: number };
+    status: (email: string) => this.request<EmailPerson>(`/client-emails/status?email=${encodeURIComponent(email)}`),
+    setFrequency: (email: string, frequency: 'daily' | 'weekly' | 'biweekly') =>
+      this.request<EmailPerson>('/client-emails/frequency', { method: 'PUT', body: JSON.stringify({ email, frequency }) }),
+    people: () => this.request<{ people: EmailPerson[]; totals: { people: number; daily: number; weekly: number; off: number; slowed: number };
       rules: { strike_days: number; weekly_strikes: number; max_auto_per_day: number } }>('/client-emails/people'),
     log: (params: { email?: string; q?: string; limit?: number; offset?: number } = {}) => {
       const qs = new URLSearchParams()
@@ -2477,10 +2493,11 @@ class ApiService {
     guestPassShowcase: (token: string) =>
       this.request<{ url: string }>(`/guest-pass/${encodeURIComponent(token)}/showcase`, { method: 'POST' }, false),
     // What the guest opened on their pass - noted on the agent's follow-up (fire-and-forget).
-    guestPassSeen: (token: string, view: 'similar' | 'cheat' | 'showcase' | 'map', key?: string | null) =>
+    guestPassSeen: (token: string, view: PassView, key?: string | null, seconds?: number) =>
       this.request<{ noted: boolean }>(`/guest-pass/${encodeURIComponent(token)}/seen`, {
         method: 'POST',
-        body: JSON.stringify({ view, key: key || null, session: passSessionId(token) }),
+        keepalive: true,
+        body: JSON.stringify({ view, key: key || null, session: passSessionId(token), ...(seconds ? { seconds } : {}) }),
       }, false),
     // Heartbeat while the pass is on screen - time spent + return visits for the agent's log.
     guestPassPing: (token: string) =>
@@ -2584,6 +2601,12 @@ class ApiService {
           visitor_phone: !data.visitorContact?.includes('@') ? data.visitorContact : undefined
         }),
       }, false),
+
+    getEmailFrequency: (shareToken: string) => this.request<{ frequency: 'daily' | 'weekly' | 'biweekly'; emails_on: boolean; blocked: boolean }>(`/collections/shared/${shareToken}/email-frequency`, {}, false),
+    setEmailFrequency: (shareToken: string, frequency: 'daily' | 'weekly' | 'biweekly') =>
+      this.request<{ frequency: 'daily' | 'weekly' | 'biweekly'; emails_on: boolean; blocked: boolean }>(`/collections/shared/${shareToken}/email-frequency`, { method: 'PUT', body: JSON.stringify({ frequency }) }, false),
+    // Sends the sign-in when there is one, so an agent's own look isn't counted as the client's.
+    showcaseOpened: (shareToken: string) => this.request(`/collections/shared/${shareToken}/opened`, { method: 'POST' }),
 
     toggleNotifications: (shareToken: string, notifyVisitor: boolean) =>
       this.request(`/collections/shared/${shareToken}/notifications`, {
@@ -2751,6 +2774,7 @@ class ApiService {
    * and pull portal leads IN via a unique forwarding address (Zillow / Realtor.com / etc.).
    */
   public integrations = {
+    myBusy: () => this.request<{ connected: boolean; busy: { start: string; end: string }[] }>('/integrations/my-busy'),
     get: () => this.request<IntegrationsInfo>('/integrations'),
     update: (data: {
       crm_push_enabled: boolean

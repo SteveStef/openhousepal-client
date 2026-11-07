@@ -6,8 +6,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import Link from 'next/link'
 import { pageRiseFrom, pageRiseTo, pageRiseTransition } from '@/components/ui/PageReveal'
 import {
-  ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Bell, BellOff, Building2, Check, Compass, Copy, Eye, EyeOff, Heart, Home, Loader2, Mail,
-  MailX, MessageCircle, Pencil, Phone, Plus, Send, Sparkles, Star, Tag, ThumbsDown, Trash2, X,
+  ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, Bell, BellOff, Building2, Check, Compass, Copy, Eye, EyeOff, Heart, Home, Inbox, Loader2, Mail,
+  MailX, MessageCircle, Pencil, Phone, Plus, Send, Sparkles, Star, Tag, Ticket, ThumbsDown, Trash2, X,
 } from 'lucide-react'
 import { starChanged } from '@/lib/starredPeople'
 import OhSheet from '@/components/open-house-manager/OhSheet'
@@ -28,6 +28,9 @@ import { copyText } from '@/lib/copyText'
 import LuxeSelect from '@/components/ui/LuxeSelect'
 import MotionModal from '@/components/ui/MotionModal'
 import { useLeadOhShowcase, LeadOhShowcaseSwitch, LeadOhShowcaseState } from './LeadOpenHouseShowcase'
+import { PassActivitySheet } from '@/app/open-houses/components/VisitorExtras'
+import ShowcaseMailbox from '@/components/showcases/ShowcaseMailbox'
+import OhpSwitch from '@/components/ui/OhpSwitch'
 import LeadRecentMatches from './LeadRecentMatches'
 import QuickEditShowcase from '@/components/showcases/QuickEditShowcase'
 import { InviteLine, SendInviteButton } from '@/components/showcases/ShowcaseInvite'
@@ -70,8 +73,19 @@ type Filter = 'all' | 'asks' | 'showcase'
 const SHOWCASE_TYPES = new Set(['collection_visitor', 'property_comment', 'property_tour'])
 const isShowcaseType = (t: string) => t.startsWith('showcase_') || SHOWCASE_TYPES.has(t)
 
+// How far back Activity looks (owner, 11/07).
+type Range = 'week' | 'month' | 'quarter' | 'year' | 'ytd' | 'all'
+const RANGES: [Range, string][] = [['week', 'Last week'], ['month', 'Last month'], ['quarter', 'Last 3 months'], ['year', 'Last year'], ['ytd', 'YTD'], ['all', 'All time']]
+const rangeStart = (r: Range): number => {
+  const now = new Date()
+  if (r === 'all') return 0
+  if (r === 'ytd') return new Date(now.getFullYear(), 0, 1).getTime()
+  const days = r === 'week' ? 7 : r === 'month' ? 30 : r === 'quarter' ? 91 : 365
+  return now.getTime() - days * 864e5
+}
+
 // Long lists page instead of growing forever.
-const PAGE = 12          // activity rows per page
+const PAGE = 20          // activity rows per page
 const NOTES_PAGE = 5
 const OPEN_HOUSES_SHOWN = 4
 
@@ -133,9 +147,11 @@ interface LeadDetailPanelProps {
   backLabel?: string
   // Fired after any change here (status, contact, follow-ups...) so a list behind it can resync.
   onChanged?: () => void
+  // Inside the lead window, whose top bar already has Close.
+  inWindow?: boolean
 }
 
-export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', onChanged }: LeadDetailPanelProps) {
+export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', onChanged, inWindow = false }: LeadDetailPanelProps) {
   const { user } = useAuth()
   const { showToast } = useToast()
   const followupsOn = useFollowupsEnabled().enabled !== false
@@ -156,6 +172,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
   const [editEmail, setEditEmail] = useState('')
   const [editPhone, setEditPhone] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
+  const [range, setRange] = useState<Range>('all')
   const [page, setPage] = useState(1)
   const [notesPage, setNotesPage] = useState(1)
   const [allOpenHouses, setAllOpenHouses] = useState(false)
@@ -184,10 +201,24 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
   // The open house Showcase switch lives in the lead's one Showcase card (owner, 11/01).
   const clearAsk = useCallback(() => setAskShowcase(null), [])
   const ohShowcase = useLeadOhShowcase({ leadId, represented: lead?.represented ?? null, asked: askShowcase, onAsked: clearAsk, onChanged: reload })
+  // Their Guest Pass, from "How they found you" - only when they did more than land on it (owner, 11/07).
+  const passVisitor = ohShowcase.data?.visitor_id || null
+  const fromOpenHouse = (lead?.origin_group || lead?.origin?.group) === 'open_house'
+  const [hasPass, setHasPass] = useState(false)
+  const [passOpen, setPassOpen] = useState(false)
+  useEffect(() => {
+    setHasPass(false)
+    if (!passVisitor || !fromOpenHouse) return
+    let live = true
+    api.openHouses.getVisitorPassActivity(passVisitor).then(r => {
+      if (live && r.success && r.data) setHasPass(r.data.visits.some(v => v.events.length > 0) || r.data.other.length > 0)
+    })
+    return () => { live = false }
+  }, [passVisitor, fromOpenHouse])
 
   useEffect(() => {
     if (!leadId) return
-    setLoading(true); setNotesLoading(true); setPage(1); setNotesPage(1); setFilter('all'); setAllOpenHouses(false)
+    setLoading(true); setNotesLoading(true); setPage(1); setNotesPage(1); setFilter('all'); setRange('all'); setAllOpenHouses(false)
     api.leads.get(leadId).then(r => { if (r.success && r.data) setLead(r.data); setLoading(false) })
     api.leads.getNotes(leadId).then(r => { if (r.success && r.data) setNotesList(r.data); setNotesLoading(false) })
   }, [leadId])
@@ -259,6 +290,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
   // there and flash it gold.
   const seeEvent = (ev: LeadEvent | null) => {
     setFilter('all')
+    setRange('all')
     const at = ev ? foldViews(events).findIndex(r => r.kind === 'event' && r.e.id === ev.id) : -1
     setPage(at >= 0 ? Math.floor(at / PAGE) + 1 : Number.MAX_SAFE_INTEGER)
     if (ev) setOpenRows(prev => new Set(prev).add(ev.id))
@@ -277,10 +309,11 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
     const ofKind = events.filter(e => (REQUEST_TYPES[t.kind] || []).includes(e.source_type))
     return ofKind.find(e => !e.handled) || ofKind[0] || null
   }
-  const filtered = useMemo(() => events.filter(e =>
+  const inRange = useMemo(() => { const from = rangeStart(range); return events.filter(e => new Date(e.occurred_at).getTime() >= from) }, [events, range])
+  const filtered = useMemo(() => inRange.filter(e =>
     // "Forms & requests" = things they asked for - email opens/pauses aren't requests (they stay under Everything).
     filter === 'all' ? true : filter === 'showcase' ? isShowcaseType(e.source_type) : (!isShowcaseType(e.source_type) && !e.source_type.startsWith('email_')) || e.source_type === 'showcase_refine' || e.source_type === 'property_tour' || e.source_type === 'property_comment'),
-  [events, filter])
+  [inRange, filter])
   const rows = useMemo(() => foldViews(filtered), [filtered])
 
   if (loading) {
@@ -316,12 +349,14 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
     // however the lead is opened. Transform + opacity only (no blur) - smooth on phones; afterwards
     // the transform is cleared, so menus and sheets inside position normally.
     <motion.div initial={pageRiseFrom(reduceMotion)} animate={pageRiseTo} transition={pageRiseTransition}>
-      <button onClick={onBack} className="hidden items-center gap-1.5 text-sm font-black text-gray-400 transition hover:text-[#111827] dark:hover:text-white sm:inline-flex">
-        <ArrowLeft className="h-4 w-4" /> {backLabel}
-      </button>
+      {!inWindow && (
+        <button onClick={onBack} className="hidden items-center gap-1.5 text-sm font-black text-gray-400 transition hover:text-[#111827] dark:hover:text-white sm:inline-flex">
+          <ArrowLeft className="h-4 w-4" /> {backLabel}
+        </button>
+      )}
 
       {/* ── who they are, how to reach them, where they stand */}
-      <div className="sm:mt-4">
+      <div className={inWindow ? '' : 'sm:mt-4'}>
         <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap sm:gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#111827] text-lg font-black text-[#C9A24D] dark:bg-white dark:text-[#8b7355] sm:h-14 sm:w-14 sm:text-xl">
             {(lead.name || lead.email || '?').charAt(0).toUpperCase()}
@@ -459,7 +494,8 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
       {/* ── how they found you: a summary the timeline can't give at a glance - where they came
           from, their first and latest touch, and what they told you when they came in. (The
           first touch's full answers stay in Activity - "See it" jumps there.) */}
-      {lead.origin && <OriginSummary lead={lead} originEvent={originEvent} onSeeIt={seeOrigin} />}
+      {lead.origin && <OriginSummary lead={lead} originEvent={originEvent} onSeeIt={seeOrigin} onGuestPass={hasPass ? () => setPassOpen(true) : undefined} />}
+      <PassActivitySheet visitor={passOpen && passVisitor ? { id: passVisitor, created_at: ohShowcase.data?.signed_in_at, full_name: lead.name } as any : null} onClose={() => setPassOpen(false)} />
 
       <div className="mt-4 grid gap-4 sm:mt-5 sm:gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0 space-y-4 sm:space-y-5">
@@ -519,7 +555,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
             showcases={(lead.showcases || []).map(s => ({ id: s.id, name: s.name }))} initialId={editShowcase} onSaved={() => reload()} />
 
           {/* On a phone their Showcase comes before the long history (the side column is last). */}
-          <div className="space-y-4 lg:hidden"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={setEditShowcase} who={lead} leadId={leadId} /></div>
+          <div className="space-y-4 lg:hidden"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={setEditShowcase} who={lead} leadId={leadId} onChanged={() => { reload(); onChanged?.() }} /></div>
 
           {/* ── emails we sent them: opened / clicked, and whether automatic ones are on, weekly or off (and why) */}
           {lead.email && <LeadEmailCard email={lead.email} initial={lead.email_engagement} />}
@@ -527,9 +563,18 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
           {/* ── everything they've done, newest first */}
           <div ref={activityTop} className="scroll-mt-20" />
           <Card>
-            <SectionTitle aside={<span className="text-[11px] font-bold text-gray-400">{events.length} {events.length === 1 ? 'thing' : 'things'}</span>}>
+            <SectionTitle aside={<span className="text-[11px] font-bold text-gray-400" data-testid="lead-activity-count">{filtered.length} {filtered.length === 1 ? 'thing' : 'things'}</span>}>
               Activity
             </SectionTitle>
+            <div className="mb-2 flex flex-wrap gap-1" role="tablist" aria-label="How far back" data-testid="lead-activity-ranges">
+              {RANGES.map(([id, label]) => (
+                <button key={id} type="button" role="tab" aria-selected={range === id} onClick={() => { setRange(id); setPage(1) }}
+                  className={`relative rounded-full px-2.5 py-1 text-[11px] font-black transition-colors ${range === id ? 'text-[#111827] dark:text-[#111827]' : 'text-gray-500 hover:text-[#111827] dark:text-gray-400 dark:hover:text-white'}`}>
+                  {range === id && <motion.span layoutId="lead-activity-range" transition={{ type: 'spring', stiffness: 460, damping: 36 }} className="absolute inset-0 rounded-full bg-[#C9A24D]/35 dark:bg-[#e8c97a]" />}
+                  <span className="relative">{label}</span>
+                </button>
+              ))}
+            </div>
             <div className="mb-4 flex flex-wrap gap-1">
               {([['all', 'Everything'], ['asks', 'Forms & requests'], ['showcase', 'Showcase']] as [Filter, string][]).map(([id, label]) => (
                 <button key={id} onClick={() => { setFilter(id); setPage(1) }}
@@ -538,8 +583,10 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
                 </button>
               ))}
             </div>
-            {rows.length === 0 && <p className="py-6 text-center text-sm font-semibold text-gray-400">Nothing here yet.</p>}
-            <div>
+            {rows.length === 0 && <p className="py-6 text-center text-sm font-semibold text-gray-400">{range === 'all' ? 'Nothing here yet.' : 'Nothing in this stretch of time.'}</p>}
+            <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={`${range}-${filter}-${curPage}`} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6, transition: { duration: 0.1 } }}
+              transition={{ type: 'spring', stiffness: 420, damping: 34 }}>
               {shownRows.map((row, i) => {
                 const at = row.kind === 'event' ? row.e.occurred_at : row.items[0].occurred_at
                 const day = dayLabel(at)
@@ -558,7 +605,8 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
                   </div>
                 )
               })}
-            </div>
+            </motion.div>
+            </AnimatePresence>
             {pages > 1 && (
               <div className="mt-2 border-t border-gray-100 pt-3 dark:border-white/[0.06]">
                 <p className="mb-2 text-center text-[11px] font-bold text-gray-400">
@@ -572,7 +620,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
 
         {/* ── side: their Showcase, open houses, tags, notes, record */}
         <div className="min-w-0 space-y-4 sm:space-y-5">
-          <div className="hidden space-y-4 lg:block sm:space-y-5"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={setEditShowcase} who={lead} leadId={leadId} /></div>
+          <div className="hidden space-y-4 lg:block sm:space-y-5"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={setEditShowcase} who={lead} leadId={leadId} onChanged={() => { reload(); onChanged?.() }} /></div>
 
           {!!lead.open_houses?.length && (
             <Card>
@@ -841,27 +889,61 @@ function ViewsRow({ items, open, onToggle }: { items: LeadEvent[]; open: boolean
 // Their Showcase in one card (owner, 11/01): the open house on/off switch sits on top of the card for
 // the Showcase it controls (or the first one); with no Showcase yet the card is just the switch.
 type Who = { name?: string | null; email?: string | null }
-function ShowcaseCards({ showcases, oh, onCopy, onEdit, who, leadId }: { leadId: string; showcases: LeadShowcase[]; oh: LeadOhShowcaseState; onCopy: (text: string, what: string) => void; onEdit: (id: string) => void; who: Who }) {
+function ShowcaseCards({ showcases, oh, onCopy, onEdit, who, leadId, onChanged }: { leadId: string; showcases: LeadShowcase[]; oh: LeadOhShowcaseState; onCopy: (text: string, what: string) => void; onEdit: (id: string) => void; who: Who; onChanged: () => void }) {
   if (!showcases.length) {
     if (!oh.show) return null
     return <Card><SectionTitle>Their Showcase</SectionTitle><LeadOhShowcaseSwitch oh={oh} withLink /></Card>
   }
   const withSwitch = (oh.show && (showcases.find(s => s.id === oh.data?.showcase_id) || showcases[0]).id) || null
-  return <>{showcases.map((sc, i) => <ShowcaseCard key={sc.id} sc={sc} who={who} onCopy={onCopy} onEdit={() => onEdit(sc.id)} top={sc.id === withSwitch ? <LeadOhShowcaseSwitch oh={oh} /> : null}
-    bottom={i === 0 ? <LeadRecentMatches leadId={leadId} /> : null} />)}</>
+  return <>{showcases.map((sc, i) => <ShowcaseCard key={sc.id} sc={sc} who={who} onCopy={onCopy} onEdit={() => onEdit(sc.id)} top={sc.id === withSwitch ? <LeadOhShowcaseSwitch oh={oh} /> : <ShowcaseOnOff sc={sc} onChanged={onChanged} />}
+    leadId={i === 0 ? leadId : undefined} />)}</>
 }
 
-function ShowcaseCard({ sc, who, onCopy, onEdit, top, bottom }: { bottom?: React.ReactNode; sc: LeadShowcase; who: Who; onCopy: (text: string, what: string) => void; onEdit?: () => void; top?: React.ReactNode }) {
+// A Showcase made by hand has no open house sign-in behind it, so it gets the same on / off right here (owner, 11/07).
+function ShowcaseOnOff({ sc, onChanged }: { sc: LeadShowcase; onChanged: () => void }) {
+  const { showToast } = useToast()
+  const [on, setOn] = useState(sc.status !== 'INACTIVE')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { setOn(sc.status !== 'INACTIVE') }, [sc.status])
+  const flip = async () => {
+    const next = !on
+    setBusy(true); setOn(next)
+    const r = await api.collections.updateStatus(sc.id, next ? 'ACTIVE' : 'INACTIVE')
+    setBusy(false)
+    if (r.success) { showToast(next ? 'Their Showcase is on' : 'Their Showcase is off', 'success'); onChanged() }
+    else { setOn(!next); showToast(r.error || "Couldn't change their Showcase", 'error') }
+  }
+  return (
+    <button type="button" role="switch" aria-checked={on} aria-label="Showcase on or off" onClick={flip} disabled={busy} data-testid="lead-showcase-onoff"
+      className="flex w-full items-center gap-3 rounded-xl border border-gray-100 p-2.5 text-left transition hover:border-[#C9A24D]/40 disabled:opacity-70 dark:border-white/[0.07]">
+      <span className="min-w-0 flex-1">
+        <span className={`block text-[12.5px] font-black ${on ? 'text-[#8b7355] dark:text-[#e8c97a]' : 'text-gray-500 dark:text-gray-400'}`}>{on ? 'Showcase on' : 'Showcase off'}</span>
+        <span className="block text-[11px] font-semibold text-gray-400">{on ? 'Finding homes and sending updates' : 'Off - no new homes or emails'}</span>
+      </span>
+      <OhpSwitch as="span" on={on} busy={busy} />
+    </button>
+  )
+}
+
+function ShowcaseCard({ sc, who, onCopy, onEdit, top, leadId }: { leadId?: string; sc: LeadShowcase; who: Who; onCopy: (text: string, what: string) => void; onEdit?: () => void; top?: React.ReactNode }) {
   // Did their invite email reach them (owner, 11/01)? When and whether they opened it are in the
   // Emails card; here it's sent or not, with Send invite (again).
   const [invite, setInvite] = useState(sc.invite || null)
+  const [mailboxOpen, setMailboxOpen] = useState(false)
   return (
     <Card>
       <SectionTitle>Their Showcase</SectionTitle>
       {top && <div className="mb-3">{top}</div>}
-      <p className="truncate text-sm font-black text-[#111827] dark:text-white">{sc.name || 'Showcase'}</p>
+      <div className="flex min-w-0 items-center gap-2">
+        <p className="min-w-0 flex-1 truncate text-sm font-black text-[#111827] dark:text-white">{sc.name || 'Showcase'}</p>
+        <button type="button" onClick={() => setMailboxOpen(true)} data-testid="lead-showcase-matches" title="Their matches and activity, all in one"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#C9A24D]/40 px-2.5 py-1 text-[11px] font-black text-[#8b7355] transition hover:border-[#C9A24D] active:scale-95 dark:text-[#e8c97a]">
+          <Inbox className="h-3 w-3" /> ({sc.home_count}) {sc.home_count === 1 ? 'Match' : 'Matches'}
+        </button>
+      </div>
+      <ShowcaseMailbox open={mailboxOpen} onClose={() => setMailboxOpen(false)} collectionId={sc.id} who={who.name} />
       <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
-        <div className="rounded-xl bg-gray-50 py-2 dark:bg-white/[0.04]"><p className="text-base font-black text-[#111827] dark:text-white">{sc.home_count}</p><p className="text-[10px] font-bold text-gray-400">Homes</p></div>
+        <div className="rounded-xl bg-gray-50 py-2 dark:bg-white/[0.04]" data-testid="lead-showcase-viewed"><p className="flex items-center justify-center gap-1 text-base font-black text-[#111827] dark:text-white"><Eye className="h-3.5 w-3.5" />{sc.viewed ?? 0}</p><p className="text-[10px] font-bold text-gray-400">Viewed</p></div>
         <div className="rounded-xl bg-rose-50 py-2 dark:bg-rose-500/[0.08]"><p className="flex items-center justify-center gap-1 text-base font-black text-rose-600 dark:text-rose-300"><Heart className="h-3.5 w-3.5" />{sc.liked}</p><p className="text-[10px] font-bold text-gray-400">Liked</p></div>
         <div className="rounded-xl bg-gray-50 py-2 dark:bg-white/[0.04]"><p className="flex items-center justify-center gap-1 text-base font-black text-gray-600 dark:text-gray-300"><ThumbsDown className="h-3.5 w-3.5" />{sc.disliked}</p><p className="text-[10px] font-bold text-gray-400">Passed</p></div>
       </div>
@@ -894,14 +976,14 @@ function ShowcaseCard({ sc, who, onCopy, onEdit, top, bottom }: { bottom?: React
           <SendInviteButton collectionId={sc.id} invite={invite} name={who.name} email={who.email} homes={sc.home_count} size="full" onSent={setInvite} />
         </div>
       )}
-      {bottom}
+      {leadId && <LeadRecentMatches leadId={leadId} onOpenMailbox={() => setMailboxOpen(true)} />}
     </Card>
   )
 }
 
 // "How they found you": where they came from, first vs latest touch, and the key things they told
 // you when they came in - the parts of the timeline an agent wants before calling, in one card.
-function OriginSummary({ lead, originEvent, onSeeIt }: { lead: LeadDetail; originEvent: LeadEvent | null; onSeeIt: () => void }) {
+function OriginSummary({ lead, originEvent, onSeeIt, onGuestPass }: { lead: LeadDetail; originEvent: LeadEvent | null; onSeeIt: () => void; onGuestPass?: () => void }) {
   const origin = lead.origin!
   const latest = lead.latest
   const group = ORIGIN_META[lead.origin_group || origin.group || 'other'] || ORIGIN_META.other
@@ -932,9 +1014,16 @@ function OriginSummary({ lead, originEvent, onSeeIt }: { lead: LeadDetail; origi
         <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7355] dark:text-[#d7b974]">
           <Compass className="h-3.5 w-3.5" /> How they found you
         </p>
-        <button onClick={onSeeIt} className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10.5px] font-black text-[#8b7355] transition hover:bg-[#C9A24D]/10 dark:text-[#e8c97a]">
-          See it in Activity <ArrowRight className="h-3 w-3" />
-        </button>
+        <span className="flex shrink-0 items-center gap-1">
+          {onGuestPass && (
+            <button onClick={onGuestPass} data-testid="lead-guest-pass" className="inline-flex items-center gap-1 rounded-full border border-[#C9A24D]/40 px-2 py-1 text-[10.5px] font-black text-[#8b7355] transition hover:border-[#C9A24D] active:scale-95 dark:text-[#e8c97a]">
+              <Ticket className="h-3 w-3" /> Guest Activity
+            </button>
+          )}
+          <button onClick={onSeeIt} className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10.5px] font-black text-[#8b7355] transition hover:bg-[#C9A24D]/10 dark:text-[#e8c97a]">
+            See it in Activity <ArrowRight className="h-3 w-3" />
+          </button>
+        </span>
       </div>
       <div className="grid divide-y divide-[#C9A24D]/10 dark:divide-white/[0.06] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <Cell label="Came from" sub={origin.came_from || undefined}>

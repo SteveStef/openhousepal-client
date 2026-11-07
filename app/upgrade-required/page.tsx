@@ -4,7 +4,7 @@ import { Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Footer from '@/components/Footer'
 import { useAuth } from '@/contexts/AuthContext'
-import { ArrowLeft, Lock } from 'lucide-react'
+import { ArrowLeft, Check, Lock } from 'lucide-react'
 import { PRICING_PLANS, type PlanTierId } from '@/lib/pricing'
 import { PricingTierCard } from '@/components/pricing/PricingCards'
 import { IdxDomainNotice } from '@/components/IdxDomainNotice'
@@ -12,6 +12,8 @@ import MissedShowcasesBanner from '@/components/MissedShowcasesBanner'
 import { smartBack } from '@/lib/navHistory'
 
 const VALID_TIERS: PlanTierId[] = ['NO_MLS', 'PRO_NO_MLS', 'BASIC', 'PREMIUM', 'IDX']
+const TIER_RANK: Record<PlanTierId, number> = { BASIC: 1, PREMIUM: 2, IDX: 3, NO_MLS: 1, PRO_NO_MLS: 2 }
+const onNoMls = (tier: PlanTierId) => tier === 'NO_MLS' || tier === 'PRO_NO_MLS'
 
 function UpgradeRequiredContent() {
   const router = useRouter()
@@ -34,6 +36,27 @@ function UpgradeRequiredContent() {
 
   const hasInactiveSubscription = user?.subscription_status &&
     ['CANCELLED', 'EXPIRED', 'SUSPENDED'].includes(user.subscription_status)
+
+  // Never pitch a plan someone already has or is above (owner, 11/06: an IDX agent was offered Premium).
+  const topNoMls = currentTier === 'PRO_NO_MLS'
+  const nothingToBuy = !!currentTier && !hasInactiveSubscription
+    && (currentTier === 'IDX' || topNoMls || (onNoMls(currentTier) === onNoMls(targetTier) && TIER_RANK[currentTier] >= TIER_RANK[targetTier]))
+  if (isLoading) return <div className="min-h-screen" />
+  if (nothingToBuy) {
+    const notOnPlan = topNoMls && !onNoMls(askedTier)
+    return (
+      <div className="flex min-h-[70vh] flex-col items-center justify-center px-6 py-16 text-center">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#C9A24D]/20 bg-[#C9A24D]/10 text-[#C9A24D]"><Check className="h-8 w-8" strokeWidth={1.75} /></div>
+        <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.3em] text-[#C9A24D]">Your plan</span>
+        <h1 className="mb-3 text-3xl font-black tracking-tight text-[#111827] dark:text-white sm:text-4xl">{notOnPlan ? 'You’re on our top plan' : 'You already have this'}</h1>
+        <p className="max-w-md text-base leading-relaxed text-[#6B7280] dark:text-gray-400">
+          {notOnPlan ? <><span className="font-medium text-[#111827] dark:text-white">{featureLabel}</span> isn’t part of {currentPlan?.name}, and there’s nothing more to upgrade to.</>
+            : <><span className="font-medium text-[#111827] dark:text-white">{featureLabel}</span> is included on your {currentPlan?.name} plan.</>}
+        </p>
+        <button onClick={() => smartBack(router, '/dash')} className="mt-8 rounded-xl bg-[#111827] px-6 py-3 text-sm font-black text-white transition-colors hover:bg-[#C9A24D] dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D]">Go back</button>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAFAF7] dark:bg-[#0B0B0B] overflow-hidden relative transition-colors duration-300">

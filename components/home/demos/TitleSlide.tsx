@@ -43,7 +43,7 @@ const CSS = `
 .ts-line{height:1px;width:0;background:linear-gradient(90deg,transparent,#C9A24D);animation:tsLine .7s ease-out .55s forwards}
 .ts-line.r{background:linear-gradient(90deg,#C9A24D,transparent)}
 .ts-title{background:linear-gradient(100deg,#ffffff 0%,#ffffff 38%,#f6e2ad 48%,#ffffff 58%,#ffffff 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:tsShine 5.5s ease-in-out 1.4s infinite}
-.ts-gold{background:linear-gradient(100deg,#b88a2e 0%,#e8c97a 35%,#fff1c8 50%,#e8c97a 65%,#b88a2e 100%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:tsShine 4.5s ease-in-out 1s infinite}
+.ts-gold{padding:0 .16em .08em 0;margin:0 -.16em -.08em 0;background:linear-gradient(100deg,#b88a2e 0%,#e8c97a 35%,#fff1c8 50%,#e8c97a 65%,#b88a2e 100%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:tsShine 4.5s ease-in-out 1s infinite}
 .ts-ai{animation:tsAiIn .6s cubic-bezier(.34,1.56,.64,1) .9s both,tsAiPulse 2.8s ease-in-out 1.6s infinite}
 .ts-ai-shine{position:absolute;inset:0;border-radius:9999px;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.75) 50%,transparent 65%);background-size:250% 100%;animation:tsShine 3.2s ease-in-out 1.6s infinite;mix-blend-mode:overlay}
 @keyframes tsSpin{to{transform:rotate(360deg)}}

@@ -84,7 +84,7 @@ export function NearbyPicker({ nb, accent, tone = 'auto', originLabel, categorie
         {cats.map(({ key, label, icon: Icon, color }) => {
           const on = nb.active === key
           return (
-            <motion.button key={key} type="button" whileTap={{ scale: 0.95 }} onClick={() => nb.select(on ? null : key)}
+            <motion.button key={key} type="button" data-nearby-cat={key} whileTap={{ scale: 0.95 }} onClick={() => nb.select(on ? null : key)}
               className={variant === 'grid'
                 ? `relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border py-3 text-[12.5px] font-black transition-colors ${on ? 'border-transparent text-white' : t.chip}`
                 : `relative inline-flex shrink-0 snap-start items-center gap-1.5 rounded-full border px-3.5 py-2 text-[12px] font-black transition-colors ${on ? 'border-transparent text-white' : t.chip}`}>

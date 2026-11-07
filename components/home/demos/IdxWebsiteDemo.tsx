@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import type { LucideIcon } from 'lucide-react'
 import { ArrowDown, ArrowUp, Bath, Bed, BookOpen, Building2, Calendar, Check, ChevronRight, Eye, EyeOff, Globe, GraduationCap, Home as HomeIcon, Landmark, Layers, Layout, Lock, Map as MapIcon, MapPin, Maximize, Menu, Palette, PlaySquare, Scale, Search, SlidersHorizontal, Sparkles, Star, Train, Trees, TrendingUp, UserPlus, Utensils, Wand2 } from 'lucide-react'
 import BrowserFrame from '@/components/home/BrowserFrame'
 import TypingAnimation from '@/components/TypingAnimation'
 import TitleSlide from './TitleSlide'
-import DemoPointer from './DemoPointer'
+import DemoCursor, { useCursorCues, type CursorCue } from './DemoCursor'
 import { DemoCaption, DemoNote, DEMO_NOTE_CSS, STAGE_BG } from './DemoNote'
 import { AGENT, REAL_BLOG, REAL_IDX_SITE, REAL_RECENT_SALES, REAL_SHOWCASE, REAL_SPOTLIGHT } from './realData'
 
@@ -360,11 +360,16 @@ function SearchScene({ tick, on }: { tick: number; on: On }) {
   )
 }
 
+// The pointer heads for Request a Tour as the note turns to it, and clicks once it's there.
+const TOUR_CUES: CursorCue[] = [{ at: 4500, target: '[data-cursor="tour"]' }, { at: 5500, click: true }, { at: 6250, click: false }]
+
 function PropertyScene({ tick, on }: { tick: number; on: On }) {
+  const box = useRef<HTMLDivElement>(null)
+  const cursor = useCursorCues('tour', TOUR_CUES)
   const photos = [SP.hero, SP.rooms[0].photo, SP.rooms[1].photo, SP.rooms[3].photo]
   const phase = tick < 9 ? 'photos' : tick < 18 ? 'nearby' : 'tour'
   return (
-    <div className="flex h-full flex-col bg-white dark:bg-[#0B0B0B]">
+    <div ref={box} className="relative flex h-full flex-col bg-white dark:bg-[#0B0B0B]">
       <Nav active="Search" />
       <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
         <div className={`grid h-[118px] flex-shrink-0 grid-cols-4 grid-rows-2 gap-1 overflow-hidden rounded-xl ${on(phase === 'photos')}`}>
@@ -378,7 +383,7 @@ function PropertyScene({ tick, on }: { tick: number; on: On }) {
             <p className="mt-0.5 truncate text-[8px] font-bold text-gray-500">{SP.address}, {SP.city}, {SP.state} {SP.zip}</p>
             <div className="mt-1 flex gap-2 text-[7px] font-bold text-gray-600 dark:text-gray-300"><span className="flex items-center gap-0.5"><Bed className="h-2.5 w-2.5" />{SP.beds} bd</span><span className="flex items-center gap-0.5"><Bath className="h-2.5 w-2.5" />{SP.baths} ba</span><span className="flex items-center gap-0.5"><Maximize className="h-2.5 w-2.5" />{SP.sqft.toLocaleString()} sqft</span><span className="flex items-center gap-0.5"><GraduationCap className="h-2.5 w-2.5" />{SP.schoolDistrict}</span></div>
           </div>
-          <span className={`relative flex-shrink-0 rounded-full px-2.5 py-1.5 text-[7.5px] font-black uppercase tracking-wide transition-all duration-300 ${phase === 'tour' ? 'dn-on' : ''} ${tick >= 24 ? 'bg-emerald-500 text-white' : 'text-[#111827]'}`} style={tick >= 24 ? undefined : { backgroundColor: C.gold }}>{tick >= 24 ? '✓ Requested' : 'Request a Tour'}</span>
+          <span data-cursor="tour" className={`relative flex-shrink-0 rounded-full px-2.5 py-1.5 text-[7.5px] font-black uppercase tracking-wide transition-all duration-300 ${phase === 'tour' ? 'dn-on' : ''} ${tick >= 24 ? 'bg-emerald-500 text-white' : 'text-[#111827]'}`} style={tick >= 24 ? undefined : { backgroundColor: C.gold }}>{tick >= 24 ? '✓ Requested' : 'Request a Tour'}</span>
         </div>
         <div className={`flex-1 rounded-xl border border-gray-100 p-2 dark:border-gray-800 ${on(phase === 'nearby')}`}>
           <p className="mb-1.5 flex items-center gap-1 text-[7.5px] font-black uppercase tracking-[0.18em] text-[#8b7355]"><MapPin className="h-2.5 w-2.5" />Explore Nearby</p>
@@ -389,7 +394,7 @@ function PropertyScene({ tick, on }: { tick: number; on: On }) {
           </div>
         </div>
       </div>
-      <DemoPointer x={88} y={50} click={tick >= 22 && tick < 25} show={phase === 'tour'} />
+      <DemoCursor container={box} target={cursor.target} click={cursor.click} />
       {tick >= 25 && <Toast icon={Calendar} title="Tour request sent to Peter" sub={`${SP.address} · lands in your Leads instantly`} />}
     </div>
   )

@@ -39,7 +39,6 @@ export function HouseMotif({ visible, className = '' }: MotifProps) {
           <stop offset="100%" stopColor="#f0d494" />
         </linearGradient>
       </defs>
-      <circle cx="100" cy="100" r="92" fill="currentColor" fillOpacity="0.05" stroke="none" />
       <path d="M22 118 L58 84 L94 118" stroke="url(#ohpHeroGrad)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M32 108 V158 H84 V108" stroke="url(#ohpHeroGrad)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ transitionDelay: '0.33s' }} />
       <path d="M50 158 V132 H66 V158" stroke="url(#ohpHeroGrad)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" style={{ transitionDelay: '0.66s' }} />
@@ -67,7 +66,6 @@ export function BlueprintMotif({ visible, className = '' }: MotifProps) {
           <stop offset="100%" stopColor="#f0d494" />
         </linearGradient>
       </defs>
-      <circle cx="100" cy="100" r="92" fill="currentColor" fillOpacity="0.05" stroke="none" />
       <rect x="20" y="35" width="160" height="130" rx="10" stroke="url(#ohpToolsGrad)" strokeWidth="4" />
       <path d="M20 60 H180" stroke="url(#ohpToolsGrad)" strokeWidth="3" style={{ transitionDelay: '0.33s' }} />
       <circle cx="35" cy="47" r="3.5" fill={gold} stroke="none" />
@@ -102,7 +100,6 @@ export function PinRouteMotif({ visible, className = '' }: MotifProps) {
           <stop offset="100%" stopColor="#f0d494" />
         </linearGradient>
       </defs>
-      <circle cx="100" cy="100" r="92" fill="currentColor" fillOpacity="0.05" stroke="none" />
       <rect x="30" y="130" width="24" height="35" rx="3" stroke="url(#ohpStoryGrad)" strokeWidth="3.5" />
       <rect x="68" y="105" width="24" height="60" rx="3" stroke="url(#ohpStoryGrad)" strokeWidth="3.5" style={{ transitionDelay: '0.33s' }} />
       <rect x="106" y="75" width="24" height="90" rx="3" stroke="url(#ohpStoryGrad)" strokeWidth="3.5" style={{ transitionDelay: '0.66s' }} />
@@ -127,7 +124,6 @@ export function KeyMotif({ visible, className = '' }: MotifProps) {
           <stop offset="100%" stopColor="#f0d494" />
         </linearGradient>
       </defs>
-      <circle cx="100" cy="100" r="92" fill="currentColor" fillOpacity="0.05" stroke="none" />
       <circle cx="55" cy="100" r="30" stroke="url(#ohpPricingGrad)" strokeWidth="4.5" />
       <path d="M85 100 H160 M145 100 V120 M160 100 V113" stroke="url(#ohpPricingGrad)" strokeWidth="4.5" strokeLinecap="round" style={{ transitionDelay: '0.33s' }} />
       <circle cx="55" cy="100" r="9" fill={gold} stroke="none" style={{ transitionDelay: '0.66s' }} />
@@ -152,7 +148,6 @@ export function ChatMotif({ visible, className = '' }: MotifProps) {
           <stop offset="100%" stopColor="#f0d494" />
         </linearGradient>
       </defs>
-      <circle cx="100" cy="100" r="92" fill="currentColor" fillOpacity="0.05" stroke="none" />
       <rect x="22" y="35" width="120" height="85" rx="16" stroke="url(#ohpFaqGrad)" strokeWidth="4" />
       <path d="M52 120 L38 142 L68 120 Z" stroke="url(#ohpFaqGrad)" strokeWidth="4" strokeLinejoin="round" style={{ transitionDelay: '0.33s' }} />
       <path d="M70 65 Q70 52 82 52 Q94 52 94 64 Q94 73 82 77 L82 84" stroke="url(#ohpFaqGrad)" strokeWidth="4" strokeLinecap="round" style={{ transitionDelay: '0.66s' }} />

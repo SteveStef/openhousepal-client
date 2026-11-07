@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { Bell, BedDouble, Calendar, Check, ChevronLeft, ChevronRight, ClipboardList, DollarSign, Heart, Home as HomeIcon, Layout, Mail, MapPin, MessageSquare, Radio, Send, SlidersHorizontal, Sparkles, ThumbsDown, ThumbsUp, TrendingDown, UserCheck, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import BrowserFrame from '@/components/home/BrowserFrame'
 import TypingAnimation from '@/components/TypingAnimation'
 import TitleSlide from './TitleSlide'
-import DemoPointer from './DemoPointer'
+import DemoCursor, { useCursorCues, type CursorCue } from './DemoCursor'
 import { DemoCaption, DemoNote, DEMO_NOTE_CSS, STAGE_BG } from './DemoNote'
 import { AGENT, REAL_SHOWCASE } from './realData'
 
@@ -167,10 +167,30 @@ function ClientPage({ scene, tick, hl }: { scene: Scene; tick: number; hl: (id: 
   )
 }
 
+// The pointer's script: Create Showcase, then the tour steps (day -> time -> Request Tour). Each
+// glide takes 850ms, and every choice lights up just after its click.
+function cursorCues(beat: Beat): CursorCue[] {
+  if (beat.k !== 'stop') return []
+  switch (STOPS[beat.n].id) {
+    case 'create': return [{ at: 3000, target: '[data-cursor="create"]' }, { at: 4500, click: true }, { at: 5000, click: false }]
+    case 'criteria': return [{ at: 0, target: null, click: false }]
+    case 'tour': return [
+      { at: 100, target: '[data-cursor="tour-day"]' }, { at: 1050, click: true },
+      { at: 1500, target: '[data-cursor="tour-time"]', click: false }, { at: 2500, click: true },
+      { at: 3000, target: '[data-cursor="tour-request"]', click: false }, { at: 4000, click: true },
+      { at: 4500, click: false }, { at: 5400, target: null },
+    ]
+    default: return []
+  }
+}
+
 export default function ShowcaseDemo() {
   const [i, setI] = useState(0)
   const [tick, setTick] = useState(0)
   const beat = BEATS[i]
+  const stage = useRef<HTMLDivElement>(null)
+  const chat = useRef<HTMLDivElement>(null)
+  const cursor = useCursorCues(i, cursorCues(beat))
 
   useEffect(() => {
     setTick(0)
@@ -178,6 +198,8 @@ export default function ShowcaseDemo() {
     const t = setTimeout(() => setI(n => (n + 1) % BEATS.length), beatDuration(beat))
     return () => { clearTimeout(t); clearInterval(ticker) }
   }, [i, beat])
+
+  useEffect(() => { chat.current?.scrollTo({ top: chat.current.scrollHeight, behavior: 'smooth' }) }, [tick])
 
   if (beat.k === 'title') {
     return (
@@ -216,7 +238,7 @@ export default function ShowcaseDemo() {
         </DemoNote>
 
         {/* the stage */}
-        <div className="relative h-[380px] w-full max-w-[430px] flex-shrink-0 overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_30px_60px_-30px_rgba(0,0,0,.55)] dark:border-white/10 dark:bg-[#151517]">
+        <div ref={stage} className="relative h-[380px] w-full max-w-[430px] flex-shrink-0 overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_30px_60px_-30px_rgba(0,0,0,.55)] dark:border-white/10 dark:bg-[#151517]">
 
           {scene === 'auto' && (
             <div className="flex h-full flex-col items-center justify-center gap-3 bg-[#FAFAF7] p-5 dark:bg-[#0B0B0B]">
@@ -264,11 +286,10 @@ export default function ShowcaseDemo() {
                   <div className="flex-1 truncate rounded-lg border border-gray-200 px-2.5 py-2 text-[9.5px] font-medium text-[#111827] dark:border-gray-700 dark:text-gray-200">{tick >= 6 ? <TypingAnimation text={`${SEED.address}, ${SEED.city}`} speed={45} /> : ''}&nbsp;</div>
                   <div className="w-14 rounded-lg border-2 border-[#C9A24D] px-2 py-2 text-center text-[9.5px] font-bold text-[#111827] dark:text-white">{PREFS.radiusMiles} mi</div>
                 </div>
-                <div className={`relative w-full rounded-lg py-2 text-center text-[9.5px] font-black transition-all duration-300 ${tick >= 19 ? 'bg-green-500 text-white' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>
+                <div data-cursor="create" className={`relative w-full rounded-lg py-2 text-center text-[9.5px] font-black transition-all duration-300 ${tick >= 19 ? 'bg-green-500 text-white' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>
                   {tick >= 19 ? <span className="inline-flex items-center gap-1"><Check className="h-3 w-3" strokeWidth={3} /> Created - {PROPS.length} matches found</span> : 'Create Showcase'}
                 </div>
               </div>
-              <DemoPointer x={tick >= 16 ? 62 : 80} y={tick >= 16 ? 77 : 92} click={tick >= 18 && tick < 20} show={tick >= 12} />
             </div>
           )}
 
@@ -307,7 +328,7 @@ export default function ShowcaseDemo() {
                       <p className="flex-1 truncate text-[10px] font-black text-[#0B0B0B] dark:text-white">{PROPS[0].address} · Comments</p>
                       <X className="h-3 w-3 text-gray-300" />
                     </div>
-                    <div className="h-[150px] space-y-3 p-3">
+                    <div ref={chat} className="h-[204px] space-y-3 overflow-y-auto p-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       {tick >= 2 && (
                         <div className="dn-rise">
                           <div className="mb-0.5 flex items-center gap-1.5"><InitialAvatar name={CLIENT} /><span className="text-[8px] font-black uppercase text-[#0B0B0B] dark:text-white">{CLIENT}</span><span className="text-[7px] text-gray-400">Just now</span></div>
@@ -352,19 +373,18 @@ export default function ShowcaseDemo() {
                         {Array.from({ length: 14 }, (_, k) => k + 1).map(d => {
                           const past = d < 2
                           const picked = d === 3 && tick >= 5
-                          return <span key={d} className={`rounded-md py-1 text-[8px] font-bold transition-all duration-300 ${past ? 'text-gray-300 dark:text-gray-700' : picked ? 'scale-110 bg-[#C9A24D] text-[#111827] shadow' : 'text-[#0B0B0B] dark:text-gray-200'}`}>{d}</span>
+                          return <span key={d} data-cursor={d === 3 ? 'tour-day' : undefined} className={`rounded-md py-1 text-[8px] font-bold transition-all duration-300 ${past ? 'text-gray-300 dark:text-gray-700' : picked ? 'scale-110 bg-[#C9A24D] text-[#111827] shadow' : 'text-[#0B0B0B] dark:text-gray-200'}`}>{d}</span>
                         })}
                       </div>
                       <p className="mb-1 mt-2.5 text-[7px] font-black uppercase tracking-wide text-gray-400">Pick a time</p>
                       <div className="grid grid-cols-3 gap-1">
                         {['10:00 AM', '11:00 AM', '1:00 PM'].map(t => (
-                          <span key={t} className={`rounded-md border py-1 text-center text-[8px] font-bold transition-all duration-300 ${t === '11:00 AM' && tick >= 10 ? 'border-[#C9A24D] bg-[#C9A24D]/15 text-[#0B0B0B] dark:text-white' : 'border-gray-200 text-gray-500 dark:border-gray-700'}`}>{t}</span>
+                          <span key={t} data-cursor={t === '11:00 AM' ? 'tour-time' : undefined} className={`rounded-md border py-1 text-center text-[8px] font-bold transition-all duration-300 ${t === '11:00 AM' && tick >= 11 ? 'border-[#C9A24D] bg-[#C9A24D]/15 text-[#0B0B0B] dark:text-white' : 'border-gray-200 text-gray-500 dark:border-gray-700'}`}>{t}</span>
                         ))}
                       </div>
-                      <div className={`mt-3 rounded-lg py-2 text-center text-[9.5px] font-black transition-all duration-300 ${tick >= 16 ? 'bg-green-500 text-white' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>{tick >= 16 ? '✓ Tour requested - Sat, Oct 3 · 11:00 AM' : 'Request Tour'}</div>
+                      <div data-cursor="tour-request" className={`mt-3 rounded-lg py-2 text-center text-[9.5px] font-black transition-all duration-300 ${tick >= 17 ? 'bg-green-500 text-white' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>{tick >= 17 ? '✓ Tour requested - Sat, Oct 3 · 11:00 AM' : 'Request Tour'}</div>
                     </div>
                   </div>
-                  <DemoPointer x={tick < 8 ? 68 : 50} y={tick < 8 ? 40 : tick < 13 ? 62 : 74} click={(tick >= 4 && tick < 6) || (tick >= 9 && tick < 11) || (tick >= 14 && tick < 16)} show={tick >= 2} />
                 </div>
               )}
             </div>
@@ -407,6 +427,7 @@ export default function ShowcaseDemo() {
               )}
             </div>
           )}
+          <DemoCursor container={stage} target={cursor.target} click={cursor.click} />
         </div>
         <DemoCaption title={stop.title} body={stop.body} />
       </div>

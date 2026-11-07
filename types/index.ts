@@ -2230,8 +2230,10 @@ export type LeadStatus = 'new' | 'contacted' | 'in_talks' | 'signed' | 'hidden' 
 export type LeadRepresented = 'yes' | 'no' | 'unknown';
 export type LeadSourceType = 'open_house_visitor' | 'form_submission' | 'property_tour' | 'property_comment' | 'collection_visitor' | 'open_house_second_visit' | 'open_house_disclosure' | 'property_website_inquiry' | 'property_website_tour_request' | 'portal_lead' | 'form_partial' | 'property_page_inquiry' | 'property_page_tour_request' | 'blog_inquiry' | 'website_google_signin' | 'invite_rsvp'
   // Done inside their Showcase / elsewhere (backend leads_service.log_activity) - keep in sync with schemas/leads.py.
-  | 'showcase_like' | 'showcase_dislike' | 'showcase_view' | 'showcase_refine' | 'showcase_search_changed'
+  | 'showcase_like' | 'showcase_dislike' | 'showcase_view' | 'showcase_opened' | 'showcase_refine' | 'showcase_search_changed'
   | 'showcase_emails_off' | 'showcase_emails_on' | 'email_unsubscribed' | 'review_left'
+  // Done on their Guest Pass after signing in (backend guest_pass_service.track).
+  | 'guest_pass_home' | 'guest_pass_activity'
   // Email tracking + engagement rules (backend client_email_service).
   | 'email_opened' | 'email_clicked' | 'email_weekly' | 'email_paused' | 'email_resumed';
 export type LeadSourceFilter = 'all' | 'open_house' | 'form' | 'showcase' | 'website' | 'tour';
@@ -2265,6 +2267,9 @@ export interface LeadTodo {
 
 export interface LeadShowcase {
   id: string;
+  /** Homes the client opened over this Showcase's whole life. */
+  viewed?: number;
+  status?: string | null;
   name?: string | null;
   share_token?: string | null;
   short_code?: string | null;
@@ -2402,7 +2407,7 @@ export interface Lead {
 }
 
 /** How automatic emails go to one client: daily (normal), weekly (stopped opening them) or off. */
-export type EmailMode = 'daily' | 'weekly' | 'off';
+export type EmailMode = 'daily' | 'weekly' | 'biweekly' | 'off';
 export type EmailDelivery = 'delivered' | 'delayed' | 'bounced' | 'blocked' | 'spam';
 
 /** Whether the agent opens OpenHousePal's own emails (backend agent_email_health_service).
@@ -2425,6 +2430,9 @@ export interface EmailHealth {
 export interface EmailPerson {
   email: string;
   mode: EmailMode;
+  /** Picked on purpose: weekly or biweekly stay put. Null = the normal rules. */
+  frequency?: 'weekly' | 'biweekly' | null;
+  frequency_by?: 'agent' | 'client' | null;
   reason?: string | null;
   /** ok | unopened_days | weekly_unopened | manual_off | unsubscribed */
   code?: string;
@@ -4274,7 +4282,8 @@ export interface ShowcaseActivityItem {
   type: string;
   title: string;
   message: string;
-  collection_id: string;
+  /** Empty for a guest's Guest Pass activity when they have no Showcase. */
+  collection_id: string | null;
   showcase_name?: string | null;
   property_id?: string | null;
   property_address?: string | null;

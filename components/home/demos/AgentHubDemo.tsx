@@ -6,6 +6,7 @@ import type { LucideIcon } from 'lucide-react'
 import { Calendar, Check, ChevronRight, DollarSign, Facebook, Globe, Home, IdCard, Instagram, Link2, Mail, MapPin, MessageSquare, Music2, Newspaper, Phone, Play, RefreshCw, TrendingUp, UserPlus, Youtube } from 'lucide-react'
 import BrowserFrame from '@/components/home/BrowserFrame'
 import TitleSlide from './TitleSlide'
+import DemoCursor, { useCursorCues, type CursorCue } from './DemoCursor'
 import { CarouselTrack } from './DemoScroller'
 import { DemoCaption, DEMO_NOTE_CSS } from './DemoNote'
 import BlogTitleCard from './BlogTitleCard'
@@ -16,7 +17,7 @@ import { AGENT, REAL_AI_BLOG, REAL_BLOG, REAL_SPOTLIGHT } from './realData'
 // round call / text / email + social buttons, Save Contact, the Buying / Selling / Home Worth /
 // Showing buttons, then the shelves in their real order (Recent Sales, My Listings, Videos, House
 // Tours, Blogs) with gold-ruled serif headings and dark "View all" pills. A note beside the phone
-// says what each part does; a finger taps Save Contact (the phone's add-contact sheet opens), and
+// says what each part does; the pointer clicks Save Contact (the phone's add-contact sheet opens), and
 // a new Bright MLS listing drops into My Listings on its own - the page keeps itself up to date.
 // Scroll stops are measured from the real layout, so there are no blank gaps and it never scrolls
 // past Blogs into an empty footer.
@@ -66,23 +67,33 @@ const BEATS: Beat[] = [{ k: 'title' }, ...STOPS.map((_, stop) => ({ k: 'scroll' 
 const beatDuration = (b: Beat) => (b.k === 'title' ? 5200 : STOPS[b.stop].hold)
 const TOTAL_PAGES = 1 + STOPS.length
 
+// The pointer's script for the one real press here: Save Contact, then Add to Contacts on the sheet
+// that opens. Both sit inside the scaled phone, hence `painted` on the cursor. The sheet slides up
+// first, so the move to Add to Contacts waits for it to stop.
+function cursorCues(beat: Beat): CursorCue[] {
+  if (beat.k !== 'scroll' || STOPS[beat.stop].id !== 'save') return []
+  return [
+    { at: 300, target: '[data-cursor="save-contact"]' }, { at: 1500, click: true }, { at: 2050, click: false },
+    { at: 2650, target: '[data-cursor="add-contact"]' }, { at: 3600, click: true }, { at: 4100, click: false },
+    { at: 4500, target: null },
+  ]
+}
+
 const CSS = `
 @keyframes ahRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @keyframes ahSheet{from{transform:translateY(105%)}to{transform:none}}
 @keyframes ahToast{0%{opacity:0;transform:translateY(-10px) scale(.95)}100%{opacity:1;transform:none}}
-@keyframes ahTap{0%{transform:scale(1);opacity:.9}100%{transform:scale(2.6);opacity:0}}
 @keyframes ahShine{0%,55%{transform:translateX(-120%)}100%{transform:translateX(260%)}}
 @keyframes ahNew{0%{opacity:0;transform:translateY(16px) scale(.94)}100%{opacity:1;transform:none}}
 .ah-rise{animation:ahRise .6s cubic-bezier(.22,.61,.36,1) both}
 .ah-sheet{animation:ahSheet .55s cubic-bezier(.22,.61,.36,1) both}
 .ah-toast{animation:ahToast .55s cubic-bezier(.34,1.56,.64,1) both}
-.ah-tap{animation:ahTap .7s ease-out both}
 .ah-new{animation:ahNew .8s cubic-bezier(.22,.61,.36,1) both}
 .ah-hl{transition:opacity .5s ease,box-shadow .5s ease}
 .ah-on{box-shadow:0 0 0 2px #C9A24D,0 0 0 6px rgba(201,162,77,.22),0 12px 30px -12px rgba(201,162,77,.7)}
 .ah-off{opacity:.38}
 .ah-shine{position:relative;overflow:hidden}.ah-shine:after{content:"";position:absolute;inset:0;width:35%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);animation:ahShine 3.6s ease-in-out infinite}
-@media (prefers-reduced-motion:reduce){.ah-rise,.ah-sheet,.ah-toast,.ah-tap,.ah-new,.ah-shine:after{animation:none}}
+@media (prefers-reduced-motion:reduce){.ah-rise,.ah-sheet,.ah-toast,.ah-new,.ah-shine:after{animation:none}}
 `
 
 function Shelf({ title, action, children, sref, hl }: { title: string; action: string; children: React.ReactNode; sref: (el: HTMLDivElement | null) => void; hl: string }) {
@@ -129,6 +140,9 @@ export default function AgentHubDemo() {
     return () => { clearInterval(a); clearInterval(b) }
   }, [])
 
+  const stage = useRef<HTMLDivElement>(null)
+  const cursor = useCursorCues(i, cursorCues(beat))
+
   // Measured scroll stops: each shelf's real top, capped so the last stop ends on the content.
   const content = useRef<HTMLDivElement>(null)
   const refs = useRef<(HTMLDivElement | null)[]>([])
@@ -168,13 +182,13 @@ export default function AgentHubDemo() {
   return (
     <BrowserFrame url="openhousepal.com/peter-stefanatos" progress={{ pages: TOTAL_PAGES, current: 1 + stop, durationMs: beatDuration(beat) }}>
       <style>{CSS + DEMO_NOTE_CSS}</style>
-      <div className="relative flex h-[420px] items-center justify-center gap-5 overflow-hidden bg-[radial-gradient(90%_80%_at_80%_10%,rgba(201,162,77,.18),transparent_60%),linear-gradient(140deg,#fffdf8,#f6efe0)] px-4 dark:bg-[radial-gradient(90%_80%_at_80%_10%,rgba(201,162,77,.14),transparent_60%),linear-gradient(140deg,#0b0f0e,#141210)]">
+      <div ref={stage} className="relative flex h-[420px] items-center justify-center gap-5 overflow-hidden bg-[radial-gradient(90%_80%_at_80%_10%,rgba(201,162,77,.18),transparent_60%),linear-gradient(140deg,#fffdf8,#f6efe0)] px-4 dark:bg-[radial-gradient(90%_80%_at_80%_10%,rgba(201,162,77,.14),transparent_60%),linear-gradient(140deg,#0b0f0e,#141210)]">
         {/* what this part does */}
         <div key={note.id} className="ah-rise hidden w-[170px] shrink-0 sm:block">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-md ring-1 ring-[#C9A24D]/40"><note.icon className="h-4 w-4" /></span>
           <p className="mt-2.5 font-serif text-[19px] font-black leading-tight text-[#111827] dark:text-white">{note.title}</p>
           <p className="mt-1.5 text-[12px] font-semibold leading-snug text-gray-500 dark:text-gray-400">{note.body}</p>
-          {note.id === 'save' && tick >= 14 && <p className="ah-rise mt-2 inline-flex items-center gap-1 rounded-full bg-[#C9A24D]/15 px-2 py-1 text-[10px] font-black text-[#8b6a2b] dark:text-[#e8c97a]"><Check className="h-3 w-3" /> Saved</p>}
+          {note.id === 'save' && tick >= 15 && <p className="ah-rise mt-2 inline-flex items-center gap-1 rounded-full bg-[#C9A24D]/15 px-2 py-1 text-[10px] font-black text-[#8b6a2b] dark:text-[#e8c97a]"><Check className="h-3 w-3" /> Saved</p>}
           <div className="mt-3 flex gap-1">{STOPS.map((_, k) => <span key={k} className={`h-1 rounded-full transition-all duration-500 ${k === stop ? 'w-5 bg-[#C9A24D]' : 'w-1.5 bg-[#C9A24D]/25'}`} />)}</div>
         </div>
 
@@ -217,9 +231,8 @@ export default function AgentHubDemo() {
                         <span className="w-1" />
                         {[{ I: Instagram, c: '#E4405F' }, { I: Facebook, c: '#1877F2' }, { I: Youtube, c: '#FF0000' }, { I: Music2, c: '#111827' }, { I: Globe, c: '#a8853d' }].map(({ I: Ic, c }, k) => <span key={k} className="flex h-9 w-9 items-center justify-center rounded-full border border-[#C9A24D]/25 bg-white shadow-sm"><Ic className="h-4 w-4" style={{ color: c }} /></span>)}
                       </div>
-                      <div className={`ah-shine ah-hl relative mt-3 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#111827] to-[#2a2218] py-3 text-[11px] font-black text-[#f3dfa8] ${hl('save')} ${tapSave ? 'scale-[0.97]' : ''}`}>
+                      <div data-cursor="save-contact" className={`ah-shine ah-hl relative mt-3 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#111827] to-[#2a2218] py-3 text-[11px] font-black text-[#f3dfa8] ${hl('save')} ${tapSave ? 'scale-[0.97]' : ''}`}>
                         <IdCard className="h-4 w-4" /> Save Contact
-                        {tapSave && <span className="pointer-events-none absolute left-[62%] top-1/2 h-8 w-8 -translate-y-1/2"><span className="ah-tap absolute inset-0 rounded-full bg-white/60" /><span className="absolute inset-[30%] rounded-full bg-white/90 shadow" /></span>}
                       </div>
                       <div className={`ah-hl mt-2 rounded-2xl ${hl('actions')}`}>
                       <div className="grid grid-cols-2 gap-2">
@@ -261,7 +274,7 @@ export default function AgentHubDemo() {
                       <CarouselTrack index={videosIdx}>
                         {VIDEOS.map(v => (
                           <div key={v.label} className="w-full flex-shrink-0 px-0.5">
-                            <PhotoCard photo={v.photo}><span className="absolute inset-0 flex items-center justify-center"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/45 ring-2 ring-white/70 "><Play className="ml-0.5 h-4 w-4 fill-white text-white" /></span></span></PhotoCard>
+                            <PhotoCard photo={v.photo} h="aspect-video"><span className="absolute inset-0 flex items-center justify-center"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/45 ring-2 ring-white/70 "><Play className="ml-0.5 h-4 w-4 fill-white text-white" /></span></span></PhotoCard>
                             <p className="mt-1.5 truncate px-1 text-[9.5px] font-black text-[#111827]">{v.label}</p>
                           </div>
                         ))}
@@ -272,7 +285,7 @@ export default function AgentHubDemo() {
                       <div className="grid grid-cols-2 gap-2">
                         {TOURS.map(t => (
                           <div key={t.label} className="min-w-0">
-                            <PhotoCard photo={t.photo} h="h-24"><span className="absolute inset-0 flex items-center justify-center"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#C9A24D] shadow"><Play className="ml-0.5 h-3.5 w-3.5 fill-[#111827] text-[#111827]" /></span></span></PhotoCard>
+                            <PhotoCard photo={t.photo} h="aspect-video"><span className="absolute inset-0 flex items-center justify-center"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#C9A24D] shadow"><Play className="ml-0.5 h-3.5 w-3.5 fill-[#111827] text-[#111827]" /></span></span></PhotoCard>
                             <p className="mt-1 flex items-center gap-1 text-[6.5px] font-black uppercase tracking-[0.2em] text-[#a8853d]"><span className="h-px w-3 bg-[#C9A24D]" />Tour</p>
                             <p className="font-serif text-[10px] font-black leading-tight text-[#111827] line-clamp-2">{t.label}</p>
                           </div>
@@ -300,7 +313,7 @@ export default function AgentHubDemo() {
                           <p className="flex justify-between border-b border-gray-100 pb-1.5"><span className="text-gray-400">mobile</span><span className="font-bold text-[#0a66c2]">{AGENT.phone}</span></p>
                           <p className="flex justify-between border-b border-gray-100 pb-1.5"><span className="text-gray-400">email</span><span className="font-bold text-[#0a66c2]">{AGENT.email}</span></p>
                         </div>
-                        <span className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-[#0a66c2] py-2.5 text-[11px] font-black text-white">{tick >= 14 ? <><Check className="h-3.5 w-3.5" /> Saved to Contacts</> : <><UserPlus className="h-3.5 w-3.5" /> Add to Contacts</>}</span>
+                        <span data-cursor="add-contact" className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-[#0a66c2] py-2.5 text-[11px] font-black text-white">{tick >= 15 ? <><Check className="h-3.5 w-3.5" /> Saved to Contacts</> : <><UserPlus className="h-3.5 w-3.5" /> Add to Contacts</>}</span>
                       </div>
                     </div>
                   )}
@@ -310,6 +323,7 @@ export default function AgentHubDemo() {
             </div>
           </div>
         </div>
+        <DemoCursor container={stage} target={cursor.target} click={cursor.click} painted />
       </div>
     </BrowserFrame>
   )

@@ -29,10 +29,9 @@ import ConfirmedToHostStrip from '@/components/open-house-manager/ConfirmedToHos
 import { OpenHouseFormRequestsPanel } from '@/components/OpenHouseFormRequestsPanel'
 import { DeleteConfirmationDialog } from './components/DeleteConfirmationDialog'
 import { OpenHouseNoteModal } from './components/OpenHouseNoteModal'
-import OpenHouseVisitors from './components/OpenHouseVisitors'
+import { VisitorsSheet, type VisitorsSheetHandle } from './components/VisitorsSheet'
 import { AnimatePresence } from 'framer-motion'
 import OhpLoader from '@/components/brand/OhpLoader'
-import OhSheet from '@/components/open-house-manager/OhSheet'
 import { useIsPhone, useLastValue } from '@/components/ui/windowMotion'
 import ShowcasesOffSheet from './components/ShowcasesOffSheet'
 import { similarHomesOn } from '@/lib/similarHomes'
@@ -221,34 +220,21 @@ function OpenHouseContent() {
   const cheatSheetPreviewCacheRef = useRef<Record<string, any>>({})
 
   // Visitors open in a pop-up over Opens (same view as the full page) so the agent keeps their place.
-  const [visitorsFor, setVisitorsFor] = useState<string | null>(null)
+  // It holds its own open / closed state, so this page doesn't re-render while the sheet slides.
+  const visitorsSheet = useRef<VisitorsSheetHandle>(null)
   const handleViewVisitors = useCallback((openHouse: any) => {
-    setVisitorsFor(openHouse.id)
+    visitorsSheet.current?.open(openHouse)
   }, [])
-  // Closing the Visitors pop-up: once it has finished animating away, quietly refresh just that
-  // open house's guest count (notes/deletes may have changed it) - no list reload, no spinner.
-  const closedVisitorsFor = useRef<string | null>(null)
-  // Kept while the sheet slides away (the id clears the moment it's told to close).
-  const visitorsSheetId = useLastValue(visitorsFor)
-  const visitorsSheetOh = openHouses.find(oh => oh.id === visitorsSheetId) || null
-  const closeVisitors = useCallback(() => {
-    closedVisitorsFor.current = visitorsFor
-    setVisitorsFor(null)
-    // Once the sheet has slid away, quietly refresh that open house's guest count.
-    window.setTimeout(() => { refreshClosedVisitorCountRef.current?.() }, 420)
-  }, [visitorsFor])
-  const refreshClosedVisitorCountRef = useRef<(() => void) | null>(null)
-  const refreshClosedVisitorCount = useCallback(async () => {
-    const id = closedVisitorsFor.current
-    closedVisitorsFor.current = null
-    if (!id) return
+  const visitorsSubtitle = useCallback((oh: any) => `${formatStreetAndCity(oh.address, oh.city)}${oh.price ? ` · $${Number(oh.price).toLocaleString()}` : ''}`, [])
+  // Once it has finished sliding away, quietly refresh just that open house's guest count (notes /
+  // deletes may have changed it) - no list reload, no spinner.
+  const refreshVisitorCount = useCallback(async (id: string) => {
     const response = await api.openHouses.getVisitors(id)
     if (response.success && response.data) {
       const count = response.data.length
-      setOpenHouses(prev => prev.map(oh => (oh.id === id ? { ...oh, visitorCount: count } : oh)))
+      setOpenHouses(prev => prev.map(oh => (oh.id === id && oh.visitorCount !== count ? { ...oh, visitorCount: count } : oh)))
     }
   }, [])
-  refreshClosedVisitorCountRef.current = refreshClosedVisitorCount
 
   // A Cheat Sheet saved under older nearby-places rules gets its "What's Nearby" section looked up
   // again - only here, when the agent opens that open house's Kit (user, 10/25: never a platform-wide
@@ -1162,25 +1148,7 @@ function OpenHouseContent() {
 
       {/* Visitors (user, 10/24): a slide-up sheet on phones that pulls down to close, a centred
           window on a computer - the shared OhSheet, with the home's photo + address up top. */}
-      <OhSheet
-        open={!!visitorsFor}
-        onClose={closeVisitors}
-        width="max-w-6xl"
-        title="Visitors"
-        subtitle={visitorsSheetOh ? `${formatStreetAndCity(visitorsSheetOh.address, visitorsSheetOh.city)}${visitorsSheetOh.price ? ` · $${Number(visitorsSheetOh.price).toLocaleString()}` : ''}` : undefined}
-        image={visitorsSheetOh?.coverImageUrl || null}
-        badge={visitorsSheetOh ? (
-          <span className="shrink-0 rounded-full bg-[#111827] px-2 py-0.5 text-[10px] font-black tabular-nums text-[#e8c97a] dark:bg-[#e8c97a] dark:text-[#111827]">{visitorsSheetOh.visitorCount ?? 0}</span>
-        ) : undefined}
-      >
-        {visitorsSheetId && (
-          <OpenHouseVisitors
-            openHouseEventId={visitorsSheetId}
-            onClose={closeVisitors}
-            showcasesOn={visitorsSheetOh ? visitorsSheetOh.autoShowcase !== false || !!visitorsSheetOh.passShowcase : true}
-          />
-        )}
-      </OhSheet>
+      <VisitorsSheet ref={visitorsSheet} subtitleFor={visitorsSubtitle} onClosed={refreshVisitorCount} />
 
       <ShowcasesOffSheet
         openHouse={showcasesOffFor}

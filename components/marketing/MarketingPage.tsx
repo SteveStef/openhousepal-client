@@ -56,7 +56,7 @@ export function MarketingNav({ path, crumb, onDark = false }: { path: string; cr
     ],
   }
   return (
-    <nav aria-label="OpenHousePal" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden [&>a]:shrink-0">
+    <nav aria-label="OpenHousePal" className="flex flex-wrap gap-1.5 [&>a]:shrink-0">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(crumbs) }} />
       <HomeLink className={`rounded-full px-3.5 py-1.5 text-[13px] font-black transition-colors ${onDark ? 'bg-white/10 text-gray-200 hover:bg-white/20' : 'bg-white text-gray-600 ring-1 ring-gray-200 hover:ring-[#C9A24D] dark:bg-[#151517] dark:text-gray-300 dark:ring-white/10'}`}>Home</HomeLink>
       {MARKETING_LINKS.map(l => (
@@ -86,7 +86,7 @@ export function MarketingHero({ path, crumb, kicker, title, accent, lead, motif,
         {motif && <HeroMotif name={motif} className="pointer-events-none absolute -bottom-8 right-6 hidden h-[250px] w-[250px] text-[#C9A24D] opacity-30 lg:block" />}
         <div className={`mt-10 ${center ? 'mx-auto max-w-3xl text-center' : 'max-w-3xl'}`}>
           <p className="mk-rise text-xs font-black uppercase tracking-[0.3em] text-[#e8c97a]">{kicker}</p>
-          <h1 className="mk-rise mt-3 font-serif text-[2.6rem] font-black leading-[1.03] tracking-tight text-white sm:text-6xl lg:text-7xl" style={{ ['--d' as string]: '90ms' }}>
+          <h1 className="mk-rise mt-3 whitespace-pre-line font-serif text-[2.6rem] max-[359px]:text-[2.2rem] font-black leading-[1.03] tracking-tight text-white sm:text-6xl lg:text-7xl" style={{ ['--d' as string]: '90ms' }}>
             {at >= 0 ? <>{title.slice(0, at)}<em className="mk-gold font-serif italic">{accent}</em>{title.slice(at + (accent?.length || 0))}</> : title}
           </h1>
           <p className={`mk-rise mt-5 text-lg font-medium leading-relaxed text-gray-300 sm:text-xl ${center ? 'mx-auto max-w-xl' : 'max-w-2xl'}`} style={{ ['--d' as string]: '180ms' }}>{lead}</p>

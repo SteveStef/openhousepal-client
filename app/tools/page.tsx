@@ -5,7 +5,7 @@ export const metadata = marketingMeta('/tools', 'All Tools for Real Estate Agent
 
 export default function ToolsPage() {
   return (
-    <MarketingPage path="/tools" kicker="All Tools" title="Every tool, shown working" accent="shown working" motif="key"
+    <MarketingPage path="/tools" kicker="All Tools" title={'Every tool,\nshown working'} accent="shown working" motif="key"
       lead="OpenHousePal runs your open houses, follows up with your leads and markets you and your listings, all branded to you. What's included depends on your plan.">
       <ToolsExplorer />
       <TrialBand />

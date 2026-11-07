@@ -187,6 +187,9 @@ export default function PageGate({ children }: { children: React.ReactNode }) {
     if (navTimer.current) { clearTimeout(navTimer.current); navTimer.current = null }
     if (path !== startPath.current) moved.current = true
     if (!(moved.current ? gatesInApp(path) : isGatedAppPage(path))) { setPhase('done'); return }
+    // The homepage waits on no data, so it never holds or shows the loader: it just rises in, starting
+    // here before its first paint (owner, 11/06: back to the homepage flashed, then loaded, then opened).
+    if (path === '/') { reveal(root.current); setPhase('done'); return }
     setLabel(labelFor(path))
     const alive = () => run.current === id
     const started = Date.now()
@@ -233,7 +236,7 @@ export default function PageGate({ children }: { children: React.ReactNode }) {
       let url: URL
       try { url = new URL(a.href, window.location.href) } catch { return }
       if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return
-      if (!gatesInApp(url.pathname)) return
+      if (!gatesInApp(url.pathname) || url.pathname === '/') return
       run.current++
       setLabel(labelFor(url.pathname))
       // Hold the old page still; the loader only appears if the new one takes a moment.

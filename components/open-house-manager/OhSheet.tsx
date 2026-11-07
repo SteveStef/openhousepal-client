@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useIsPresent } from 'framer-motion'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { backdropMotion, useEscapeToClose, useIsPhone, usePagePin, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 
@@ -16,8 +16,12 @@ const SIDE_IN = {
   exit: { x: '100%', transition: { duration: 0.22, ease: [0.4, 0, 1, 1] } },
 } as const
 
-export default function OhSheet({ open, onClose, variant = 'center', width = 'max-w-2xl', title, subtitle, icon, image, badge, children, footer, zClass = 'z-[60]' }: {
+export default function OhSheet({ open, onClose, onOpened, onClosed, variant = 'center', width = 'max-w-2xl', title, subtitle, icon, image, badge, children, footer, zClass = 'z-[60]' }: {
   open: boolean
+  /** The sheet has stopped moving into place - safe to do heavy work inside it. */
+  onOpened?: () => void
+  /** The sheet has finished sliding away. */
+  onClosed?: () => void
   /** Stacking layer - raise it when the sheet opens from inside a higher window (e.g. the kit flow). */
   zClass?: string
   onClose: () => void
@@ -39,27 +43,37 @@ export default function OhSheet({ open, onClose, variant = 'center', width = 'ma
   const release = usePagePin(open)
   if (!host) return null
   return createPortal(
-    <AnimatePresence onExitComplete={release}>
+    <AnimatePresence onExitComplete={() => { release(); onClosed?.() }}>
       {open && (
-        <Sheet key="oh-sheet" {...{ onClose, variant, width, title, subtitle, icon, image, badge, footer, zClass }}>{children}</Sheet>
+        <Sheet key="oh-sheet" {...{ onClose, onOpened, variant, width, title, subtitle, icon, image, badge, footer, zClass }}>{children}</Sheet>
       )}
     </AnimatePresence>,
     host,
   )
 }
 
-function Sheet({ onClose, variant, width, title, subtitle, icon, image, badge, footer, children, zClass = 'z-[60]' }: Omit<Parameters<typeof OhSheet>[0], 'open'>) {
+function Sheet({ onClose, onOpened, variant, width, title, subtitle, icon, image, badge, footer, children, zClass = 'z-[60]' }: Omit<Parameters<typeof OhSheet>[0], 'open' | 'onClosed'>) {
   const phone = useIsPhone()
   const sheetMotion = useSheetMotion()
   const { sheetRef, y } = useSwipeToClose(onClose, phone)
-  useEscapeToClose(onClose)
+  const present = useIsPresent()
+  const shell = useRef<HTMLDivElement>(null)
+  // Escape closes the top window only: two sheets stack (Notes over Visitors) and it used to shut both.
+  useEscapeToClose(() => {
+    const all = document.querySelectorAll('[data-oh-sheet]')
+    if (all[all.length - 1] === shell.current) onClose()
+  })
+  const space = useKeyboardRoom(phone)
   const side = variant === 'side' && !phone
   return (
-    <motion.div {...backdropMotion} data-scroll-lock="off" onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    <motion.div ref={shell} {...backdropMotion} data-scroll-lock="off" data-oh-sheet onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      style={space ? { top: space.top, height: space.height, bottom: 'auto' } : undefined}
       className={`fixed inset-0 ${zClass} flex bg-[#0b0b0c]/55 ${phone ? 'items-end' : side ? 'justify-end' : 'items-center justify-center p-6'}`}>
-      <motion.div ref={sheetRef} {...(side ? SIDE_IN : sheetMotion)} style={phone ? { y } : undefined}
-        className={`relative flex w-full flex-col overflow-hidden bg-[#FAFAF7] shadow-[0_40px_100px_-30px_rgba(0,0,0,.7)] dark:bg-[#0d0d0f] ${
-          phone ? 'max-h-[92dvh] rounded-t-[28px]' : side ? 'h-full max-w-md' : `max-h-[min(900px,calc(100dvh-3rem))] ${width} rounded-[28px]`}`}>
+      {/* will-change keeps the phone sheet on its own layer: a pull moves it without repainting the list inside. */}
+      <motion.div ref={sheetRef} {...(side ? SIDE_IN : sheetMotion)} style={phone ? { y, willChange: 'transform', ...(space ? { maxHeight: space.height - 8 } : null) } : undefined}
+        onAnimationComplete={() => { if (present) onOpened?.() }}
+        className={`relative flex w-full flex-col overflow-hidden bg-[#FAFAF7] dark:bg-[#0d0d0f] ${
+          phone ? 'max-h-[92dvh] rounded-t-[28px]' : side ? 'h-full max-w-md shadow-[0_40px_100px_-30px_rgba(0,0,0,.7)]' : `max-h-[min(900px,calc(100dvh-3rem))] ${width} rounded-[28px] shadow-[0_40px_100px_-30px_rgba(0,0,0,.7)]`}`}>
         {phone && <span aria-hidden className="absolute left-1/2 top-2 z-10 h-1.5 w-10 -translate-x-1/2 rounded-full bg-gray-300 dark:bg-white/20" />}
         <div className={`flex items-center gap-3 border-b border-black/[0.06] bg-white px-5 dark:border-white/[0.07] dark:bg-[#141416] ${phone ? 'pb-4 pt-6' : 'py-4'}`}>
           {image !== undefined ? (
@@ -90,6 +104,25 @@ function Sheet({ onClose, variant, width, title, subtitle, icon, image, badge, f
       </motion.div>
     </motion.div>
   )
+}
+
+/** With the phone keyboard up, the sheet sits in the space above it (an iPhone doesn't move fixed
+ *  things for the keyboard), so a note box is never hidden behind it. null = no keyboard. */
+function useKeyboardRoom(phone: boolean) {
+  const [space, setSpace] = useState<{ top: number; height: number } | null>(null)
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!phone || !vv) return
+    const fit = () => {
+      const el = document.activeElement as HTMLElement | null
+      const typing = !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable)
+      setSpace(typing && window.innerHeight - vv.height > 120 ? { top: Math.round(vv.offsetTop), height: Math.round(vv.height) } : null)
+    }
+    vv.addEventListener('resize', fit)
+    vv.addEventListener('scroll', fit)
+    return () => { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit) }
+  }, [phone])
+  return space
 }
 
 /** Four at a time with a centred switcher underneath - long lists (opens, history, hosts) never

@@ -5,7 +5,9 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import api, { resolveMediaUrl } from '@/lib/api-service'
-import { Calendar, CheckSquare, Contact, Copy, Check, ArrowUpDown, Mail, MapPin, MessageSquareText, Phone, Share2, User, SlidersHorizontal, X } from 'lucide-react'
+import { Calendar, CheckSquare, Contact, Copy, Check, ArrowUpDown, Inbox, Mail, MapPin, MessageSquareText, Phone, Share2, User, SlidersHorizontal, X } from 'lucide-react'
+import ShowcaseMailbox from '@/components/showcases/ShowcaseMailbox'
+import { EmailFrequencySelect } from '@/components/emails/EmailEngagement'
 import PropertyGrid, { homeMatches, SHOWCASE_TABS } from '@/components/PropertyGrid'
 import ShowcaseRadiusContextLine from '@/components/ShowcaseRadiusContextLine'
 import PropertyDetailsModal, { type HomeMove } from '@/components/PropertyDetailsModal'
@@ -131,6 +133,7 @@ export const DetailView = memo(function DetailView({
   // The agent's own photo + name brand the questions box in the home window.
   const { user } = useAuth()
   const [copied, setCopied] = useState(false)
+  const [mailboxOpen, setMailboxOpen] = useState(false)
   const [copiedField, setCopiedField] = useState<string | null>(null)
   // Which quick window is open over the Showcase: what the matches compare to, or how far to look.
   const [quickFocus, setQuickFocus] = useState<'compare' | 'radius' | null>(null)
@@ -441,6 +444,15 @@ export const DetailView = memo(function DetailView({
                 </div>
                 <div className="ml-auto hidden shrink-0 items-center gap-1 sm:flex sm:gap-2">
                 <button
+                  onClick={() => setMailboxOpen(true)}
+                  title="Their newest homes and everything they did, all in one"
+                  data-testid="showcase-open-mailbox"
+                  className="relative inline-flex h-7 items-center justify-center gap-1 rounded-full bg-[#151517] px-2.5 text-[9px] font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-black dark:bg-white/10"
+                >
+                  <Inbox size={12} /> Mailbox
+                </button>
+                {selectedCollection.customer.email && <EmailFrequencySelect email={selectedCollection.customer.email} compact />}
+                <button
                   onClick={onViewTours}
                   title="View tours"
                   className="relative inline-flex h-7 items-center justify-center gap-1 rounded-full bg-[#151517] px-2.5 text-[9px] font-black uppercase tracking-widest text-white shadow-sm transition-all hover:shadow-md dark:bg-white dark:text-[#111827]"
@@ -538,7 +550,7 @@ export const DetailView = memo(function DetailView({
                   </div>
                 )}
               </div>
-              <div className="grid shrink-0 grid-cols-4 items-stretch gap-1.5 sm:flex sm:items-center sm:gap-2">
+              <div className="grid shrink-0 grid-cols-5 items-stretch gap-1.5 sm:flex sm:items-center sm:gap-2">
                 <motion.button
                   whileTap={{ scale: 0.94 }}
                   onClick={handleShare}
@@ -555,7 +567,15 @@ export const DetailView = memo(function DetailView({
                   <SlidersHorizontal size={13} className="sm:h-3.5 sm:w-3.5" />
                   Edit
                 </button>
-                {/* Tours - on phones it sits in this row (bigger screens have it up top) */}
+                {/* Mailbox + Tours - on phones they sit in this row (bigger screens have them up top) */}
+                <button
+                  onClick={() => setMailboxOpen(true)}
+                  data-testid="showcase-open-mailbox-phone"
+                  className="relative inline-flex flex-col items-center justify-center gap-1 rounded-xl border border-gray-200 bg-white px-1 py-2 text-[9.5px] font-black uppercase tracking-wider text-[#111827] transition-all dark:border-gray-700 dark:bg-white/5 dark:text-white sm:hidden"
+                >
+                  <Inbox size={13} />
+                  Mailbox
+                </button>
                 <button
                   onClick={onViewTours}
                   className="relative inline-flex flex-col items-center justify-center gap-1 rounded-xl border border-gray-200 bg-white px-1 py-2 text-[9.5px] font-black uppercase tracking-wider text-[#111827] transition-all dark:border-gray-800 dark:bg-white/5 dark:text-white sm:hidden"
@@ -828,6 +848,7 @@ export const DetailView = memo(function DetailView({
         {/* room under the last row so the select bar never covers it */}
         {selectMode && <div aria-hidden className="h-40 sm:h-32" />}
       </div>
+      <ShowcaseMailbox open={mailboxOpen} onClose={() => setMailboxOpen(false)} collectionId={selectedCollection.id} who={customerFullName} />
     </div>
   )
 })

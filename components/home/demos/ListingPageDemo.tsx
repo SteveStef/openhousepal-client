@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import type { LucideIcon } from 'lucide-react'
-import { ArrowRight, Bell, Camera, Check, Copy, Images, Loader2, Mail, MessageSquare, MousePointer2, Sparkles, Train, Trees } from 'lucide-react'
+import { ArrowRight, Bell, Camera, Check, Copy, Images, Loader2, Mail, MessageSquare, Sparkles, Train, Trees } from 'lucide-react'
 import BrowserFrame from '@/components/home/BrowserFrame'
 import { SpotlightIcon } from '@/components/icons/CustomIcons'
 import TypingAnimation from '@/components/TypingAnimation'
 import TitleSlide from './TitleSlide'
+import DemoCursor, { useCursorCues, type CursorCue } from './DemoCursor'
 import DemoScroller from './DemoScroller'
 import { AGENT, REAL_RECENT_SALES, REAL_SPOTLIGHT as L } from './realData'
 
@@ -97,13 +98,16 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){.sp-zoom,.sp-rise,.sp-rule,.sp-toast,.sp-shine:after,.sp-orbit,.sp-pulse,.sp-aibar,.sp-glow{animation:none}}
 `
 
-function Cursor() {
-  return (
-    <span className="pointer-events-none absolute -bottom-2 -right-2 z-20">
-      <span className="absolute inset-0 rounded-full bg-[#C9A24D]/40 animate-ping" />
-      <MousePointer2 className="relative h-4 w-4 text-[#111827] drop-shadow dark:text-white" fill="currentColor" />
-    </span>
-  )
+// The pointer's script. The home card and the Luxe design get picked 2.25s in; the click lands just
+// before that. Create with AI only exists once the home is picked, so the move waits for it.
+function cursorCues(beat: Beat): CursorCue[] {
+  switch (beat.k) {
+    case 'pick': return [{ at: 500, target: '[data-cursor="home"]' }, { at: 1750, click: true }, { at: 2400, target: '[data-cursor="create"]', click: false }, { at: 4300, click: true }]
+    case 'spark': return [{ at: 0, target: null, click: false }]
+    case 'design': return [{ at: 250, target: '[data-cursor="select"]' }, { at: 1750, click: true }, { at: 2400, click: false }]
+    case 'publish': return [{ at: 0, target: null, click: false }]
+    default: return []
+  }
 }
 
 // The editor's numbered step bar, as on the real Spotlight editor.
@@ -128,6 +132,8 @@ export default function ListingPageDemo() {
   const [i, setI] = useState(0)
   const [tick, setTick] = useState(0)
   const beat = BEATS[i]
+  const stage = useRef<HTMLDivElement>(null)
+  const cursor = useCursorCues(i, cursorCues(beat))
 
   useEffect(() => {
     setTick(0)
@@ -165,13 +171,13 @@ export default function ListingPageDemo() {
     return (
       <BrowserFrame url={url} progress={progress}>
         <style>{CSS}</style>
-        <div className="relative h-[420px] overflow-hidden bg-gradient-to-br from-[#0b0f0e] via-[#111827] to-[#2a2218] px-6 pt-7">
+        <div ref={stage} className="relative h-[420px] overflow-hidden bg-gradient-to-br from-[#0b0f0e] via-[#111827] to-[#2a2218] px-6 pt-7">
           <span className="pointer-events-none absolute -right-16 -top-20 h-60 w-60 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.38),transparent)]" />
           <p className="sp-rise flex items-center gap-2 text-[8px] font-black uppercase tracking-[0.3em] text-[#e8c97a]"><span className="h-px w-6 bg-[#C9A24D]" />Spotlight Pages · New</p>
           <h4 className="sp-rise mt-1.5 font-serif text-[22px] font-black leading-tight text-white" style={{ animationDelay: '80ms' }}>Which home gets <em className="font-light text-[#e8c97a]">the spotlight?</em></h4>
           <div className="mt-4 grid grid-cols-[1.35fr_1fr_1fr] gap-2.5">
             {options.map((o, k) => (
-              <div key={o.address} className={`sp-rise relative overflow-hidden rounded-xl transition-all duration-500 ${o.pick && picked ? 'scale-[1.03] ring-2 ring-[#C9A24D] shadow-[0_18px_40px_-16px_rgba(201,162,77,.8)]' : 'ring-1 ring-white/10'}`} style={{ animationDelay: `${160 + k * 90}ms` }}>
+              <div key={o.address} data-cursor={o.pick ? 'home' : undefined} className={`sp-rise relative overflow-hidden rounded-xl transition-all duration-500 ${o.pick && picked ? 'scale-[1.03] ring-2 ring-[#C9A24D] shadow-[0_18px_40px_-16px_rgba(201,162,77,.8)]' : 'ring-1 ring-white/10'}`} style={{ animationDelay: `${160 + k * 90}ms` }}>
                 <div className="relative h-36">
                   <Image src={o.photo} alt={o.address} fill className="object-cover" unoptimized />
                   <span className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
@@ -182,19 +188,18 @@ export default function ListingPageDemo() {
                   </span>
                   {o.pick && picked && <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#C9A24D] text-[#111827]"><Check className="h-2.5 w-2.5" strokeWidth={3} /></span>}
                 </div>
-                {o.pick && tick >= 5 && !picked && <Cursor />}
               </div>
             ))}
           </div>
           <div className={`mt-4 flex items-center justify-between gap-3 rounded-xl border px-3 py-2 transition-all duration-500 ${picked ? 'border-[#C9A24D]/60 bg-[#C9A24D]/10' : 'border-white/10 bg-white/[0.03]'}`}>
             <p className="text-[8px] font-semibold text-white/60">{picked ? <><span className="font-black text-[#f3dfa8]">{L.address}</span> - our AI sets up the whole page for you.</> : "Pick a home - we'll set up the whole page, then you choose the design one step at a time."}</p>
             {picked && (
-              <span className={`sp-shine relative inline-flex shrink-0 items-center gap-1 rounded-lg bg-gradient-to-r from-[#f3dfa8] via-[#C9A24D] to-[#a8853d] px-2.5 py-1.5 text-[8px] font-black text-[#111827] shadow-[0_8px_20px_-8px_rgba(201,162,77,.9)] transition-transform duration-150 ${tick >= 15 ? 'scale-95' : ''}`}>
+              <span data-cursor="create" className={`sp-shine relative inline-flex shrink-0 items-center gap-1 rounded-lg bg-gradient-to-r from-[#f3dfa8] via-[#C9A24D] to-[#a8853d] px-2.5 py-1.5 text-[8px] font-black text-[#111827] shadow-[0_8px_20px_-8px_rgba(201,162,77,.9)] transition-transform duration-150 ${picked && cursor.click ? 'scale-95' : ''}`}>
                 <Sparkles className="h-3 w-3" /> Create with AI
-                {tick >= 12 && <Cursor />}
               </span>
             )}
           </div>
+          <DemoCursor container={stage} target={cursor.target} click={cursor.click} />
         </div>
       </BrowserFrame>
     )
@@ -341,7 +346,7 @@ export default function ListingPageDemo() {
     return (
       <BrowserFrame url={url} progress={progress}>
         <style>{CSS}</style>
-        <div className="flex h-[420px] flex-col bg-[#f7f5f1] p-4 dark:bg-[#0B0B0B]">
+        <div ref={stage} className="relative flex h-[420px] flex-col bg-[#f7f5f1] p-4 dark:bg-[#0B0B0B]">
           <StepBar active={0} done={chosen ? 1 : 0} />
           <p className="mt-3 font-serif text-[15px] font-black text-[#111827] dark:text-white">Pick a design</p>
           <p className="text-[8px] font-semibold text-gray-500">This is your home in each design - live. Same content either way, switch any time.</p>
@@ -367,12 +372,13 @@ export default function ListingPageDemo() {
                   </div>
                   <div className="mt-2 flex items-center justify-between">
                     <div><p className={`font-serif text-[11px] font-black ${dark ? 'italic text-[#a8853d] dark:text-[#e8c97a]' : 'text-[#111827] dark:text-white'}`}>{d.name}</p><p className="text-[6.5px] font-semibold text-gray-400">{d.blurb}</p></div>
-                    <span className={`relative rounded-md px-2 py-1 text-[7px] font-black ${on ? 'bg-[#C9A24D] text-[#111827]' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>{on ? '✓ Selected' : 'Select'}{dark && tick >= 4 && !chosen && <Cursor />}</span>
+                    <span data-cursor={dark ? 'select' : undefined} className={`relative rounded-md px-2 py-1 text-[7px] font-black ${on ? 'bg-[#C9A24D] text-[#111827]' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>{on ? '✓ Selected' : 'Select'}</span>
                   </div>
                 </div>
               )
             })}
           </div>
+          <DemoCursor container={stage} target={cursor.target} click={cursor.click} />
         </div>
       </BrowserFrame>
     )
@@ -408,14 +414,16 @@ export default function ListingPageDemo() {
                 ))}
               </div>
               {live ? (
-                <div className="sp-rise mt-auto flex items-center gap-2.5 rounded-xl border border-white/15 bg-white/[0.06] p-2">
-                  <div className="grid h-12 w-12 shrink-0 grid-cols-5 gap-[1.5px] rounded bg-white p-1">
+                // Phones: the column is too narrow to sit everything beside the QR, so the address and
+                // the buttons take the card's full width under it.
+                <div className="sp-rise mt-auto flex items-center gap-2.5 rounded-xl border border-white/15 bg-white/[0.06] p-2 max-sm:grid max-sm:grid-cols-[1.75rem_minmax(0,1fr)] max-sm:gap-x-2 max-sm:gap-y-0.5 max-sm:p-1.5">
+                  <div className="grid h-12 w-12 shrink-0 grid-cols-5 gap-[1.5px] rounded bg-white p-1 max-sm:h-7 max-sm:w-7 max-sm:p-0.5">
                     {[1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1].map((c, k) => <div key={k} className={c ? 'bg-[#111827]' : ''} />)}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 max-sm:contents">
                     <p className="flex items-center gap-1 text-[6px] font-black uppercase tracking-widest text-emerald-400"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Live · share it</p>
-                    <p className="truncate text-[8px] font-black">{L.subdomain}</p>
-                    <div className="mt-1 flex gap-1">{[{ i: Copy, l: 'Copy' }, { i: MessageSquare, l: 'Text' }, { i: Mail, l: 'Email' }].map(b => <span key={b.l} className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[6.5px] font-black ${b.l === 'Copy' ? 'bg-[#C9A24D] text-[#111827]' : 'bg-white/10 text-white'}`}><b.i className="h-2 w-2" />{b.l}</span>)}</div>
+                    <p className="truncate text-[8px] font-black max-sm:col-span-2 max-sm:text-[7px]">{L.subdomain}</p>
+                    <div className="mt-1 flex flex-wrap gap-1 max-sm:col-span-2 max-sm:mt-0">{[{ i: Copy, l: 'Copy' }, { i: MessageSquare, l: 'Text' }, { i: Mail, l: 'Email' }].map(b => <span key={b.l} className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[6.5px] font-black ${b.l === 'Copy' ? 'bg-[#C9A24D] text-[#111827]' : 'bg-white/10 text-white'}`}><b.i className="h-2 w-2" />{b.l}</span>)}</div>
                   </div>
                 </div>
               ) : (
@@ -576,7 +584,7 @@ export default function ListingPageDemo() {
           {/* 5 · See it for yourself - and the request lands in Leads */}
           <section style={{ height: SECTION_H }} className="relative flex flex-col justify-center bg-gradient-to-b from-[#14110c] to-[#0b0b0b] px-6">
             <p className="flex items-center gap-2 text-[6.5px] font-black uppercase tracking-[0.35em] text-[#C9A24D]"><span className="h-px w-5 bg-[#C9A24D]" />Private showings</p>
-            <h5 className="mt-1 font-serif text-[24px] leading-tight text-white">See it for yourself, <em className="text-[#e8c97a]">{L.address}</em></h5>
+            <h5 className="mt-1 font-serif text-[24px] leading-tight text-white">See it for yourself, <em className="block text-[#e8c97a]">{L.address}</em></h5>
             <div className="mt-3 grid grid-cols-[1.25fr_1fr] gap-3">
               <div className="rounded-sm border border-white/10 bg-white/[0.03] p-3">
                 <div className="flex gap-1">{['Request info', 'Schedule a tour'].map((t, k) => <span key={t} className={`rounded-full px-2 py-0.5 text-[6.5px] font-black ${k === 1 ? 'bg-[#C9A24D] text-[#111827]' : 'border border-white/20 text-white/70'}`}>{t}</span>)}</div>

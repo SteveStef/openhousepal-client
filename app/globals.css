@@ -1989,6 +1989,8 @@ div[role="button"]:active {
 /* PageGate (components/PageGate.tsx): the page waits hidden behind the logo loader. Failsafe in
    pure CSS - if JavaScript never takes over, both step aside after 10s on their own. */
 .ohp-gate-hold { visibility: hidden; animation: ohpGateShow 0s linear 10s forwards; }
+/* Anything with a transition faded out over its duration instead of hiding at once, so a button showed by itself. */
+.ohp-gate-hold, .ohp-gate-hold * { transition: none !important; }
 .ohp-gate-cover { animation: ohpGateCoverOff .4s ease-out 10s forwards; }
 /* PageGate's first moment (also in the server HTML): invisible for the grace period, then the
    loader fades in - unless the page is already there (the cover is removed by then). */

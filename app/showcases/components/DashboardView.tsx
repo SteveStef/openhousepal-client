@@ -383,7 +383,7 @@ export const DashboardView = memo(function DashboardView({
               { key: 'tours', label: 'Tours', icon: Calendar, count: pendingTourCount, onClick: onOpenTourInbox,
                 title: 'Tour requests waiting on you, from every Showcase', on: 'border-red-200 bg-red-50 text-red-600 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300', dot: 'bg-red-500' },
               { key: 'activity', label: 'Activity', icon: Inbox, count: unreadActivityCount, onClick: onOpenActivityInbox,
-                title: 'Likes, comments, tour requests and search changes from your clients', on: 'border-[#C9A24D]/50 bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#e8c97a]', dot: 'bg-[#C9A24D]' },
+                title: 'Everything your clients did: visits, homes they opened, likes, comments, tours and Showcase emails', on: 'border-[#C9A24D]/50 bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#e8c97a]', dot: 'bg-[#C9A24D]' },
             ] as const).map(({ key, label, icon: Icon, count, onClick, title, on, dot }) => (
               <motion.button
                 key={key}
@@ -482,7 +482,7 @@ export const DashboardView = memo(function DashboardView({
         {tab === 'INACTIVE' && (
           <p className="-mt-2 mb-5 flex items-start gap-2 text-[12px] font-semibold leading-relaxed text-gray-500 dark:text-gray-400">
             <Moon size={13} className="mt-0.5 shrink-0 text-[#C9A24D]" />
-            Asleep: no new matches and no emails. A Showcase falls asleep when the client ignores 3 weekly emails in a row - unless they keep using their Showcase, you starred it, or in the last 2 weeks you opened it or worked that lead (opened the lead, a note, a follow-up) - or when you switch it off. It wakes up by itself if they open it again, or switch it back on (starring it wakes it too).
+            Asleep: no new matches and no emails. A Showcase falls asleep when the client ignores 5 weekly emails in a row - unless they keep using their Showcase, you starred it, or in the last 2 weeks you opened it or worked that lead (opened the lead, a note, a follow-up) - or when you switch it off. It wakes up by itself if they open it again, or switch it back on (starring it wakes it too).
           </p>
         )}
 

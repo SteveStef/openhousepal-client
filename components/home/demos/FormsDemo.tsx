@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Contact, Calendar, GripVertical, Plus, Check, Link2, MousePointer2, MapPin, ClipboardList, ChevronRight, ListChecks, Type, Hash, AlignLeft, Pencil, Download, Share2, Smartphone, UserPlus, Wrench, type LucideIcon } from 'lucide-react'
+import { Contact, Calendar, GripVertical, Plus, Check, Link2, MapPin, ClipboardList, ChevronRight, ListChecks, Type, Hash, AlignLeft, Pencil, Download, Share2, Smartphone, UserPlus, Wrench, type LucideIcon } from 'lucide-react'
 import { DemoStep, DEMO_NOTE_CSS } from './DemoNote'
 import BrowserFrame from '@/components/home/BrowserFrame'
 import TypingAnimation from '@/components/TypingAnimation'
 import TitleSlide from './TitleSlide'
+import DemoCursor, { useCursorCues, type CursorCue } from './DemoCursor'
 import { AGENT, REAL_FORM } from './realData'
 
 // The user's own real "Buyer Onboarding" form (openhousepal.com/peter-stefanatos/buyer-onboarding
@@ -59,7 +60,11 @@ const BEATS: Beat[] = [
   { k: 'thanks' },
 ]
 
-function beatDuration(beat: Beat): number {
+// The whole demo runs 30% quicker than the times below, typing included (owner, 11/06).
+const PACE = 0.7
+const beatDuration = (beat: Beat) => Math.round(baseDuration(beat) * PACE)
+
+function baseDuration(beat: Beat): number {
   switch (beat.k) {
     case 'title': return 6000 // 20% longer
     case 'click-add': return 900 // click the "+ Add question" button before the type picker opens
@@ -75,6 +80,29 @@ function beatDuration(beat: Beat): number {
       // filled: long enough for the answer to actually type in, not snap into place
       return beat.idx === 0 ? 3600 : beat.idx === 2 ? 1800 : 2600
     case 'thanks': return 5200
+  }
+}
+
+// The pointer's script. Times are real ms (already inside PACE) and every glide takes 850ms, so a
+// click on a short beat (Add question, View) starts its move on the beat before. The first move
+// has no beat before it - it gets a quicker glide instead (FIRST_HOP_MS).
+const CUR = { add: '[data-cursor="add"]', type: '[data-cursor="type"]', save: '[data-cursor="save"]', view: '[data-cursor="view"]' }
+const FIRST_HOP_MS = 300
+function cursorCues(beat: Beat): CursorCue[] {
+  switch (beat.k) {
+    case 'click-add': return beat.n === 0 ? [{ at: 10, target: CUR.add }, { at: 400, click: true }] : [{ at: 120, click: true }]
+    case 'pick-type': return [{ at: 100, target: CUR.type, click: false }, { at: 1080, click: true }]
+    case 'added':
+      if (beat.n === 1) return [{ at: 0, click: false }] // the edit beat comes next - it heads back
+      return beat.n === FIELDS.length - 1
+        ? [{ at: 0, click: false }, { at: 1200, target: CUR.save }, { at: 2100, click: true }]
+        : [{ at: 0, click: false }, { at: 1200, target: CUR.add }]
+    case 'edit': return [{ at: 1200, target: CUR.add }]
+    case 'save': return [{ at: 300, click: false }]
+    case 'share': return [{ at: 1800, target: CUR.view }]
+    case 'open': return [{ at: 0, click: true }]
+    case 'welcome': return [{ at: 0, target: null, click: false }]
+    default: return []
   }
 }
 
@@ -140,6 +168,8 @@ export default function FormsDemo() {
   const [i, setI] = useState(0)
   const beat = BEATS[i]
   const advance = () => setI(n => (n + 1) % BEATS.length)
+  const stageRef = useRef<HTMLDivElement>(null)
+  const cursor = useCursorCues(i, cursorCues(beat))
 
   useEffect(() => {
     const t = setTimeout(advance, beatDuration(beat))
@@ -174,7 +204,7 @@ export default function FormsDemo() {
   return (
     <BrowserFrame url={url} progress={{ pages: TOTAL_PAGES, current: pageFor(beat), durationMs: beatDuration(beat) }}>
       <style>{DEMO_NOTE_CSS}</style>
-      <div className="relative h-[420px] overflow-hidden">
+      <div ref={stageRef} className="relative h-[420px] overflow-hidden">
         <DemoStep id={String(stage)} step={stage + 1} count={STAGES.length} title={STAGES[stage].title} body={STAGES[stage].body} icon={STAGES[stage].icon} />
         {isEditor && (
           <div className="flex h-full pt-12">
@@ -195,16 +225,10 @@ export default function FormsDemo() {
                   )
                 })}
               </div>
-              <div className={`relative flex items-center justify-center gap-1.5 rounded-lg border border-dashed px-2 py-2 text-[9px] font-black uppercase tracking-wide transition-colors duration-200 ${beat.k === 'click-add' || beat.k === 'pick-type' ? 'border-[#C9A24D] bg-[#C9A24D]/5 text-[#8b7355] dark:text-[#C9A24D]' : 'border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-600'}`}>
+              <div data-cursor="add" className={`relative flex items-center justify-center gap-1.5 rounded-lg border border-dashed px-2 py-2 text-[9px] font-black uppercase tracking-wide transition-colors duration-200 ${beat.k === 'click-add' || beat.k === 'pick-type' ? 'border-[#C9A24D] bg-[#C9A24D]/5 text-[#8b7355] dark:text-[#C9A24D]' : 'border-gray-200 text-gray-300 dark:border-gray-700 dark:text-gray-600'}`}>
                 <Plus className="h-3 w-3" /> Add question
-                {beat.k === 'click-add' && (
-                  <span className="pointer-events-none absolute -bottom-1.5 -right-1.5 z-10">
-                    <span className="absolute inset-0 rounded-full bg-[#C9A24D]/40 animate-ping" />
-                    <MousePointer2 className="relative h-3.5 w-3.5 text-[#111827] drop-shadow dark:text-white" fill="currentColor" />
-                  </span>
-                )}
               </div>
-              <div className={`mt-2.5 flex items-center justify-center gap-1.5 rounded-full py-2 text-[9px] font-black uppercase tracking-widest transition-colors duration-500 ${beat.k === 'save' ? 'bg-emerald-500 text-white' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>
+              <div data-cursor="save" className={`mt-2.5 flex items-center justify-center gap-1.5 rounded-full py-2 text-[9px] font-black uppercase tracking-widest transition-colors duration-500 ${beat.k === 'save' ? 'bg-emerald-500 text-white' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>
                 {beat.k === 'save' ? <><Check className="h-3 w-3" /> Saved</> : 'Save'}
               </div>
             </div>
@@ -223,20 +247,12 @@ export default function FormsDemo() {
                   <div className="grid grid-cols-2 gap-1.5 max-sm:grid-cols-1">
                     {QUESTION_TYPES.map((t, idx) => {
                       const Icon = t.icon
-                      const on = idx === pickingType
+                      // Lights up only once the pointer has landed and clicked it.
+                      const on = idx === pickingType && cursor.target === CUR.type && cursor.click
                       return (
-                        <div key={t.id} className={`relative flex items-center gap-1.5 rounded-lg border-2 px-2 py-2 text-[9px] font-black transition-all duration-200 ${on ? 'scale-[1.03] border-[#C9A24D] bg-[#C9A24D]/10 text-[#0B0B0B] shadow-sm dark:text-white' : 'border-gray-200 text-gray-400 dark:border-gray-700'}`}>
+                        <div key={t.id} data-cursor={idx === pickingType ? 'type' : undefined} className={`relative flex items-center gap-1.5 rounded-lg border-2 px-2 py-2 text-[9px] font-black transition-all duration-200 ${on ? 'scale-[1.03] border-[#C9A24D] bg-[#C9A24D]/10 text-[#0B0B0B] shadow-sm dark:text-white' : 'border-gray-200 text-gray-400 dark:border-gray-700'}`}>
                           <Icon className={`h-3 w-3 flex-shrink-0 ${on ? 'text-[#8b7355] dark:text-[#C9A24D]' : ''}`} /> {t.label}
                           {on && <Check className="ml-auto h-2.5 w-2.5 text-[#C9A24D]" strokeWidth={3} />}
-                          {/* Cursor + a quick "tap ring" pulse over whichever option is being picked -
-                              without it, an option just silently lights up with no sense that
-                              something was actually clicked to select it. */}
-                          {on && (
-                            <span className="pointer-events-none absolute -bottom-1.5 -right-1.5 z-10">
-                              <span className="absolute inset-0 rounded-full bg-[#C9A24D]/40 animate-ping" />
-                              <MousePointer2 className="relative h-3.5 w-3.5 text-[#111827] drop-shadow dark:text-white" fill="currentColor" />
-                            </span>
-                          )}
                         </div>
                       )
                     })}
@@ -255,7 +271,7 @@ export default function FormsDemo() {
                     </p>
                     <label className="mb-1 block text-[8px] font-bold uppercase tracking-wide text-gray-400">Label</label>
                     <div className={`mb-2.5 min-h-[30px] rounded-lg border-2 px-2.5 py-2 text-[9.5px] font-bold leading-snug text-[#111827] dark:text-white ${beat.k === 'edit' ? 'border-[#C9A24D]' : 'border-gray-200 dark:border-gray-700'}`}>
-                      {typingIn ? <TypingAnimation text={f.label} speed={42} /> : f.label}
+                      {typingIn ? <TypingAnimation text={f.label} speed={42 * PACE} /> : f.label}
                     </div>
                     <label className="mb-1 block text-[8px] font-bold uppercase tracking-wide text-gray-400">Type</label>
                     <div className="mb-2.5 flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-2 text-[10px] font-bold text-gray-500 dark:border-gray-700 dark:text-gray-400">
@@ -297,8 +313,7 @@ export default function FormsDemo() {
               <div className="relative flex items-center gap-2 rounded-xl border-2 border-[#C9A24D] bg-white px-3 py-2.5 shadow-sm dark:bg-[#151517]">
                 <Link2 className="h-3.5 w-3.5 flex-shrink-0 text-[#8b7355] dark:text-[#C9A24D]" />
                 <span className="min-w-0 flex-1 truncate text-[10.5px] font-bold text-[#111827] dark:text-gray-200">openhousepal.com/peter-stefanatos/{REAL_FORM.slug}</span>
-                <span className={`flex-shrink-0 rounded-md bg-[#C9A24D] px-2 py-1 text-[9px] font-black uppercase text-[#111827] transition-transform duration-200 ${beat.k === 'open' ? 'scale-90' : 'scale-100'}`}>View</span>
-                {beat.k === 'open' && <MousePointer2 className="absolute -bottom-1 right-6 h-4 w-4 text-[#111827] drop-shadow dark:text-white" fill="currentColor" />}
+                <span data-cursor="view" className={`flex-shrink-0 rounded-md bg-[#C9A24D] px-2 py-1 text-[9px] font-black uppercase text-[#111827] transition-transform duration-200 ${beat.k === 'open' ? 'scale-90' : 'scale-100'}`}>View</span>
               </div>
 
               {/* Same link, as a QR code - plus a Download chip, so it reads as "this is also a
@@ -367,7 +382,7 @@ export default function FormsDemo() {
                             <div key={idx}>
                               {q.fields?.[idx] && <p className="mb-0.5 text-[7px] font-bold uppercase text-gray-400">{q.fields[idx]}</p>}
                               <div className={`min-h-[26px] truncate rounded-lg border-2 px-2 py-1.5 text-[10px] font-medium transition-colors duration-300 ${beat.filled ? 'border-[#C9A24D] text-[#111827] dark:text-white' : 'border-gray-200 text-gray-300 dark:border-gray-700'}`}>
-                                {beat.filled ? <TypingAnimation text={val} speed={44} startDelay={idx * 520} /> : '—'}
+                                {beat.filled ? <TypingAnimation text={val} speed={44 * PACE} startDelay={idx * 520 * PACE} /> : '—'}
                               </div>
                             </div>
                           ))}
@@ -377,7 +392,7 @@ export default function FormsDemo() {
                       {a.text && (
                         <div className="mb-4">
                           <div className={`min-h-[30px] rounded-lg border-2 px-2.5 py-2 text-[11px] font-medium leading-snug transition-colors duration-300 ${beat.filled ? 'border-[#C9A24D] text-[#111827] dark:text-white' : 'border-gray-200 text-gray-300 dark:border-gray-700'}`}>
-                            {beat.filled ? <TypingAnimation text={a.text} speed={40} /> : '—'}
+                            {beat.filled ? <TypingAnimation text={a.text} speed={40 * PACE} /> : '—'}
                           </div>
                         </div>
                       )}
@@ -403,6 +418,7 @@ export default function FormsDemo() {
             </div>
           </div>
         )}
+        <DemoCursor container={stageRef} target={cursor.target} click={cursor.click} moveKey={i} travelMs={i === 1 ? FIRST_HOP_MS : undefined} />
       </div>
     </BrowserFrame>
   )

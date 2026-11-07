@@ -30,7 +30,7 @@ export const niceStreet = (a?: string | null) => {
   return s === s.toUpperCase() ? s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : s
 }
 
-export const shortPrice = (p?: number | null) => (p ? (p >= 1_000_000 ? `$${(p / 1_000_000).toFixed(p % 100_000 ? 2 : 1)}M` : `$${Math.round(p / 1000)}K`) : '')
+export const shortPrice = (p?: number | null) => (p ? (p >= 999_500 ? `$${(p / 1_000_000).toFixed(p % 100_000 ? 2 : 1)}M` : `$${Math.round(p / 1000)}K`) : '')
 
 export const homeFacts = (m: Pick<MatchHome, 'beds' | 'baths' | 'sqft'>) =>
   [m.beds != null && `${m.beds} bd`, m.baths != null && `${m.baths} ba`, m.sqft ? `${Math.round(m.sqft).toLocaleString()} sf` : null].filter(Boolean).join(' · ')

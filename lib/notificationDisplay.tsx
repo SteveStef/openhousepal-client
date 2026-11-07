@@ -1,7 +1,7 @@
 import { SlidersHorizontal,
   Calendar, CalendarClock, Eye, Home, FileText, FileCheck, Inbox, CheckCircle2, XCircle, MessageSquareText,
   MessageCircle, Megaphone, UserCheck, Mail, TrendingUp, ThumbsUp, ThumbsDown, Send, UserPlus, HelpCircle, Film,
-  MailOpen, MailX, Star, Newspaper, Bell, CreditCard, ClipboardList, AlertTriangle, Sparkles,
+  MailOpen, MailX, Star, Newspaper, Bell, CreditCard, ClipboardList, AlertTriangle, Sparkles, Ticket,
 } from 'lucide-react'
 
 // Shared per-type display metadata for Notification.type - used by both the bell dropdown
@@ -10,6 +10,7 @@ export const NOTIFICATION_META: Record<string, { icon: React.ComponentType<{ cla
   // admin_alerts.py - a provider / setup failure only the admin sees (agents get a calm message).
   ADMIN_WARNING: { icon: AlertTriangle, label: 'Admin warning', className: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800' },
   OPEN_HOUSE_SIGN_IN: { icon: Home, label: 'New Visitor', className: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800' },
+  GUEST_PASS_ACTIVITY: { icon: Ticket, label: 'Guest Pass', className: 'bg-[#C9A24D]/15 dark:bg-[#C9A24D]/20 text-[#8b7355] dark:text-[#d7b974] border-[#C9A24D]/30' },
   TOUR_REQUEST: { icon: Calendar, label: 'Tour Request', className: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800' },
   // Generic fallback within PROPERTY_INTERACTION - getNotificationMeta below branches liked/disliked
   // to their own icon+color using the notification's message text (there's no separate type for

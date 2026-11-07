@@ -2,7 +2,7 @@
 // came in from - shared by the Leads list, a lead's detail view and the Dash lead cards.
 import {
   Building2, Calendar, CalendarClock, ClipboardList, Eye, FileText, Globe2, Heart, Home, Mail, MailOpen, MailX, MessageSquare, MousePointerClick,
-  MessageSquareText, Newspaper, PencilLine, SlidersHorizontal, Star, ThumbsDown, Inbox, Users, type LucideIcon,
+  MessageSquareText, Newspaper, PencilLine, SlidersHorizontal, Star, ThumbsDown, Inbox, Ticket, Users, type LucideIcon,
 } from 'lucide-react'
 import type { LeadOriginGroup, LeadSourceType, LeadTodo } from '@/types'
 
@@ -28,6 +28,9 @@ export const ACTIVITY_META: Record<LeadSourceType, { label: string; icon: Lucide
   showcase_like: { label: 'Liked a home', icon: Heart, tone: 'rose' },
   showcase_dislike: { label: 'Passed on a home', icon: ThumbsDown, tone: 'slate' },
   showcase_view: { label: 'Looked at a home', icon: Eye, tone: 'slate' },
+  showcase_opened: { label: 'Opened their Showcase', icon: Eye, tone: 'slate' },
+  guest_pass_home: { label: 'Looked at a home on their Guest Pass', icon: Ticket, tone: 'gold' },
+  guest_pass_activity: { label: 'Guest Pass activity', icon: Ticket, tone: 'gold' },
   showcase_refine: { label: 'Search change request', icon: SlidersHorizontal, tone: 'amber' },
   showcase_search_changed: { label: 'Changed their search', icon: PencilLine, tone: 'violet' },
   showcase_emails_off: { label: 'Showcase emails off', icon: MailX, tone: 'slate' },

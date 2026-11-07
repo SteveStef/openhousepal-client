@@ -28,6 +28,8 @@ export interface PropertyDetailViewProps {
   prefill?: { name: string; contact: string }
   // Where they came from, when the page itself knows (a Guest Pass) instead of the link's ?src=.
   cameFrom?: CameFrom
+  /** A tour request or question went through (the Guest Pass logs it on the guest's activity). */
+  onAsked?: (what: 'tour' | 'question') => void
   // Shown as a back button above the photos (a Guest Pass going back to its Similar Homes).
   onBack?: () => void
   backLabel?: string
@@ -44,7 +46,7 @@ const INK = '#111827'
 // (?action=disclosure starts a seller-disclosure request in it), where the visitor came from sent
 // with both, the Guest Pass back button, and the phone action bar + MLS footer when it's a page.
 // app/property/[propertyId]/[agentId] is the public page.
-export default function PropertyDetailView({ propertyId, agentId, initialAction, prefill, cameFrom, onBack, backLabel, hideFooter }: PropertyDetailViewProps) {
+export default function PropertyDetailView({ propertyId, agentId, initialAction, prefill, cameFrom, onAsked, onBack, backLabel, hideFooter }: PropertyDetailViewProps) {
   const [property, setProperty] = useState<PropertyDetailResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -64,6 +66,7 @@ export default function PropertyDetailView({ propertyId, agentId, initialAction,
   async function handleTourSubmit(data: TourRequest) {
     const { success, error } = await api.properties.scheduleTour({ ...data, agentId, cameFrom: came() })
     if (!success) throw new Error(error || 'That didn’t go through - please try again.')
+    onAsked?.('tour')
   }
 
   useEffect(() => {
@@ -115,6 +118,7 @@ export default function PropertyDetailView({ propertyId, agentId, initialAction,
         cameFrom: came(),
       })
       if (!success) console.error('Message failed:', error)
+      else onAsked?.('question')
       return !!success
     } catch (err) {
       console.error('Error sending message:', err)

@@ -391,7 +391,8 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
                 document.body,
               )}
               {onPickDay && (
-                <WhenSheet open={pickOpen} onClose={() => setPickOpen(false)} mode="date"
+                <WhenSheet open={pickOpen} onClose={() => setPickOpen(false)} mode="date" agentCalendar
+                  keepTime={t.due_at && !t.all_day ? `${String(new Date(t.due_at).getHours()).padStart(2, '0')}:${String(new Date(t.due_at).getMinutes()).padStart(2, '0')}` : null}
                   title="Move it to which day?" kicker="Snooze"
                   photo={t.property?.photo || null} context={t.title} contextSub={client || t.property?.address || null}
                   intro={t.due_at && !t.all_day ? `It keeps its time - ${clockText(`${String(new Date(t.due_at).getHours()).padStart(2, '0')}:${String(new Date(t.due_at).getMinutes()).padStart(2, '0')}`)}.` : 'It keeps its time of day.'}

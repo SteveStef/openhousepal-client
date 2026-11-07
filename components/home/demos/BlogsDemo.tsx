@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import NextImage from 'next/image'
-import { BadgeCheck, Calendar, Check, Clapperboard, Clock, FileSearch, Home, Loader2, MapPin, MousePointer2, Newspaper, Play, ShieldCheck, Sparkles, Tag, Target, Users, Wand2 } from 'lucide-react'
+import { BadgeCheck, Calendar, Check, Clapperboard, Clock, FileSearch, Home, Loader2, MapPin, Newspaper, Play, ShieldCheck, Sparkles, Tag, Target, Users, Wand2 } from 'lucide-react'
 import TypingAnimation from '@/components/TypingAnimation'
 import BrowserFrame from '@/components/home/BrowserFrame'
 import TitleSlide from './TitleSlide'
+import DemoCursor, { useCursorCues, type CursorCue } from './DemoCursor'
 import { DemoStep, DEMO_NOTE_CSS } from './DemoNote'
 import { AGENT, REAL_AI_BLOG, REAL_BLOG, REAL_RECENT_SALES } from './realData'
 import BlogTitleCard from './BlogTitleCard'
@@ -117,13 +118,16 @@ function Chip({ on, children }: { on: boolean; children: React.ReactNode }) {
   return <span className={`inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[8.5px] font-black transition-all duration-300 ${on ? 'scale-105 border-[#C9A24D] bg-[#C9A24D] text-[#111827]' : 'border-gray-200 text-gray-400 dark:border-gray-700'}`}>{on && <Check className="h-2.5 w-2.5" />}{children}</span>
 }
 
-function Cursor() {
-  return (
-    <span className="pointer-events-none absolute -bottom-1.5 -right-1.5">
-      <span className="absolute inset-0 rounded-full bg-[#C9A24D]/40 animate-ping" />
-      <MousePointer2 className="relative h-3 w-3 text-[#111827] drop-shadow dark:text-white" fill="currentColor" />
-    </span>
-  )
+// The pointer's script: Write my article, then Open my article, each clicked just before the screen
+// changes.
+function cursorCues(beat: Beat): CursorCue[] {
+  switch (beat.k) {
+    case 'style': return [{ at: 2000, target: '[data-cursor="write"]' }, { at: 3500, click: true }]
+    case 'research': return [{ at: 0, target: null, click: false }]
+    case 'finish': return [{ at: 3500, target: '[data-cursor="open-article"]' }, { at: 5500, click: true }]
+    case 'published': return [{ at: 0, target: null, click: false }]
+    default: return []
+  }
 }
 
 // The real writing screen's stage list: done (green check), active (spinner), upcoming (ring).
@@ -258,6 +262,8 @@ export default function BlogsDemo() {
   const [tick, setTick] = useState(0)
   const beat = BEATS[i]
   const advance = () => setI(n => (n + 1) % BEATS.length)
+  const stage = useRef<HTMLDivElement>(null)
+  const cursor = useCursorCues(i, cursorCues(beat))
 
   useEffect(() => {
     setTick(0)
@@ -281,7 +287,7 @@ export default function BlogsDemo() {
   return (
     <BrowserFrame url={url} progress={progress}>
       <style>{DEMO_NOTE_CSS}</style>
-      <div className={`relative h-[420px] ${captionFor(beat.k) === 0 ? '' : 'pt-[52px]'} ${beat.k === 'live' ? 'flex items-center justify-center p-5 pt-[60px]' : 'overflow-hidden'}`}>
+      <div ref={stage} className={`relative h-[420px] ${captionFor(beat.k) === 0 ? '' : 'pt-[52px]'} ${beat.k === 'live' ? 'flex items-center justify-center p-5 pt-[60px]' : 'overflow-hidden'}`}>
         {(() => { const c = captionFor(beat.k); return <DemoStep id={String(c)} step={c + 1} count={CAPTIONS.length} title={CAPTIONS[c].title} body={CAPTIONS[c].body} icon={CAPTIONS[c].icon} /> })()}
 
         {beat.k === 'topic' && (
@@ -337,9 +343,8 @@ export default function BlogsDemo() {
             <p className="mb-1.5 text-[9px] font-black text-[#111827] dark:text-white">What should readers do at the end?</p>
             <div className="flex flex-wrap gap-1">{['Book a consultation', 'Get a home value', 'Schedule a tour'].map(t => <Chip key={t} on={t === 'Book a consultation' && tick > 2}>{t}</Chip>)}</div>
             <div className="mt-3 flex justify-end">
-              <span className={`relative inline-flex items-center gap-1 rounded-lg bg-[#C9A24D] px-2.5 py-1.5 text-[9px] font-black text-[#111827] shadow-md transition-transform duration-150 ${tick === 5 ? 'scale-95' : ''}`}>
+              <span data-cursor="write" className={`relative inline-flex items-center gap-1 rounded-lg bg-[#C9A24D] px-2.5 py-1.5 text-[9px] font-black text-[#111827] shadow-md transition-transform duration-150 ${cursor.click ? 'scale-95' : ''}`}>
                 <Sparkles className="h-3 w-3" /> Write my article
-                {tick >= 3 && <Cursor />}
               </span>
             </div>
           </Interview>
@@ -467,8 +472,8 @@ export default function BlogsDemo() {
               )}
             </div>
             <div className="flex justify-end">
-              <span className={`relative inline-flex items-center gap-1 rounded-lg bg-[#111827] px-2.5 py-1 text-[8px] font-black text-white transition-transform duration-150 dark:bg-white dark:text-[#111827] ${tick === 7 ? 'scale-95' : ''}`}>
-                Open my article {tick >= 5 && <Cursor />}
+              <span data-cursor="open-article" className={`relative inline-flex items-center gap-1 rounded-lg bg-[#111827] px-2.5 py-1 text-[8px] font-black text-white transition-transform duration-150 dark:bg-white dark:text-[#111827] ${cursor.click ? 'scale-95' : ''}`}>
+                Open my article
               </span>
             </div>
           </div>
@@ -499,6 +504,7 @@ export default function BlogsDemo() {
             <p className="mt-3 text-center text-[8px] font-semibold text-gray-400">Live on your Agent Hub and IDX site.</p>
           </div>
         )}
+        <DemoCursor container={stage} target={cursor.target} click={cursor.click} painted />
       </div>
     </BrowserFrame>
   )

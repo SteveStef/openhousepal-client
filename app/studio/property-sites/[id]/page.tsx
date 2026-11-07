@@ -2310,7 +2310,7 @@ function OpenHousesEditor({ rows, onChange, taken = [], photo, street }: { rows:
         className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-300 text-[12px] font-black uppercase tracking-widest text-gray-500 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-400">
         <Plus className="h-4 w-4" /> Add an open house
       </motion.button>
-      <WhenSheet open={editing !== null} onClose={() => setEditing(null)} mode="range" weekendsOnly days={8}
+      <WhenSheet open={editing !== null} onClose={() => setEditing(null)} mode="range" weekendsOnly days={8} agentCalendar
         title={editing === 'new' ? 'Add an open house' : 'Change this open house'} kicker="Open house"
         photo={photo || null} context={street ? street.split(',')[0] : null} contextSub="Shows on your Listing Spotlight"
         value={current ? { date: current.date || null, time: (current.start_time || '').slice(0, 5) || null, end: (current.end_time || '').slice(0, 5) || null } : null}

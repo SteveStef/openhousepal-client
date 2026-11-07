@@ -20,7 +20,7 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ too
   if (!t) notFound()
   const schema = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: t.faqs.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }
   return (
-    <MarketingPage path={`/tools/${t.slug}`} crumb={t.label} kicker="All Tools" title="Every tool, shown working" accent="shown working" motif="key"
+    <MarketingPage path={`/tools/${t.slug}`} crumb={t.label} kicker="All Tools" title={'Every tool,\nshown working'} accent="shown working" motif="key"
       lead="OpenHousePal runs your open houses, follows up with your leads and markets you and your listings, all branded to you. What's included depends on your plan.">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
       <ToolsExplorer initial={t.demo as FeatureTabKey} />

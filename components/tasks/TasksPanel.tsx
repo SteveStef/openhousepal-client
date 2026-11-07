@@ -594,7 +594,7 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
           </p>
         </div>
       )}
-      <WhenSheet open={whenOpen} onClose={() => setWhenOpen(false)} mode="datetime" allowAnytime="Any time that day"
+      <WhenSheet open={whenOpen} onClose={() => setWhenOpen(false)} mode="datetime" allowAnytime="Any time that day" agentCalendar
         title="When should we remind you?" kicker="Follow-up"
         context={title.trim() || 'Your new follow-up'} contextSub={leadName || null}
         value={day ? { date: ymd(day), time: time || null, anytime: !time } : null}

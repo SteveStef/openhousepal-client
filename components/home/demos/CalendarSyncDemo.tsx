@@ -1,12 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, Bell, CalendarClock, Check, Inbox, KeyRound, Mail, RefreshCw, Send, UserRound } from 'lucide-react'
 import BrowserFrame from '@/components/home/BrowserFrame'
 import { GoogleCalendarLogo } from '@/components/brand/ProviderLogos'
 import TitleSlide from './TitleSlide'
-import DemoPointer from './DemoPointer'
-import usePhoneLayout from './usePhoneLayout'
+import DemoCursor, { useCursorCues, type CursorCue } from './DemoCursor'
 import { REAL_OPEN_HOUSE as OH, REAL_SPOTLIGHT } from './realData'
 
 // The real Calendar & CRM tools (Tools -> Calendar, Tools -> Integrations), as an agent uses them:
@@ -46,7 +45,7 @@ const DAYS = ['Thu 9', 'Fri 10', 'Sat 11', 'Sun 12']
 const HOURS = ['10 AM', '11', '12 PM', '1', '2', '3', '4']
 const ROW = 30
 type Ev = { day: number; start: number; end: number; label: string; sub?: string; tone: 'gold' | 'gray' | 'navy'; enter?: boolean; ghost?: boolean }
-function Week({ events, allDay, sidebar = true }: { events: Ev[]; allDay?: { day: number; label: string; enter?: boolean }[]; sidebar?: boolean }) {
+function Week({ events, allDay, sidebar = true, marks }: { events: Ev[]; allDay?: { day: number; label: string; enter?: boolean }[]; sidebar?: boolean; marks?: { id: string; day: number; start: number; end: number }[] }) {
   return (
     <div className="flex h-full gap-3">
       {sidebar && (
@@ -76,19 +75,43 @@ function Week({ events, allDay, sidebar = true }: { events: Ev[]; allDay?: { day
           {DAYS.map((_, k) => (
             <div key={k} className="relative border-l border-gray-100 dark:border-gray-800" style={{ backgroundImage: `repeating-linear-gradient(180deg, transparent 0 ${ROW - 1}px, rgba(0,0,0,.05) ${ROW - 1}px ${ROW}px)` }}>
               {events.filter(e => e.day === k).map(e => (
-                <div key={e.label + e.day}
+                <div key={e.label + e.day + (e.ghost ? '-ghost' : '')}
                   className={`absolute inset-x-1 overflow-hidden rounded-md px-1.5 py-1 shadow-sm transition-all duration-700 ${e.enter ? 'animate-fadeIn' : ''} ${e.ghost ? 'opacity-40 ring-2 ring-dashed ring-[#C9A24D]' : ''} ${e.tone === 'gold' ? 'bg-[#C9A24D] text-[#111827]' : e.tone === 'navy' ? 'bg-[#111827] text-white' : 'bg-[#4285F4]/15 text-[#1a56c2]'}`}
                   style={{ top: (e.start - 10) * ROW + 1, height: (e.end - e.start) * ROW - 2 }}>
                   <p className="truncate text-[9px] font-black leading-tight">{e.label}</p>
                   {e.sub && <p className="truncate text-[7.5px] font-semibold opacity-75">{e.sub}</p>}
                 </div>
               ))}
+              {/* Invisible spots on the grid for the pointer to aim at. */}
+              {(marks || []).filter(m => m.day === k).map(m => <span key={m.id} aria-hidden data-cursor={m.id} className="absolute inset-x-1" style={{ top: (m.start - 10) * ROW + 1, height: (m.end - m.start) * ROW - 2 }} />)}
             </div>
           ))}
         </div>
       </div>
     </div>
   )
+}
+
+// The pointer's script, aimed at the real controls on every screen size. Each glide takes 850ms, so
+// every click starts after the pointer has landed. The drag has two spots on the grid: it grabs the
+// open house on Saturday and lets go on Sunday, the event hopping across as it passes.
+const CUR = {
+  connect: '[data-cursor="connect"]', dragFrom: '[data-cursor="drag-from"]', dragTo: '[data-cursor="drag-to"]',
+  crmPick: '[data-cursor="crm-pick"]', crmKey: '[data-cursor="crm-key"]', crmSend: '[data-cursor="crm-send"]',
+}
+function cursorCues(beat: Beat): CursorCue[] {
+  switch (beat.k) {
+    case 'connect': return [{ at: 750, target: CUR.connect }, { at: 2250, click: true }, { at: 2750, click: false }]
+    case 'week': return [{ at: 0, target: null, click: false }]
+    case 'drag': return [{ at: 100, target: CUR.dragFrom }, { at: 1250, click: true }, { at: 1750, target: CUR.dragTo }, { at: 2750, click: false }, { at: 3300, target: null }]
+    case 'crm': return [
+      { at: 0, target: CUR.crmPick }, { at: 1000, click: true },
+      { at: 1450, target: CUR.crmKey, click: false }, { at: 2450, click: true }, { at: 2950, click: false },
+      { at: 3750, target: CUR.crmSend }, { at: 5000, click: true }, { at: 5500, click: false },
+    ]
+    case 'push': return [{ at: 0, target: null, click: false }]
+    default: return []
+  }
 }
 
 function Caption({ icon: Icon, title, body }: { icon: typeof Bell; title: string; body: string }) {
@@ -103,9 +126,9 @@ function Caption({ icon: Icon, title, body }: { icon: typeof Bell; title: string
 export default function CalendarSyncDemo() {
   const [i, setI] = useState(0)
   const [tick, setTick] = useState(0)
-  // Phones stack the CRM steps under the CRM list, so the pointer aims at the stacked spots there.
-  const phone = usePhoneLayout()
   const beat = BEATS[i]
+  const stage = useRef<HTMLDivElement>(null)
+  const cursor = useCursorCues(i, cursorCues(beat))
 
   useEffect(() => {
     setTick(0)
@@ -130,7 +153,7 @@ export default function CalendarSyncDemo() {
 
   return (
     <BrowserFrame url={url} progress={progress}>
-      <div className="relative h-[420px] overflow-hidden bg-[radial-gradient(90%_80%_at_85%_0%,rgba(201,162,77,.12),transparent_60%),#faf8f3] p-5 dark:bg-[radial-gradient(90%_80%_at_85%_0%,rgba(201,162,77,.1),transparent_60%),#0B0B0B] max-sm:p-3">
+      <div ref={stage} className="relative h-[420px] overflow-hidden bg-[radial-gradient(90%_80%_at_85%_0%,rgba(201,162,77,.12),transparent_60%),#faf8f3] p-5 dark:bg-[radial-gradient(90%_80%_at_85%_0%,rgba(201,162,77,.1),transparent_60%),#0B0B0B] max-sm:p-3">
 
         {/* 1 · connect once */}
         {beat.k === 'connect' && (
@@ -145,13 +168,12 @@ export default function CalendarSyncDemo() {
                   <div key={p.n} className={`rounded-2xl border-2 bg-white p-3.5 transition-all duration-500 dark:bg-[#151517] ${done ? 'border-emerald-400 shadow-[0_14px_30px_-18px_rgba(16,185,129,.8)]' : 'border-gray-200 dark:border-gray-800'}`}>
                     <div className="flex items-center gap-2">{p.m}<p className="text-[13px] font-black text-[#111827] dark:text-white">{p.n}</p></div>
                     <p className="mt-1.5 min-h-[30px] text-[10px] font-semibold leading-snug text-gray-500 dark:text-gray-400">{p.d}</p>
-                    <span className={`mt-2.5 flex items-center justify-center gap-1.5 rounded-xl py-2 text-[11px] font-black transition-all duration-200 ${done ? 'bg-emerald-500 text-white' : p.g && tick >= 9 && tick < 12 ? 'scale-95 bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>{done ? <><Check className="h-4 w-4" /> Connected</> : 'Connect'}</span>
+                    <span data-cursor={p.g ? 'connect' : undefined} className={`mt-2.5 flex items-center justify-center gap-1.5 rounded-xl py-2 text-[11px] font-black transition-all duration-200 ${done ? 'bg-emerald-500 text-white' : p.g && tick >= 9 && tick < 12 ? 'scale-95 bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>{done ? <><Check className="h-4 w-4" /> Connected</> : 'Connect'}</span>
                   </div>
                 )
               })}
             </div>
             <p className={`mt-3 flex items-center gap-1.5 text-[11px] font-black text-emerald-600 transition-opacity duration-500 dark:text-emerald-400 ${tick >= 13 ? 'opacity-100' : 'opacity-0'}`}><Check className="h-4 w-4" /> Connected - look for an &ldquo;OpenHousePal&rdquo; calendar in Google.</p>
-            <DemoPointer x={tick < 3 ? 80 : 24} y={tick < 3 ? 90 : 64} click={tick >= 9 && tick <= 10} />
           </div>
         )}
 
@@ -187,14 +209,13 @@ export default function CalendarSyncDemo() {
           <div className="flex h-full flex-col">
             <Caption icon={RefreshCw} title="Change it anywhere" body="Move it in Google - we update too." />
             <div className="relative min-h-0 flex-1">
-              <Week sidebar={false} events={[...personal, tick < 6 ? openHouse : tick < 11 ? { ...openHouse, ghost: true } : { ...openHouse, day: 3, start: 13, end: 15 }, tour, ...(tick >= 6 && tick < 11 ? [{ ...openHouse, day: tick < 8 ? 2 : 3, start: 13, end: 15, label: openHouse.label }] : [])]} />
+              <Week sidebar={false} marks={[{ id: 'drag-from', day: 2, start: 13, end: 15 }, { id: 'drag-to', day: 3, start: 13, end: 15 }]} events={[...personal, tick < 6 ? openHouse : tick < 11 ? { ...openHouse, ghost: true } : { ...openHouse, day: 3, start: 13, end: 15 }, tour, ...(tick >= 6 && tick < 11 ? [{ ...openHouse, day: tick < 8 ? 2 : 3, start: 13, end: 15, label: openHouse.label }] : [])]} />
               <div className={`absolute bottom-2 right-2 w-[250px] rounded-xl border border-emerald-200 bg-white p-2.5 shadow-xl transition-all duration-500 dark:border-emerald-900/40 dark:bg-[#151517] ${tick >= 13 ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'}`}>
                 <p className="text-[8.5px] font-black uppercase tracking-widest text-gray-400">OpenHousePal · Opens</p>
                 <p className="text-[11px] font-black text-[#111827] dark:text-white">{OH.address} · Sunday 1-3 PM</p>
                 <p className="mt-0.5 flex items-center gap-1 text-[9.5px] font-bold text-emerald-600"><RefreshCw className="h-3 w-3" /> Updated from Google Calendar</p>
               </div>
             </div>
-            <DemoPointer x={tick < 3 ? 40 : tick < 8 ? 64 : 86} y={tick < 3 ? 85 : 55} click={tick >= 5 && tick <= 10} />
           </div>
         )}
 
@@ -208,23 +229,22 @@ export default function CalendarSyncDemo() {
                 <p className="text-[11px] font-black text-[#111827] dark:text-white"><span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#C9A24D] text-[9px] text-[#111827]">1</span>Which CRM do you use?</p>
                 <div className="mt-2 grid grid-cols-2 gap-1.5 max-sm:grid-cols-3 max-sm:gap-1">
                   {CRMS.map(n => {
-                    const on = n === 'Follow Up Boss' && tick >= 6
-                    return <span key={n} className={`flex items-center gap-1 rounded-lg border px-2 py-1.5 text-[10px] font-black max-sm:px-1.5 max-sm:py-1 max-sm:text-[9px] max-sm:leading-tight transition-all duration-300 ${on ? 'border-[#C9A24D] bg-[#C9A24D]/15 text-[#6b5530] dark:text-[#e8c97a]' : 'border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300'}`}>{on && <Check className="h-3 w-3" />}{n}</span>
+                    const on = n === 'Follow Up Boss' && tick >= 5
+                    return <span key={n} data-cursor={n === 'Follow Up Boss' ? 'crm-pick' : undefined} className={`flex items-center gap-1 rounded-lg border px-2 py-1.5 text-[10px] font-black max-sm:px-1.5 max-sm:py-1 max-sm:text-[9px] max-sm:leading-tight transition-all duration-300 ${on ? 'border-[#C9A24D] bg-[#C9A24D]/15 text-[#6b5530] dark:text-[#e8c97a]' : 'border-gray-200 text-gray-600 dark:border-gray-700 dark:text-gray-300'}`}>{on && <Check className="h-3 w-3" />}{n}</span>
                   })}
                 </div>
               </div>
               <div className="flex flex-col gap-2 max-sm:grid max-sm:grid-cols-2">
                 <div className={`rounded-2xl border bg-white p-3 transition-opacity duration-500 dark:bg-[#151517] ${tick >= 8 ? 'border-gray-200 opacity-100 dark:border-gray-800' : 'border-gray-100 opacity-40 dark:border-gray-900'}`}>
                   <p className="text-[11px] font-black text-[#111827] dark:text-white"><span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#C9A24D] text-[9px] text-[#111827]">2</span>Connect Follow Up Boss</p>
-                  <p className="mt-1 flex items-center gap-1.5 rounded-lg border border-gray-200 px-2 py-1.5 font-mono text-[10px] text-[#111827] dark:border-gray-700 dark:text-white"><KeyRound className="h-3 w-3 text-[#C9A24D]" />{tick >= 9 ? 'fka_••••••••••'.slice(0, 4 + Math.min(10, tick - 9)) : <span className="font-sans text-gray-400">Paste your API key</span>}</p>
+                  <p data-cursor="crm-key" className="mt-1 flex items-center gap-1.5 rounded-lg border border-gray-200 px-2 py-1.5 font-mono text-[10px] text-[#111827] dark:border-gray-700 dark:text-white"><KeyRound className="h-3 w-3 text-[#C9A24D]" />{tick >= 10 ? 'fka_••••••••••'.slice(0, 4 + Math.min(10, tick - 10)) : <span className="font-sans text-gray-400">Paste your API key</span>}</p>
                 </div>
                 <div className={`rounded-2xl border bg-white p-3 transition-opacity duration-500 dark:bg-[#151517] ${tick >= 15 ? 'border-gray-200 opacity-100 dark:border-gray-800' : 'border-gray-100 opacity-40 dark:border-gray-900'}`}>
                   <p className="text-[11px] font-black text-[#111827] dark:text-white"><span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#C9A24D] text-[9px] text-[#111827]">3</span>Save &amp; send a test lead</p>
-                  <span className={`mt-1.5 flex items-center justify-center gap-1 rounded-xl py-2 text-[11px] font-black transition-all duration-200 ${tick >= 21 ? 'bg-emerald-500 text-white' : tick >= 19 ? 'scale-95 bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>{tick >= 21 ? <><Check className="h-3.5 w-3.5" /> Test lead delivered</> : <><Send className="h-3.5 w-3.5" /> Send a test lead</>}</span>
+                  <span data-cursor="crm-send" className={`mt-1.5 flex items-center justify-center gap-1 rounded-xl py-2 text-[11px] font-black transition-all duration-200 ${tick >= 22 ? 'bg-emerald-500 text-white' : tick >= 20 ? 'scale-95 bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>{tick >= 22 ? <><Check className="h-3.5 w-3.5" /> Test lead delivered</> : <><Send className="h-3.5 w-3.5" /> Send a test lead</>}</span>
                 </div>
               </div>
             </div>
-            <DemoPointer x={tick < 3 ? 50 : tick < 7 ? 16 : tick < 15 ? (phone ? 30 : 75) : 77} y={tick < 3 ? 95 : tick < 7 ? 30 : tick < 15 ? (phone ? 64 : 29) : (phone ? 70 : 50)} click={(tick >= 5 && tick <= 6) || (tick >= 8 && tick <= 9) || (tick >= 19 && tick <= 20)} />
           </div>
         )}
 
@@ -284,6 +304,7 @@ export default function CalendarSyncDemo() {
             </div>
           </div>
         )}
+        <DemoCursor container={stage} target={cursor.target} click={cursor.click} />
       </div>
     </BrowserFrame>
   )

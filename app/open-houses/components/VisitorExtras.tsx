@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Activity, CalendarCheck2, Clock, FileText, Home, Map as MapIcon, MessageCircle, RotateCcw, Sparkles, Star, Ticket, LayoutGrid, Eye } from 'lucide-react'
+import { ArrowUpRight, CalendarCheck2, Clock, Compass, FileText, Globe, Home, Images, Map as MapIcon, MessageCircle, Navigation, RotateCcw, Sparkles, Star, Ticket, LayoutGrid, Eye, UserRound } from 'lucide-react'
 import OhSheet from '@/components/open-house-manager/OhSheet'
 import OhpSwitch from '@/components/ui/OhpSwitch'
 import { useLastValue } from '@/components/ui/windowMotion'
@@ -24,7 +24,50 @@ export type VisitorRow = {
   showcase_id?: string | null
   showcase_starred?: boolean
   pass_events?: number
+  pass_actions?: number
+  pass_new?: number
   pass_last_at?: string | null
+  note_count?: number
+}
+
+/** Their Showcase in a new tab, right beside the switch, to change something quickly (owner, 11/07). */
+export function OpenShowcaseLink({ id, compact = false }: { id: string; compact?: boolean }) {
+  return (
+    <a href={`/showcases?showcase=${id}`} target="_blank" rel="noopener" data-testid="visitor-open-showcase" aria-label="Open their Showcase in a new tab" title="Open their Showcase in a new tab"
+      onClick={e => e.stopPropagation()}
+      className={compact
+        ? 'inline-flex items-center gap-1 rounded-full border border-[#C9A24D]/40 bg-white px-2.5 py-1 text-[11px] font-black text-[#8b7355] transition hover:border-[#C9A24D] active:scale-95 dark:bg-white/5 dark:text-[#e8c97a]'
+        : 'inline-flex shrink-0 items-center justify-center gap-1 self-stretch rounded-2xl border border-[#C9A24D]/40 bg-white px-3 text-[12px] font-black text-[#8b7355] transition hover:border-[#C9A24D] active:scale-[0.97] dark:bg-white/5 dark:text-[#e8c97a]'}>
+      <span className={compact ? '' : 'max-[359px]:hidden'}>Open</span> <ArrowUpRight className="h-3.5 w-3.5" />
+    </a>
+  )
+}
+
+/** "Guest Activity" (owner, 11/07). Looks like the Notes button when they only landed on their pass,
+ *  which every guest does. Dark with a number when they did something on it, and the number pulses a
+ *  few times while the agent hasn't looked yet. */
+export function GuestActivityButton({ visitor, onOpen, compact = false }: { visitor: VisitorRow; onOpen: () => void; compact?: boolean }) {
+  const did = visitor.pass_actions || 0
+  const fresh = (visitor.pass_new || 0) > 0
+  const size = compact ? 'rounded-lg px-3 py-1.5 text-xs font-bold' : 'min-h-11 min-w-0 rounded-xl px-2 text-[11px] font-black uppercase tracking-wide'
+  const plain = compact
+    ? 'border border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-900 dark:border-gray-700 dark:bg-transparent dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-white'
+    : 'border border-gray-200 bg-white text-[#111827] dark:border-white/10 dark:bg-white/5 dark:text-white'
+  const loud = 'bg-[#111827] text-white shadow-md shadow-black/15 dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827]'
+  return (
+    <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={onOpen} data-testid="visitor-guest-activity" data-engaged={did > 0 ? 'yes' : 'no'}
+      title={did > 0 ? 'See what they did on their Guest Pass' : 'They opened their Guest Pass and nothing more so far'}
+      className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition ${size} ${did > 0 ? loud : plain}`}>
+      <Ticket className={`shrink-0 ${compact ? 'h-3 w-3' : 'h-3.5 w-3.5'} ${did > 0 ? 'text-[#e8c97a] dark:text-[#111827]' : 'text-[#C9A24D]'}`} />
+      Guest Activity
+      {did > 0 && (
+        <span className="relative grid h-[18px] min-w-[18px] shrink-0 place-items-center">
+          {fresh && <span aria-hidden className="absolute inset-0 rounded-full bg-[#e8c97a] motion-safe:animate-ping dark:bg-[#111827]" style={{ animationIterationCount: 4 }} />}
+          <span data-testid="visitor-guest-activity-count" className="relative grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[#e8c97a] px-1 text-[10px] font-black tabular-nums tracking-normal text-[#111827] dark:bg-[#111827] dark:text-[#e8c97a]">{did}</span>
+        </span>
+      )}
+    </motion.button>
+  )
 }
 
 /** This visitor's own Showcase switch (user, 10/25) - starts as the kit's Showcases setting and
@@ -108,8 +151,15 @@ export function VisitorStar({ on, onToggle, size = 'md' }: { on: boolean; onTogg
 type PassActivity = Awaited<ReturnType<typeof api.openHouses.getVisitorPassActivity>>['data']
 
 const EVENT_LOOK: Record<string, { icon: React.ComponentType<{ className?: string }>; tone: string }> = {
-  similar: { icon: Home, tone: 'text-[#8b7355] bg-[#C9A24D]/12 dark:text-[#e8c97a]' },
-  similar_list: { icon: LayoutGrid, tone: 'text-[#8b7355] bg-[#C9A24D]/12 dark:text-[#e8c97a]' },
+  similar: { icon: Home, tone: 'text-[#8b7355] bg-[#C9A24D]/15 dark:text-[#e8c97a]' },
+  home_tour: { icon: CalendarCheck2, tone: 'text-rose-700 bg-rose-100 dark:text-rose-300 dark:bg-rose-500/15' },
+  home_question: { icon: MessageCircle, tone: 'text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-500/15' },
+  similar_list: { icon: LayoutGrid, tone: 'text-[#8b7355] bg-[#C9A24D]/15 dark:text-[#e8c97a]' },
+  nearby: { icon: Compass, tone: 'text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-500/15' },
+  directions: { icon: Navigation, tone: 'text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-500/15' },
+  spotlight: { icon: Sparkles, tone: 'text-violet-700 bg-violet-100 dark:text-violet-300 dark:bg-violet-500/15' },
+  photos: { icon: Images, tone: 'text-sky-700 bg-sky-100 dark:text-sky-300 dark:bg-sky-500/15' },
+  contact: { icon: Globe, tone: 'text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-500/15' },
   cheat: { icon: FileText, tone: 'text-sky-700 bg-sky-100 dark:text-sky-300 dark:bg-sky-500/15' },
   showcase: { icon: Sparkles, tone: 'text-violet-700 bg-violet-100 dark:text-violet-300 dark:bg-violet-500/15' },
   map: { icon: MapIcon, tone: 'text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-500/15' },
@@ -117,41 +167,32 @@ const EVENT_LOOK: Record<string, { icon: React.ComponentType<{ className?: strin
   question: { icon: MessageCircle, tone: 'text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-500/15' },
 }
 
-function eventText(e: { kind: string; key: string | null; label: string | null }): string {
-  switch (e.kind) {
-    case 'similar': return `Viewed details: ${e.label || 'a similar home'}`
-    case 'similar_list': return 'Looked through the Similar Homes'
-    case 'cheat': return 'Opened the Cheat Sheet'
-    case 'showcase': return 'Opened their Showcase'
-    case 'map': return 'Used the map'
-    case 'request': return e.key === 'disclosure' ? 'Asked for the seller disclosure' : `Asked for a second tour${e.label ? ` - ${e.label}` : ''}`
-    case 'question': return `Asked you: "${e.label || ''}"`
-    default: return e.kind
-  }
-}
-
-const dur = (s: number) => s < 60 ? `${Math.max(s, 5)}s` : s < 3600 ? `${Math.round(s / 60)} min` : `${Math.floor(s / 3600)}h ${Math.round((s % 3600) / 60)}m`
+const dur = (s: number) => s < 5 ? 'Under 5s' : s < 60 ? `${s}s` : s < 3600 ? `${Math.round(s / 60)} min` : `${Math.floor(s / 3600)}h ${Math.round((s % 3600) / 60)}m`
 const time = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 const localDay = (iso: string) => new Date(iso).toDateString()
 
 /** Everything one guest did on their Guest Pass (user, 10/24): each visit with its day, time and
- *  length, and what they opened in it - homes, Cheat Sheet, map, Showcase, requests, questions. */
-export function PassActivitySheet({ visitor, onClose }: { visitor: VisitorRow | null; onClose: () => void }) {
+ *  length, and what they did in it, in the words the mailbox and their lead use too. Opening it marks
+ *  it as seen. */
+export function PassActivitySheet({ visitor, onClose, onSeen }: { visitor: VisitorRow | null; onClose: () => void; onSeen?: (id: string) => void }) {
   const v = useLastValue(visitor)
   const [data, setData] = useState<PassActivity | null>(null)
   const [loading, setLoading] = useState(false)
+  const visitorId = visitor?.id
   useEffect(() => {
-    if (!visitor) return
+    if (!visitorId) return
     let live = true
     setLoading(true); setData(null)
-    api.openHouses.getVisitorPassActivity(visitor.id).then(r => {
+    api.openHouses.getVisitorPassActivity(visitorId).then(r => {
       if (!live) return
       setData(r.success ? r.data ?? null : null)
       setLoading(false)
+      if (r.success) api.openHouses.markVisitorPassSeen(visitorId).then(() => onSeen?.(visitorId))
     })
     return () => { live = false }
-  }, [visitor])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visitorId])
 
   const signedDay = v ? localDay(v.created_at) : ''
   const otherDays = data ? Array.from(new Set(data.visits.map(x => localDay(x.started_at)))).filter(d => d !== signedDay) : []
@@ -162,9 +203,9 @@ export function PassActivitySheet({ visitor, onClose }: { visitor: VisitorRow | 
       open={!!visitor}
       onClose={onClose}
       width="max-w-xl"
-      title="Guest Pass activity"
+      title="Guest Activity"
       subtitle={v?.full_name}
-      icon={<Activity className="h-5 w-5" />}
+      icon={<Ticket className="h-5 w-5" />}
     >
       {loading || !data ? (
         <div className="flex min-h-[200px] items-center justify-center">
@@ -219,7 +260,7 @@ export function PassActivitySheet({ visitor, onClose }: { visitor: VisitorRow | 
                       {visit.events.map((e, j) => <EventLine key={j} e={e} />)}
                     </ul>
                   ) : (
-                    <p className="mt-1.5 text-xs font-medium text-gray-400">Looked over this home&apos;s page.</p>
+                    <p className="mt-1.5 text-xs font-medium text-gray-400">Only opened their Guest Pass.</p>
                   )}
                 </motion.li>
               ))}
@@ -237,13 +278,17 @@ export function PassActivitySheet({ visitor, onClose }: { visitor: VisitorRow | 
   )
 }
 
-function EventLine({ e, withDay = false }: { e: { kind: string; key: string | null; label: string | null; at: string }; withDay?: boolean }) {
+const CONTACT_ICON: Record<string, React.ComponentType<{ className?: string }>> = { call: PhoneIcon, text: MessageCircle, email: MailIcon, hub: UserRound, website: Globe }
+
+function EventLine({ e, withDay = false }: { e: { kind: string; key?: string | null; text: string; seconds?: number | null; at: string }; withDay?: boolean }) {
   const look = EVENT_LOOK[e.kind] || EVENT_LOOK.similar
-  const Icon = look.icon
+  const Icon = (e.kind === 'contact' && CONTACT_ICON[e.key || '']) || look.icon
   return (
     <li className="flex items-start gap-2.5">
       <span className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-lg ${look.tone}`}><Icon className="h-3.5 w-3.5" /></span>
-      <span className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-gray-700 dark:text-gray-200">{eventText(e)}</span>
+      <span className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-gray-700 dark:text-gray-200" data-testid="guest-activity-line">
+        {e.text}{e.seconds ? <span className="whitespace-nowrap font-bold text-[#8b7355] dark:text-[#e8c97a]"> · {dur(e.seconds)}</span> : null}
+      </span>
       <span className="shrink-0 pt-0.5 text-[11px] font-bold tabular-nums text-gray-400">{withDay ? `${day(e.at)} ` : ''}{time(e.at)}</span>
     </li>
   )
@@ -288,6 +333,7 @@ export function VisitorReach({ visitor, agent, street, compact = false, onContac
   onContacted?: (via: 'text' | 'email') => void
 }) {
   const [mailOpen, setMailOpen] = useState(false)
+  const [mailUsed, setMailUsed] = useState(false)
   const body = visitorHello(visitor.full_name, agent, street)
   const subject = street ? `Thanks for stopping by ${street}` : 'Thanks for stopping by the open house'
   const btn = `inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white font-black text-[#111827] transition hover:border-[#C9A24D] active:scale-[0.97] dark:border-white/10 dark:bg-white/[0.04] dark:text-white ${compact ? 'px-2.5 py-1.5 text-[11px]' : 'py-2.5 text-[13px]'}`
@@ -299,10 +345,11 @@ export function VisitorReach({ visitor, agent, street, compact = false, onContac
           className={`${btn} ${visitor.phone ? '' : off}`} data-testid="visitor-text"><MessageCircle className="h-3.5 w-3.5" /> Text</a>
         <a href={visitor.phone ? `tel:${visitor.phone}` : undefined} aria-disabled={!visitor.phone} onClick={e => e.stopPropagation()}
           className={`${btn} ${visitor.phone ? '' : off}`} data-testid="visitor-call"><PhoneIcon className="h-3.5 w-3.5" /> Call</a>
-        <button type="button" disabled={!visitor.email} onClick={e => { e.stopPropagation(); setMailOpen(true) }}
+        <button type="button" disabled={!visitor.email} onClick={e => { e.stopPropagation(); setMailUsed(true); setMailOpen(true) }}
           className={`${btn} ${visitor.email ? '' : off}`} data-testid="visitor-email"><MailIcon className="h-3.5 w-3.5" /> Email</button>
       </div>
-      <MailPicker open={mailOpen} onClose={() => setMailOpen(false)} to={visitor.email || ''} subject={subject} body={body} onPicked={() => onContacted?.('email')} />
+      {/* Not until it's first wanted: a long guest list would carry one of these per row. */}
+      {mailUsed && <MailPicker open={mailOpen} onClose={() => setMailOpen(false)} to={visitor.email || ''} subject={subject} body={body} onPicked={() => onContacted?.('email')} />}
     </>
   )
 }

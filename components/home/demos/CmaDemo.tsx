@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Sparkles, Check, Calculator, ScanLine, MapPin, ShieldCheck, MousePointer2, Search, DollarSign, Share2, FileText } from 'lucide-react'
+import { Sparkles, Check, Calculator, ScanLine, MapPin, ShieldCheck, Search, DollarSign, Share2, FileText } from 'lucide-react'
 import { DemoStep, DEMO_NOTE_CSS } from './DemoNote'
 import TypingAnimation from '@/components/TypingAnimation'
 import BrowserFrame from '@/components/home/BrowserFrame'
 import TitleSlide from './TitleSlide'
+import DemoCursor, { useCursorCues, type CursorCue } from './DemoCursor'
 import { AGENT, REAL_CMA } from './realData'
 
 // A literal, unhurried recreation of the real agent-facing CMA tool (app/studio/cma/[id]/page.tsx)
@@ -68,17 +69,6 @@ const COMP_QUALITY: Record<string, { finish_quality: QTier; interior: QTier; ext
   '201 S Spring Mill Rd': { finish_quality: 'similar', interior: 'similar', exterior: 'similar', lot: 'above', amenities: 'similar', area: 'same_as_subject' },
   '112 Dovecote Ln': { finish_quality: 'above', interior: 'above', exterior: 'above', lot: 'similar', amenities: 'above', area: 'same_as_subject' },
   '228 S Radnor Chester Rd': { finish_quality: 'below', interior: 'below', exterior: 'below', lot: 'above', amenities: 'below', area: 'same_as_subject' },
-}
-
-// The cursor + tap-ring pulse used on every clickable option/button in this walkthrough, so each
-// selection reads as an actual click happening rather than the option just appearing selected.
-function ClickCursor() {
-  return (
-    <span className="pointer-events-none absolute -bottom-1.5 -right-1.5 z-10">
-      <span className="absolute inset-0 rounded-full bg-[#C9A24D]/40 animate-ping" />
-      <MousePointer2 className="relative h-3.5 w-3.5 text-[#111827] drop-shadow dark:text-white" fill="currentColor" />
-    </span>
-  )
 }
 
 function QualityRow({ label, tier, idx }: { label: string; tier: QTier | ATier; idx: number }) {
@@ -272,10 +262,44 @@ function captionFor(k: Beat['k']): number {
   return 2
 }
 
+// The pointer's script. Most click beats here are shorter than the 850ms glide, so each move starts
+// on the beat before and is already on the button when the click beat opens. Buyer -> Continue is
+// the one pair too close for that: it arrives a moment into the 650ms Continue beat, so that press
+// waits for the ripple.
+const CUR = {
+  buyer: '[data-cursor="buyer"]', cont: '[data-cursor="continue"]', suggestion: '[data-cursor="suggestion"]', find: '[data-cursor="find"]',
+  compsNext: '[data-cursor="comps-next"]', analyze: '[data-cursor="analyze"]', share: '[data-cursor="share"]',
+}
+function cursorCues(beat: Beat): CursorCue[] {
+  switch (beat.k) {
+    case 'modal-name': return [{ at: 10, target: CUR.buyer }]
+    case 'modal-toggle': return [{ at: 0, click: true }, { at: 250, target: CUR.cont, click: false }]
+    case 'modal-continue': return [{ at: 300, click: true }]
+    case 'subject-search': return [{ at: 0, click: false }]
+    case 'subject-results': return [{ at: 1150, target: CUR.suggestion }]
+    case 'subject-pick': return [{ at: 0, click: true }]
+    case 'subject-selected': return [{ at: 0, click: false }, { at: 1950, target: CUR.find }]
+    case 'subject-continue': return [{ at: 0, click: true }]
+    case 'comp':
+      if (beat.idx === 0 && !beat.scored) return [{ at: 0, target: null, click: false }]
+      return beat.idx === REAL_CMA.comps.length - 1 && beat.scored ? [{ at: 120, target: CUR.compsNext }] : []
+    case 'comps-continue': return [{ at: 0, click: true }]
+    case 'analysis-cta': return [{ at: 0, click: false }, { at: 250, target: CUR.analyze }]
+    case 'analysis-click': return [{ at: 0, click: true }]
+    case 'scan': return beat.compIdx === 0 && beat.stage === 0 ? [{ at: 0, target: null, click: false }] : []
+    case 'review': return [{ at: 1500, target: CUR.share }]
+    case 'review-share': return [{ at: 0, click: true }]
+    case 'opening-report': return [{ at: 0, target: null, click: false }]
+    default: return []
+  }
+}
+
 export default function CmaDemo() {
   const [i, setI] = useState(0)
   const beat = BEATS[i]
   const advance = () => setI(n => (n + 1) % BEATS.length)
+  const stage = useRef<HTMLDivElement>(null)
+  const cursor = useCursorCues(i, cursorCues(beat))
 
   useEffect(() => {
     const duration = beatDuration(beat)
@@ -301,7 +325,7 @@ export default function CmaDemo() {
       progress={{ pages: CMA_TOTAL_PAGES, ...cmaPage(beat) }}
     >
       <style>{DEMO_NOTE_CSS}</style>
-      <div className="relative h-[420px] flex flex-col pt-[56px]">
+      <div ref={stage} className="relative h-[420px] flex flex-col pt-[56px]">
         {(() => { const c = captionFor(beat.k); return <DemoStep id={String(c)} step={c + 1} count={CAPTIONS.length} title={CAPTIONS[c].title} body={CAPTIONS[c].body} icon={CAPTIONS[c].icon} /> })()}
 
         <div className={`flex-1 ${isReport ? '' : 'p-5 flex items-center justify-center'} overflow-hidden`}>
@@ -316,14 +340,12 @@ export default function CmaDemo() {
               <p className="text-[8.5px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">This CMA is for a...</p>
               <div className="grid grid-cols-2 gap-1.5 mb-3">
                 <div className="rounded-lg border-2 border-gray-200 dark:border-gray-700 py-1.5 text-center text-[9px] font-black text-gray-400">Seller / Listing</div>
-                <div className={`relative rounded-lg border-2 py-1.5 text-center text-[9px] font-black transition-all duration-300 ${beat.k !== 'modal-name' ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#0B0B0B] dark:text-white' : 'border-gray-200 dark:border-gray-700 text-gray-400'}`}>
+                <div data-cursor="buyer" className={`relative rounded-lg border-2 py-1.5 text-center text-[9px] font-black transition-all duration-300 ${beat.k !== 'modal-name' ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#0B0B0B] dark:text-white' : 'border-gray-200 dark:border-gray-700 text-gray-400'}`}>
                   Buyer / Offer
-                  {beat.k === 'modal-toggle' && <ClickCursor />}
                 </div>
               </div>
-              <div className={`relative w-full text-center rounded-lg py-2 text-[9px] font-black bg-[#111827] dark:bg-white text-white dark:text-[#111827] transition-transform duration-200 ${beat.k === 'modal-continue' ? 'scale-95' : 'scale-100'}`}>
+              <div data-cursor="continue" className={`relative w-full text-center rounded-lg py-2 text-[9px] font-black bg-[#111827] dark:bg-white text-white dark:text-[#111827] transition-transform duration-200 ${beat.k === 'modal-continue' && cursor.click ? 'scale-95' : 'scale-100'}`}>
                 Continue to Subject Property
-                {beat.k === 'modal-continue' && <ClickCursor />}
               </div>
             </div>
           )}
@@ -358,6 +380,7 @@ export default function CmaDemo() {
                       {SUBJECT_SUGGESTIONS.map((sug, idx) => (
                         <div
                           key={sug.line1}
+                          data-cursor={idx === 0 ? 'suggestion' : undefined}
                           className={`relative flex items-center gap-2 px-2.5 py-2 transition-colors ${
                             idx === 0 && beat.k === 'subject-pick'
                               ? 'bg-[#C9A24D]/20'
@@ -372,7 +395,6 @@ export default function CmaDemo() {
                             <p className="truncate text-[8px] text-gray-400">{sug.line2}</p>
                           </div>
                           {sug.match && <span className="ml-auto shrink-0 rounded bg-emerald-100 px-1 py-0.5 text-[6px] font-black uppercase text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">MLS Match</span>}
-                          {idx === 0 && beat.k === 'subject-pick' && <ClickCursor />}
                         </div>
                       ))}
                     </div>
@@ -403,9 +425,8 @@ export default function CmaDemo() {
                   </div>
                 )}
 
-                <div className={`relative mt-2.5 w-full rounded-lg py-2 text-center text-[9px] font-black text-white dark:text-[#111827] transition-all duration-200 ${selected ? 'bg-[#111827] dark:bg-white' : 'bg-gray-300 dark:bg-gray-700'} ${beat.k === 'subject-continue' ? 'scale-95' : 'scale-100'}`}>
+                <div data-cursor="find" className={`relative mt-2.5 w-full rounded-lg py-2 text-center text-[9px] font-black text-white dark:text-[#111827] transition-all duration-200 ${selected ? 'bg-[#111827] dark:bg-white' : 'bg-gray-300 dark:bg-gray-700'} ${beat.k === 'subject-continue' ? 'scale-95' : 'scale-100'}`}>
                   Find Comparables
-                  {beat.k === 'subject-continue' && <ClickCursor />}
                 </div>
               </div>
             )
@@ -457,9 +478,8 @@ export default function CmaDemo() {
                   )
                 })}
               </div>
-              <div className={`relative w-full text-center rounded-lg py-2.5 text-[9.5px] font-black bg-[#111827] dark:bg-white text-white dark:text-[#111827] mt-2.5 transition-transform duration-200 ${beat.k === 'comps-continue' ? 'scale-95' : 'scale-100'}`}>
+              <div data-cursor="comps-next" className={`relative w-full text-center rounded-lg py-2.5 text-[9.5px] font-black bg-[#111827] dark:bg-white text-white dark:text-[#111827] mt-2.5 transition-transform duration-200 ${beat.k === 'comps-continue' ? 'scale-95' : 'scale-100'}`}>
                 Continue
-                {beat.k === 'comps-continue' && <ClickCursor />}
               </div>
             </div>
           )}
@@ -483,9 +503,8 @@ export default function CmaDemo() {
                   <div className="relative min-h-[150px]">
                     <div className={`absolute inset-0 flex flex-col justify-center transition-opacity duration-300 ${showButton ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                       <p className="text-[9px] text-gray-500 dark:text-gray-400 mb-3 leading-snug">Reads every comp's photos and data, rates strength/quality, and proposes a value estimate.</p>
-                      <div className={`relative w-full text-center rounded-lg py-2 text-[9px] font-black bg-gradient-to-r from-[#C9A24D] to-[#b38e3e] text-[#111827] transition-transform duration-200 ${beat.k === 'analysis-click' ? 'scale-95' : 'scale-100'}`}>
+                      <div data-cursor="analyze" className={`relative w-full text-center rounded-lg py-2 text-[9px] font-black bg-gradient-to-r from-[#C9A24D] to-[#b38e3e] text-[#111827] transition-transform duration-200 ${beat.k === 'analysis-click' ? 'scale-95' : 'scale-100'}`}>
                         {beat.k === 'analysis-click' ? 'Analyzing...' : 'Create AI Analysis'}
-                        {beat.k === 'analysis-click' && <ClickCursor />}
                       </div>
                     </div>
                     {/* Scans each comp's own photo in turn - a sweeping highlight + scan icon over
@@ -607,9 +626,8 @@ export default function CmaDemo() {
               </div>
               <div className="flex gap-2">
                 <div className="flex-1 rounded-lg border-2 border-gray-200 dark:border-gray-700 py-2 text-[9px] font-black text-gray-400 text-center">Mark Ready</div>
-                <div className={`relative flex-1 rounded-lg py-2 text-[9px] font-black bg-[#C9A24D] text-[#111827] text-center transition-transform duration-200 ${beat.k === 'review-share' ? 'scale-95' : 'scale-100'}`}>
+                <div data-cursor="share" className={`relative flex-1 rounded-lg py-2 text-[9px] font-black bg-[#C9A24D] text-[#111827] text-center transition-transform duration-200 ${beat.k === 'review-share' ? 'scale-95' : 'scale-100'}`}>
                   Share Link
-                  {beat.k === 'review-share' && <ClickCursor />}
                 </div>
               </div>
             </div>
@@ -875,6 +893,7 @@ export default function CmaDemo() {
             )
           })()}
         </div>
+        <DemoCursor container={stage} target={cursor.target} click={cursor.click} />
       </div>
     </BrowserFrame>
   )

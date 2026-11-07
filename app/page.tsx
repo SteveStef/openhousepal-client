@@ -445,7 +445,7 @@ function HomePageContent() {
           curtain/stagger) - the one deliberate motion here is the gold underline beneath "More
           Business." drawing itself in once, then a quiet shimmer catching across it forever. */}
       {isAuthenticated && (
-        <nav aria-label="OpenHousePal" data-testid="home-tabs" className="relative z-20 mx-auto flex max-w-7xl gap-1.5 overflow-x-auto px-4 pt-3 [scrollbar-width:none] sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-6 [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
+        <nav aria-label="OpenHousePal" data-testid="home-tabs" className="relative z-20 mx-auto flex max-w-7xl flex-wrap justify-center gap-1.5 px-4 pt-3 sm:px-6 [&>*]:shrink-0">
           <span aria-current="page" className="rounded-full bg-[#111827] px-3.5 py-1.5 text-[13px] font-black text-white dark:bg-[#C9A24D] dark:text-[#111827]">Home</span>
           {MARKETING_LINKS.map(l => (
             <Link key={l.href} href={l.href} className="rounded-full bg-white px-3.5 py-1.5 text-[13px] font-black text-gray-600 ring-1 ring-gray-200 transition-colors hover:ring-[#C9A24D] dark:bg-[#151517] dark:text-gray-300 dark:ring-white/10">{l.label}</Link>
@@ -475,11 +475,11 @@ function HomePageContent() {
                   margin on both sides at this breakpoint with nothing else competing for space. */}
               <HouseMotif
                 visible={seenSections.has('hero')}
-                className="ohp-motif-float hidden lg:block absolute top-1/2 -translate-y-1/2 left-full ml-10 xl:ml-16 w-[260px] h-[260px] text-[#C9A24D] opacity-[0.26] dark:opacity-[0.32] -z-10"
+                className="ohp-motif-float hidden xl:block absolute top-1/2 -translate-y-1/2 left-full ml-6 min-[1440px]:ml-10 2xl:ml-16 w-[170px] h-[170px] min-[1440px]:w-[220px] min-[1440px]:h-[220px] 2xl:w-[260px] 2xl:h-[260px] text-[#C9A24D] opacity-[0.26] dark:opacity-[0.32] -z-10"
               />
               <QrBadge
                 visible={seenSections.has('hero')}
-                className="ohp-motif-float hidden lg:block absolute top-1/2 -translate-y-1/2 right-full mr-10 xl:mr-16 w-[230px] h-[230px] text-[#C9A24D] opacity-[0.24] dark:opacity-[0.3] -z-10"
+                className="ohp-motif-float hidden xl:block absolute top-1/2 -translate-y-1/2 right-full mr-6 min-[1440px]:mr-10 2xl:mr-16 w-[160px] h-[160px] min-[1440px]:w-[200px] min-[1440px]:h-[200px] 2xl:w-[230px] 2xl:h-[230px] text-[#C9A24D] opacity-[0.24] dark:opacity-[0.3] -z-10"
               />
               Less Busywork.{' '}
               <span className="relative inline-block">
@@ -653,11 +653,11 @@ function HomePageContent() {
             what they earned him. */}
         <PinRouteMotif
           visible={seenSections.has('story')}
-          className="ohp-motif-float hidden lg:block absolute top-1/2 -translate-y-1/2 right-4 xl:right-10 w-[260px] h-[260px] text-[#C9A24D] opacity-[0.22] dark:opacity-[0.28] -z-10"
+          className="ohp-motif-float hidden xl:block absolute top-1/2 -translate-y-1/2 right-4 min-[1440px]:right-8 w-[170px] h-[170px] min-[1440px]:w-[240px] min-[1440px]:h-[240px] 2xl:w-[260px] 2xl:h-[260px] text-[#C9A24D] opacity-[0.22] dark:opacity-[0.28] -z-10"
         />
         <StarBadge
           visible={seenSections.has('story')}
-          className="ohp-motif-float hidden lg:block absolute top-1/2 -translate-y-1/2 left-4 xl:left-10 w-[260px] h-[260px] text-[#C9A24D] opacity-[0.2] dark:opacity-[0.26] -z-10"
+          className="ohp-motif-float hidden xl:block absolute top-1/2 -translate-y-1/2 left-4 min-[1440px]:left-8 w-[170px] h-[170px] min-[1440px]:w-[240px] min-[1440px]:h-[240px] 2xl:w-[260px] 2xl:h-[260px] text-[#C9A24D] opacity-[0.2] dark:opacity-[0.26] -z-10"
         />
         <div className="relative max-w-4xl mx-auto px-6 ohp-hero-mobile-center">
           <div className={`relative text-center mb-8 transform transition-all duration-1000 delay-300 ${seenSections.has('story') ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
@@ -826,11 +826,11 @@ function HomePageContent() {
               with no card-grid content anywhere near this height to overlap. */}
           <ShieldBadge
             visible={seenSections.has('pricing')}
-            className="ohp-motif-float hidden lg:block absolute top-1/2 -translate-y-1/2 right-full mr-6 xl:mr-10 w-[190px] h-[190px] text-[#C9A24D] opacity-[0.2] dark:opacity-[0.26] -z-10"
+            className="ohp-motif-float hidden xl:block absolute top-1/2 -translate-y-1/2 right-full mr-6 w-[160px] h-[160px] text-[#C9A24D] opacity-[0.2] dark:opacity-[0.26] -z-10"
           />
           <KeyMotif
             visible={seenSections.has('pricing')}
-            className="ohp-motif-float hidden lg:block absolute top-1/2 -translate-y-1/2 left-full ml-6 xl:ml-10 w-[230px] h-[230px] text-[#C9A24D] opacity-[0.24] dark:opacity-[0.3] -z-10"
+            className="ohp-motif-float hidden xl:block absolute top-1/2 -translate-y-1/2 left-full ml-6 w-[160px] h-[160px] text-[#C9A24D] opacity-[0.24] dark:opacity-[0.3] -z-10"
           />
           <div className="mb-3"><span className="inline-flex items-center justify-center gap-3 text-[11px] sm:text-xs font-black uppercase tracking-[0.32em] text-[#8b7355] dark:text-[#e8c97a]"><span className="h-px w-8 bg-gradient-to-r from-transparent to-[#C9A24D]" />Simple Pricing<span className="h-px w-8 bg-gradient-to-l from-transparent to-[#C9A24D]" /></span></div>
           <h3 className="font-serif text-4xl sm:text-6xl font-black text-[#0B0B0B] dark:text-white tracking-[-0.02em]">Invest in <em className="ohp-home-em font-light pr-[0.06em]">Your Growth</em></h3>
@@ -910,11 +910,11 @@ function HomePageContent() {
                 framing the heading, not floating off to either side. */}
             <ChatMotif
               visible={seenSections.has('faq')}
-              className="ohp-motif-float hidden lg:block absolute top-1/2 -translate-y-1/2 right-full mr-1 xl:mr-3 w-[190px] h-[190px] text-[#C9A24D] opacity-[0.22] dark:opacity-[0.28] -z-10"
+              className="ohp-motif-float hidden xl:block absolute top-1/2 -translate-y-1/2 right-full mr-3 w-[190px] h-[190px] text-[#C9A24D] opacity-[0.22] dark:opacity-[0.28] -z-10"
             />
             <MailBadge
               visible={seenSections.has('faq')}
-              className="ohp-motif-float hidden lg:block absolute top-1/2 -translate-y-1/2 left-full ml-1 xl:ml-3 w-[190px] h-[190px] text-[#C9A24D] opacity-[0.2] dark:opacity-[0.26] -z-10"
+              className="ohp-motif-float hidden xl:block absolute top-1/2 -translate-y-1/2 left-full ml-3 w-[190px] h-[190px] text-[#C9A24D] opacity-[0.2] dark:opacity-[0.26] -z-10"
             />
             <div className="mb-3"><span className="inline-flex items-center justify-center gap-3 text-[11px] sm:text-xs font-black uppercase tracking-[0.32em] text-[#8b7355] dark:text-[#e8c97a]"><span className="h-px w-8 bg-gradient-to-r from-transparent to-[#C9A24D]" />Common Questions<span className="h-px w-8 bg-gradient-to-l from-transparent to-[#C9A24D]" /></span></div>
             <h3 className="font-serif text-4xl sm:text-6xl font-black text-[#0B0B0B] dark:text-white mb-5 tracking-[-0.02em] text-center"><em className="ohp-home-em font-light pr-[0.06em]">Questions?</em></h3>

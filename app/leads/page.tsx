@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import OhSheet from '@/components/open-house-manager/OhSheet'
 import { copyText } from '@/lib/copyText'
+import { isSlowed, slowedSeen } from '@/lib/emailSlowedSeen'
 import LuxeSelect from '@/components/ui/LuxeSelect'
 import MotionModal from '@/components/ui/MotionModal'
 import AnimatedNumber from '@/components/ui/AnimatedNumber'
@@ -224,7 +225,10 @@ function LeadsPageInner() {
   }
   const since = periodStart(period)
   const newInPeriod = leads.filter(l => new Date(l.created_at).getTime() >= since).length
-  const emailsSlowed = leads.filter(l => l.email_engagement && l.email_engagement.mode !== 'daily' && !['unsubscribed', 'bounced', 'spam'].includes(l.email_engagement.code || '') && !l.unsubscribed).length
+  // New since the agent last looked at the tracker - it clears once they have.
+  const [slowedLooked, setSlowedLooked] = useState<Set<string>>(new Set())
+  useEffect(() => { setSlowedLooked(slowedSeen()) }, [])
+  const emailsSlowed = leads.filter(l => isSlowed(l.email_engagement?.code) && !l.unsubscribed && !slowedLooked.has((l.email || '').toLowerCase())).length
 
   // Row actions.
   const setStatus = async (lead: Lead, status: LeadStatus) => {
@@ -314,12 +318,12 @@ function LeadsPageInner() {
                   </Link>
                 )}
                 {/* Every client email + opens / clicks, who is on weekly or off, and the "send from my email" switch. */}
-                <Link href="/leads/emails" title="Every email your clients got - opened, clicked, who gets fewer, and which address they come from"
+                <Link href={emailsSlowed > 0 ? '/leads/emails?show=slowed' : '/leads/emails'} title="Every email your clients got - opened, clicked, who gets fewer, and which address they come from"
                   className={`group relative inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-2.5 py-2 text-xs font-black shadow-md sm:px-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${emailsSlowed > 0
                     ? 'border-amber-300 bg-amber-50 text-amber-800 shadow-amber-500/10 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200'
                     : 'border-[#C9A24D]/35 bg-white text-[#111827] shadow-[#C9A24D]/10 hover:border-[#C9A24D] dark:border-white/15 dark:bg-white/[0.07] dark:text-white'}`}>
                   <Mail className={`ohp-icon-draw ohp-icon-assemble-mail h-3.5 w-3.5 ${emailsSlowed > 0 ? 'text-amber-600 dark:text-amber-300' : 'text-[#8b7355] dark:text-[#e8c97a]'}`} /> Email Tracker
-                  {emailsSlowed > 0 && <span title="Leads whose automatic emails are now weekly or off" className="rounded-full bg-amber-500 px-1.5 text-[10px] font-black leading-4 text-white">{emailsSlowed}</span>}
+                  {emailsSlowed > 0 && <span data-testid="emails-slowed" title="These people stopped opening your emails, so they now get fewer. Tap to see who." className="rounded-full bg-amber-500 px-1.5 text-[10px] font-black leading-4 text-white">{emailsSlowed} slowed</span>}
                 </Link>
                 {/* Coming soon (Future Feature Ideas on the launch checklist): a series of follow-ups over
                     weeks - day 1, 3, 7, 30 - instead of one at a time. Not a link yet. */}
@@ -705,8 +709,8 @@ function LeadRow({ lead, busy, menuOpen, showRate = false, showWarmth = false, a
             ) : lead.unsubscribed && <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-black text-gray-500 dark:bg-white/[0.06] dark:text-gray-400"><MailX className="h-3 w-3" /> No emails</span>}
             {!lead.unsubscribed && lead.email_engagement && lead.email_engagement.mode !== 'daily' && (
               <span title={lead.email_engagement.reason || undefined}
-                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${lead.email_engagement.mode === 'weekly' ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300'}`}>
-                <MailX className="h-3 w-3" /> {lead.email_engagement.mode === 'weekly' ? 'Emails weekly' : 'Emails off'}
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${lead.email_engagement.mode !== 'off' ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300'}`}>
+                <MailX className="h-3 w-3" /> {lead.email_engagement.mode === 'off' ? 'Emails off' : lead.email_engagement.mode === 'biweekly' ? 'Emails every 2 weeks' : 'Emails weekly'}
               </span>
             )}
             {showRate && lead.email_engagement?.rate != null && (
@@ -936,8 +940,8 @@ function PhoneLeadCard({ lead, status, fresh, todos, showRate, showWarmth, activ
               <span className={`${pill} bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200 dark:bg-rose-500/10 dark:text-rose-300`}><MailX className="h-3 w-3" /> {lead.email_engagement.code === 'bounced' ? 'Email bounced' : 'Marked you as spam'}</span>
             ) : lead.unsubscribed && <span className={`${pill} bg-gray-100 text-gray-500 dark:bg-white/[0.06] dark:text-gray-400`}><MailX className="h-3 w-3" /> No emails</span>}
             {!lead.unsubscribed && lead.email_engagement && lead.email_engagement.mode !== 'daily' && (
-              <span className={`${pill} ${lead.email_engagement.mode === 'weekly' ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300'}`}>
-                <MailX className="h-3 w-3" /> {lead.email_engagement.mode === 'weekly' ? 'Emails weekly' : 'Emails off'}
+              <span className={`${pill} ${lead.email_engagement.mode !== 'off' ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300'}`}>
+                <MailX className="h-3 w-3" /> {lead.email_engagement.mode === 'off' ? 'Emails off' : lead.email_engagement.mode === 'biweekly' ? 'Emails every 2 weeks' : 'Emails weekly'}
               </span>
             )}
             {showRate && lead.email_engagement?.rate != null && <span className={`${pill} bg-sky-50 tabular-nums text-sky-700 dark:bg-sky-500/10 dark:text-sky-300`}><Mail className="h-3 w-3" /> {lead.email_engagement.rate}% opened</span>}

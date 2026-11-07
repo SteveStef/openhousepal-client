@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Check, ClipboardList, MapPin, Sparkles, MousePointer2, UserPlus } from 'lucide-react'
+import { Check, ClipboardList, MapPin, Sparkles, UserPlus } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { KitsIcon } from '@/components/icons/CustomIcons'
 import TypingAnimation from '@/components/TypingAnimation'
 import BrowserFrame from '@/components/home/BrowserFrame'
 import TitleSlide from './TitleSlide'
+import DemoCursor, { useCursorCues, type CursorCue } from './DemoCursor'
 import { DemoCaption, DemoNote, DEMO_NOTE_CSS, STAGE_BG } from './DemoNote'
 import { AGENT, REAL_OPEN_HOUSE as OH, REAL_RECENT_SALES, REAL_SIMILAR_HOMES } from './realData'
 
@@ -90,6 +91,17 @@ function beatDuration(beat: Beat): number | null {
     case 'zoom': return ZOOM_MS
     case 'open': return OPEN_MS[beat.idx]
     case 'reset': return RESET_MS
+  }
+}
+
+// The pointer's script: it sets off while the photo shows, so it's on the button when the click beat
+// (900ms, barely longer than the 850ms glide) starts.
+function cursorCues(beat: Beat): CursorCue[] {
+  switch (beat.k) {
+    case 'photo': return [{ at: 1300, target: '[data-cursor="generate"]' }]
+    case 'generate-click': return [{ at: 0, click: true }]
+    case 'generating': return beat.idx === 0 ? [{ at: 0, target: null, click: false }] : []
+    default: return []
   }
 }
 
@@ -372,6 +384,8 @@ export default function OpenHouseKitDemo() {
   const [tick, setTick] = useState(0)
   const beat = BEATS[i]
   const advance = () => setI(n => (n + 1) % BEATS.length)
+  const stage = useRef<HTMLDivElement>(null)
+  const cursor = useCursorCues(i, cursorCues(beat))
 
   useEffect(() => {
     setTick(0)
@@ -402,7 +416,7 @@ export default function OpenHouseKitDemo() {
       progress={{ pages: KIT_TOTAL_PAGES, ...kitPage(beat) }}
     >
       <style>{DEMO_NOTE_CSS}</style>
-      <div className={`relative flex h-[420px] items-center justify-center gap-5 overflow-hidden px-4 max-sm:px-3 ${STAGE_BG}`}>
+      <div ref={stage} className={`relative flex h-[420px] items-center justify-center gap-5 overflow-hidden px-4 max-sm:px-3 ${STAGE_BG}`}>
         {buildNote && buildKey && <DemoNote id={buildKey} icon={buildNote.icon} title={buildNote.title} body={buildNote.body} index={['address', 'generating', 'ready'].indexOf(buildKey)} count={3} />}
         {buildNote && <DemoCaption title={buildNote.title} body={buildNote.body} />}
         {(beat.k === 'address' || beat.k === 'photo' || beat.k === 'generate-click') && (
@@ -420,14 +434,8 @@ export default function OpenHouseKitDemo() {
               <span className="flex-1 min-w-0 text-left pl-2 text-xs font-medium text-[#111827] dark:text-gray-200 truncate">
                 {beat.k === 'address' ? <TypingAnimation text={`${OH.address}, ${OH.city}, ${OH.state}`} speed={55} onComplete={advance} /> : `${OH.address}, ${OH.city}, ${OH.state}`}
               </span>
-              <div className={`relative flex-shrink-0 px-4 py-2.5 bg-gradient-to-r from-[#C9A24D] to-[#b8923f] text-white rounded-full font-black text-[9px] uppercase tracking-widest whitespace-nowrap shadow-sm shadow-[#C9A24D]/30 transition-transform duration-200 ${beat.k === 'generate-click' ? 'scale-90' : 'scale-100'}`}>
+              <div data-cursor="generate" className={`relative flex-shrink-0 px-4 py-2.5 bg-gradient-to-r from-[#C9A24D] to-[#b8923f] text-white rounded-full font-black text-[9px] uppercase tracking-widest whitespace-nowrap shadow-sm shadow-[#C9A24D]/30 transition-transform duration-200 ${beat.k === 'generate-click' ? 'scale-90' : 'scale-100'}`}>
                 Generate Kit
-                {beat.k === 'generate-click' && (
-                  <span className="pointer-events-none absolute -bottom-1.5 -right-1.5 z-10">
-                    <span className="absolute inset-0 rounded-full bg-white/40 animate-ping" />
-                    <MousePointer2 className="relative h-3.5 w-3.5 text-[#111827] drop-shadow" fill="currentColor" />
-                  </span>
-                )}
               </div>
             </div>
             {beat.k !== 'address' && (
@@ -533,6 +541,7 @@ export default function OpenHouseKitDemo() {
             </div>
           </div>
         )}
+        <DemoCursor container={stage} target={cursor.target} click={cursor.click} />
       </div>
     </BrowserFrame>
   )

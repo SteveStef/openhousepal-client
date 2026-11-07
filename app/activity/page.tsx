@@ -29,7 +29,7 @@ const PAGE = 25
 // One tab per kind of thing that happens - a tab only shows once it has something in it.
 type Kind = 'all' | 'unread' | 'open_houses' | 'forms' | 'tours' | 'inquiries' | 'showcases' | 'emails' | 'followups' | 'reviews' | 'hosting' | 'account'
 const KIND_TYPES: Record<Exclude<Kind, 'all' | 'unread' | 'account'>, string[]> = {
-  open_houses: ['OPEN_HOUSE_SIGN_IN', 'OPEN_HOUSE_SECOND_VISIT', 'OPEN_HOUSE_DISCLOSURE', 'OPEN_HOUSE_FORM_REQUEST'],
+  open_houses: ['OPEN_HOUSE_SIGN_IN', 'OPEN_HOUSE_SECOND_VISIT', 'OPEN_HOUSE_DISCLOSURE', 'OPEN_HOUSE_FORM_REQUEST', 'GUEST_PASS_ACTIVITY'],
   forms: ['FORM_SUBMISSION'],
   tours: ['TOUR_REQUEST'],
   inquiries: ['PROPERTY_INQUIRY', 'PORTAL_LEAD', 'LEAD'],
