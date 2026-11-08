@@ -334,7 +334,7 @@ export default function MarkDonePage() {
 
             {task.contact && <div className="dn-up" style={{ animationDelay: '.22s' }}><ContactCard code={code} contact={task.contact} onText={() => { call(`${encodeURIComponent(code)}/done`, 'POST', { via: 'text' }) }} /></div>}
             {task.contact && task.alerts && (
-              <DoneLeadAlerts code={code} alerts={task.alerts} firstName={(task.contact.name || '').trim().split(/\s+/)[0]} delay={0.3} />
+              <DoneLeadAlerts code={code} alerts={task.alerts} hasShowcase={task.has_showcase !== false} firstName={(task.contact.name || '').trim().split(/\s+/)[0]} delay={0.3} />
             )}
 
             {others.length > 0 ? (

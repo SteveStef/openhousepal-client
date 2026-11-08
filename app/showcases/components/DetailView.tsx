@@ -5,7 +5,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import api, { resolveMediaUrl } from '@/lib/api-service'
-import { Calendar, CheckSquare, Contact, Copy, Check, ArrowUpDown, Inbox, Mail, MapPin, MessageSquareText, Phone, Share2, User, SlidersHorizontal, X } from 'lucide-react'
+import { Calendar, CheckSquare, ChevronRight, Contact, Copy, Check, ArrowUpDown, FolderInput, Inbox, Loader2, Mail, MapPin, MessageSquareText, Phone, Share2, Sparkles, User, SlidersHorizontal, X } from 'lucide-react'
 import ShowcaseMailbox from '@/components/showcases/ShowcaseMailbox'
 import { EmailFrequencySelect } from '@/components/emails/EmailEngagement'
 import PropertyGrid, { homeMatches, SHOWCASE_TABS } from '@/components/PropertyGrid'
@@ -23,7 +23,9 @@ import LuxeSelect from '@/components/ui/LuxeSelect'
 import { SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
 import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
 import SendHomesSheet from '@/components/showcases/SendHomesSheet'
-import { sendHomeLink, sendsByHome, type HomeSend } from '@/lib/sendHome'
+import { sendHomeLink, sendLine, sendsByHome, type HomeSend } from '@/lib/sendHome'
+import OhSheet from '@/components/open-house-manager/OhSheet'
+import { hasStatusNotice } from '@/lib/showcaseStatus'
 import ShowcaseSelectBar, { type BulkAction } from '@/components/showcases/ShowcaseSelectBar'
 import { useLastValue } from '@/components/ui/windowMotion'
 
@@ -259,6 +261,25 @@ export const DetailView = memo(function DetailView({
     return () => { live = false }
   }, [selectedCollection.id])
   const sentHomes = useMemo(() => sendsByHome(sends), [sends])
+
+  // The open home's own card in the list (recommended / sent / tour asks live there).
+  const openHome = selectedProperty ? matchedProperties.find(p => String(p.id) === String(selectedProperty.id)) || null : null
+  const openSent = openHome ? sentHomes?.[String(openHome.id)]?.[0] : undefined
+
+  // Tidy up (owner, 11/08): one tap moves every home that sold / went under contract / came off the
+  // market into Sold/Removed - except ones the client loved, commented on or asked to tour: those
+  // still wait for you to move them by hand, the same as now.
+  const offMarket = matchedProperties.filter(p => hasStatusNotice(p))
+  const keepByHand = (p: Property) => !!p.liked || (p.comments?.length || 0) > 0 || !!p.hasTourRequest
+  const tidyIds = offMarket.filter(p => !keepByHand(p)).map(p => String(p.id))
+  const tidyKept = offMarket.length - tidyIds.length
+  const [tidyOpen, setTidyOpen] = useState(false)
+  const [tidyBusy, setTidyBusy] = useState(false)
+  const runTidy = async () => {
+    if (!onBulkAction || !tidyIds.length) return
+    setTidyBusy(true)
+    try { await onBulkAction('sold', tidyIds) } finally { setTidyBusy(false); setTidyOpen(false) }
+  }
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const toggleSelect = useCallback((p: Property) => setSelectedIds(prev => {
@@ -373,129 +394,91 @@ export const DetailView = memo(function DetailView({
           <div className="absolute left-0 right-0 top-0 h-1 bg-[#C9A24D]" />
 
           <div className="px-4 pt-3 pb-3 sm:px-6 sm:pt-4 sm:pb-4">
-            <div className="-mt-2 mb-3 overflow-x-auto pb-3 pt-2 pr-1 border-b border-gray-200 dark:border-gray-800 text-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex min-w-full items-center justify-between gap-2 sm:min-w-0 sm:flex-1 sm:gap-3">
-                <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none sm:gap-3">
-                  <button
-                    onClick={onBack}
-                    title="Back to Showcases"
-                    className="group inline-flex shrink-0 items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors font-black pr-2 border-r border-gray-200 dark:border-gray-800 sm:pr-3"
-                  >
-                    <div className="w-6 h-6 rounded-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-gray-800 flex items-center justify-center group-hover:border-gray-300 dark:group-hover:border-gray-700 transition-all">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
-                    </div>
-                  </button>
-                  <span className="inline-flex min-w-0 flex-1 items-center gap-1.5 font-black text-gray-900 dark:text-white sm:flex-none sm:shrink" title={customerFullName}>
-                    <User size={14} className="shrink-0 text-[#C9A24D] max-sm:hidden" />
-                  <span className="truncate">{customerFullName || customerInitials}</span>
-                </span>
-                {onOpenLead && (
-                  <motion.button type="button" whileTap={{ scale: 0.94 }} onClick={onOpenLead} data-testid="showcase-lead-card" title={`Open ${selectedCollection.customer.firstName || 'their'}'s lead card`}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#C9A24D]/40 bg-[#C9A24D]/10 px-2.5 py-1 text-[11px] font-black text-[#8b7355] transition hover:bg-[#C9A24D]/20 dark:text-[#e8cf8a]">
-                    <Contact size={13} /> Lead card
+            {/* Contact row (owner, 11/08): the name IS the lead card - one gold pill with the lead card
+                icon that opens it. Then email / phone to copy. Bigger screens: Mailbox + Tours side by
+                side (two different looks) and, on wide screens, the email controls as one group. */}
+            <div className="-mt-2 mb-3 border-b border-gray-200 pb-3 pt-2 text-sm dark:border-gray-800">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button
+                  onClick={onBack}
+                  title="Back to Showcases"
+                  aria-label="Back to Showcases"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-gray-200 bg-gray-50 text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-900 dark:border-gray-800 dark:bg-white/5 dark:text-gray-400 dark:hover:text-white"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                {onOpenLead ? (
+                  <motion.button type="button" whileTap={{ scale: 0.96 }} whileHover={{ y: -1 }} onClick={onOpenLead} data-testid="showcase-lead-card"
+                    title={`Open ${selectedCollection.customer.firstName || 'their'}'s lead card`}
+                    className="group inline-flex min-w-0 items-center gap-2 rounded-full border border-[#C9A24D]/45 bg-gradient-to-r from-[#fbf7ee] to-white py-1 pl-1 pr-2.5 shadow-sm transition-colors hover:border-[#C9A24D] dark:from-[#1c1a14] dark:to-[#151517]">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#111827] text-[#e8c97a] dark:bg-white/10"><Contact size={14} /></span>
+                    <span className="min-w-0 truncate font-black text-[#111827] dark:text-white">{customerFullName || customerInitials}</span>
+                    <span className="hidden shrink-0 rounded-full bg-[#C9A24D]/15 px-2 py-0.5 text-[9.5px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8cf8a] min-[420px]:inline">Lead card</span>
+                    <ChevronRight size={14} className="shrink-0 text-[#8b7355] transition-transform group-hover:translate-x-0.5 dark:text-[#e8cf8a]" />
                   </motion.button>
+                ) : (
+                  <span className="inline-flex min-w-0 items-center gap-1.5 font-black text-gray-900 dark:text-white" title={customerFullName}>
+                    <Contact size={14} className="shrink-0 text-[#C9A24D]" />
+                    <span className="truncate">{customerFullName || customerInitials}</span>
+                  </span>
                 )}
                 {selectedCollection.customer.email && (
                   <>
-                  <button
-                    onClick={() => handleCopyField('email', selectedCollection.customer.email)}
-                    className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-[#C9A24D] transition-colors hover:border-[#C9A24D]/50 dark:border-gray-800 dark:bg-white/5 lg:hidden"
-                    title={`Copy ${selectedCollection.customer.email}`}
-                    aria-label="Copy email"
-                  >
-                    {copiedField === 'email' ? <Check size={15} className="text-emerald-500" /> : <Mail size={15} />}
-                  </button>
-                  <span className="hidden items-center gap-1.5 text-gray-500 dark:text-gray-400 font-medium lg:inline-flex">
-                    <Mail size={14} className="text-[#C9A24D]" />
-                    {selectedCollection.customer.email}
                     <button
                       onClick={() => handleCopyField('email', selectedCollection.customer.email)}
-                      className="p-0.5 text-gray-300 dark:text-gray-600 hover:text-[#C9A24D] transition-colors"
-                      title="Copy email"
+                      className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-[#C9A24D] transition-colors hover:border-[#C9A24D]/50 dark:border-gray-800 dark:bg-white/5 lg:hidden"
+                      title={`Copy ${selectedCollection.customer.email}`}
+                      aria-label="Copy email"
                     >
-                      {copiedField === 'email' ? <Check size={13} /> : <Copy size={13} />}
+                      {copiedField === 'email' ? <Check size={15} className="text-emerald-500" /> : <Mail size={15} />}
                     </button>
-                  </span>
+                    <span className="hidden min-w-0 items-center gap-1.5 font-medium text-gray-500 dark:text-gray-400 lg:inline-flex">
+                      <Mail size={14} className="shrink-0 text-[#C9A24D]" />
+                      <span className="truncate">{selectedCollection.customer.email}</span>
+                      <button onClick={() => handleCopyField('email', selectedCollection.customer.email)} className="p-0.5 text-gray-300 transition-colors hover:text-[#C9A24D] dark:text-gray-600" title="Copy email">
+                        {copiedField === 'email' ? <Check size={13} /> : <Copy size={13} />}
+                      </button>
+                    </span>
                   </>
                 )}
                 {selectedCollection.customer.phone && (
                   <>
-                  <button
-                    onClick={() => handleCopyField('phone', selectedCollection.customer.phone)}
-                    className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-[#C9A24D] transition-colors hover:border-[#C9A24D]/50 dark:border-gray-800 dark:bg-white/5 lg:hidden"
-                    title={`Copy ${selectedCollection.customer.phone}`}
-                    aria-label="Copy phone"
-                  >
-                    {copiedField === 'phone' ? <Check size={15} className="text-emerald-500" /> : <Phone size={15} />}
-                  </button>
-                  <span className="hidden items-center gap-1.5 text-gray-500 dark:text-gray-400 font-medium lg:inline-flex">
-                    <Phone size={14} className="text-[#C9A24D]" />
-                    {selectedCollection.customer.phone}
                     <button
                       onClick={() => handleCopyField('phone', selectedCollection.customer.phone)}
-                      className="p-0.5 text-gray-300 dark:text-gray-600 hover:text-[#C9A24D] transition-colors"
-                      title="Copy phone"
+                      className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-[#C9A24D] transition-colors hover:border-[#C9A24D]/50 dark:border-gray-800 dark:bg-white/5 lg:hidden"
+                      title={`Copy ${selectedCollection.customer.phone}`}
+                      aria-label="Copy phone"
                     >
-                      {copiedField === 'phone' ? <Check size={13} /> : <Copy size={13} />}
+                      {copiedField === 'phone' ? <Check size={15} className="text-emerald-500" /> : <Phone size={15} />}
                     </button>
-                  </span>
+                    <span className="hidden shrink-0 items-center gap-1.5 font-medium text-gray-500 dark:text-gray-400 lg:inline-flex">
+                      <Phone size={14} className="text-[#C9A24D]" />
+                      {selectedCollection.customer.phone}
+                      <button onClick={() => handleCopyField('phone', selectedCollection.customer.phone)} className="p-0.5 text-gray-300 transition-colors hover:text-[#C9A24D] dark:text-gray-600" title="Copy phone">
+                        {copiedField === 'phone' ? <Check size={13} /> : <Copy size={13} />}
+                      </button>
+                    </span>
                   </>
                 )}
-                </div>
-                <div className="ml-auto hidden shrink-0 items-center gap-1 sm:flex sm:gap-2">
-                <button
-                  onClick={() => setMailboxOpen(true)}
-                  title="Their newest homes and everything they did, all in one"
-                  data-testid="showcase-open-mailbox"
-                  className="relative inline-flex h-7 items-center justify-center gap-1 rounded-full bg-[#151517] px-2.5 text-[9px] font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-black dark:bg-white/10"
-                >
-                  <Inbox size={12} /> Mailbox
-                </button>
-                {selectedCollection.customer.email && <EmailFrequencySelect email={selectedCollection.customer.email} compact />}
-                <button
-                  onClick={onViewTours}
-                  title="View tours"
-                  className="relative inline-flex h-7 items-center justify-center gap-1 rounded-full bg-[#151517] px-2.5 text-[9px] font-black uppercase tracking-widest text-white shadow-sm transition-all hover:shadow-md dark:bg-white dark:text-[#111827]"
-                >
-                  <Calendar size={12} />
-                  <span className="hidden min-[430px]:inline">Tours</span>
-                  {!!selectedCollection.stats.tourRequestedCount && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-black border-2 border-white dark:border-[#151517]">
-                      {selectedCollection.stats.tourRequestedCount}
-                    </span>
-                  )}
-                </button>
-                <div className="flex shrink-0 items-center gap-1 text-xs bg-gray-50/50 dark:bg-white/5 py-1 px-1.5 rounded-lg border border-gray-200 dark:border-gray-800/50 sm:gap-1.5 sm:px-2">
-                  <span className="text-[8px] font-black uppercase tracking-wide text-gray-500 dark:text-gray-400 whitespace-nowrap min-[430px]:text-[9px]">Emails</span>
-                  <span className="h-3.5 w-px bg-gray-200 dark:bg-gray-700" />
-                  <div className="flex items-center gap-1">
-                    <span className={`text-[9px] font-bold min-[430px]:text-[10px] ${selectedCollection.isBlacklisted ? 'text-gray-400 dark:text-gray-600' : 'text-gray-500 dark:text-gray-400'}`}>
-                      <span className="min-[430px]:hidden">V</span>
-                      <span className="hidden min-[430px]:inline">Visitor</span>
-                    </span>
-                    <button
-                      onClick={() => !selectedCollection.isBlacklisted && onNotificationToggle(selectedCollection.id, 'visitor')}
-                      disabled={selectedCollection.isBlacklisted}
-                      title={selectedCollection.isBlacklisted ? 'This visitor unsubscribed from update emails' : (selectedCollection.notifyVisitor ? 'Click to disable their update emails' : 'Click to enable their update emails')}
-                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent shadow-inner transition-colors duration-200 ease-in-out focus:outline-none ${selectedCollection.isBlacklisted ? 'bg-gray-200 dark:bg-gray-800 cursor-not-allowed' : (selectedCollection.notifyVisitor ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-gray-700')}`}
-                    >
-                      <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${(selectedCollection.notifyVisitor && !selectedCollection.isBlacklisted) ? 'translate-x-4' : 'translate-x-0'}`} />
-                    </button>
+                <div className="ml-auto hidden shrink-0 items-center gap-2 sm:flex">
+                  {/* Mailbox + Tours together, each its own look: Mailbox dark, Tours gold. */}
+                  <div className="flex items-center gap-1.5">
+                    <motion.button whileTap={{ scale: 0.95 }} onClick={() => setMailboxOpen(true)} title="Their newest homes and everything they did, all in one"
+                      data-testid="showcase-open-mailbox"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#111827] px-3.5 text-[10px] font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
+                      <Inbox size={13} /> Mailbox
+                    </motion.button>
+                    <motion.button whileTap={{ scale: 0.95 }} onClick={onViewTours} title="Tour requests" data-testid="showcase-open-tours"
+                      className="relative inline-flex h-8 items-center gap-1.5 rounded-full border border-[#C9A24D]/55 bg-[#C9A24D]/10 px-3.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] shadow-sm transition hover:bg-[#C9A24D] hover:text-[#111827] dark:text-[#e8cf8a]">
+                      <Calendar size={13} /> Tours
+                      {!!selectedCollection.stats.tourRequestedCount && (
+                        <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[9px] font-black text-white dark:border-[#151517]">
+                          {selectedCollection.stats.tourRequestedCount}
+                        </span>
+                      )}
+                    </motion.button>
                   </div>
-                  <div className="flex items-center gap-1 border-l border-gray-200 dark:border-gray-800 pl-1.5">
-                    <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400 min-[430px]:text-[10px]">
-                      <span className="min-[430px]:hidden">A</span>
-                      <span className="hidden min-[430px]:inline">Agent</span>
-                    </span>
-                    <button
-                      onClick={() => onNotificationToggle(selectedCollection.id, 'agent')}
-                      title={selectedCollection.notifyAgent ? 'Click to stop getting emailed about this showcase' : 'Click to get emailed about this showcase'}
-                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent shadow-inner transition-colors duration-200 ease-in-out focus:outline-none ${selectedCollection.notifyAgent ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-gray-700'}`}
-                    >
-                      <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${selectedCollection.notifyAgent ? 'translate-x-4' : 'translate-x-0'}`} />
-                    </button>
-                  </div>
-                </div>
+                  <ShowcaseEmailControls className="hidden xl:flex" collection={selectedCollection} onToggle={onNotificationToggle} />
                 </div>
               </div>
             </div>
@@ -529,25 +512,31 @@ export const DetailView = memo(function DetailView({
               </div>
             )}
 
-            {/* One tight row: title block (left, subtitle shows what this is curated from) and
-                the remaining agent controls (right) - Edit Showcase and View Tours. Turn On/Off
-                and the dual Visitor/Agent alert toggles moved up onto the contact-info row above.
-                The reference property and Sort both moved down onto the "Matched Properties" row
-                (see PropertyGrid's compareInfo/sortControl below), and the status tabs are now a
-                bar built into the bottom edge of this card, exactly like the visitor's showcase
-                page. */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <div className="flex items-center gap-3 min-w-0">
-                  <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight truncate">
-                    {selectedCollection.customer.firstName} {selectedCollection.customer.lastName}'s Showcase
+            {/* Title (+ Tidy up on the same line, owner 11/08), then the Showcase's own buttons. */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-2.5 sm:gap-4">
+                <div className="min-w-0 flex-1 sm:flex-none">
+                  <h1 className="truncate text-[17px] font-black tracking-tight text-gray-900 dark:text-white min-[380px]:text-xl sm:text-2xl" title={`${customerFullName}'s Showcase`}>
+                    {customerFullName || 'Their'}&apos;s Showcase
                   </h1>
+                  {selectedCollection.originalProperty && (
+                    <div className="mt-0.5 flex items-center truncate text-xs font-medium text-gray-500 dark:text-gray-400" title={selectedCollection.originalProperty.FullStreetAddress}>
+                      <MapPin size={12} className="mr-1 shrink-0 text-[#C9A24D]" />
+                      <span className="truncate">Curated from {formatAddressForTitle(selectedCollection.originalProperty)}</span>
+                    </div>
+                  )}
                 </div>
-                {selectedCollection.originalProperty && (
-                  <div className="mt-0.5 flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 truncate" title={selectedCollection.originalProperty.FullStreetAddress}>
-                    <MapPin size={12} className="mr-1 shrink-0 text-[#C9A24D]" />
-                    <span className="truncate">Curated from {formatAddressForTitle(selectedCollection.originalProperty)}</span>
-                  </div>
+                {onBulkAction && offMarket.length > 0 && (
+                  <motion.button type="button" whileTap={{ scale: 0.96 }} whileHover={{ y: -1 }} onClick={() => setTidyOpen(true)} data-testid="showcase-tidy"
+                    title={`Tidy up: ${offMarket.length} sold or off the market - move them into Sold/Removed`}
+                    className="group relative inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#C9A24D]/40 bg-gradient-to-r from-[#fbf7ee] to-white py-1 pl-1 pr-1.5 text-left sm:gap-2 shadow-sm transition-colors hover:border-[#C9A24D] dark:from-[#1c1a14] dark:to-[#151517] sm:py-1.5 sm:pl-1.5 sm:pr-3.5">
+                    <span className="grid h-6 w-6 place-items-center rounded-full bg-[#111827] text-[#e8c97a] dark:bg-white/10 sm:h-7 sm:w-7"><Sparkles size={12} /></span>
+                    <span className="leading-tight">
+                      <span className="block whitespace-nowrap text-[10px] font-black uppercase tracking-wider sm:text-[11px] sm:tracking-widest text-[#111827] dark:text-white">Tidy up</span>
+                      <span className="hidden text-[10.5px] font-semibold text-gray-500 dark:text-gray-400 sm:block">{offMarket.length} sold or off the market</span>
+                    </span>
+                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#C9A24D] px-1.5 text-[10px] font-black text-[#111827] sm:hidden">{offMarket.length}</span>
+                  </motion.button>
                 )}
               </div>
               <div className="grid shrink-0 grid-cols-5 items-stretch gap-1.5 sm:flex sm:items-center sm:gap-2">
@@ -567,18 +556,18 @@ export const DetailView = memo(function DetailView({
                   <SlidersHorizontal size={13} className="sm:h-3.5 sm:w-3.5" />
                   Edit
                 </button>
-                {/* Mailbox + Tours - on phones they sit in this row (bigger screens have them up top) */}
+                {/* Mailbox + Tours - on phones they sit in this row, side by side, each its own look */}
                 <button
                   onClick={() => setMailboxOpen(true)}
                   data-testid="showcase-open-mailbox-phone"
-                  className="relative inline-flex flex-col items-center justify-center gap-1 rounded-xl border border-gray-200 bg-white px-1 py-2 text-[9.5px] font-black uppercase tracking-wider text-[#111827] transition-all dark:border-gray-700 dark:bg-white/5 dark:text-white sm:hidden"
+                  className="relative inline-flex flex-col items-center justify-center gap-1 rounded-xl bg-[#111827] px-1 py-2 text-[9.5px] font-black uppercase tracking-wider text-white transition-all dark:bg-white dark:text-[#111827] sm:hidden"
                 >
                   <Inbox size={13} />
                   Mailbox
                 </button>
                 <button
                   onClick={onViewTours}
-                  className="relative inline-flex flex-col items-center justify-center gap-1 rounded-xl border border-gray-200 bg-white px-1 py-2 text-[9.5px] font-black uppercase tracking-wider text-[#111827] transition-all dark:border-gray-800 dark:bg-white/5 dark:text-white sm:hidden"
+                  className="relative inline-flex flex-col items-center justify-center gap-1 rounded-xl border border-[#C9A24D]/55 bg-[#C9A24D]/10 px-1 py-2 text-[9.5px] font-black uppercase tracking-wider text-[#8b7355] transition-all dark:text-[#e8cf8a] sm:hidden"
                 >
                   <Calendar size={13} />
                   Tours
@@ -602,25 +591,9 @@ export const DetailView = memo(function DetailView({
               </div>
             </div>
 
-            {/* Phones: who gets emailed, in plain words (the "V / A" switches up top were unreadable). */}
-            <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-50/70 px-3 py-2 dark:border-gray-800 dark:bg-white/[0.03] sm:hidden">
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Emails</span>
-              <label className={`flex items-center gap-2 text-[11px] font-bold ${selectedCollection.isBlacklisted ? 'text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}>
-                To {selectedCollection.customer.firstName || 'client'}
-                <button type="button" aria-label="Emails to the client" disabled={selectedCollection.isBlacklisted}
-                  onClick={() => !selectedCollection.isBlacklisted && onNotificationToggle(selectedCollection.id, 'visitor')}
-                  className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${selectedCollection.isBlacklisted ? 'cursor-not-allowed bg-gray-200 dark:bg-gray-800' : (selectedCollection.notifyVisitor ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-gray-700')}`}>
-                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition ${selectedCollection.notifyVisitor && !selectedCollection.isBlacklisted ? 'translate-x-4' : 'translate-x-0'}`} />
-                </button>
-              </label>
-              <label className="flex items-center gap-2 text-[11px] font-bold text-gray-600 dark:text-gray-300">
-                To me
-                <button type="button" aria-label="Emails to me" onClick={() => onNotificationToggle(selectedCollection.id, 'agent')}
-                  className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${false ? 'cursor-not-allowed bg-gray-200 dark:bg-gray-800' : (selectedCollection.notifyAgent ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-gray-700')}`}>
-                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition ${selectedCollection.notifyAgent ? 'translate-x-4' : 'translate-x-0'}`} />
-                </button>
-              </label>
-            </div>
+            {/* Emails, as one strip (phone up to laptop; wide screens have it up top): to the client
+                + how often, and to you. */}
+            <ShowcaseEmailControls strip className="mt-3 xl:hidden" collection={selectedCollection} onToggle={onNotificationToggle} />
           </div>
 
           {/* Property Status Tabs - full-width bar built into the bottom edge of the card,
@@ -785,7 +758,52 @@ export const DetailView = memo(function DetailView({
           focusComments={focusComments}
           nav={detailsNav}
           move={homeMove}
+          agentTools={openHome ? {
+            recommended: !!openHome.agentRecommended && !openHome.disliked,
+            onRecommend: () => onRecommend?.(openHome),
+            onSend: () => setSendHomes([openHome]),
+            sentLine: openSent ? sendLine(openSent) : null,
+            onTours: openHome.hasTourRequest ? () => onViewTours() : null,
+            tourCount: openHome.tourCount,
+          } : null}
         />
+
+        <OhSheet open={tidyOpen} onClose={() => !tidyBusy && setTidyOpen(false)} width="max-w-md"
+          icon={<span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#111827] text-[#e8c97a] dark:bg-white/10"><Sparkles className="h-5 w-5" /></span>}
+          title="Tidy up this Showcase"
+          subtitle={`${offMarket.length} home${offMarket.length === 1 ? '' : 's'} sold or off the market`}>
+          <div className="space-y-3 px-4 pb-5 pt-1 sm:px-5" data-testid="showcase-tidy-sheet">
+            {tidyIds.length > 0 ? (
+              <div className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-gray-50/80 p-3.5 dark:border-white/[0.07] dark:bg-white/[0.03]">
+                <FolderInput className="mt-0.5 h-5 w-5 shrink-0 text-[#C9A24D]" />
+                <p className="text-[13px] font-semibold leading-snug text-gray-700 dark:text-gray-200">
+                  <span className="font-black text-[#111827] dark:text-white">{tidyIds.length} home{tidyIds.length === 1 ? '' : 's'}</span> move{tidyIds.length === 1 ? 's' : ''} into {selectedCollection.customer.firstName ? `${selectedCollection.customer.firstName}'s` : 'their'} Sold/Removed folder - they see the same.
+                </p>
+              </div>
+            ) : (
+              <p className="text-[13px] font-semibold text-gray-600 dark:text-gray-300">Nothing to move on its own.</p>
+            )}
+            {tidyKept > 0 && (
+              <div className="flex items-start gap-3 rounded-2xl border border-[#C9A24D]/30 bg-[#fbf7ee] p-3.5 dark:border-[#C9A24D]/20 dark:bg-[#1c1a14]">
+                <span className="mt-0.5 text-base leading-none">♥</span>
+                <p className="text-[13px] font-semibold leading-snug text-gray-700 dark:text-gray-200">
+                  <span className="font-black text-[#111827] dark:text-white">{tidyKept} stay{tidyKept === 1 ? 's' : ''}</span> - {selectedCollection.customer.firstName || 'they'} loved, commented on or asked to tour {tidyKept === 1 ? 'it' : 'them'}. Move {tidyKept === 1 ? 'it' : 'those'} yourself with the button on {tidyKept === 1 ? 'its' : 'each'} card.
+                </p>
+              </div>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={() => setTidyOpen(false)} disabled={tidyBusy}
+                className="flex-1 rounded-xl border border-gray-200 py-3 text-[12px] font-black text-gray-600 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/5">Cancel</button>
+              {tidyIds.length > 0 && (
+                <motion.button type="button" whileTap={{ scale: 0.97 }} onClick={runTidy} disabled={tidyBusy} data-testid="showcase-tidy-go"
+                  className="inline-flex flex-[1.6] items-center justify-center gap-2 rounded-xl bg-[#111827] py-3 text-[12px] font-black text-white transition hover:bg-[#C9A24D] hover:text-[#111827] disabled:opacity-60 dark:bg-white dark:text-[#111827]">
+                  {tidyBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FolderInput className="h-4 w-4" />}
+                  Move {tidyIds.length} home{tidyIds.length === 1 ? '' : 's'}
+                </motion.button>
+              )}
+            </div>
+          </div>
+        </OhSheet>
 
         <EditShowcaseCriteriaModal
           audience="agent"
@@ -852,3 +870,49 @@ export const DetailView = memo(function DetailView({
     </div>
   )
 })
+
+/** The Showcase's email controls as one piece (owner, 11/08: the "Daily" picker sat between Tours and
+ *  the switches and didn't read as an email setting). To the client: on/off + how often; to you: on/off.
+ *  `strip` = the full-width bar (phones up to laptops); otherwise a compact group for the top row. */
+function ShowcaseEmailControls({ collection, onToggle, strip = false, className = '' }: {
+  collection: Collection
+  onToggle: (collectionId: string, kind: 'visitor' | 'agent') => void
+  strip?: boolean
+  className?: string
+}) {
+  const first = collection.customer.firstName || 'Client'
+  const off = !!collection.isBlacklisted
+  const toClient = !!collection.notifyVisitor && !off
+  const sw = (on: boolean, disabled = false) => `relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${disabled ? 'cursor-not-allowed bg-gray-200 dark:bg-gray-800' : on ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-gray-700'}`
+  const knob = (on: boolean) => `inline-block h-4 w-4 rounded-full bg-white shadow transition ${on ? 'translate-x-4' : 'translate-x-0'}`
+  return (
+    <div data-testid={strip ? 'showcase-emails-strip' : 'showcase-emails'}
+      className={`items-center gap-2 border border-gray-200 bg-gray-50/70 dark:border-gray-800 dark:bg-white/[0.03] ${strip ? 'flex justify-between rounded-xl px-2.5 py-2 sm:justify-start sm:px-3' : 'rounded-full py-1 pl-3 pr-1.5'} ${className}`}>
+      <span className="inline-flex shrink-0 items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400" title="Emails">
+        <Mail size={13} className="text-[#C9A24D]" /><span className={strip ? "hidden sm:inline" : ""}>Emails</span>
+      </span>
+      <span className={`h-4 w-px shrink-0 bg-gray-200 dark:bg-gray-700 ${strip ? "hidden sm:block" : ""}`} />
+      <div className="flex min-w-0 items-center gap-2">
+        <label className={`flex min-w-0 items-center gap-1.5 text-[11px] font-bold ${off ? 'text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}
+          title={off ? `${first} unsubscribed from update emails` : toClient ? `Stop ${first}'s update emails` : `Turn ${first}'s update emails back on`}>
+          <span className="max-w-[64px] truncate sm:hidden">{first}</span><span className="hidden max-w-[110px] truncate sm:inline">To {first}</span>
+          <button type="button" aria-label={`Emails to ${first}`} aria-pressed={toClient} disabled={off} data-testid="showcase-email-client"
+            onClick={() => !off && onToggle(collection.id, 'visitor')} className={sw(toClient, off)}>
+            <span className={knob(toClient)} />
+          </button>
+        </label>
+        {collection.customer.email && toClient && (
+          <EmailFrequencySelect email={collection.customer.email} pill align={strip ? 'left' : 'right'} sheetTitle={`How often ${first} gets emails`} />
+        )}
+      </div>
+      <span className="h-4 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
+      <label className="flex shrink-0 items-center gap-1.5 text-[11px] font-bold text-gray-600 dark:text-gray-300" title={collection.notifyAgent ? 'Stop emails to you about this Showcase' : 'Get emailed about this Showcase'}>
+        <span className="sm:hidden">Me</span><span className="hidden sm:inline">To me</span>
+        <button type="button" aria-label="Emails to me" aria-pressed={!!collection.notifyAgent} data-testid="showcase-email-me"
+          onClick={() => onToggle(collection.id, 'agent')} className={sw(!!collection.notifyAgent)}>
+          <span className={knob(!!collection.notifyAgent)} />
+        </button>
+      </label>
+    </div>
+  )
+}

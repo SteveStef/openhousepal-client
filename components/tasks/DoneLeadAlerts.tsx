@@ -9,8 +9,9 @@ import api from '@/lib/api-service'
 import type { LeadAlerts } from '@/types'
 import LeadAlertSwitches from '@/components/leads/LeadAlertSwitches'
 
-export default function DoneLeadAlerts({ code, firstName, alerts, delay = 0.2, inCard = false }: {
+export default function DoneLeadAlerts({ code, firstName, alerts, hasShowcase = true, delay = 0.2, inCard = false }: {
   code: string
+  hasShowcase?: boolean
   firstName: string
   alerts: LeadAlerts
   delay?: number
@@ -22,7 +23,7 @@ export default function DoneLeadAlerts({ code, firstName, alerts, delay = 0.2, i
     <motion.div initial={reduce ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay }}
       className={inCard ? 'text-left' : 'border-t border-gray-100 px-3 py-3.5 text-left dark:border-gray-800'}>
-      <LeadAlertSwitches firstName={firstName} alerts={alerts}
+      <LeadAlertSwitches firstName={firstName} alerts={alerts} hasShowcase={hasShowcase}
         onSave={async patch => {
           const r = await api.tasks.publicAlerts(code, patch)
           return r.success && r.data ? r.data.alerts : null

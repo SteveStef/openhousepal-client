@@ -395,6 +395,8 @@ function ShowcaseContent() {
     if (!selectedCollection || property.id === undefined) return
     const next = !(property.agentRecommended && !property.disliked)
     setMatchedProperties(prev => prev.map(p => p.id === property.id ? { ...p, agentRecommended: next, ...(next ? { disliked: false } : {}) } : p))
+    // Recommending from the open home window takes the Pass off there too.
+    if (next) setSelectedProperty(prev => prev && String(prev.id) === String(property.id) ? { ...prev, disliked: false } : prev)
     const { success, error } = await api.collections.recommend(selectedCollection.id, String(property.id), next)
     if (!success) {
       setMatchedProperties(prev => prev.map(p => p.id === property.id ? { ...p, agentRecommended: !next } : p))

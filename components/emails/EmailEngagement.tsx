@@ -176,8 +176,13 @@ type Frequency = (typeof FREQUENCY_OPTIONS)[number]['value']
 
 /** How often this person gets automatic emails (owner, 11/07). Pass `person` when it's already loaded,
  *  or `email` to read it. Daily runs the normal rules from today; weekly and every 2 weeks stay put. */
-export function EmailFrequencySelect({ person, email, onChanged, className = '', compact = false }: {
+export function EmailFrequencySelect({ person, email, onChanged, className = '', compact = false, pill = false, align = 'left', sheetTitle }: {
   person?: EmailPerson; email?: string | null; onChanged?: (next: EmailPerson) => void; className?: string; compact?: boolean
+  /** A small round picker that sits inside another control (the Showcase's email switches). */
+  pill?: boolean
+  align?: 'left' | 'right'
+  /** Phones: the choices open as a pull-up sheet with this title. */
+  sheetTitle?: string
 }) {
   const { showToast } = useToast()
   const [loaded, setLoaded] = useState<EmailPerson | null>(null)
@@ -204,13 +209,15 @@ export function EmailFrequencySelect({ person, email, onChanged, className = '',
   }
   return (
     <div className={`flex items-center gap-2 ${className}`} data-testid="email-frequency">
-      {!compact && <span className="text-[11px] font-black text-gray-500 dark:text-gray-400">How often</span>}
+      {!compact && !pill && <span className="text-[11px] font-black text-gray-500 dark:text-gray-400">How often</span>}
       <LuxeSelect<string>
-        className={compact ? 'w-[132px]' : 'w-[150px]'}
+        className={pill ? 'w-[88px] sm:w-[118px] [&>button]:h-7 [&>button]:rounded-full [&>button]:border-[#C9A24D]/40 [&>button]:bg-white [&>button]:px-2.5 [&>button]:py-0 [&>button]:text-[11px] dark:[&>button]:bg-white/5' : compact ? 'w-[132px]' : 'w-[150px]'}
         ariaLabel="How often they get automatic emails"
         value={value}
         onChange={go}
-        align="left"
+        align={align}
+        sheetOnPhone={pill}
+        sheetTitle={sheetTitle}
         menuWidth={260}
         options={[...FREQUENCY_OPTIONS.map(o => ({ value: o.value as string, label: o.label, hint: o.hint })), ...(value === 'off' ? [{ value: 'off', label: 'Off', hint: 'No automatic emails right now' }] : [])]}
       />

@@ -2613,6 +2613,8 @@ export interface PublicFollowup {
   completed_at?: string | null;
   /** This person's alert switches (null when the follow-up isn't about a person). */
   alerts?: LeadAlerts | null;
+  /** They have a Showcase - else the "Email me when they like or comment" switch is left out. */
+  has_showcase?: boolean;
   /** The agent's other follow-ups due today / overdue - "Did you also do these?" */
   others?: PublicFollowupOther[];
 }

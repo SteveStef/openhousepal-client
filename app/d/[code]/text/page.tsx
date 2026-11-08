@@ -215,7 +215,7 @@ export default function TapToTextPage() {
 
             {/* Always here (owner, 10/30) - most people tap Text and leave, never seeing the "done" state */}
             {data.contact && data.alerts && (
-              <DoneLeadAlerts code={code} alerts={data.alerts} firstName={first === 'them' ? '' : first} delay={0.1} />
+              <DoneLeadAlerts code={code} alerts={data.alerts} hasShowcase={data.has_showcase !== false} firstName={first === 'them' ? '' : first} delay={0.1} />
             )}
 
             <div className="flex items-center justify-center gap-4 border-t border-gray-100 px-6 py-3 dark:border-gray-800">

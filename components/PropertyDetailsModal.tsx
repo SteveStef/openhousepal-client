@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion, type Variants } from 'framer
 import { useState, useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react'
 import { useIsPhone, useLastValue, usePagePin, useSwipeToClose } from '@/components/ui/windowMotion'
 import { PropertyDetailResponse } from '@/types'
-import { CalendarCheck, CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Heart, Hourglass, Loader2, MapPin, MessageCircle, RefreshCw, Send, X } from 'lucide-react'
+import { Calendar, CalendarCheck, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, Copy, Heart, Hourglass, Loader2, MapPin, MapPinned, MessageCircle, RefreshCw, Send, Star, ThumbsDown, ThumbsUp, X } from 'lucide-react'
 import { normalizeImageUrl } from '@/lib/utils'
 import { tourState, tourWhen, type TourLike } from '@/components/TourStatusWindow'
 import PropertyMap from './PropertyMap'
@@ -57,6 +57,21 @@ interface PropertyDetailsModalProps {
   /** Picking homes (the kit's Similar Homes): a Select / Unselect button instead of the buyer's
    *  actions, and - once you scroll - a bottom bar with only X (close), Select and the arrows. */
   picker?: { selected: boolean; onToggle: () => void } | null
+  /** The agent's own Showcase: the same tools as the home's card (owner, 11/08 - "I wanted to star
+   *  it but couldn't without closing it out, same with Send"). Recommend + a small Love / Pass on
+   *  one row, then Send (the Send window opens over this one) and Tours / Directions. */
+  agentTools?: AgentHomeTools | null
+}
+
+export type AgentHomeTools = {
+  recommended: boolean
+  onRecommend: () => void
+  onSend: () => void
+  /** "Today 2:14 PM by text" - sent before: the button turns green "Sent". */
+  sentLine?: string | null
+  /** Someone asked to tour it - opens the tour requests (the card's "Tours"). */
+  onTours?: (() => void) | null
+  tourCount?: number
 }
 
 export type HomeNav = { index: number; total: number; onPrev?: (() => void) | null; onNext?: (() => void) | null }
@@ -173,6 +188,7 @@ export default function PropertyDetailsModal({
   nav = null,
   move = null,
   picker = null,
+  agentTools = null,
 }: PropertyDetailsModalProps) {
   // Keep the home on screen while the window animates closed (pages clear it the moment they close).
   const property = useLastValue(propertyProp)
@@ -230,7 +246,8 @@ export default function PropertyDetailsModal({
   // Escape closes the window (the photo viewer catches its own Escape first).
   useEffect(() => {
     if (!isOpen) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    // A sheet open over this window (Send, Tours, Add to a Showcase) takes the Escape - only it closes.
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.querySelector('[data-oh-sheet]')) onClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [isOpen, onClose])
@@ -411,7 +428,10 @@ export default function PropertyDetailsModal({
                   {/* The photos take the whole top; the buyer's Love / Pass, tour and comments ride beside the rest. */}
                   <PropertyHero
                     home={home}
-                    actions={picker ? <SelectButton selected={picker.selected} onToggle={picker.onToggle} /> : showVisitorActions ? (
+                    actions={picker ? <SelectButton selected={picker.selected} onToggle={picker.onToggle} /> : agentTools && showVisitorActions ? (
+                      <AgentActions tools={agentTools} home={home} liked={!!property.liked} disliked={!!property.disliked}
+                        onLike={() => onLike?.(property.id!, !property.liked)} onPass={() => onDislike?.(property.id!, !property.disliked)} />
+                    ) : showVisitorActions ? (
                       <div className="space-y-2">
                         <TakeButtons tone="light" liked={!!property.liked} disliked={!!property.disliked}
                           onLike={() => onLike?.(property.id!, !property.liked)} onPass={() => onDislike?.(property.id!, !property.disliked)} />
@@ -618,10 +638,15 @@ export default function PropertyDetailsModal({
                 >
                   <div className="flex items-center gap-1.5">
                     {hasNav && <NavButton dir={-1} onClick={nav!.onPrev} dark />}
+                    {agentTools ? (
+                      <AgentBar tools={agentTools} liked={!!property.liked} disliked={!!property.disliked}
+                        onLike={() => onLike?.(property.id!, !property.liked)} onPass={() => onDislike?.(property.id!, !property.disliked)} />
+                    ) : (
                     <div className="min-w-0 flex-1">
                       <TakeButtons compact liked={!!property.liked} disliked={!!property.disliked}
                         onLike={() => onLike?.(property.id!, !property.liked)} onPass={() => onDislike?.(property.id!, !property.disliked)} />
                     </div>
+                    )}
                     {tour && (
                       <motion.button whileTap={{ scale: 0.9 }} onClick={tour} aria-label="Schedule a tour"
                         className={`grid h-[42px] w-11 shrink-0 place-items-center rounded-xl ${tourState(tourRequest) === 'confirmed' ? 'bg-emerald-500 text-white' : tourState(tourRequest) === 'pending' || property.hasTourScheduled ? 'bg-amber-400 text-[#111827]' : 'bg-white/10 text-white'}`}>
@@ -642,6 +667,99 @@ export default function PropertyDetailsModal({
         </motion.div>
       )}
     </AnimatePresence>
+  )
+}
+
+/** The agent's tools under the photos (their own Showcase): Recommend with a small Love / Pass on one
+ *  row - the client's own big Love / Pass stay on their side - then Send, Tours and Directions. */
+function AgentActions({ tools, home, liked, disliked, onLike, onPass }: {
+  tools: AgentHomeTools; home: NonNullable<ReturnType<typeof homeFromMls>>
+  liked: boolean; disliked: boolean; onLike: () => void; onPass: () => void
+}) {
+  const rec = tools.recommended
+  const withheld = Boolean((home.record as any)?.address_withheld) || /address available on request/i.test(home.street || '')
+  const directions = home.lat != null && home.lng != null
+    ? `https://www.google.com/maps/dir/?api=1&destination=${home.lat},${home.lng}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(home.fullAddress)}`
+  const square = 'relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl border transition-colors'
+  return (
+    <div className="space-y-2" data-testid="agent-home-actions">
+      <div className="flex items-stretch gap-2">
+        <motion.button type="button" whileTap={{ scale: 0.96 }} whileHover={{ y: -1 }} onClick={tools.onRecommend} aria-pressed={rec}
+          data-testid="agent-recommend" title={rec ? 'You recommend this home - tap to take it back' : 'Recommend this home to your client'}
+          className={`pp-sheen relative inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-2xl text-[11px] font-black uppercase tracking-widest transition-colors ${rec
+            ? 'bg-gradient-to-r from-[#8b6a2b] via-[#C9A24D] to-[#8b6a2b] text-[#111827] shadow-[0_12px_26px_-12px_rgba(201,162,77,.9)]'
+            : 'border border-[color:var(--pp-gold-line)] text-[color:var(--pp-gold-text)] hover:border-[color:var(--pp-gold)]'}`}>
+          <motion.span key={rec ? 'on' : 'off'} initial={rec ? { scale: 0.3, rotate: -30 } : false} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 700, damping: 12 }} className="inline-flex">
+            <Star size={15} fill={rec ? 'currentColor' : 'none'} />
+          </motion.span>
+          <span className="truncate">{rec ? 'Recommended' : 'Recommend'}</span>
+        </motion.button>
+        <motion.button type="button" whileTap={{ scale: 0.86 }} onClick={onLike} aria-pressed={liked} aria-label={liked ? 'Loved' : 'Love it'} title={liked ? 'Loved - tap to undo' : 'Love it'}
+          data-testid="agent-like"
+          className={`${square} ${liked ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-emerald-500/35 bg-emerald-500/[0.07] text-emerald-600 hover:border-emerald-500 dark:text-emerald-400'}`}>
+          <motion.span key={liked ? 'on' : 'off'} initial={liked ? { scale: 0.3 } : false} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 700, damping: 12 }} className="relative inline-flex">
+            <ThumbsUp size={17} fill={liked ? 'currentColor' : 'none'} />
+            {liked && <Burst color="bg-emerald-200" />}
+          </motion.span>
+        </motion.button>
+        <motion.button type="button" whileTap={{ scale: 0.86 }} onClick={onPass} aria-pressed={disliked} aria-label={disliked ? 'Passed' : 'Pass'} title={disliked ? 'Passed - tap to undo' : 'Pass'}
+          data-testid="agent-pass"
+          className={`${square} ${disliked ? 'border-rose-500 bg-rose-500 text-white' : 'border-rose-500/35 bg-rose-500/[0.07] text-rose-600 hover:border-rose-500 dark:text-rose-400'}`}>
+          <motion.span key={disliked ? 'on' : 'off'} initial={disliked ? { scale: 0.3, rotate: 20 } : false} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 700, damping: 12 }} className="inline-flex">
+            <ThumbsDown size={17} fill={disliked ? 'currentColor' : 'none'} />
+          </motion.span>
+        </motion.button>
+      </div>
+      <div className="flex items-stretch gap-2">
+        <motion.button type="button" whileTap={{ scale: 0.96 }} whileHover={{ y: -1 }} onClick={tools.onSend} data-testid="agent-send"
+          title={tools.sentLine ? `Sent ${tools.sentLine} - tap to see or send again` : 'Text or email this home to your client'}
+          className={`inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg transition-colors ${tools.sentLine
+            ? 'border border-emerald-500/45 bg-emerald-50 text-emerald-700 hover:bg-emerald-500 hover:text-white dark:bg-emerald-500/10 dark:text-emerald-300'
+            : 'bg-[var(--pp-ink)] text-white hover:bg-[color:var(--pp-gold)] hover:text-[color:var(--pp-ink)] dark:bg-white dark:text-[#111827]'}`}>
+          {tools.sentLine ? <><CheckCircle2 size={15} /> Sent</> : <><Send size={15} /> Send</>}
+        </motion.button>
+        {tools.onTours && (
+          <motion.button type="button" whileTap={{ scale: 0.94 }} onClick={tools.onTours} data-testid="agent-tours" title="Tour requests for this home"
+            className="relative inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-2xl bg-amber-400 px-4 text-[11px] font-black uppercase tracking-widest text-[#111827] shadow-lg shadow-amber-400/25">
+            <Calendar size={15} /> Tours
+            {!!tools.tourCount && <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-black text-white">{tools.tourCount > 9 ? '9+' : tools.tourCount}</span>}
+          </motion.button>
+        )}
+        {!withheld && (
+          <motion.a href={directions} target="_blank" rel="noopener noreferrer" whileTap={{ scale: 0.94 }} aria-label="Directions in Google Maps" title="Directions in Google Maps"
+            className={`inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-2xl border border-[color:var(--pp-gold-line)] px-3.5 text-[11px] font-black uppercase tracking-widest transition-colors hover:border-[color:var(--pp-gold)] ${pp.heading}`}>
+            <MapPinned size={15} className="text-[color:var(--pp-gold)]" /> Map
+          </motion.a>
+        )}
+      </div>
+      {tools.sentLine && <p className={`px-1 text-[11px] font-semibold ${pp.muted}`}>Sent {tools.sentLine}</p>}
+    </div>
+  )
+}
+
+/** Phones, once scrolled: the agent's same tools as icons in the dark bar - Recommend, Love, Pass, Send. */
+function AgentBar({ tools, liked, disliked, onLike, onPass }: { tools: AgentHomeTools; liked: boolean; disliked: boolean; onLike: () => void; onPass: () => void }) {
+  const icon = 'grid h-[42px] w-10 shrink-0 place-items-center rounded-xl transition-colors'
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-1.5" data-testid="agent-home-bar">
+      <motion.button whileTap={{ scale: 0.86 }} onClick={tools.onRecommend} aria-pressed={tools.recommended} aria-label={tools.recommended ? 'Recommended' : 'Recommend'}
+        className={`${icon} ${tools.recommended ? 'bg-[#C9A24D] text-[#111827]' : 'bg-white/10 text-[#e8c97a]'}`}>
+        <Star size={17} fill={tools.recommended ? 'currentColor' : 'none'} />
+      </motion.button>
+      <motion.button whileTap={{ scale: 0.86 }} onClick={onLike} aria-pressed={liked} aria-label={liked ? 'Loved' : 'Love it'}
+        className={`${icon} ${liked ? 'bg-emerald-500 text-white' : 'bg-white/10 text-emerald-300'}`}>
+        <ThumbsUp size={17} fill={liked ? 'currentColor' : 'none'} />
+      </motion.button>
+      <motion.button whileTap={{ scale: 0.86 }} onClick={onPass} aria-pressed={disliked} aria-label={disliked ? 'Passed' : 'Pass'}
+        className={`${icon} ${disliked ? 'bg-rose-500 text-white' : 'bg-white/10 text-rose-300'}`}>
+        <ThumbsDown size={17} fill={disliked ? 'currentColor' : 'none'} />
+      </motion.button>
+      <motion.button whileTap={{ scale: 0.94 }} onClick={tools.onSend} aria-label={tools.sentLine ? 'Sent - send again' : 'Send this home'}
+        className={`inline-flex h-[42px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest ${tools.sentLine ? 'bg-emerald-500 text-white' : 'bg-white text-[#111827]'}`}>
+        {tools.sentLine ? <CheckCircle2 size={15} /> : <Send size={15} />}<span className="max-[359px]:sr-only">{tools.sentLine ? 'Sent' : 'Send'}</span>
+      </motion.button>
+    </div>
   )
 }
 

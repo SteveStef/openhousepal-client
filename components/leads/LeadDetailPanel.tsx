@@ -731,6 +731,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
         <div className="px-3 pb-6 pt-1 sm:px-4">
           <LeadAlertSwitches firstName={(lead.name || '').trim().split(/\s+/)[0]}
             alerts={lead.alerts || { calendar: true, in_app: true, emails: true }}
+            hasShowcase={(lead.showcases || []).length > 0}
             onSave={async patch => {
               const r = await api.leads.setAlerts(lead.id, patch)
               if (!r.success || !r.data) return null

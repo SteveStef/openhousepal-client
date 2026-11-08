@@ -4,7 +4,8 @@
 // follow-up) and in the lead's own Follow-ups section:
 //   - their follow-ups on the calendar. Turning it off slides open the follow-up question: keep
 //     them in OpenHousePal (Follow-ups page + Dash), or stop them completely.
-//   - activity alert emails about them (Showcase likes + comments).
+//   - activity alert emails about them (Showcase likes + comments) - only when they HAVE a Showcase
+//     (owner, 11/08: a guest with their own agent never gets one, so the switch meant nothing).
 // Only this one person changes. Saves on every flip; a failed save flips back.
 import { useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
@@ -13,8 +14,10 @@ import OhpSwitch from '@/components/ui/OhpSwitch'
 
 export type LeadAlerts = { calendar: boolean; in_app: boolean; emails: boolean }
 
-export default function LeadAlertSwitches({ firstName, alerts, onSave, className = '' }: {
+export default function LeadAlertSwitches({ firstName, alerts, onSave, hasShowcase = true, className = '' }: {
   firstName: string
+  /** No Showcase = no likes or comments to email about, so that switch is left out. */
+  hasShowcase?: boolean
   alerts: LeadAlerts
   /** Save a change; resolve with the saved switches, or null when it failed. */
   onSave: (patch: Partial<LeadAlerts>) => Promise<LeadAlerts | null>
@@ -103,7 +106,7 @@ export default function LeadAlertSwitches({ firstName, alerts, onSave, className
         </AnimatePresence>
 
         {/* Emails */}
-        <button type="button" role="switch" aria-checked={shown.emails} disabled={busy !== null}
+        {hasShowcase && <button type="button" role="switch" aria-checked={shown.emails} disabled={busy !== null}
           onClick={() => save('emails', { emails: !shown.emails })} className={row} data-testid="lead-alert-emails">
           <span className={tile}><Mail className="h-4 w-4" /></span>
           <span className="min-w-0 flex-1">
@@ -113,7 +116,7 @@ export default function LeadAlertSwitches({ firstName, alerts, onSave, className
             </span>
           </span>
           <OhpSwitch as="span" on={shown.emails} busy={busy === 'emails'} />
-        </button>
+        </button>}
       </div>
       <p className="mt-1.5 px-1 text-[10.5px] font-semibold text-gray-400">Only for {name} - your other leads aren&apos;t affected.</p>
       {error && <p className="mt-1 px-1 text-[11px] font-bold text-red-600">{error}</p>}

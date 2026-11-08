@@ -328,7 +328,7 @@ export function DesktopTextLayout({ code, data, qr, sentNow, busy, onDone, onSen
 
             {/* Their alert switches - always, done or not (owner, 10/30) */}
             {data.contact && data.alerts && (
-              <div className={`${card} !px-3 !py-4`}><DoneLeadAlerts code={code} alerts={data.alerts} firstName={data.first_name || ''} delay={0.05} inCard /></div>
+              <div className={`${card} !px-3 !py-4`}><DoneLeadAlerts code={code} alerts={data.alerts} hasShowcase={data.has_showcase !== false} firstName={data.first_name || ''} delay={0.05} inCard /></div>
             )}
 
             <div className={card}>
