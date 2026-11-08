@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef, Fragment } from 'react'
+import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Copy, Check, Mail, Phone, Users, UserCheck, UserPlus, Star, Pencil, ChevronRight, NotebookPen } from 'lucide-react'
+import { Copy, Check, Mail, Phone, Users, UserCheck, UserPlus, Star, Pencil, ChevronRight, NotebookPen, Search } from 'lucide-react'
 import Link from 'next/link'
 import { starChanged } from '@/lib/starredPeople'
 import { VisitorStar, PassActivitySheet, VisitorShowcaseSwitch, VisitorReach, ContactedChip, reachedBy, GuestActivityButton, OpenShowcaseLink } from './VisitorExtras'
@@ -43,6 +43,13 @@ function CopyField({ field, value, icon: FieldIcon, href, display, contacted, co
     </div>
   )
 }
+
+// A busy open house (owner, 11/07: "60 people sign in"): past this many guests the list gets a search,
+// a sort and filters up top, and draws a screenful or so at a time (pageSize) with Show more. Drawing all 60 at once froze the
+// window for most of a second on a phone. The Visitors sheet's placeholder leaves room for the bar too.
+export const BIG_LIST = 10
+// How many are drawn at a time: a phone shows about two cards a screen, a computer about seven rows.
+const pageSize = wide => wide ? 20 : 10
 
 // Which layout to build: only the one on screen (the list used to be built twice, table and cards,
 // with one hidden - twice the work every time it opened).
@@ -96,6 +103,46 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
     }, 350)
     return () => clearTimeout(t)
   }, [focusVisitorId, isLoading])
+  // Search / sort / filter / how many are drawn (see BIG_LIST). The list is kept newest-first.
+  const [sortBy, setSortBy] = useState('newest')
+  const [show, setShow] = useState('all')
+  const [query, setQuery] = useState('')
+  const PAGE = pageSize(wide)
+  const [limit, setLimit] = useState(PAGE)
+  useEffect(() => { setLimit(PAGE) }, [sortBy, show, query, PAGE])
+  const big = visitors.length > BIG_LIST
+  const noAgent = v => String(v.has_agent || '').toUpperCase() !== 'YES'
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    const digits = q.replace(/\D/g, '')
+    let list = visitors.filter(v => {
+      if (show === 'noagent' && !noAgent(v)) return false
+      if (show === 'starred' && !v.is_favorite) return false
+      if (show === 'activity' && !(v.pass_events > 0)) return false
+      if (!q) return true
+      return String(v.full_name || '').toLowerCase().includes(q) || String(v.email || '').toLowerCase().includes(q)
+        || (digits.length >= 3 && String(v.phone || '').replace(/\D/g, '').includes(digits))
+    })
+    if (sortBy === 'oldest') list = [...list].reverse()
+    else if (sortBy === 'name') list = [...list].sort((a, b) => String(a.full_name || '').localeCompare(String(b.full_name || ''), 'en', { sensitivity: 'base' }))
+    return list
+  }, [visitors, sortBy, show, query])
+  const chips = [
+    { key: 'all', label: 'All', n: visitors.length },
+    { key: 'noagent', label: 'No agent', n: visitors.filter(noAgent).length },
+    { key: 'starred', label: 'Starred', n: visitors.filter(v => v.is_favorite).length },
+    { key: 'activity', label: <><span className="sm:hidden">Activity</span><span className="hidden sm:inline">Guest Activity</span></>, n: visitors.filter(v => v.pass_events > 0).length },
+  ].filter(c => c.key === 'all' || c.n > 0 || c.key === show)
+  // A deep link to someone further down: draw far enough to reach them.
+  useEffect(() => {
+    if (!focusVisitorId) return
+    const i = shown.findIndex(v => v.id === focusVisitorId)
+    if (i >= limit) setLimit(i + 1)
+  }, [focusVisitorId, shown, limit])
+  const page = shown.slice(0, limit)
+  // Day headings only make sense in time order.
+  const grouped = sortBy !== 'name'
+  const newDayAt = (i) => grouped && (i === 0 || new Date(page[i - 1].created_at).toDateString() !== new Date(page[i].created_at).toDateString())
   const focusRing = (id) => id === focusVisitorId ? 'ring-2 ring-inset ring-[#C9A24D] bg-[#C9A24D]/[0.07]' : ''
 
   // Lead star (user, 10/24): saves right away; when it's turned ON and the person has a Showcase,
@@ -193,15 +240,6 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
       setOpenHouse(openHouseResult.data)
     }
     setIsLoading(false)
-  }
-
-  // Same calendar day as the visitor before them (list is newest-first) - drives the "connected"
-  // vs "gapped" spacing so visitors from one day read as a cluster, distinct from other days.
-  const isSameDayAsPrevious = (visitor, index) => {
-    if (index === 0) return false
-    const prev = new Date(visitors[index - 1].created_at)
-    const current = new Date(visitor.created_at)
-    return prev.toDateString() === current.toDateString()
   }
 
   const formatGroupDate = (dateString) => {
@@ -391,8 +429,43 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
               </div>
             ) : (
               <>
+                {big && (
+                  // Computer (owner, 11/07): search, filters and sort on one line; a phone stacks them.
+                  <div data-testid="visitors-tools" className="mb-3 space-y-2 lg:flex lg:items-center lg:gap-2 lg:space-y-0">
+                    <div className="flex gap-2 lg:contents">
+                      <label className="relative min-w-0 flex-1 lg:order-1">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search guests" aria-label="Search visitors" data-testid="visitors-search"
+                          className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-[16px] text-gray-900 placeholder-gray-400 focus:border-[#C9A24D] focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 dark:border-white/10 dark:bg-[#141416] dark:text-white dark:placeholder-gray-500 sm:text-sm" />
+                      </label>
+                      <select value={sortBy} onChange={e => setSortBy(e.target.value)} aria-label="Sort visitors" data-testid="visitors-sort"
+                        className="h-11 shrink-0 rounded-xl border border-gray-200 bg-white pl-3 pr-2 lg:order-3 text-[16px] font-bold text-gray-700 focus:border-[#C9A24D] focus:outline-none dark:border-white/10 dark:bg-[#141416] dark:text-gray-200 sm:text-[13px]">
+                        <option value="newest">Newest first</option>
+                        <option value="oldest">Oldest first</option>
+                        <option value="name">Name A-Z</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] lg:order-2 lg:shrink-0 lg:pb-0 [&::-webkit-scrollbar]:hidden">
+                      {chips.map(c => (
+                        <button key={c.key} type="button" onClick={() => setShow(c.key)} aria-pressed={show === c.key} data-testid={`visitors-show-${c.key}`}
+                          className={`shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1.5 text-[11px] font-black uppercase tracking-wide sm:px-3 transition active:scale-95 ${show === c.key ? 'border-[#111827] bg-[#111827] text-[#e8c97a] dark:border-[#e8c97a] dark:bg-[#e8c97a] dark:text-[#111827]' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-white/10 dark:bg-white/5 dark:text-gray-300'}`}>
+                          {c.label} <span className="tabular-nums opacity-60">{c.n}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {shown.length === 0 && (
+                  <div data-testid="visitors-no-match" className="rounded-2xl border border-gray-100 bg-white px-4 py-12 text-center dark:border-white/[0.07] dark:bg-[#141416]">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">No one matches that</p>
+                    <button type="button" onClick={() => { setQuery(''); setShow('all') }}
+                      className="mt-3 rounded-full border border-[#C9A24D]/45 px-4 py-2 text-[12px] font-black text-[#8b7355] active:scale-95 dark:text-[#e8c97a]">Show everyone</button>
+                  </div>
+                )}
+
                 {/* Desktop / tablet: table */}
-                {wide && <div className="bg-white dark:bg-[#151517] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+                {wide && shown.length > 0 && <div className="bg-white dark:bg-[#151517] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
                       <thead className="bg-[#faf9f7] dark:bg-[#0B0B0B]">
@@ -415,9 +488,9 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
                         </tr>
                       </thead>
                       <tbody className="bg-white dark:bg-[#151517]">
-                        {visitors.map((visitor, index) => (
+                        {page.map((visitor, index) => (
                           <Fragment key={visitor.id}>
-                            {!isSameDayAsPrevious(visitor, index) && (
+                            {newDayAt(index) && (
                               // A clear break before each new day - room above the label, a hairline
                               // after it (it sat right under the last row - user, 10/24).
                               <tr className={index > 0 ? 'border-t border-gray-100 dark:border-gray-800/60' : ''}>
@@ -429,12 +502,9 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
                                 </td>
                               </tr>
                             )}
-                            <motion.tr
-                              initial={{ opacity: 0, y: 6 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.3), ease: [0.22, 1, 0.36, 1] }}
+                            <tr
                               data-visitor-id={visitor.id}
-                              className={`hover:bg-gray-50 dark:hover:bg-[#2c241b] transition-colors ${isSameDayAsPrevious(visitor, index) ? 'border-t border-gray-100 dark:border-gray-800/60' : ''} ${focusRing(visitor.id)}`}
+                              className={`hover:bg-gray-50 dark:hover:bg-[#2c241b] transition-colors ${index > 0 && !newDayAt(index) ? 'border-t border-gray-100 dark:border-gray-800/60' : ''} ${focusRing(visitor.id)}`}
                             >
                               <td className="px-4 py-4 lg:px-5 whitespace-nowrap w-1/5">
                                 <div className="flex items-center">
@@ -498,7 +568,7 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
                                 {visitor.pass_events > 0 && <GuestActivityButton compact visitor={visitor} onOpen={() => setActivityFor(visitor)} />}
                                 </div>
                               </td>
-                            </motion.tr>
+                            </tr>
                           </Fragment>
                         ))}
                       </tbody>
@@ -508,12 +578,12 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
 
                 {/* Phones (user, 10/24): roomy cards grouped by day - a clear gap + gold rule
                     before each new day, the lead star up top, Notes / Guest Activity side by side. */}
-                {!wide && <div>
-                  {visitors.map((visitor, index) => {
-                    const newDay = !isSameDayAsPrevious(visitor, index)
+                {!wide && shown.length > 0 && <div>
+                  {page.map((visitor, index) => {
+                    const newDay = newDayAt(index)
                     const status = String(visitor.has_agent || '').toUpperCase()
                     return (
-                    <div key={visitor.id} className={newDay ? (index === 0 ? '' : 'mt-8') : 'mt-2.5'}>
+                    <div key={visitor.id} className={index === 0 ? '' : newDay ? 'mt-8' : 'mt-2.5'}>
                       {newDay && (
                         <div className="mb-2.5 flex items-center gap-3 px-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]">
                           <span className="shrink-0">{formatGroupDate(visitor.created_at)}</span>
@@ -588,6 +658,13 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
                     )
                   })}
                 </div>}
+
+                {shown.length > limit && (
+                  <button type="button" data-testid="visitors-more" onClick={() => setLimit(l => l + PAGE)}
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#C9A24D]/40 bg-white py-3 text-[13px] font-black text-[#8b7355] transition active:scale-[0.99] dark:bg-white/5 dark:text-[#e8c97a]">
+                    Show {Math.min(PAGE, shown.length - limit)} more <span className="font-semibold text-gray-400">· {shown.length - limit} left</span>
+                  </button>
+                )}
               </>
             )}
           </div>

@@ -3,7 +3,7 @@
 import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import OhSheet from '@/components/open-house-manager/OhSheet'
-import OpenHouseVisitors from './OpenHouseVisitors'
+import OpenHouseVisitors, { BIG_LIST } from './OpenHouseVisitors'
 import api from '@/lib/api-service'
 
 export type VisitorsSheetHandle = { open: (openHouse: any) => void }
@@ -93,6 +93,8 @@ function VisitorsPlaceholder({ count }: { count: number }) {
       <div className="mb-4 grid grid-cols-3 gap-2">
         {[0, 1, 2].map(i => <div key={i} className="h-[58px] rounded-2xl border border-gray-100 bg-white dark:border-white/[0.07] dark:bg-[#141416] sm:h-[46px]" />)}
       </div>
+      {/* A busy open house also gets the search / sort / filter bar. */}
+      {count > BIG_LIST && <div data-testid="visitors-placeholder-tools" className="mb-3 h-[82px] lg:h-[44px]" />}
       <div className="space-y-2.5 md:space-y-1">
         <div className="hidden h-[85px] rounded-2xl border border-gray-100 bg-white dark:border-white/[0.07] dark:bg-[#141416] md:block" />
         {Array.from({ length: rows }, (_, i) => (
