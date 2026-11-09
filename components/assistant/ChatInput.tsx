@@ -212,6 +212,8 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
 
   return (
     <div className={`border-t border-gray-100 dark:border-zinc-800/60 bg-white dark:bg-zinc-900 ${tight ? 'px-2 py-1.5' : 'p-3 sm:p-4'}`}>
+      {/* Same reading width as the chat above it in the full-screen window (owner, 11/08) */}
+      <div className="w-full">
       {photos.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-2" data-testid="ai-photo-chips">
           {photos.map(p => (
@@ -310,6 +312,7 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
           Message is too long ({value.length.toLocaleString()} / {maxChars.toLocaleString()} characters).
         </p>
       )}
+      </div>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import { announceChange } from '@/lib/dataChanged'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Check, ChevronRight, Loader2, X, AlertTriangle, ArrowRight, Download } from 'lucide-react'
@@ -18,7 +19,9 @@ import { InvitePick, type InvitePicks } from './InvitePick'
 import { BlogPick, type BlogPicks } from './BlogPick'
 import { KitPick, kitStart, type KitPicks } from './KitPick'
 import { DiscoveryPick, discoveryStart, type DiscoveryPicks } from './DiscoveryPick'
+import { FollowupPick, followupStart, type FollowupPicks } from './FollowupPick'
 import { InviteSendPick, inviteSendInitial, inviteSendLabel, type InviteSendPicks } from './InviteSendPick'
+import { ShowcaseRemovePick, showcaseRemoveInitial, showcaseRemoveLabel, type ShowcaseRemovePicks } from './ShowcaseRemovePick'
 import { WorkingScene, CardIcon, CardStep, StepDone, DesignLivePreview, BrandLivePreview, FormPick, OPTION_GRID, PickShell, useAgentBits, useDesignProperty, useSteps, type FormPicks } from './CardPickers'
 import { joinColorMode, splitColorMode } from '@/lib/studio/designColors'
 import { LUXE_METALS, LUXE_METAL_ORDER, type LuxeMetal } from '@/lib/luxeMetals'
@@ -310,8 +313,14 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   const isKit = action.picker === 'kit'
   const isInviteSend = action.picker === 'invite_send'
   const isDiscovery = action.picker === 'discovery'
+  // A follow-up: every field changeable on the card (owner, 11/09)
+  const isFollowup = action.picker === 'followup'
+  const [fu, setFu] = useState<FollowupPicks>(() => followupStart(action.payload as Record<string, any>))
   const [disc, setDisc] = useState<DiscoveryPicks>(() => discoveryStart((action.payload || {}) as Record<string, any>))
   const [inviteSend, setInviteSend] = useState<InviteSendPicks>(() => inviteSendInitial(action.payload))
+  // Removing homes from a Showcase (11/08): the checked homes go on Confirm.
+  const isRemove = action.picker === 'showcase_remove'
+  const [remove, setRemove] = useState<ShowcaseRemovePicks>(() => showcaseRemoveInitial(action.payload))
   const [kit, setKit] = useState<KitPicks>(() => kitStart((action.payload || {}) as Record<string, any>))
   const blogBody = ((action.payload as any)?.body || {}) as Record<string, string>
   const blogList = (k: string) => (Array.isArray((blogBody as any)[k]) ? (blogBody as any)[k] as string[] : [])
@@ -356,7 +365,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
     const t = setTimeout(() => { formSaved.current = now; api.ai.saveActionDraft(action.record_id, messageId, form as unknown as Record<string, unknown>).catch(() => {}) }, 600)
     return () => clearTimeout(t)
   }, [form, isForm, state.status, action.record_id, messageId])
-  const picks = isBrand ? brand : isInvite ? invite : isSpotlight ? spot : isCma ? { ai: cmaAi, mode: cmaMode, ...cma } : isForm ? form : isBlog ? blog : isInviteSend ? inviteSend : isDiscovery ? disc : isMedia ? media : undefined
+  const picks = isBrand ? brand : isInvite ? invite : isSpotlight ? spot : isCma ? { ai: cmaAi, mode: cmaMode, ...cma } : isForm ? form : isBlog ? blog : isInviteSend ? inviteSend : isRemove ? remove : isDiscovery ? disc : isFollowup ? fu : isMedia ? media : undefined
   // Finished on the server while this chat was open: the card follows (the chat reloads the message).
   useEffect(() => {
     if ((action.status === 'done' || action.status === 'failed') && (state.status === 'working' || state.status === 'running'))
@@ -405,6 +414,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
     } else {
       setState({ status: 'failed', message: r.error || 'Something went wrong - nothing was changed.', link: '' })
     }
+    if (end.status === 'done') announceChange()
     setBusy(null)
     return end
   }
@@ -448,7 +458,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
       {!!action.details?.length && (
         <ul className="mt-1.5 space-y-1">
           {/* a design's "Look:" line is the picker below (and the picture once made) - it could only go stale */}
-          {action.details.filter(d => !(isCma && /^(Seller \/ Listing|Buyer \/ Offer) CMA$/.test(d)) && !(isDesign && (d.startsWith('Look:') || (d.startsWith('Home:') && (action.payload as any)?.homes?.length > 1))) && !(isInvite && d.startsWith('Design:')) && !(state.status === 'done' && d.startsWith('Made in your Studio'))).map((d, i) => (
+          {action.details.filter((d, di) => !(isFollowup && choosing) && !(isRemove && state.status !== 'pending' && di > 0) && !(isCma && /^(Seller \/ Listing|Buyer \/ Offer) CMA$/.test(d)) && !(isDesign && (d.startsWith('Look:') || (d.startsWith('Home:') && (action.payload as any)?.homes?.length > 1))) && !(isInvite && d.startsWith('Design:')) && !(state.status === 'done' && d.startsWith('Made in your Studio'))).map((d, i) => (
             <li key={i} className="flex gap-1.5 text-xs leading-snug text-gray-600 dark:text-zinc-300">
               <span className="mt-[5px] h-1 w-1 shrink-0 rounded-full bg-[#C9A24D]" />
               <span className="min-w-0 [overflow-wrap:anywhere]">{d}</span>
@@ -483,8 +493,10 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
         </div>
       )}
       {isForm && choosing && <FormPick payload={action.payload as Record<string, any>} picks={form} onPicks={setForm} onOpenEditor={openInEditor} onRevise={reviseForm} busy={!!busy} />}
+      {isFollowup && choosing && <FollowupPick picks={fu} onPicks={setFu} />}
       {isDiscovery && choosing && <DiscoveryPick payload={action.payload as Record<string, any>} picks={disc} onPicks={setDisc} />}
       {isInviteSend && choosing && <InviteSendPick payload={action.payload as Record<string, any>} picks={inviteSend} onPicks={setInviteSend} />}
+      {isRemove && choosing && <ShowcaseRemovePick payload={action.payload as Record<string, any>} picks={remove} onPicks={setRemove} />}
       {isKit && choosing && <KitPick payload={action.payload as Record<string, any>} picks={kit} onPicks={setKit} />}
       {isBlog && choosing && <BlogPick payload={action.payload as Record<string, any>} picks={blog} onPicks={setBlog} />}
       {isInvite && choosing && <InvitePick payload={action.payload as Record<string, any>} picks={invite} onPicks={setInvite} />}
@@ -501,11 +513,12 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             onClick={() => act('confirm')}
-            disabled={!!busy || (isInviteSend && !inviteSend.lead_ids.length) || (isDesign && !!designMissing)}
-            className="ohp-ai-press inline-flex min-w-[7rem] flex-auto items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-[#8b7355] px-3 py-2 text-sm font-bold text-white shadow-sm shadow-[#8b7355]/30 hover:bg-[#7a6549] disabled:opacity-60"
+            disabled={!!busy || (isInviteSend && !inviteSend.lead_ids.length) || (isRemove && !remove.property_ids.length) || (isFollowup && !fu.title.trim()) || (isDesign && !!designMissing)}
+            data-testid="ai-card-confirm"
+            className={`ohp-ai-press inline-flex min-w-[7rem] flex-auto items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-bold text-white shadow-sm disabled:opacity-60 ${isRemove ? 'bg-rose-600 shadow-rose-600/30 hover:bg-rose-700' : 'bg-[#8b7355] shadow-[#8b7355]/30 hover:bg-[#7a6549]'}`}
           >
             {busy === 'confirm' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            {isInviteSend ? inviteSendLabel(inviteSend) : (action.confirm_label || 'Confirm')}
+            {isInviteSend ? inviteSendLabel(inviteSend) : isRemove ? showcaseRemoveLabel(remove) : (action.confirm_label || 'Confirm')}
           </button>
           <button
             onClick={() => act('cancel')}

@@ -987,6 +987,17 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
       children: (
         <div className="space-y-4 px-5 py-5 sm:px-7">
           {radiusPicker(formData.address)}
+          {/* Towns + the distance stack (owner, 11/09): say the towns still count */}
+          {(() => {
+            const places = [...(formData.cities || []), ...(preferences?.townships || []), ...(preferences?.counties || [])].map(c => String(c).split(',')[0].trim()).filter(Boolean)
+            if (!places.length) return null
+            const nice = places.slice(0, 2).map(t => t.toLowerCase().replace(/(^|[\s-])([a-z])/g, (_, a: string, c: string) => a + c.toUpperCase())).join(' or ') + (places.length > 2 ? ` +${places.length - 2} more` : '')
+            return (
+              <p className="rounded-xl bg-[#C9A24D]/10 px-3 py-2 text-center text-[12px] font-bold leading-snug text-[#8b7355] dark:text-[#e8c97a]" data-testid="radius-stack-line">
+                Only homes in {nice} that are also this close.
+              </p>
+            )
+          })()}
           {errorLine}
           {refineFurther}
         </div>

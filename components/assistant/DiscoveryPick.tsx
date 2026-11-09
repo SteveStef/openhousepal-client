@@ -58,7 +58,7 @@ export function DiscoveryPick({ payload, picks, onPicks }: { payload: Record<str
     <PickShell testid="ai-discovery-pick" side={260} preview={
       /* the search as it will save */
       <div className="overflow-hidden rounded-xl bg-[#111827] text-white dark:bg-zinc-900 dark:ring-1 dark:ring-[#C9A24D]/30" data-testid="ai-discovery-preview">
-        <div className="relative hidden h-[150px] place-items-center group-data-[wide=yes]/pick:grid">
+        <div className="relative hidden h-[150px] place-items-center group-data-[wide=yes]/pick:grid group-data-[wide=yes]/pick:h-[calc(var(--pick-h,300px)_-_90px)]">
           <span className="absolute rounded-full border border-[#C9A24D]/30 transition-all duration-500" style={{ width: ring * 3, height: ring * 3 }} />
           <span className="absolute rounded-full border border-[#C9A24D]/50 bg-[#C9A24D]/10 transition-all duration-500" style={{ width: ring * 2, height: ring * 2 }} />
           <span className="relative grid h-9 w-9 place-items-center rounded-full bg-[#C9A24D] text-[#111827]"><MapPin className="h-4 w-4" /></span>

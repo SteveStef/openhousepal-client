@@ -15,6 +15,7 @@ import api from '@/lib/api-service'
 import { useToast } from '@/contexts/ToastContext'
 import { formatNumberWithCommas, stripCommas } from '@/lib/utils'
 import { tidyAllCaps } from '@/lib/cheatSheetContent'
+import { useCircleTownCheck, type Circle } from '@/components/showcases/CircleTownPrompt'
 
 export type QuickShowcase = { id: string; name?: string | null }
 
@@ -22,6 +23,8 @@ type Form = {
   min_price: string; max_price: string; min_beds: number | null; min_baths: number | null
   min_sqft: string; max_sqft: string; min_year_built: string
   cities: string[]; townships: string[]; school_districts: string[]; dropRadius: boolean
+  /** A new search circle (grown / moved from the town pop-up) - undefined = the saved one. */
+  circle?: Circle
 }
 
 const BEDS = [null, 1, 2, 3, 4, 5]
@@ -71,6 +74,7 @@ function changesOf(p: any, f: Form): Record<string, unknown> {
   set('townships', f.townships, p?.townships || [])
   set('school_districts', f.school_districts, p?.school_districts || [])
   if (f.dropRadius) Object.assign(out, { address: '', lat: null, long: null, diameter: null })
+  else if (f.circle) Object.assign(out, { address: f.circle.address || p?.address || '', lat: f.circle.lat, long: f.circle.long, diameter: f.circle.diameter })
   return out
 }
 
@@ -128,7 +132,17 @@ export default function QuickEditShowcase({ open, onClose, leadId, showcases: gi
   const dirty = Object.keys(changes).length > 0
   const radius = !!(prefs?.address && prefs?.diameter && prefs?.lat != null)
   const places = !!(form && (form.cities.length || form.townships.length || (prefs?.counties || []).length))
-  const area = !!(form && (places || form.school_districts.length || (radius && !form.dropRadius) || prefs?.search_polygon))
+  // the circle as it stands now: the saved one, a grown / moved one, or none
+  const circleNow: Circle | null = !form || form.dropRadius ? null
+    : form.circle || (radius ? { lat: prefs.lat, long: prefs.long, diameter: prefs.diameter, address: prefs.address } : null)
+  const area = !!(form && (places || form.school_districts.length || circleNow || prefs?.search_polygon))
+  // A town added while there's a circle (owner, 11/09): all outside -> the circle comes off; partly -> ask.
+  const circleCheck = useCircleTownCheck({
+    cities: form?.cities || [], townships: form?.townships || [], circle: circleNow,
+    enabled: !!form, resetKey: id,
+    search: prefs ? (({ id: _i, collection_id: _c, created_at: _a, updated_at: _u, ...saved }) => ({ ...saved, ...changes }))(prefs) : null,
+    apply: c => up(c ? { dropRadius: false, circle: c } : { dropRadius: true, circle: undefined }),
+  })
 
   // Live "N homes match" as they change things (same search Save runs).
   const seq = useRef(0)
@@ -161,7 +175,7 @@ export default function QuickEditShowcase({ open, onClose, leadId, showcases: gi
     setDone(line)
     showToast(`${who ? `${who.split(' ')[0]}'s Showcase` : 'Showcase'} updated - ${n} ${n === 1 ? 'home' : 'homes'}${delta ? ` (${delta})` : ''}`, 'success')
     setPrefs({ ...prefs, ...changes })
-    setForm(f => (f ? { ...f, dropRadius: false } : f))
+    setForm(f => (f ? { ...f, dropRadius: false, circle: undefined } : f))
     onSaved?.({ id, count: n, added: d.added || 0, removed: d.removed || 0 })
     window.setTimeout(onClose, 900)
   }, [id, dirty, area, changes, count, prefs, who, onSaved, onClose, showToast, asked])
@@ -256,15 +270,15 @@ export default function QuickEditShowcase({ open, onClose, leadId, showcases: gi
             <div>
               <span className={label}>Where</span>
               <AnimatePresence initial={false}>
-                {radius && !form.dropRadius && (
+                {circleNow && (
                   <motion.div key="radius" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                     <div className="mb-2 flex items-center gap-2.5 rounded-2xl border border-[#C9A24D]/40 bg-[#C9A24D]/[0.07] px-3 py-2.5" data-testid="quick-edit-radius">
                       <MapPin className="h-4 w-4 shrink-0 text-[#8b7355] dark:text-[#e8c97a]" />
                       <span className="min-w-0 flex-1 text-[12.5px] font-bold leading-snug text-[#111827] dark:text-white">
-                        Within {prefs.diameter} mi of {tidyAllCaps(String(prefs.address).split(',')[0])}
-                        {places && <span className="block text-[11px] font-semibold text-gray-500">Not used - the towns below are the search</span>}
+                        Within {circleNow.diameter} mi of {tidyAllCaps(String(circleNow.address || prefs.address || '').split(',')[0])}
+                        {places && <span className="block text-[11px] font-semibold text-gray-500" data-testid="quick-edit-radius-stack">Only homes in the towns below that are also this close - Remove it to show the whole town</span>}
                       </span>
-                      <button type="button" onClick={() => up({ dropRadius: true })} data-testid="quick-edit-remove-radius"
+                      <button type="button" onClick={() => up({ dropRadius: true, circle: undefined })} data-testid="quick-edit-remove-radius"
                         className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-gray-600 shadow-sm ring-1 ring-black/5 hover:text-red-600 dark:bg-white/10 dark:text-gray-200">
                         <X className="h-3 w-3" /> Remove
                       </button>
@@ -279,6 +293,8 @@ export default function QuickEditShowcase({ open, onClose, leadId, showcases: gi
                 </p>
               )}
               <MultiSelectDatabaseInput values={form.cities} apiMethod={api.properties.citiesPublic} placeholder="Add towns…" onChange={cities => up({ cities })} />
+              {circleCheck.notice && <div className="mt-2">{circleCheck.notice}</div>}
+              {circleCheck.prompt}
               {form.townships.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {form.townships.map(t => (

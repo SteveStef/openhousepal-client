@@ -110,7 +110,7 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
     <PickShell testid="ai-blog-pick" side={280} preview={
       /* the article's top, in the look picked */
       <div className="overflow-hidden rounded-xl ring-1 ring-black/10" style={{ background: look.paper, color: look.ink }} data-testid="ai-blog-preview">
-        <div className="relative h-[90px] group-data-[wide=yes]/pick:h-[150px]" style={{ background: `linear-gradient(135deg, ${ink}, ${look.bg})` }}>
+        <div className="relative h-[90px] group-data-[wide=yes]/pick:h-[calc(var(--pick-h,380px)*0.45)]" style={{ background: `linear-gradient(135deg, ${ink}, ${look.bg})` }}>
           {picks.cover && <img src={resolveMediaUrl(picks.cover)} alt="" className="h-full w-full object-cover" />}
         </div>
         <div className="p-2.5">

@@ -22,6 +22,7 @@ import { copyText } from '@/lib/copyText'
 import LuxeSelect from '@/components/ui/LuxeSelect'
 import { SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
 import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
+import { SmartFilterBar } from '@/components/showcases/SmartWants'
 import SendHomesSheet from '@/components/showcases/SendHomesSheet'
 import { sendHomeLink, sendLine, sendsByHome, type HomeSend } from '@/lib/sendHome'
 import OhSheet from '@/components/open-house-manager/OhSheet'
@@ -41,6 +42,8 @@ interface DetailViewProps {
   setSortOrder: (order: 'asc' | 'desc') => void;
   onBack: () => void;
   onEditShowcase: () => void;
+  /** The smart filter finished reading - reload the homes so its stars show */
+  onSmartDone?: () => void;
   /** No public link yet: open the share window (it turns the link on). */
   onShare?: () => void;
   /** The quick "Comparing to" / "how far" windows (the same ones the buyer gets) - saves just those fields. */
@@ -100,6 +103,7 @@ export const DetailView = memo(function DetailView({
   setSortOrder,
   onBack,
   onEditShowcase,
+  onSmartDone,
   onShare,
   onQuickSave,
   onDismissRefineRequest,
@@ -189,11 +193,9 @@ export const DetailView = memo(function DetailView({
   const compareProperty = (selectedCollection.preferences as any)?.show_match_score !== false
     ? selectedCollection.originalProperty || undefined
     : undefined
-  // Towns / townships / counties picked = the search is those places, not a circle (11/01) - so no
-  // "Searching around · 3 mi" chip for a radius that doesn't count.
-  const _p = selectedCollection.preferences as any
-  const placesPicked = !!(_p?.cities?.length || _p?.townships?.length || _p?.counties?.length)
-  const radiusSearchPreferences = !placesPicked && selectedCollection.preferences && 'diameter' in selectedCollection.preferences && selectedCollection.preferences.address && selectedCollection.preferences.diameter
+  // The circle counts with towns too now - it narrows them (owner, 11/09) - so the
+  // "Searching around · 3 mi" chip shows whenever there is one.
+  const radiusSearchPreferences = selectedCollection.preferences && 'diameter' in selectedCollection.preferences && selectedCollection.preferences.address && selectedCollection.preferences.diameter
     ? selectedCollection.preferences
     : null
   const customerFullName = [selectedCollection.customer.firstName, selectedCollection.customer.lastName].filter(Boolean).join(' ')
@@ -631,6 +633,9 @@ export const DetailView = memo(function DetailView({
 
         {/* Holding the most homes a Showcase can (lib/showcaseLimit): ask for a tighter search. */}
         <ShowcaseLimitNote show={activeTab === 'all' && !!selectedCollection.stats?.atLimit} className="mb-4" />
+        {/* Smart filter (owner, 11/09): its must-haves and where the reading is */}
+        <SmartFilterBar collectionId={selectedCollection.id} onEdit={onEditShowcase} onDone={onSmartDone}
+          initial={(() => { const w = (selectedCollection.preferences as any)?.ai_wants; return w && !Array.isArray(w) ? w : null })()} />
 
         {/* Professional Separator */}
         <div className="relative mb-4">

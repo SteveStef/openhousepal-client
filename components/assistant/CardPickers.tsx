@@ -14,6 +14,7 @@ import type { BrandKit, LinkedProperty } from '@/types'
 import StyleThumbnail from '@/components/studio/design/StyleThumbnail'
 import { FeaturePreview, FitStage, paintOf } from '@/components/studio/branding/FeaturePreviews'
 import { getSituation } from '@/lib/studio/designSituations'
+import { DESIGN_FORMAT_META } from '@/lib/studio/designFormats'
 import { getTemplatesFor, isCompositionReady } from '@/lib/studio/designTemplates'
 import { designAgentFrom, SAMPLE_DESIGN_AGENT } from '@/lib/studio/designAgent'
 import { fetchLinkedProperty } from '@/components/studio/PropertySelector'
@@ -28,7 +29,7 @@ import { OhpBot } from './OhpBot'
 // ---------------------------------------------------------------- the feature's icon
 const ICONS: Record<string, LucideIcon> = {
   create_design: ImageIcon, update_branding: Palette, create_invite: PartyPopper, create_showcase: Sparkles,
-  update_showcase_search: Sparkles, set_showcase: Sparkles, add_home_to_showcase: Sparkles, resend_showcase_invite: Sparkles,
+  update_showcase_search: Sparkles, set_showcase: Sparkles, add_home_to_showcase: Sparkles, remove_showcase_homes: Trash2, resend_showcase_invite: Sparkles,
   confirm_showcase_tour: CalendarCheck, reply_to_showcase_comment: MessageSquare, create_spotlight: Star, publish_spotlight: Star,
   create_form: ClipboardList, edit_form: ClipboardList, write_blog_post: Newspaper, start_cma: BarChart3, update_email_settings: Mail,
   update_profile: UserRound, set_website_on: Globe, add_town: MapPin, create_followup: Bell, update_followup: Bell,
@@ -96,10 +97,18 @@ export function useSteps(ids: string[], start?: string | null) {
 // column on its right, kept to a comfortable width so a button never ends up far from what it goes
 // with (owner, 11/06); in a narrow one (a phone, the corner panel) they stack. Goes by the card's own
 // width, not the screen's.
-export const WIDE_CARD_COLUMNS = (side: number) => `${side}px minmax(0,680px)`
+// 11/09 (owner: "can go farther to the right side only making the preview larger ... as long as the
+// selection section doesn't get wider ... it should span to bottom of other sections"): the options
+// keep the width they had; the card grows wider (ChatThread lets a row with a side-by-side card reach
+// 1120px) and all of that goes to the preview, which is as tall as the options next to it - previews
+// read that height from --pick-h.
+export const pickOptionsWidth = (side: number) => Math.max(340, Math.min(460, 650 - side))
+export const WIDE_CARD_COLUMNS = (side: number) => `minmax(${side}px,1fr) ${pickOptionsWidth(side)}px`
 export function PickShell({ testid, preview, side = 280, children }: { testid: string; preview?: React.ReactNode; side?: number; children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
+  const optsRef = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(0)
+  const [optsH, setOptsH] = useState(0)
   useEffect(() => {
     const el = ref.current
     if (!el) return
@@ -108,12 +117,19 @@ export function PickShell({ testid, preview, side = 280, children }: { testid: s
     return () => ro.disconnect()
   }, [])
   const wide = !!preview && w >= 600
+  useEffect(() => {
+    const el = optsRef.current
+    if (!wide || !el) return
+    const ro = new ResizeObserver(([e]) => setOptsH(Math.round(e.contentRect.height)))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [wide])
   return (
     <div ref={ref} className="group/pick mt-3 rounded-xl bg-[#faf7f0] p-1.5 sm:p-2.5 dark:bg-zinc-800/50" data-testid={testid} data-wide={wide ? 'yes' : 'no'}>
       {wide ? (
-        <div className="grid items-start justify-center gap-5" style={{ gridTemplateColumns: WIDE_CARD_COLUMNS(side) }}>
-          <div className="sticky top-2 min-w-0">{preview}</div>
-          <div className="ohp-steps min-w-0">{children}</div>
+        <div className="grid items-start gap-5" style={{ gridTemplateColumns: WIDE_CARD_COLUMNS(side) }}>
+          <div className="sticky top-2 min-w-0" data-testid="ai-pick-preview" style={{ ['--pick-h' as string]: `${Math.max(440, Math.min(720, optsH || 460))}px` }}>{preview}</div>
+          <div ref={optsRef} className="ohp-steps min-w-0">{children}</div>
         </div>
       ) : (
         <div className="space-y-2">{preview}<div className="ohp-steps">{children}</div></div>
@@ -230,6 +246,9 @@ export function DesignLivePreview({ payload, layout, colors, property, photo, fo
     return <div className="ohp-skeleton mx-auto h-[170px] w-[136px] rounded-lg" />
   }
   const canDrag = big && !!onFocal && !!situation?.propertyAttached
+  // width / height of the design (a story is tall, a postcard wide) - the preview fills the space beside the options
+  const px = DESIGN_FORMAT_META[payload.format]?.exportPx || [1080, 1080]
+  const aspect = (px[0] / px[1]).toFixed(4)
   const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v * 10) / 10))
   const onDown = (e: React.PointerEvent) => {
     if (!canDrag) return
@@ -251,7 +270,8 @@ export function DesignLivePreview({ payload, layout, colors, property, photo, fo
     setLive(null)
   }
   return (
-    <div className={`relative mx-auto transition-[width] duration-300 ease-out ${big ? 'w-[min(260px,100%)]' : 'w-[150px] group-data-[wide=yes]/pick:w-[min(260px,100%)]'}`}>
+    <div className={`relative mx-auto transition-[width] duration-300 ease-out ${big ? 'w-[min(260px,100%)] group-data-[wide=yes]/pick:w-[var(--pick-w)]' : 'w-[150px] group-data-[wide=yes]/pick:w-[var(--pick-w)]'}`}
+      style={{ ['--pick-w' as string]: `min(100%, calc((var(--pick-h, 420px) - ${canDrag ? 26 : 0}px) * ${aspect}))` }}>
       <div ref={box} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
         className={`overflow-hidden rounded-lg shadow-[0_10px_24px_-12px_rgba(0,0,0,.45)] ring-1 ring-black/10 ${canDrag ? 'cursor-grab touch-none select-none active:cursor-grabbing' : ''}`}
         data-testid="ai-design-preview" data-focal={shown ? `${shown.x},${shown.y}` : ''}>
@@ -277,14 +297,22 @@ export function BrandLivePreview({ picks }: { picks: { theme: string; metal: str
     name: [user?.first_name, user?.last_name].filter(Boolean).join(' ') || 'Your Name', title: user?.professional_title || 'Realtor',
     brokerage: user?.brokerage || '', photo: user?.photo_url || null, phone: '', email: user?.email || '',
   }
+  // One big preview with a switch under it (owner, 11/09: "show the full image ... a pill under it to switch"
+  // between the Agent Hub and the forms - two small ones side by side "looks like mud"). Same on a phone.
+  const [view, setView] = useState<'hub' | 'forms'>('hub')
   return (
-    <div className="grid grid-cols-2 gap-2" data-testid="ai-brand-preview">
-      {(['hub', 'forms'] as const).map(id => (
-        <div key={id} className="overflow-hidden rounded-xl bg-[#f3efe6] dark:bg-zinc-800/70">
-          <div className="h-[150px]"><FitStage w={150} h={290} pad={0.92}><FeaturePreview id={id} look={look} kit={kit} person={person} agent={agent} /></FitStage></div>
-          <p className="pb-1.5 text-center text-[10px] font-black uppercase tracking-[0.14em] text-gray-500">{id === 'hub' ? 'Your Agent Hub' : 'Your forms'}</p>
-        </div>
-      ))}
+    <div className="flex flex-col gap-2" data-testid="ai-brand-preview" data-view={view}>
+      <div className="overflow-hidden rounded-xl bg-[#f3efe6] h-[340px] group-data-[wide=yes]/pick:h-[calc(var(--pick-h,460px)_-_44px)] dark:bg-zinc-800/70">
+        <FitStage key={view} w={150} h={290} pad={0.94}><FeaturePreview id={view} look={look} kit={kit} person={person} agent={agent} /></FitStage>
+      </div>
+      <div className="mx-auto inline-flex rounded-full bg-white p-1 shadow-sm ring-1 ring-black/5 dark:bg-zinc-900 dark:ring-white/10" role="tablist" data-testid="ai-brand-switch">
+        {([['hub', 'Agent Hub'], ['forms', 'Forms']] as const).map(([id, name]) => (
+          <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)} data-testid={`ai-brand-view-${id}`}
+            className={`ohp-ai-press rounded-full px-4 py-1.5 text-[11.5px] font-black transition-colors ${view === id ? 'bg-[#111827] text-white dark:bg-[#C9A24D] dark:text-[#111827]' : 'text-gray-500 hover:text-[#111827] dark:text-zinc-400 dark:hover:text-white'}`}>
+            {name}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -313,8 +341,10 @@ const coreQs = (one?: boolean, split?: boolean) => (one
 
 /** The form as a guest sees it on a phone, one screen at a time (owner, 11/02): the real form screen
  *  in a phone-width frame (app/assistant/form-preview), so a phone layout shows even on a computer. */
-function FormPreview({ title, questions, home, backgroundEffects, welcomeTextEffects = true, oneContact = false, firstLast = false, look, at }: {
+function FormPreview({ title, questions, home, backgroundEffects, welcomeTextEffects = true, oneContact = false, firstLast = false, look, at, fitH }: {
   title: string; questions: FormQuestion[]; home: CardHome | null; backgroundEffects: boolean; welcomeTextEffects?: boolean; oneContact?: boolean; firstLast?: boolean; look?: FormLook | null; at: number
+  /** beside the options on a wide card: as tall as they are (owner, 11/09) */
+  fitH?: number
 }) {
   const { user, agent, kit } = useAgentBits()
   const frame = useRef<HTMLIFrameElement>(null)
@@ -349,9 +379,9 @@ function FormPreview({ title, questions, home, backgroundEffects, welcomeTextEff
   }, [ready, all, screens, i, backgroundEffects, welcomeTextEffects, look, kit, luxeOk, title, agent, home])
   const PW = 390, PH = 700
   // A 390 x 700 phone, a little smaller now that the card shows one question under it (11/03)
-  const s = Math.min(0.62, w / PW)
+  const s = fitH ? Math.min(w / PW, (fitH - 14) / PH) : Math.min(0.62, w / PW)
   return (
-    <div ref={box} className="mb-2.5" data-testid="ai-form-preview">
+    <div ref={box} className={fitH ? '' : 'mb-2.5'} data-testid="ai-form-preview">
       <div className="mx-auto overflow-hidden rounded-[22px] bg-[#FAFAF7] shadow-md ring-[5px] ring-[#111827] dark:ring-zinc-700" style={{ width: PW * s, height: PH * s }}>
         <iframe ref={frame} src="/assistant/form-preview" title={`Preview of ${title}`} tabIndex={-1}
           className="pointer-events-none origin-top-left border-0" style={{ width: PW, height: PH, transform: `scale(${s})` }} />
@@ -450,7 +480,18 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
-  const wide = cardW >= 720
+  // 11/09 (owner: "forms have the preview on the left side and all the options on the right side"): wide
+  // at the same card width as every other card (it was 720 - a 760px chat row never got there).
+  const wide = cardW >= 600
+  const optsRef = useRef<HTMLDivElement>(null)
+  const [optsH, setOptsH] = useState(0)
+  useEffect(() => {
+    const el = optsRef.current
+    if (!wide || !el) return
+    const ro = new ResizeObserver(([e]) => setOptsH(Math.round(e.contentRect.height)))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [wide])
   const afterChoices: [string, string][] = [
     ...(picks.listing_key ? [['property', 'That home'] as [string, string]] : []),
     ['agent_hub', 'My Agent Hub'], ['website', 'My website'], ['none', 'Stay on the thank-you'], ['custom', 'My own link'],
@@ -462,9 +503,9 @@ export function FormPick({ payload, picks, onPicks, onOpenEditor, onRevise, busy
   const navBtn = `ohp-ai-press inline-flex h-12 shrink-0 items-center justify-center rounded-xl font-black shadow-sm disabled:opacity-30 ${tight ? 'w-[46px] flex-col text-[10.5px] leading-tight' : 'gap-1 px-4 text-[13px]'}`
   return (
     <div ref={wrapRef} className="group/pick mt-3 rounded-xl bg-[#faf7f0] p-1.5 sm:p-2.5 dark:bg-zinc-800/50" data-testid="ai-form-pick" data-wide={wide ? 'yes' : 'no'}>
-     <div className={wide ? 'grid items-start justify-center gap-5' : undefined} style={wide ? { gridTemplateColumns: WIDE_CARD_COLUMNS(300) } : undefined}>
-      {wide && <div className="sticky top-2 min-w-0"><FormPreview title={title} questions={picks.questions} backgroundEffects={picks.background_effects} welcomeTextEffects={picks.welcome_text_effects} oneContact={picks.one_contact} firstLast={picks.first_last} look={shownLook} home={home || null} at={steps.isOpen('look') ? 0 : i} /></div>}
-     <div className="ohp-steps min-w-0">
+     <div className={wide ? 'grid items-start gap-5' : undefined} style={wide ? { gridTemplateColumns: WIDE_CARD_COLUMNS(300) } : undefined}>
+      {wide && <div className="sticky top-2 min-w-0" data-testid="ai-pick-preview"><FormPreview fitH={Math.max(420, Math.min(760, optsH || 520))} title={title} questions={picks.questions} backgroundEffects={picks.background_effects} welcomeTextEffects={picks.welcome_text_effects} oneContact={picks.one_contact} firstLast={picks.first_last} look={shownLook} home={home || null} at={steps.isOpen('look') ? 0 : i} /></div>}
+     <div ref={optsRef} className="ohp-steps min-w-0">
       {onOpenEditor && (
         <div className="flex items-center gap-2 rounded-xl bg-white px-2.5 py-2 ring-1 ring-black/5 dark:bg-zinc-900 dark:ring-white/10">
           <p className="min-w-0 flex-1 text-[11.5px] font-semibold leading-snug text-gray-600 dark:text-zinc-300">Rather edit it in the full form editor?</p>
@@ -715,6 +756,7 @@ const WORK_LINES: Record<string, string[]> = {
   create_design: ['Laying out your design...', 'Placing the photo...', 'Adding your details...'],
   create_spotlight: ['Building the page...', 'Writing the story...', 'Adding the highlights...'],
   create_showcase: ['Searching for matching homes...', 'Setting up their Showcase...'],
+  remove_showcase_homes: ['Taking the homes out...', 'Updating their Showcase...'],
   create_form: ['Building your form...', 'Adding the questions...'],
   edit_form: ['Saving your changes...', 'Updating the form...'],
 }

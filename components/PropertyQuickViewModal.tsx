@@ -4,29 +4,38 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { Loader2, Info, X } from 'lucide-react'
 import { PropertyDetailResponse } from '@/types'
 import api from '@/lib/api-service'
-import PropertyDetailsModal from '@/components/PropertyDetailsModal'
+import PropertyDetailsModal, { type HomeNav, type HomeMove } from '@/components/PropertyDetailsModal'
 
 interface PropertyQuickViewModalProps {
   // Null closes the modal. Passing a new listingKey while open swaps the property in place.
   listingKey: string | null
   agentId: string
   onClose: () => void
+  /** Previous / next home in the list it was opened from (the chat's home cards, 11/09). While the
+   *  next home loads, the one on screen stays (no loading screen between homes). */
+  nav?: HomeNav | null
+  move?: HomeMove | null
 }
 
 // Thin data-fetching wrapper around the same rich property view Showcases uses, so Discovery's
 // "View Details" matches that look exactly - minus the visitor-only Like/Pass/Comments, which
 // don't make sense for an agent previewing another agent's listing (see showVisitorActions).
-export default function PropertyQuickViewModal({ listingKey, agentId, onClose }: PropertyQuickViewModalProps) {
+export default function PropertyQuickViewModal({ listingKey, agentId, onClose, nav = null, move = null }: PropertyQuickViewModalProps) {
   const [property, setProperty] = useState<PropertyDetailResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const propRef = useRef<PropertyDetailResponse | null>(null)
+  propRef.current = property
 
   useEffect(() => {
-    if (!listingKey) return
+    if (!listingKey) { setProperty(null); return }
     let cancelled = false
-    setLoading(true)
     setError(null)
-    setProperty(null)
+    // Moving between homes keeps the current one up until the next arrives.
+    if (!(nav && propRef.current)) {
+      setProperty(null)
+      setLoading(true)
+    }
     api.properties.getPropertyForAgent(listingKey, agentId).then(({ success, data, error: apiError }) => {
       if (cancelled) return
       if (success && data) {
@@ -98,6 +107,8 @@ export default function PropertyQuickViewModal({ listingKey, agentId, onClose }:
         showVisitorActions={false}
         showcaseTools
         zIndex={100}
+        nav={nav}
+        move={move}
       />
     </>
   )

@@ -65,7 +65,7 @@ export function CmaPick({ payload, ai, onAi, mode, onMode, picks, onPicks }: {
     <PickShell testid="ai-cma-pick" side={280} preview={
       /* the report's cover, in its look */
       <div className={`overflow-hidden rounded-xl ring-1 ring-black/10 ${picks.theme === 'dark' ? 'bg-[#101114] text-white' : 'bg-white text-[#111827]'}`} data-testid="ai-cma-preview">
-        <div className="relative h-[110px] bg-gray-100 group-data-[wide=yes]/pick:h-[170px] dark:bg-zinc-800">
+        <div className="relative h-[110px] bg-gray-100 group-data-[wide=yes]/pick:h-[calc(var(--pick-h,380px)*0.5)] dark:bg-zinc-800">
           {payload.photo ? <img src={resolveMediaUrl(payload.photo)} alt="" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center text-gray-400"><Home className="h-8 w-8" /></div>}
           <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-white">{mode === 'buyer' ? 'Buyer CMA' : 'Seller CMA'}</span>
         </div>

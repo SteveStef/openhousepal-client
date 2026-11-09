@@ -2,6 +2,8 @@
 
 import HomeCards from './HomeCards'
 import HostingCards from './HostingCards'
+import ShowcaseHomesCard, { type ShowcaseCardRef } from './ShowcaseHomesCard'
+import HomeSearchCard, { type HomeSearchRef } from './HomeSearchCard'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { OhpBot, UserAvatar } from './OhpBot'
@@ -113,7 +115,8 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
   }, [autoSpeak, isSending, messages, speak, conversationId])
 
   return (
-    <div ref={scrollRef} onScroll={onScroll} className="ohp-ai-thread flex-1 overflow-y-auto overscroll-contain px-3 sm:px-6 py-4 sm:py-6 space-y-5">
+    <div ref={scrollRef} onScroll={onScroll} className="ohp-ai-thread flex-1 overflow-y-auto overscroll-contain px-3 sm:px-6 py-4 sm:py-6">
+      <div className="w-full space-y-5">
       {messages.map((msg, idx) => {
         const isUser = msg.role === 'user'
         // A photo they dropped in is kept as a note in the message; here it's the picture.
@@ -129,10 +132,13 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
         // Homes to host take the chat's full width - the Discovery rows with their calendars were
         // squeezed into the reply bubble's width on a phone (owner, 11/01).
         // Every card with choices on it (a design, invite, Spotlight, form...) takes the chat's full width - on a computer the preview then sits beside the steps (owner, 11/03-11/04).
-        const wide = (msg.tool_calls || []).some((r) => r.record_type === 'hosting' || (r.record_type === 'action' && !!((r as any).picker || (r as any).client_action)))
+        const wide = (msg.tool_calls || []).some((r) => r.record_type === 'hosting' || r.record_type === 'homes' || r.record_type === 'showcase_homes' || r.record_type === 'home_search' || (r.record_type === 'action' && !!((r as any).picker || (r as any).client_action)))
         return (
           <div key={msg.id} className={`flex ${isUser ? 'ohp-ai-msg-user justify-end' : 'ohp-ai-msg-bot justify-start'}`}>
-            <div className={`flex items-start gap-2.5 ${wide ? 'w-full' : 'max-w-[85%] sm:max-w-[75%]'} ${isUser ? 'flex-row-reverse' : ''}`}>
+            {/* Where a reply or card ENDS (owner, 11/08): in the full-screen window the helper's replies and
+                cards ran all the way to the right edge, under the agent's own messages - too wide to read.
+                They start where they always did and stop at a reading width; on a phone nothing changes. */}
+            <div className={`flex items-start gap-2.5 ${wide ? 'w-full sm:max-w-[760px] sm:has-[[data-wide=yes]]:max-w-[1120px]' : 'max-w-[85%] sm:max-w-[min(75%,680px)]'} ${isUser ? 'flex-row-reverse' : ''}`}>
               {/* Their own photo (or initials); the helper is the little OpenHousePal robot (owner, 11/01) */}
               {isUser ? <UserAvatar size={32} /> : (
                 <OhpBot size={32} className={`flex-shrink-0 drop-shadow-sm ${wide ? 'hidden sm:block' : ''}`} />
@@ -153,7 +159,13 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
                 </div>
                 )}
                 {(msg.tool_calls || []).filter((r) => r.record_type === 'homes' && (r as any).homes?.length).map((r) => (
-                  <HomeCards key={r.record_id} homes={(r as any).homes} title={(r as any).title} />
+                  <div key={r.record_id} className="sm:-ml-[42px]"><HomeCards homes={(r as any).homes} title={(r as any).title} /></div>
+                ))}
+                {(msg.tool_calls || []).filter((r) => r.record_type === 'showcase_homes' && (r as any).collection?.id).map((r) => (
+                  <div key={r.record_id} className="sm:-ml-[42px]"><ShowcaseHomesCard card={r as unknown as ShowcaseCardRef} /></div>
+                ))}
+                {(msg.tool_calls || []).filter((r) => r.record_type === 'home_search').map((r) => (
+                  <div key={r.record_id} className="sm:-ml-[42px]"><HomeSearchCard card={r as unknown as HomeSearchRef} messageId={msg.id} /></div>
                 ))}
                 {(msg.tool_calls || []).filter((r) => r.record_type === 'hosting' && (r as any).listing_keys?.length).map((r) => (
                   <div key={r.record_id} className="sm:-ml-[42px]"><HostingCards listingKeys={(r as any).listing_keys} /></div>
@@ -236,7 +248,7 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
 
       {isSending && (
         <div className="ohp-ai-msg-bot flex justify-start">
-          <div className="flex items-start gap-2.5 max-w-[75%]">
+          <div className="flex items-start gap-2.5 max-w-[min(75%,680px)]">
             <OhpBot size={32} thinking className="flex-shrink-0 drop-shadow-sm" />
             <div className="rounded-2xl px-4 py-3 bg-gray-50 dark:bg-zinc-800/70 border border-gray-100 dark:border-zinc-800">
               <Thinking />
@@ -245,6 +257,7 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
         </div>
       )}
       <div ref={endRef} />
+      </div>
     </div>
   )
 }

@@ -56,7 +56,7 @@ export function KitPick({ payload, picks, onPicks }: { payload: Record<string, a
   return (
     <PickShell testid="ai-kit-pick" side={280} preview={home ? (
       /* the flyer's cover, redrawn as they pick */
-        <div className="relative mx-auto aspect-[4/3] w-full max-w-[260px] overflow-hidden rounded-xl bg-[#111827] shadow-[0_14px_30px_-16px_rgba(0,0,0,.6)] ring-1 ring-black/10" data-testid="ai-kit-preview">
+        <div className="relative mx-auto aspect-[4/3] w-full max-w-[260px] group-data-[wide=yes]/pick:max-w-[min(100%,calc(var(--pick-h,360px)*1.333))] overflow-hidden rounded-xl bg-[#111827] shadow-[0_14px_30px_-16px_rgba(0,0,0,.6)] ring-1 ring-black/10" data-testid="ai-kit-preview">
           {cover && <img key={cover} src={resolveMediaUrl(cover)} alt="" className="ohp-ai-fade absolute inset-0 h-full w-full object-cover" />}
           <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
           <span className="absolute left-2.5 top-2.5 rounded-full bg-[#C9A24D] px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-[#111827]">Open house</span>

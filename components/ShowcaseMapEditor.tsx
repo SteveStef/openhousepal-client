@@ -1,5 +1,6 @@
 'use client'
 
+import { SmartWantsInput, type SmartState } from '@/components/showcases/SmartWants'
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -21,6 +22,7 @@ import { formatNumberWithCommas, stripCommas, normalizeImageUrl } from '@/lib/ut
 import { STATE_CENTERS, US_FALLBACK_CENTER } from '@/lib/usStateCenters'
 import { homesLabel, SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
 import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
+import { useCircleTownCheck } from '@/components/showcases/CircleTownPrompt'
 
 // Restrained light-blue treatment for every geographic overlay (radius circle, drawn polygon) -
 // deliberately distinct from the brand gold ([#C9A24D]), which stays reserved for selection/accent
@@ -174,6 +176,9 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
   const [popupId, setPopupId] = useState<string | null>(null)
 
   const [formData, setFormData] = useState<FormState>(EMPTY_FORM)
+  // Smart filter (owner, 11/09): what the AI looks for in every home on top of this search
+  const savedSmart = (collection?.preferences as { ai_wants?: SmartState | string[] | null } | undefined)?.ai_wants
+  const [wants, setWants] = useState<string[]>(() => (Array.isArray(savedSmart) ? savedSmart : savedSmart?.wants || []).slice(0, 3))
   const [viewMode, setViewMode] = useState<ViewMode>('split')
   // Below the tablet breakpoint the panel/map/grid don't fit side-by-side at all, so mobile gets
   // its own 3-way tab switcher instead of viewMode's Map/Grid/Both toggle (which stays for
@@ -186,6 +191,8 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
   // "Shape 1 / Shape 2 / ..." remove-list in the left panel can actually reflect the shape count.
   const [shapeCount, setShapeCount] = useState(0)
   const [isPlacingCenter, setIsPlacingCenter] = useState(false)
+  // bumps each time a Showcase's search is loaded in - its towns then are the starting point (CircleTownPrompt)
+  const [loadNonce, setLoadNonce] = useState(0)
   const placeCenterMouseDownListenerRef = useRef<google.maps.MapsEventListener | null>(null)
   const placeCenterMouseMoveListenerRef = useRef<google.maps.MapsEventListener | null>(null)
   const placeCenterMouseUpListenerRef = useRef<google.maps.MapsEventListener | null>(null)
@@ -259,6 +266,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
       setLocationError('')
       setFocusedId(null)
       setIsPlacingCenter(false)
+      setLoadNonce(n => n + 1)
     }
   }, [isOpen, collection])
 
@@ -571,9 +579,28 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
     return () => { cancelled = true }
   }, [isOpen, create, collection?.id])
 
-  const keepReason = (h: any) => [h.liked ? 'Liked' : '', (h.comments?.length || h.unreadCommentCount) ? 'Commented' : '', h.tourCount ? 'Tour asked' : ''].filter(Boolean).join(' · ')
+  const keepReason = (h: any) => [h.agentRecommended ? 'Recommended' : '', h.liked ? 'Liked' : '', (h.comments?.length || h.unreadCommentCount) ? 'Commented' : '', h.tourCount ? 'Tour asked' : ''].filter(Boolean).join(' · ')
   const previewIds = new Set(previewProperties.map(p => String((p as any).id || p.ListingKey)))
   // Engaged homes the new search drops - they stay in the Showcase; shown first, marked.
+  // Towns / counties + a search center stack (owner, 11/09): only homes in those places AND inside the circle.
+  const radiusStacks = !!(formData.lat && formData.long && formData.diameter) && !!(formData.cities?.length || formData.townships?.length || formData.counties?.length)
+  // A town added while there's a circle (owner, 11/09): all outside -> the circle comes off (Undo);
+  // partly inside -> a pop-up: remove / grow / move the center / pick a spot on the map.
+  const circleCheck = useCircleTownCheck({
+    cities: formData.cities || [], townships: formData.townships || [],
+    circle: formData.lat != null && formData.long != null && formData.diameter ? { lat: formData.lat, long: formData.long, diameter: formData.diameter, address: formData.address } : null,
+    enabled: loadNonce > 0, resetKey: String(loadNonce), search: formData as unknown as Record<string, unknown>,
+    apply: (c) => {
+      if (!c) { clearAddress(); return }
+      setDisplayRadiusMiles(null)
+      setFormData(prev => ({ ...prev, address: c.address ?? prev.address, lat: c.lat, long: c.long, diameter: c.diameter }))
+    },
+    onPickOnMap: () => {
+      if (mobileTab !== 'map') setMobileTab('map')
+      if (viewMode === 'grid') setViewMode('split')
+      if (!isPlacingCenter) window.setTimeout(() => togglePlacingCenter(), 50)
+    },
+  })
   const keptHomes = geoMode === 'none' ? [] : currentHomes.filter(h => keepReason(h) && !previewIds.has(String(h.id || h.ListingKey)))
 
   // --- Search-area highlight: the picked towns / districts / counties drawn with their real lines ---
@@ -919,7 +946,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
     setKeepNotice(false)
     setIsSubmitting(true)
     try {
-      await onSave(collection.id, finalData)
+      await onSave(collection.id, { ...finalData, ai_wants: wants })
     } finally {
       setIsSubmitting(false)
     }
@@ -991,7 +1018,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
         <div className="relative flex items-center gap-2.5 sm:gap-3">
           <button
             type="button"
-            onClick={() => create.onBack(formData)}
+            onClick={() => create.onBack({ ...formData, ai_wants: wants })}
             title="Back to About them"
             className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#C9A24D]/30 bg-white/80 text-[#8b7355] shadow-sm transition hover:-translate-x-0.5 hover:border-[#C9A24D] dark:border-white/15 dark:bg-white/[0.06] dark:text-[#e8c97a]"
           >
@@ -1017,7 +1044,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
           <button
             onClick={handleSave}
             disabled={isSubmitting}
-            className="group relative flex shrink-0 items-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-3.5 py-2.5 text-[11px] font-black uppercase tracking-widest text-[#111827] shadow-lg shadow-[#C9A24D]/30 transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:text-xs"
+            className="group relative hidden shrink-0 items-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-3.5 py-2.5 text-[11px] font-black uppercase tracking-widest text-[#111827] shadow-lg shadow-[#C9A24D]/30 transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:text-xs md:flex"
           >
             <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
             {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
@@ -1167,6 +1194,11 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
             ),
           })}
 
+          {card({
+            i: 3, icon: <Sparkles className="h-4 w-4" />, title: 'Must-haves (AI)', hint: 'optional', set: wants.length > 0,
+            children: <SmartWantsInput wants={wants} onChange={setWants} state={!Array.isArray(savedSmart) && savedSmart?.wants?.length ? savedSmart as SmartState : null} />,
+          })}
+
           {/* Geography criteria stack: address+radius, towns/school-districts/counties, and drawn
               shapes can all be combined at once - a property matches if it falls in any of them.
               A school district narrows all of them (radius AND district, like Zillow/Redfin). */}
@@ -1192,7 +1224,27 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
                       ZIP area its homes use) - see the BoundaryCanvas above the map. */}
                 </div>
 
+                {/* 11/09 audit: towns + a county that don't overlap match nothing (a town narrows a county) */}
+                {!radiusStacks && !!(formData.cities?.length || formData.townships?.length) && !!formData.counties?.length && !isLoadingPreview && previewCount === 0 && (
+                  <p className="rounded-xl bg-rose-50 px-3 py-2 text-[11.5px] font-bold leading-snug text-rose-700 dark:bg-rose-500/10 dark:text-rose-300" data-testid="me-town-county-none">
+                    None of those towns are in that county, so nothing matches. A county with towns only keeps the towns inside it - remove the county or the towns.
+                  </p>
+                )}
+
                 <div className="flex items-center gap-3 text-[9px] font-black uppercase tracking-[0.2em] text-gray-300 dark:text-gray-600"><span className="h-px flex-1 bg-current" />and / or<span className="h-px flex-1 bg-current" /></div>
+                {circleCheck.notice}
+                {circleCheck.prompt}
+                {/* Towns / counties + a search center stack (owner, 11/09): the circle narrows the places */}
+                {radiusStacks && (
+                  <div className={`flex items-start gap-2 rounded-xl px-3 py-2 text-[11.5px] font-bold leading-snug ${!isLoadingPreview && previewCount === 0 ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300' : 'bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#e8c97a]'}`} data-testid="me-radius-stack">
+                    <span className="min-w-0 flex-1">
+                      {!isLoadingPreview && previewCount === 0
+                        ? <>None of the homes in {formData.counties?.length && !(formData.cities?.length || formData.townships?.length) ? 'that county' : 'those towns'} are inside the {formData.diameter} mi circle. Make the circle bigger, move it, or remove it.</>
+                        : <>Only homes in {formData.counties?.length && !(formData.cities?.length || formData.townships?.length) ? 'that county' : 'those towns'} that are also inside the {formData.diameter} mi circle. Remove the circle to show {formData.counties?.length && !(formData.cities?.length || formData.townships?.length) ? 'the whole county' : 'the whole town'}.</>}
+                    </span>
+                    <button type="button" onClick={clearAddress} className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10.5px] font-black text-gray-600 shadow-sm ring-1 ring-black/5 hover:text-red-600 dark:bg-white/10 dark:text-gray-200" data-testid="me-radius-remove">Remove circle</button>
+                  </div>
+                )}
 
                 <div>
                   <div className="mb-1.5 flex items-center justify-between">
@@ -1468,6 +1520,19 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
                     </motion.div>
                   )}
                 </AnimatePresence>
+                {/* Placing a new center - said on the map itself (a phone's Criteria tab, where the
+                    other hint is, is out of sight here) */}
+                <AnimatePresence>
+                  {isPlacingCenter && mapLoaded && (
+                    <motion.div key="placing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+                      className="absolute inset-x-0 bottom-4 z-20 flex justify-center px-3" data-testid="me-placing-hint">
+                      <span className="flex items-center gap-2 rounded-full bg-blue-600 py-1.5 pl-4 pr-1.5 text-xs font-bold text-white shadow-lg">
+                        <MapPin className="h-3.5 w-3.5 shrink-0" /> Press and drag out from a spot to set the new center
+                        <button type="button" onClick={togglePlacingCenter} className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-black hover:bg-white/30">Cancel</button>
+                      </span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 <AnimatePresence>
                   {geoMode === 'none' && mapLoaded && (
                     <motion.div key="hint" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="pointer-events-none absolute inset-x-0 top-3 flex justify-center px-3">
@@ -1493,7 +1558,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex h-48 flex-col items-center justify-center gap-2 text-center">
                     <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-[#C9A24D] shadow-sm dark:bg-[#151517]"><HomeIcon className="h-5 w-5" /></span>
                     <p className="text-sm font-black text-gray-600 dark:text-gray-300">No matching homes yet</p>
-                    <p className="text-xs font-semibold text-gray-400">Set or widen the search area to see results here.</p>
+                    <p className="max-w-xs text-xs font-semibold text-gray-400">{radiusStacks ? `Nothing in ${formData.counties?.length && !(formData.cities?.length || formData.townships?.length) ? 'that county' : 'those towns'} is inside the ${formData.diameter} mi circle - make it bigger, move it, or remove it.` : (formData.cities?.length || formData.townships?.length) && formData.counties?.length ? "None of those towns are in that county - a county with towns only keeps the towns inside it. Remove the county or the towns." : "Set or widen the search area to see results here."}</p>
                   </motion.div>
                 ) : (
                   <motion.div layout className={`grid grid-cols-1 gap-3 transition-opacity duration-300 ${isLoadingPreview ? 'opacity-60' : ''} ${viewMode === 'grid' ? 'xl:grid-cols-3' : 'xl:grid-cols-2'}`}>
@@ -1549,7 +1614,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
       {/* Phones, creating a new showcase: the flow bar - 3 / 3 (Client, About them, Search area),
           Back to About them and Create - the same handlers as the header buttons. */}
       {create && (
-        <FlowDock inline step={3} total={3} onBack={() => create.onBack(formData)} backDisabled={isSubmitting}
+        <FlowDock inline step={3} total={3} onBack={() => create.onBack({ ...formData, ai_wants: wants })} backDisabled={isSubmitting}
           onContinue={handleSave} busy={isSubmitting} continueLabel={isSubmitting ? 'Creating…' : 'Create'} icon={<Sparkles />}
           note={isLoadingPreview ? 'Updating…' : geoMode === 'none' ? undefined : `${countLabel} ${previewCount === 1 && !atLimit ? 'home' : 'homes'}`} />
       )}

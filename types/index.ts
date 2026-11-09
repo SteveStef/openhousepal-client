@@ -71,6 +71,8 @@ export interface Property {
   disliked?: boolean;
   /** The agent's "I recommend this home for you" (Showcase) - tagged on the card, sorted first. */
   agentRecommended?: boolean;
+  /** The smart filter found every must-have (components/showcases/SmartWants) */
+  smartMatch?: { wants?: string[]; quotes?: string[] } | null;
   /** Showcase: moved into the Sold/Removed folder (off the market and filed by the buyer or agent).
    *  Off-market homes NOT filed stay in the list with a status notice (lib/showcaseStatus). */
   soldFiled?: boolean;
@@ -702,6 +704,8 @@ export interface CollectionPreferences {
   // cities/townships/school_districts.
   search_polygon?: { type: 'Polygon' | 'MultiPolygon'; coordinates: number[][][] | number[][][][] } | null;
   special_features?: string;
+  /** Smart filter: {wants, state, matched, left} from the server; a plain list when saving */
+  ai_wants?: { wants?: string[]; state?: string; matched?: number; left?: number } | string[] | null;
   is_town_house?: boolean | null;
   is_lot_land?: boolean | null;
   is_condo?: boolean | null;

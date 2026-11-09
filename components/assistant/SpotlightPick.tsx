@@ -59,7 +59,7 @@ export function SpotlightPick({ payload, picks, onPicks }: { payload: Record<str
   return (
     <PickShell testid="ai-spotlight-pick" side={320} preview={
       /* the front page: their photo, address and price, moving as the header will */
-      <div className={`relative h-[170px] overflow-hidden rounded-xl ring-1 ring-black/10 group-data-[wide=yes]/pick:h-[300px] ${luxe ? 'bg-[#0d0d0f]' : 'bg-[#f7f3ea]'}`} data-testid="ai-spotlight-preview">
+      <div className={`relative h-[170px] overflow-hidden rounded-xl ring-1 ring-black/10 group-data-[wide=yes]/pick:h-[var(--pick-h,300px)] ${luxe ? 'bg-[#0d0d0f]' : 'bg-[#f7f3ea]'}`} data-testid="ai-spotlight-preview">
         <style dangerouslySetInnerHTML={{ __html: ZOOM_CSS }} />
         {shown && <div className={`absolute inset-x-0 top-0 overflow-hidden ${luxe ? 'bottom-0' : 'bottom-[38%]'}`}><img key={shown} src={resolveMediaUrl(shown)} alt="" className={`ohp-ai-fade h-full w-full object-cover ${zoom}`} /></div>}
         <div className={`absolute inset-0 ${luxe ? 'bg-gradient-to-t from-black/85 via-black/25 to-black/5' : 'bg-gradient-to-t from-[#f7f3ea] via-[#f7f3ea]/10 to-transparent'}`} />

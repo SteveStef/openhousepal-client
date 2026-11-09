@@ -1,5 +1,6 @@
 'use client'
 
+import { DATA_CHANGED_EVENT } from '@/lib/dataChanged'
 import { showcaseLinkPath } from '@/lib/showcaseLink'
 import OhpLoader from '@/components/brand/OhpLoader'
 
@@ -365,6 +366,12 @@ function ShowcaseContent() {
       fetchPropertiesFromCollection(selectedCollection.id)
     }
   }, [selectedCollection])
+  // A change made from the chat (a home starred or removed on its Showcase card) shows here right away.
+  useEffect(() => {
+    const on = () => { fetchCollections(); if (selectedCollection) fetchPropertiesFromCollection(selectedCollection.id) }
+    window.addEventListener(DATA_CHANGED_EVENT, on)
+    return () => window.removeEventListener(DATA_CHANGED_EVENT, on)
+  }, [selectedCollection]) // eslint-disable-line react-hooks/exhaustive-deps
   const openingShowcase = !!selectedCollection && loadedForId !== selectedCollection.id
 
   // --- API HANDLERS ---
@@ -807,7 +814,10 @@ function ShowcaseContent() {
   }
 
   const handleSavePreferences = async (collectionId: string, preferences: any) => {
-    const { success, error } = await api.collections.updatePreferencesAndRefresh(collectionId, preferences)
+    const { ai_wants: wants, ...search } = preferences || {}
+    const { success, error } = await api.collections.updatePreferencesAndRefresh(collectionId, search)
+    // The smart filter saves on its own (agent only - it reads with the agent's chat usage)
+    if (success && Array.isArray(wants)) await api.collections.saveSmartFilter(collectionId, wants)
     if (success) {
       showToast('Preferences updated and properties refreshed!', 'success')
       setIsEditPreferencesModalOpen(false)
@@ -853,6 +863,8 @@ function ShowcaseContent() {
         long: prefs.long ?? null,
         diameter: prefs.diameter ? parseFloat(Number(prefs.diameter).toFixed(1)) : 0,
         special_features: prefs.special_features || '',
+        // Smart filter: what the AI looks for in every home (components/showcases/SmartWants)
+        ai_wants: Array.isArray(prefs.ai_wants) ? prefs.ai_wants : [],
         compare_property_listing_key: prefs.compare_property_listing_key ?? null,
         show_match_score: prefs.show_match_score !== false,
 
@@ -1090,6 +1102,7 @@ function ShowcaseContent() {
           setSortOrder={setSortOrder}
           onBack={() => router.push('/showcases', { scroll: false })}
           onEditShowcase={() => { setSelectedCollectionForEdit(selectedCollection); setIsEditPreferencesModalOpen(true); }}
+          onSmartDone={() => { fetchPropertiesFromCollection(selectedCollection.id); fetchCollections() }}
           onShare={() => { setSelectedCollectionForShare(selectedCollection); setIsShareModalOpen(true); }}
           onQuickSave={async (prefs) => {
             const before = new Set(matchedProperties.map(p => String(p.id)))

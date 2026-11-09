@@ -1149,6 +1149,11 @@ class ApiService {
         method: 'POST',
       }),
 
+    /** The smart filter (owner, 11/09): up to 3 must-haves the AI looks for in every home - agent only. */
+    saveSmartFilter: (collectionId: string, wants: string[]) =>
+      this.request<{ success: boolean; smart_filter: import('@/components/showcases/SmartWants').SmartState }>(`/collections/${collectionId}/smart-filter`, { method: 'PUT', body: JSON.stringify({ wants }) }),
+    smartFilter: (collectionId: string) =>
+      this.request<{ smart_filter: import('@/components/showcases/SmartWants').SmartState }>(`/collections/${collectionId}/smart-filter`),
     updatePreferencesAndRefresh: (collectionId: string, preferences: any) =>
       this.request<{ preferences: any, properties_count: number }>(`/collections/${collectionId}/update-preferences-and-refresh`, {
         method: 'PUT',
@@ -1162,6 +1167,13 @@ class ApiService {
       this.request<{ properties: any[], count: number, at_limit?: boolean }>(`/collections/preview-matches`, {
         method: 'POST',
         body: JSON.stringify(preferences),
+      }),
+
+    /** How much of each added town a Showcase's search circle covers (owner, 11/09) - see CircleTownPrompt. */
+    circleCoverage: (body: { places: { name: string; kind?: 'city' | 'township' }[]; lat: number; long: number; diameter: number; preferences?: Record<string, unknown> }) =>
+      this.request<{ places: import('@/components/showcases/CircleTownPrompt').CircleCoverage[] }>(`/collections/circle-coverage`, {
+        method: 'POST',
+        body: JSON.stringify(body),
       }),
   };
 
@@ -2152,6 +2164,19 @@ class ApiService {
     markRead: (conversationId: string) => this.request<{ conversations: string[] }>(`/ai/unread/${conversationId}/read`, { method: 'POST' }),
 
     // picks: choices tapped on the card (a picker, e.g. Branding swatches) - folded in on the server.
+    /** The chat's Showcase card, as the Showcase is now (11/08). */
+    showcaseCard: (collectionId: string) =>
+      this.request<{ collection: Record<string, any>; homes: Record<string, any>[] }>(`/ai/showcase-card/${encodeURIComponent(collectionId)}`),
+
+    /** The chat's Home search card (11/08): place suggestions + the live count are free (no AI); run has the AI read the listings. */
+    homeSearchPlaces: (q: string) =>
+      this.request<{ places: { kind: 'town' | 'district'; value: string; label: string; count: number }[] }>(`/ai/home-search/places?q=${encodeURIComponent(q)}`),
+    homeSearchCount: (filters: Record<string, unknown>) =>
+      this.request<{ count: number; cap: number; missing: string[]; usage_percent: number; left_percent: number | null; enough: boolean; ready: boolean }>(
+        '/ai/home-search/count', { method: 'POST', body: JSON.stringify(filters) }),
+    homeSearchRun: (messageId: string, searchId: string, filters: Record<string, unknown>) =>
+      this.request<Record<string, any>>(`/ai/home-search/${encodeURIComponent(messageId)}/${encodeURIComponent(searchId)}/run`, { method: 'POST', body: JSON.stringify(filters) }),
+
     confirmAction: (actionId: string, messageId: string, picks?: Record<string, unknown>) =>
       this.request<{ status: string; result_message?: string; result_link?: string }>(`/ai/actions/${actionId}/confirm`, { method: 'POST', body: JSON.stringify({ message_id: messageId, ...(picks ? { picks } : {}) }) }),
 

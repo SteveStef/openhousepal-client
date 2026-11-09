@@ -1,5 +1,6 @@
 'use client'
 
+import { announceChange } from '@/lib/dataChanged'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createPortal } from 'react-dom'
@@ -286,7 +287,7 @@ export default function TasksPanel({
         onOpenLead={() => setOpenLeadId(t.lead_id!)}
         onToggleDone={via => {
           setJustDone(prev => { const next = new Set(prev); if (done) next.delete(t.id); else next.add(t.id); return next })
-          if (done) api.tasks.reopen(t.id).then(load).then(() => changedRef.current?.()); else patch(t.id, { completed: true, ...(via ? { completed_via: via } : {}) })
+          if (done) api.tasks.reopen(t.id).then(load).then(() => { changedRef.current?.(); announceChange() }); else patch(t.id, { completed: true, ...(via ? { completed_via: via } : {}) })
         }}
         onSnooze={days => snooze(t, days)}
         onPickDay={ymd => pickDay(t, ymd)}
@@ -361,7 +362,7 @@ export default function TasksPanel({
                       Checked off {who}{hidden.length > 1 ? ` + ${hidden.length - 1} more` : ''}
                     </span>
                     <button type="button" disabled={busyId === last.id}
-                      onClick={() => { setJustDone(prev => { const next = new Set(prev); next.delete(last.id); return next }); api.tasks.reopen(last.id).then(load) }}
+                      onClick={() => { setJustDone(prev => { const next = new Set(prev); next.delete(last.id); return next }); api.tasks.reopen(last.id).then(load).then(() => { changedRef.current?.(); announceChange() }) }}
                       className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 dark:text-emerald-300 dark:hover:bg-emerald-500/15">
                       Undo
                     </button>

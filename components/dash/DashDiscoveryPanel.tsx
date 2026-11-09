@@ -207,7 +207,8 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
             const notYet = hostingNote(window)
             const hostingDate = hostingMine ? ('scheduled_date' in hostingMine ? hostingMine.scheduled_date : (hostingMine as HostRequest).requested_date) : null
             const go = () => setViewing(listing.ListingKey)
-            const folded = inChat && openKey !== listing.ListingKey
+            // a wide chat (the computer) always shows the 4 weekend cards beside the address - no fold (owner, 11/09)
+            const folded = inChat && !wideChat && openKey !== listing.ListingKey
             const calendar = (
               <WeekendCalendarCards
                 opens={opens}
@@ -234,9 +235,9 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
               >
                 {hostingMine && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-emerald-300 to-emerald-500" />}
                 <div className={wideChat && !folded ? 'flex min-w-0 items-center gap-3' : undefined}>
-                <button type="button" onClick={inChat ? () => setOpenKey(k => (k === listing.ListingKey ? null : listing.ListingKey)) : go}
-                  aria-expanded={inChat ? !folded : undefined} data-testid={inChat ? 'ai-host-home' : undefined}
-                  className={`flex min-w-0 items-center gap-3 text-left ${wideChat && !folded ? 'w-[42%] shrink-0' : 'w-full'}`}>
+                <button type="button" onClick={inChat && !wideChat ? () => setOpenKey(k => (k === listing.ListingKey ? null : listing.ListingKey)) : go}
+                  aria-expanded={inChat && !wideChat ? !folded : undefined} data-testid={inChat ? 'ai-host-home' : undefined}
+                  className={`flex min-w-0 items-center gap-3 text-left ${wideChat && !folded ? 'w-[38%] shrink-0' : 'w-full'}`}>
                   <ListingCover
                     src={listing.Image}
                     price={listing.Price || null}
@@ -263,7 +264,7 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
                         : <Pill tone="muted">Fully hosted</Pill>}
                     </div>
                   </div>
-                  {inChat && <ChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${folded ? '' : 'rotate-180'}`} />}
+                  {inChat && !wideChat && <ChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${folded ? '' : 'rotate-180'}`} />}
                 </button>
                 {wideChat && !folded && <div className="min-w-0 flex-1">{calendar}</div>}
                 </div>
