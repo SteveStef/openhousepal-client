@@ -16,7 +16,7 @@ import Link from 'next/link'
 import {
   AlertTriangle, ArrowUpRight, CalendarCheck, CalendarDays, Compass, CalendarClock, Check, CheckSquare, Clock, Copy, Hash, Home,
   Loader2, Mail, MessageCircle, MessageSquare, MoreHorizontal, Pencil, Phone, QrCode, Ticket, Trash2,
-  Undo2,
+  Sparkles, Undo2,
 } from 'lucide-react'
 import type { AgentTask, PropertyTour, TaskKind } from '@/types'
 import api from '@/lib/api-service'
@@ -217,8 +217,39 @@ function StepHead({ n, action, role, name, sub }: { n: number; action: string; r
   )
 }
 
-export default function FollowupCard({ t, compact, busy, clickable, onToggleDone, onOpenLead, onSnooze, onPickDay, onDelete }: {
+/** "Write a better message" on a hand-added follow-up (owner, 11/09): the AI writes what you'd send this lead
+ *  from their open house, your notes and their Showcase, and it's saved onto this follow-up. */
+function WriteBetter({ t, first, onWritten }: { t: AgentTask; first: string; onWritten?: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const go = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setBusy(true); setErr('')
+    const res = await api.tasks.write({ lead_id: t.lead_id!, task_id: t.id })
+    setBusy(false)
+    if (!res.success) { setErr(res.error || "Couldn't write it just now - try again."); return }
+    onWritten?.()
+  }
+  return (
+    <div className="mt-2.5 rounded-xl border border-dashed border-[#C9A24D]/50 bg-[#fffaf0] px-3 py-2.5 dark:bg-[#C9A24D]/[0.06]" data-testid="write-better">
+      <p className="text-[11.5px] font-semibold leading-snug text-[#6b5a3e] dark:text-[#e8d5a8]">
+        This is a short default check-in. Want the text you&apos;d actually send {first} - from their open house, your notes and their Showcase?
+      </p>
+      <button type="button" onClick={go} disabled={busy} data-testid="write-better-go"
+        className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#111827] px-3.5 py-2 text-[11.5px] font-black text-white transition hover:-translate-y-px disabled:opacity-60 dark:bg-[#C9A24D] dark:text-[#111827]">
+        {busy ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Sparkles className="h-3.5 w-3.5" />}
+        {busy ? `Writing it for ${first}…` : 'Write a better message'}
+      </button>
+      <span className="ml-2 text-[10.5px] font-semibold text-gray-400">under 0.1% of chat usage</span>
+      {err && <p className="mt-1.5 text-[11px] font-bold text-rose-600 dark:text-rose-400">{err}</p>}
+    </div>
+  )
+}
+
+export default function FollowupCard({ t, compact, busy, clickable, onToggleDone, onOpenLead, onSnooze, onPickDay, onDelete, onRewritten }: {
   t: AgentTask
+  /** The message was rewritten (Write a better message) - reload the list. */
+  onRewritten?: () => void
   compact?: boolean
   busy?: boolean
   clickable?: boolean
@@ -602,6 +633,10 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
                       : src === 'showcase_search_request' ? <span>Update {first}&apos;s Showcase search, then let them know.</span>
                       : <span>Reply to {first}&apos;s comment in your own words.</span>}
                   </p>
+                )}
+                {/* A follow-up added by hand with only the short default check-in (owner, 11/09): write a real one. */}
+                {!compact && !done && !t.auto_source && t.has_message === false && t.lead_id && (t.kind === 'text' || t.kind === 'email' || t.kind === 'call') && (
+                  <WriteBetter t={t} first={first} onWritten={onRewritten} />
                 )}
               </div>
             </div>

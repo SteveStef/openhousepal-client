@@ -20,6 +20,7 @@ import api from '@/lib/api-service'
 import { Lead, LeadOpenHouse, LeadOriginGroup, LeadStatus, LeadTodo } from '@/types'
 import { useToast } from '@/contexts/ToastContext'
 import LeadDetailModal from '@/components/leads/LeadDetailModal'
+import CheckinsStrip from '@/components/leads/CheckinsStrip'
 import { normalizedStatus, STATUS_LABEL, STATUS_PILL } from '@/components/leads/LeadDetailPanel'
 import LuxeHero, { LuxeTabs } from '@/components/ui/LuxeHero'
 import { CrmChip } from '@/components/tasks/TasksPanel'
@@ -471,6 +472,9 @@ function LeadsPageInner() {
 
         {/* What "Warmest first" means - shown with that sort, foldable, remembered. */}
         {sort === 'warmth' && <WarmthExplainer />}
+
+        {/* Leads with nothing suggested and no word from you in two weeks: a check-in, written on the tap (owner, 11/09). */}
+        {(activeView === 'no_agent' || activeView === 'needs' || activeView === 'all') && <CheckinsStrip onAdded={refresh} />}
 
         {/* ── the list */}
         <div ref={listTopRef} className="mt-4 scroll-mt-24 space-y-2.5">

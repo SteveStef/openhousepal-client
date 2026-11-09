@@ -28,7 +28,9 @@ import { useLastValue } from '@/components/ui/windowMotion'
 import type { Collection, Property, Site, SiteDomain } from '@/types'
 
 type Row = { id: string; key: string; street: string; city?: string; state?: string; price?: number | null; beds?: number | null; baths?: number | null;
-  sqft?: number | null; photo?: string | null; status?: string | null; tags?: string[]; recommended?: boolean }
+  sqft?: number | null; photo?: string | null; status?: string | null; tags?: string[]; recommended?: boolean
+  /** The Showcase's must-haves line for this home (backend ai_showcase_cards) - Send's "Mention the must-haves". */
+  smart?: Property['smartMatch'] }
 type Info = { id: string; name: string; client?: string; first?: string; last?: string; email?: string | null; phone?: string | null;
   share_token?: string | null; short_code?: string | null; is_public?: boolean; status?: string }
 export type ShowcaseCardRef = { record_id: string; collection: Info; homes: Row[]; matched?: Record<string, string[]>; looked_for?: string[]; searched?: boolean
@@ -64,7 +66,7 @@ function loadSite() {
 }
 
 const toProperty = (r: Row) => ({ id: r.id, ListingKey: r.key, FullStreetAddress: r.street, City: r.city, StateOrProvince: r.state, ListPrice: r.price,
-  BedroomsTotal: r.beds, BathroomsTotal: r.baths, LivingArea: r.sqft, ListPictureURL: r.photo, MlsStatus: r.status ? 'Closed' : 'Active' } as unknown as Property)
+  BedroomsTotal: r.beds, BathroomsTotal: r.baths, LivingArea: r.sqft, ListPictureURL: r.photo, MlsStatus: r.status ? 'Closed' : 'Active', smartMatch: r.smart || null } as unknown as Property)
 const toCollection = (c: Info) => ({ id: c.id, shareToken: c.share_token, shortCode: c.short_code, isPublic: c.is_public, status: c.status,
   customer: { firstName: c.first || c.client || '', lastName: c.last || '', email: c.email || '', phone: c.phone || '' } } as unknown as Collection)
 

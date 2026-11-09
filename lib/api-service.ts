@@ -17,7 +17,7 @@ import { ApiResponse, User, OpenHouse, OpenHouseFormRequest, SearchPreferences, 
   AIRealtimeSessionOut, AIRealtimeToolCallResult, AgentMarketArea, CollectionPreferences,
   SupportTicketDetail, SupportTicketListItem, AdminSupportTicketListItem, SupportTicketCategory, SupportTicketDetails, SavedManualProperty, PublicQuestion,
   StudioMediaAsset, StudioMediaGeneratePayload, StudioVideoTestGridPayload, StudioVideoTestGridResponse, MonthlyAiUsage, ChatUsage,
-  AgentTask, TaskCounts, TaskCreateInput, TaskUpdateInput, CalendarFeedInfo, AutoFollowupRule, FollowupSettings, FollowupAlerts, PublicFollowup, PublicFollowupText,
+  AgentTask, CheckinItem, WrittenMessage, TaskCounts, TaskCreateInput, TaskUpdateInput, CalendarFeedInfo, AutoFollowupRule, FollowupSettings, FollowupAlerts, PublicFollowup, PublicFollowupText,
   IntegrationsInfo, CrmTestResult,
   TitleCardOptions, BrandingOptions, BlogAiContext, BlogAiBrief, BlogAiGenerateResult, BlogAiRefineAction, LinkDomainState } from '@/types';
 import { getToken, removeToken } from './token';
@@ -2739,6 +2739,12 @@ class ApiService {
       return this.request<AgentTask[]>(`/tasks${q ? `?${q}` : ''}`);
     },
     counts: () => this.request<TaskCounts>('/tasks/counts'),
+    // Write it for me (owner, 11/09) - backend services/followup_writer.py
+    checkins: (leadId?: string) =>
+      this.request<{ items: CheckinItem[]; estimate: { usage_percent: number; left_percent: number | null; enough: boolean } }>(
+        `/tasks/checkins${leadId ? `?lead_id=${encodeURIComponent(leadId)}` : ''}`),
+    write: (body: { lead_id: string; goal?: string; task_id?: string }) =>
+      this.request<WrittenMessage>('/tasks/write', { method: 'POST', body: JSON.stringify(body) }),
     create: (data: TaskCreateInput) =>
       this.request<AgentTask>('/tasks', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: TaskUpdateInput) =>

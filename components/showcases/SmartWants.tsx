@@ -9,7 +9,7 @@ import api from '@/lib/api-service'
 import { Plus, Sparkles, X } from 'lucide-react'
 
 export type SmartState = { wants?: string[]; state?: 'reading' | 'done' | 'no_room' | 'error' | 'off' | 'too_many'; matched?: number; left?: number; read?: number; at?: string; cap?: number; used_percent?: number | null; used_total_percent?: number | null }
-export type SmartMatch = { wants?: string[]; quotes?: string[]; marks?: { want: string; words: string }[] } | null | undefined
+export type SmartMatch = { wants?: string[]; quotes?: string[]; marks?: { want: string; words: string }[]; say?: string } | null | undefined
 
 export const MAX_WANTS = 3
 /** The most homes the AI reads at once - the chat's own Home search ceiling (backend ai_home_reader.READ_CAP). */
@@ -124,10 +124,11 @@ export function SmartStatus({ state, className = '' }: { state: SmartState; clas
 export function SmartMatchLine({ match, className = '' }: { match: SmartMatch; className?: string }) {
   if (!match?.wants?.length) return null
   return (
-    <p className={`flex min-w-0 items-center gap-1 text-[11px] font-bold leading-snug text-[#8b7355] dark:text-[#e8c97a] ${className}`} data-testid="smart-match-line"
+    <p className={`flex min-w-0 items-start gap-1 text-[11px] font-bold leading-snug text-[#8b7355] dark:text-[#e8c97a] ${className}`} data-testid="smart-match-line"
       title={(match.quotes || []).map(q => q.replace(/[⟦⟧]/g, '')).join(' · ') || undefined}>
-      <Sparkles className="h-3 w-3 shrink-0" />
-      <span className="min-w-0 truncate">This appears to have {match.wants.map(w => w.charAt(0).toLowerCase() + w.slice(1)).join(', ')}</span>
+      <Sparkles className="mt-px h-3 w-3 shrink-0" />
+      {/* say = the tidied words ("be on a cul-de-sac and have a pool"); without them, a plain list that reads right whatever was typed */}
+      <span className="min-w-0 line-clamp-2">{match.say ? `This appears to ${match.say}` : `Has what you asked for: ${match.wants.map(w => w.charAt(0).toLowerCase() + w.slice(1)).join(', ')}`}</span>
     </p>
   )
 }

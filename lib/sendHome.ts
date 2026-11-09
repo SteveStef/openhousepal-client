@@ -88,6 +88,25 @@ function homeLine(p: Property): string {
 
 /** A text: the message (when ticked), then each link on its own line - each one previews as its
  *  own home card. */
+/** "Mention the must-haves" (owner, 11/09): one line about the homes being sent that have every must-have
+ *  on the Showcase - "This one is on a cul-de-sac." / "All 3 are ..." / "2 of them are ...: 12 Oak St and
+ *  22 Birch Ln." Uses the tidied words (smartMatch.one / many); without them, a form that reads right with
+ *  any must-have ("has what you asked for: cul-de-sac"). null when none of these homes has them. */
+export function mustHavesLine(homes: Property[]): string | null {
+  const hits = homes.filter(h => h.smartMatch?.wants?.length)
+  if (!hits.length) return null
+  const m = hits[0].smartMatch!
+  const what = (m.wants || []).map(w => w.charAt(0).toLowerCase() + w.slice(1))
+  const list = (xs: string[]) => (xs.length < 2 ? xs[0] || '' : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
+  const asked = list(what)
+  if (homes.length === 1) return m.one ? `This one ${m.one}.` : `This one has what you asked for: ${asked}.`
+  // "these" - right after "You have 20+ homes in your Showcase." a bare "2 of them" would read as 2 of the 20
+  if (hits.length === homes.length) return m.many ? `All ${homes.length} of these homes ${m.many}.` : `All ${homes.length} of these homes have what you asked for: ${asked}.`
+  const names = list(hits.map(homeStreet))
+  if (hits.length === 1) return m.one ? `${names} ${m.one}.` : `${names} has what you asked for: ${asked}.`
+  return m.many ? `${hits.length} of these ${homes.length} homes ${m.many}: ${names}.` : `${hits.length} of these ${homes.length} homes have what you asked for (${asked}): ${names}.`
+}
+
 export function sendTextBody(message: string | null, links: string[]): string {
   return [message?.trim(), ...links].filter(Boolean).join('\n\n')
 }

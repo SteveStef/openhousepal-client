@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, CheckCircle2, Copy, Link2, Mail, MessageSquareText, RotateCcw, Send } from 'lucide-react'
+import { Check, CheckCircle2, Copy, Link2, Mail, MessageSquareText, RotateCcw, Send, Sparkles } from 'lucide-react'
 import OhSheet from '@/components/open-house-manager/OhSheet'
 import api from '@/lib/api-service'
 import { copyText } from '@/lib/copyText'
@@ -11,7 +11,7 @@ import { normalizeImageUrl } from '@/lib/utils'
 import { useToast } from '@/contexts/ToastContext'
 import type { Collection, Property } from '@/types'
 import {
-  DEFAULT_SEND_MESSAGE, SEND_APP_LABEL, withShowcaseCount, fillSendMessage, fitSendEmail, homeStreet, openSendEmail,
+  DEFAULT_SEND_MESSAGE, SEND_APP_LABEL, withShowcaseCount, fillSendMessage, fitSendEmail, homeStreet, mustHavesLine, openSendEmail,
   sendEmailSubject, sendHomeKey, sendHomeLink, sendLine, sendsByHome, sendTextBody, sendTextHref, sendTextLabel, toSendTemplate, type HomeSend, type SendMailApp, type SendMethod,
 } from '@/lib/sendHome'
 
@@ -59,6 +59,7 @@ export default function SendHomesSheet({ open, onClose, homes, collection, showc
   const [state, setState] = useState<SendState | null>(null)
   const [method, setMethod] = useState<SendMethod | null>(null)
   const [withMsg, setWithMsg] = useState(true)
+  const [withMust, setWithMust] = useState(true)
   const [text, setText] = useState('')
   const [app, setApp] = useState<SendMailApp | null>(null)
   const [pickingApp, setPickingApp] = useState(false)
@@ -70,7 +71,7 @@ export default function SendHomesSheet({ open, onClose, homes, collection, showc
   // Fresh each time it opens: the saved message / app may have changed on another device.
   useEffect(() => {
     if (!open) return
-    setMethod(null); setPickingApp(false); setSaving('idle'); setCopied(false); setState(null)
+    setMethod(null); setPickingApp(false); setSaving('idle'); setCopied(false); setState(null); setWithMust(true)
     setPhoneDevice(isPhoneDevice())
     let live = true
     api.collections.sendHomeState(collection.id).then(({ success, data }) => {
@@ -105,10 +106,14 @@ export default function SendHomesSheet({ open, onClose, homes, collection, showc
   }, [text, withMsg, method])
 
   const links = useMemo(() => (showcaseUrl ? homes.map(p => sendHomeLink(showcaseUrl, p)) : []), [homes, showcaseUrl])
+  // "Mention the must-haves" - only when a home being sent has every must-have on the Showcase (owner, 11/09)
+  const mustLine = useMemo(() => mustHavesLine(homes), [homes])
+  const mention = !!mustLine && withMust
   // the agent's words + the live "You have 12 homes in your Showcase." (never saved with them)
-  const message = withMsg && text.trim() ? withShowcaseCount(text, homeCount) : null
+  const base = withMsg && text.trim() ? withShowcaseCount(text, homeCount) : null
+  const message = mention ? [base, mustLine].filter(Boolean).join(' ') : base
   // the words above the link: the agent's message, or the home's street when that's off
-  const textWords = message || sendTextLabel(homes)
+  const textWords = base ? message! : mention ? `${sendTextLabel(homes)}. ${mustLine}` : sendTextLabel(homes)
   const textBody = sendTextBody(textWords, links)
   const mail = method === 'email' && app ? fitSendEmail(app, email, message, homes, links) : null
 
@@ -136,7 +141,7 @@ export default function SendHomesSheet({ open, onClose, homes, collection, showc
   const ids = homes.map(p => String(p.id))
   // Log it (the homes show "Sent" on the Showcase) - the server's answer is the whole log.
   const logSent = (m: SendMethod, sentIds: string[], copiedIt = false) =>
-    api.collections.markHomeSent(collection.id, m, !!message, sentIds, copiedIt).then(({ data }) => {
+    api.collections.markHomeSent(collection.id, m, !!base, sentIds, copiedIt).then(({ data }) => {
       if (!data) return
       setState(s => (s ? { ...s, intro_texted_at: data.intro_texted_at ?? s.intro_texted_at, sends: data.sends ?? s.sends } : s))
       if (data.sends) onSendsChange?.(data.sends)
@@ -377,6 +382,21 @@ export default function SendHomesSheet({ open, onClose, homes, collection, showc
                     )}
                   </AnimatePresence>
                 </div>
+                {/* f. A home being sent has every must-have on this Showcase: say so (owner, 11/09). */}
+                {mustLine && (
+                  <button type="button" onClick={() => setWithMust(v => !v)} role="checkbox" aria-checked={withMust} data-send-must
+                    className={`mt-2 flex w-full items-center gap-3 rounded-2xl border bg-white px-3.5 py-3 text-left transition-colors dark:bg-[#141416] ${withMust ? 'border-[#C9A24D]/45' : 'border-gray-100 dark:border-white/[0.07]'}`}>
+                    <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg border-2 transition-colors ${withMust ? 'border-[#C9A24D] bg-[#C9A24D] text-[#16130e]' : 'border-gray-300 bg-white dark:border-white/20 dark:bg-transparent'}`}>
+                      <AnimatePresence>{withMust && <motion.span initial={{ scale: 0.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.3, opacity: 0 }} transition={{ type: 'spring', stiffness: 700, damping: 20 }}><Check className="h-4 w-4" strokeWidth={3} /></motion.span>}</AnimatePresence>
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-black text-[#111827] dark:text-white">Mention the must-haves?</span>
+                      <span className="mt-0.5 flex items-start gap-1 text-[11.5px] font-semibold leading-snug text-[#8b7355] dark:text-[#e8c97a]" data-send-must-line>
+                        <Sparkles className="mt-0.5 h-3 w-3 shrink-0" /> &ldquo;{mustLine}&rdquo;
+                      </span>
+                    </span>
+                  </button>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

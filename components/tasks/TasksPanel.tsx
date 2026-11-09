@@ -11,10 +11,11 @@ import {
 } from 'lucide-react'
 import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
-import type { AgentTask, LeadEvent, TaskBucket, TaskKind } from '@/types'
+import type { AgentTask, CheckinItem, LeadEvent, TaskBucket, TaskKind } from '@/types'
 import LeadDetailModal from '@/components/leads/LeadDetailModal'
 import OhpLoader from '@/components/brand/OhpLoader'
 import FollowupCard from './FollowupCard'
+import CheckinCard, { messageToSave, usagePct, type WriteEstimate } from './CheckinCard'
 import { AnimatePresence, motion } from 'framer-motion'
 import { WhenSheet, addDays, nextWeekday, whenText, ymd } from '@/components/ui/WhenPicker'
 import { backdropMotion, useEscapeToClose, useIsPhone, usePagePin, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
@@ -292,6 +293,7 @@ export default function TasksPanel({
         onSnooze={days => snooze(t, days)}
         onPickDay={ymd => pickDay(t, ymd)}
         onDelete={() => remove(t.id)}
+        onRewritten={() => { load(); changedRef.current?.() }}
       />
       </div>
     )
@@ -309,10 +311,13 @@ export default function TasksPanel({
 
   return (
     <div className={className}>
-      {!compact && leadId && events && !loading && (
-        <SuggestedFollowups leadId={leadId} onAdded={() => { load(); changedRef.current?.() }}
-          items={suggestFollowups(events, leadName, tasks.filter(t => !t.completed_at).map(t => t.title), likesCoveredUntil(tasks), tasks, (user?.first_name || '').trim())} />
-      )}
+      {!compact && leadId && events && !loading && (() => {
+        const items = suggestFollowups(events, leadName, tasks.filter(t => !t.completed_at).map(t => t.title), likesCoveredUntil(tasks), tasks, (user?.first_name || '').trim())
+        return items.length
+          ? <SuggestedFollowups leadId={leadId} onAdded={() => { load(); changedRef.current?.() }} items={items} />
+          // Nothing they did this week and nothing open: a check-in may be waiting (owner, 11/09).
+          : openCount === 0 ? <CheckinSlot leadId={leadId} onAdded={() => { load(); changedRef.current?.() }} /> : null
+      })()}
       {!compact && (composerOpen === undefined
         ? <QuickAdd leadId={leadId} leadName={leadName} onAdded={() => { load(); changedRef.current?.() }} />
         : composerOpen && <QuickAdd leadId={leadId} leadName={leadName} onAdded={() => { load(); changedRef.current?.() }} startOpen onClose={onComposerClose} />)}
@@ -481,6 +486,20 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
   const [time, setTime] = useState('')      // HH:MM, empty = any time that day (all-day event)
   const [saving, setSaving] = useState(false)
   const [whenOpen, setWhenOpen] = useState(false)
+  // The message (owner, 11/09): typed, or "Write it for me" - the AI writes what you'd send this lead.
+  const [msg, setMsg] = useState('')
+  const [written, setWritten] = useState<import('@/types').WrittenMessage | null>(null)
+  const [writing, setWriting] = useState(false)
+  const [writeErr, setWriteErr] = useState('')
+  const writeIt = async () => {
+    if (!leadId) return
+    setWriting(true); setWriteErr('')
+    const res = await api.tasks.write({ lead_id: leadId, goal: title.trim() || undefined })
+    setWriting(false)
+    if (!res.success || !res.data) { setWriteErr(res.error || "Couldn't write it just now - try again."); return }
+    setWritten(res.data); setMsg(res.data.text)
+    if (!title.trim()) setTitle(res.data.title)
+  }
   // Phones: "Add a follow-up" opens a slide-up window with everything in it right away (owner,
   // 10/26 - it used to open in the page, and the slide-up only came with "Add a time").
   const phone = useIsPhone()
@@ -515,13 +534,17 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
       due = at(day, 12, 0).toISOString()
       remind = new Date(Math.max(at(day, 9, 0).getTime(), Date.now())).toISOString()
     }
+    const withMsg = !!leadId && (kind === 'text' || kind === 'email') && !!msg.trim()
     const res = await api.tasks.create({
       title: title.trim(), kind, priority, due_at: due, remind_at: remind, all_day: allDay,
       lead_id: leadId ?? null,
+      // signed with the agent's name like every follow-up message; an untouched AI one keeps its time slots
+      ...(withMsg ? { suggested_message: written ? messageToSave(written, msg) : msg.trim(), signed: true } : {}),
     })
     setSaving(false)
     if (res.success) {
       setTitle(''); setKind('call'); setPriority('normal'); setDateMode('tomorrow'); setCustom(''); setTime('')
+      setMsg(''); setWritten(null); setWriteErr('')
       setOpen(false)
       onAdded()
     }
@@ -567,6 +590,27 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
           <AlertTriangle className="h-3 w-3" /> High
         </button>
       </div>
+      {leadId && (kind === 'text' || kind === 'email') && (
+        <div className="mt-3" data-testid="composer-message">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Message</p>
+            <button type="button" onClick={writeIt} disabled={writing} data-testid="composer-write"
+              className="inline-flex items-center gap-1.5 rounded-full bg-[#C9A24D]/15 px-3 py-1.5 text-[11.5px] font-black text-[#8b7355] transition hover:bg-[#C9A24D]/25 disabled:opacity-60 dark:text-[#e8c97a]">
+              {writing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              {writing ? 'Writing…' : written ? 'Rewrite' : 'Write it for me'}
+            </button>
+          </div>
+          <textarea value={msg} onChange={e => setMsg(e.target.value)} rows={msg ? 5 : 2} maxLength={700} data-testid="composer-text"
+            placeholder={`Optional - tap Write it for me and it's written from ${leadName ? leadName.split(' ')[0] + "'s" : 'their'} open house, your notes and their Showcase. Empty = a short check-in.`}
+            className={`w-full resize-y rounded-lg border border-gray-200 bg-white px-3 py-2 font-medium leading-snug outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white ${phone ? 'text-base' : 'text-[13.5px]'}`} />
+          <p className="mt-1 text-[11px] font-semibold leading-snug text-gray-400" data-testid="composer-note">
+            {written
+              ? `Signed with your name${written.link ? ' · their Showcase link goes last' : ''}${msg.trim() === written.text.trim() ? ' · time words stay right if it goes out later' : ' · edited by you'}${written.used_percent != null ? ` · used ${usagePct(written.used_percent)} of chat usage` : ''}`
+              : 'Write it for me uses a little of your chat usage (under 0.1% a message).'}
+          </p>
+          {writeErr && <p className="mt-1 text-[11.5px] font-bold text-rose-600 dark:text-rose-400">{writeErr}</p>}
+        </div>
+      )}
       {/* When (user, 10/22): quick picks first, then the step-by-step picker for any other day
           and the time - same saved values as the old date / time boxes. */}
       <p className="mb-1.5 mt-3 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">When</p>
@@ -888,6 +932,20 @@ export function suggestFollowups(events: LeadEvent[], name: string | null | unde
     if (out.length === 2) break
   }
   return out
+}
+
+/** A lead's own page: their waiting check-in, when the server says there is one (followup_writer.checkins). */
+function CheckinSlot({ leadId, onAdded }: { leadId: string; onAdded: () => void }) {
+  const [data, setData] = useState<{ item: CheckinItem; estimate: WriteEstimate } | null>(null)
+  useEffect(() => {
+    let live = true
+    api.tasks.checkins(leadId).then(res => {
+      if (live && res.success && res.data?.items?.[0]) setData({ item: res.data.items[0], estimate: res.data.estimate })
+    })
+    return () => { live = false }
+  }, [leadId])
+  if (!data) return null
+  return <CheckinCard item={data.item} estimate={data.estimate} onAdded={onAdded} />
 }
 
 function SuggestedFollowups({ leadId, items, onAdded }: { leadId: string; items: Suggestion[]; onAdded: () => void }) {

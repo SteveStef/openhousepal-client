@@ -74,7 +74,7 @@ export interface Property {
   /** Starred by the must-haves reader, not by the agent's hand - it doesn't keep the home when the search changes. */
   aiStarred?: boolean;
   /** The smart filter found every must-have (components/showcases/SmartWants) */
-  smartMatch?: { wants?: string[]; quotes?: string[]; marks?: { want: string; words: string }[] } | null;
+  smartMatch?: { wants?: string[]; quotes?: string[]; marks?: { want: string; words: string }[]; say?: string; one?: string; many?: string } | null;
   /** Showcase: moved into the Sold/Removed folder (off the market and filed by the buyer or agent).
    *  Off-market homes NOT filed stay in the list with a status notice (lib/showcaseStatus). */
   soldFiled?: boolean;
@@ -2512,6 +2512,8 @@ export interface AgentTask {
   completed_at?: string | null;
   auto_source?: string | null;
   suggested_message?: string | null;
+  /** A message of its own is saved - false = the default check-in, and "Write it for me" is offered. */
+  has_message?: boolean | null;
   /** One line on why this follow-up exists, e.g. "Signed in at your open house - 12 Oak St". */
   context?: string | null;
   lead_id?: string | null;
@@ -2648,6 +2650,29 @@ export interface TaskCounts {
   upcoming: number;
   someday: number;
   open_total: number;
+}
+
+/** A lead with a check-in waiting (backend followup_writer.checkins - no AI, just who and why). */
+export interface CheckinItem {
+  lead_id: string;
+  name: string;
+  first: string;
+  reason: string;
+  kind: 'text' | 'email';
+}
+
+/** "Write it for me": message = what's saved (time words as {oh_when:..} slots, {showcase} = their link),
+ *  text = how it reads today (no sign-off / link), preview = exactly what the client gets today. */
+export interface WrittenMessage {
+  message: string;
+  text: string;
+  preview: string;
+  link: boolean;
+  title: string;
+  why: string;
+  kind: 'text' | 'email';
+  used_percent: number | null;
+  saved?: boolean;
 }
 
 export interface TaskCreateInput {
