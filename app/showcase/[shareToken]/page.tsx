@@ -91,6 +91,7 @@ function ShowcaseContent() {
   const [isEditCriteriaOpen, setIsEditCriteriaOpen] = useState(false)
 
   const isInternalSyncRef = useRef(false)
+  const linkedSeenRef = useRef<string | null | undefined>(undefined)   // the linked home last acted on
   const backSeededRef = useRef(false)
   // The homes in the list on screen right now, and the list the open details window steps through.
   const filteredIdsRef = useRef<string[]>([])
@@ -775,15 +776,19 @@ function ShowcaseContent() {
   }, [isModalOpen])
 
   // Handle URL sync for property details (Single Source of Truth)
+  // Acts only when the address's home actually moves (a link, Back/Forward) - a state change alone (the
+  // homes reloading, the window closing) never re-reads an older address and pops a closed home back open (11/09).
   useEffect(() => {
-    if (isInternalSyncRef.current) return
-
     const wanted = linkedHome
+    if (wanted === linkedSeenRef.current) return
+    if (isInternalSyncRef.current) { linkedSeenRef.current = wanted; return }
+    if (!wanted) linkedSeenRef.current = null
 
     if (wanted && matchedProperties.length > 0) {
       const property = matchedProperties.find(p => String(p.id) === wanted)
         || matchedProperties.find(p => homeSlug(p.FullStreetAddress) === wanted)
       if (property) {
+        linkedSeenRef.current = wanted
         // If it's a new property selection, update state and load details
         if (!selectedProperty || String(selectedProperty.id) !== String(property.id)) {
           // Opened straight from a link (a text, an email): put their Showcase behind this home, so

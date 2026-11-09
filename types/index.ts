@@ -71,8 +71,10 @@ export interface Property {
   disliked?: boolean;
   /** The agent's "I recommend this home for you" (Showcase) - tagged on the card, sorted first. */
   agentRecommended?: boolean;
+  /** Starred by the must-haves reader, not by the agent's hand - it doesn't keep the home when the search changes. */
+  aiStarred?: boolean;
   /** The smart filter found every must-have (components/showcases/SmartWants) */
-  smartMatch?: { wants?: string[]; quotes?: string[] } | null;
+  smartMatch?: { wants?: string[]; quotes?: string[]; marks?: { want: string; words: string }[] } | null;
   /** Showcase: moved into the Sold/Removed folder (off the market and filed by the buyer or agent).
    *  Off-market homes NOT filed stay in the list with a status notice (lib/showcaseStatus). */
   soldFiled?: boolean;

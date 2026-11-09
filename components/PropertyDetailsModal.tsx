@@ -346,7 +346,9 @@ export default function PropertyDetailsModal({
             ref={sheetRef}
             {...sheetMotion}
             className="relative flex h-[calc(100%-2.5rem)] w-full max-w-6xl flex-col overflow-hidden rounded-t-[26px] shadow-2xl sm:h-[88vh] sm:rounded-[28px]"
-            style={{ overscrollBehavior: 'contain', y: phone && !reduce ? sheetY : undefined }}
+            // y only on phones (the drag-to-close sheet). Passing `y: undefined` on a computer left the closing
+            // slide unfinished - the faded window stayed over the page and blocked every click (11/09).
+            style={{ overscrollBehavior: 'contain', ...(phone && !reduce ? { y: sheetY } : {}) }}
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -446,7 +448,7 @@ export default function PropertyDetailsModal({
                     <div className="min-w-0 lg:col-start-1 lg:row-start-1">
                       <Reveal root={scrollRef} id="sc-overview">
                         <SectionTitle kicker="Overview" title="About this home" />
-                        <AboutHome home={home} />
+                        <AboutHome home={home} marks={property?.smartMatch?.marks} />
                       </Reveal>
 
                       {showDetails && (

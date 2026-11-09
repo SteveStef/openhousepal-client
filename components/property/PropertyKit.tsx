@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Flame, GraduationCap,
-  Home, MapPin, Maximize2, MessageCircle, Navigation, Share2, Receipt, Send, Trees, TrendingDown, TrendingUp, X,
+  Home, MapPin, Maximize2, MessageCircle, Navigation, Share2, Receipt, Send, Sparkles, Trees, TrendingDown, TrendingUp, X,
 } from 'lucide-react'
 import { formatStatus, statusBadgeColor } from '@/components/website-public/listingFormat'
 import { upcomingOpenHouses, formatOpenHouse, type MlsOpenHouse } from '@/lib/mlsOpenHouses'
@@ -812,9 +812,70 @@ export function SectionDivider({ className = '' }: { className?: string }) {
 
 // ---------------------------------------------------------------- sections
 
-export function AboutHome({ home, clampAt = 700, showFeatures = true }: { home: HomeView; clampAt?: number; showFeatures?: boolean }) {
-  const [more, setMore] = useState(false)
+/** Where `words` sit in `text`, ignoring case, spacing and punctuation (the AI reader's own matching -
+ *  backend ai_home_reader._find), as [start, end) in `text`, or null. */
+function findLoose(text: string, words: string): [number, number] | null {
+  const chars: string[] = [], idx: number[] = []
+  let gap = true
+  const low = text.toLowerCase()
+  for (let i = 0; i < low.length; i++) {
+    const c = low[i]
+    if (/[a-z0-9]/.test(c)) { chars.push(c); idx.push(i); gap = false }
+    else if (!gap) { chars.push(' '); idx.push(i); gap = true }
+  }
+  const q = words.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  if (!q) return null
+  const at = chars.join('').indexOf(q)
+  if (at < 0) return null
+  let s = idx[at], e = idx[at + q.length - 1] + 1
+  while (s > 0 && /[a-z0-9]/i.test(text[s - 1])) s--     // whole words only
+  while (e < text.length && /[a-z0-9]/i.test(text[e])) e++
+  return [s, e]
+}
+
+export type DescriptionMark = { want: string; words: string }
+
+/** The description cut into plain runs and the marked bits (each must-have's words), in order. */
+function markRuns(text: string, marks: DescriptionMark[]) {
+  const hits: { s: number; e: number; want: string }[] = []
+  for (const m of marks) {
+    const at = findLoose(text, m.words)
+    if (at && !hits.some(h => at[0] < h.e && at[1] > h.s)) hits.push({ s: at[0], e: at[1], want: m.want })
+  }
+  hits.sort((a, b) => a.s - b.s)
+  const runs: { t: string; want?: string }[] = []
+  let pos = 0
+  for (const h of hits) {
+    if (h.s > pos) runs.push({ t: text.slice(pos, h.s) })
+    runs.push({ t: text.slice(h.s, h.e), want: h.want })
+    pos = h.e
+  }
+  if (pos < text.length) runs.push({ t: text.slice(pos) })
+  return { runs, hits }
+}
+
+const lowerFirst = (w: string) => w.charAt(0).toLowerCase() + w.slice(1)
+
+/** marks: on a Showcase home that has every must-have, the listing's own words the AI pointed at (owner,
+ *  11/09) - highlighted gold in the description, with a line above naming them; tapping a name brings its
+ *  words into view. Must-haves taken off -> no marks -> plain description. */
+export function AboutHome({ home, clampAt = 700, showFeatures = true, marks }: { home: HomeView; clampAt?: number; showFeatures?: boolean; marks?: DescriptionMark[] | null }) {
+  const marksKey = JSON.stringify(marks || [])
+  const { runs, hits } = useMemo(() => markRuns(home.description || '', JSON.parse(marksKey)), [home.description, marksKey])
   const long = home.description.length > clampAt
+  // A highlight past the folded part opens the full description, so it's never hidden.
+  const [more, setMore] = useState(() => hits.some(h => h.s > clampAt * 0.75))
+  useEffect(() => { if (hits.some(h => h.s > clampAt * 0.75)) setMore(true) }, [hits, clampAt])
+  const boxRef = useRef<HTMLDivElement>(null)
+  const show = (want: string) => {
+    setMore(true)
+    window.setTimeout(() => {
+      const el = boxRef.current?.querySelector<HTMLElement>(`mark[data-want="${CSS.escape(want)}"]`)
+      if (!el) return
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      el.classList.remove('pp-mark-ping'); void el.offsetWidth; el.classList.add('pp-mark-ping')
+    }, 60)
+  }
   const tags = [['Neighborhood', home.subdivision], ['Township', home.township], ['District', home.schoolDistrict]].filter(([, v]) => v) as [string, string][]
   return (
     <div>
@@ -826,8 +887,26 @@ export function AboutHome({ home, clampAt = 700, showFeatures = true }: { home: 
         </div>
       )}
       {home.description ? (
-        <div className="relative mt-4">
-          <p className={`whitespace-pre-line text-[17px] leading-[1.9] ${pp.text} first-letter:float-left first-letter:mr-2.5 first-letter:mt-1 first-letter:font-serif first-letter:text-[3.4rem] first-letter:font-black first-letter:leading-[0.8] first-letter:text-[color:var(--pp-gold)] ${long && !more ? 'line-clamp-[9]' : ''}`}>{home.description}</p>
+        <div className="relative mt-4" ref={boxRef}>
+          {hits.length > 0 && (
+            <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1.5" data-testid="desc-marks-line">
+              <span className="inline-flex items-center gap-1 text-[12px] font-bold text-[color:var(--pp-gold-text)]">
+                <Sparkles className="h-3.5 w-3.5 shrink-0" /> Highlighted below:
+              </span>
+              {hits.map(h => (
+                <button key={h.want} type="button" onClick={() => show(h.want)} data-testid="desc-mark-chip"
+                  className="rounded-full border border-[color:var(--pp-gold-line)] bg-[var(--pp-gold-wash)] px-2.5 py-0.5 text-[12px] font-bold text-[color:var(--pp-text)] transition hover:border-[color:var(--pp-gold)]">
+                  {lowerFirst(h.want)}
+                </button>
+              ))}
+            </div>
+          )}
+          <p className={`whitespace-pre-line text-[17px] leading-[1.9] ${pp.text} first-letter:float-left first-letter:mr-2.5 first-letter:mt-1 first-letter:font-serif first-letter:text-[3.4rem] first-letter:font-black first-letter:leading-[0.8] first-letter:text-[color:var(--pp-gold)] ${long && !more ? 'line-clamp-[9]' : ''}`} data-testid="home-description">
+            {hits.length ? runs.map((r, i) => r.want
+              ? <mark key={i} data-want={r.want} data-testid="desc-mark" title={`What the AI found for: ${lowerFirst(r.want)}`}
+                  className="pp-mark rounded-[5px] px-1 font-semibold text-[color:var(--pp-text)] [box-decoration-break:clone] [-webkit-box-decoration-break:clone]">{r.t}</mark>
+              : <span key={i}>{r.t}</span>) : home.description}
+          </p>
           {long && (
             <button type="button" onClick={() => setMore(m => !m)} className="mt-3 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-[color:var(--pp-gold-text)]">
               {more ? 'Show less' : 'Read the full description'} <ChevronRight className={`h-3.5 w-3.5 transition-transform ${more ? '-rotate-90' : 'rotate-90'}`} />
@@ -1411,6 +1490,11 @@ const PP_CSS = `
 .dark .pp[data-surface="app"]{--pp-bg:#0b0b0b;--pp-card:#151517;--pp-text:#f4f1ea;--pp-soft:#d9d5cc;--pp-muted:#a09c93;--pp-faint:#77736b;--pp-line:rgba(255,255,255,.08);--pp-heading:#fff;--pp-gold-text:var(--pp-gold);--pp-gold-line:color-mix(in srgb,var(--pp-gold) 20%,transparent)}
 .pp[data-surface="site"]{--pp-bg:var(--site-bg);--pp-card:var(--site-surface);--pp-text:var(--site-ink);--pp-soft:var(--site-ink-soft);--pp-muted:var(--site-muted);--pp-faint:var(--site-faint);--pp-line:var(--site-line);--pp-heading:var(--site-heading)}
 .ohp-site[data-mode="dark"] .pp[data-surface="site"]{--pp-gold-text:var(--pp-gold)}
+.pp-mark{background:color-mix(in srgb,var(--pp-gold) 30%,transparent);box-shadow:inset 0 -2px 0 color-mix(in srgb,var(--pp-gold) 85%,transparent)}
+.dark .pp[data-surface="app"] .pp-mark,.ohp-site[data-mode="dark"] .pp-mark{background:color-mix(in srgb,var(--pp-gold) 34%,transparent)}
+.pp-mark-ping{animation:ppMarkPing 1.4s ease-out 1}
+@keyframes ppMarkPing{0%,35%{box-shadow:0 0 0 4px color-mix(in srgb,var(--pp-gold) 45%,transparent),inset 0 -2px 0 var(--pp-gold)}100%{box-shadow:0 0 0 0 transparent,inset 0 -2px 0 color-mix(in srgb,var(--pp-gold) 85%,transparent)}}
+@media (prefers-reduced-motion:reduce){.pp-mark-ping{animation:none}}
 .pp-in{animation:ppIn .9s cubic-bezier(.16,1,.3,1) both}
 @keyframes ppIn{from{opacity:0;transform:translateY(14px) scale(.995)}to{opacity:1;transform:none}}
 .pp-photo{animation:ppPhoto .45s ease both}

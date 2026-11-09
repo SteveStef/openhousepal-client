@@ -1,6 +1,6 @@
 'use client'
 
-import { SmartWantsInput, type SmartState } from '@/components/showcases/SmartWants'
+import { SmartWantsInput, SMART_READ_CAP, type SmartState } from '@/components/showcases/SmartWants'
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -579,7 +579,8 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
     return () => { cancelled = true }
   }, [isOpen, create, collection?.id])
 
-  const keepReason = (h: any) => [h.agentRecommended ? 'Recommended' : '', h.liked ? 'Liked' : '', (h.comments?.length || h.unreadCommentCount) ? 'Commented' : '', h.tourCount ? 'Tour asked' : ''].filter(Boolean).join(' · ')
+  // A star the must-haves gave (aiStarred) doesn't keep a home the new search leaves out - only the agent's own.
+  const keepReason = (h: any) => [h.agentRecommended && !h.aiStarred ? 'Recommended' : '', h.liked ? 'Liked' : '', (h.comments?.length || h.unreadCommentCount) ? 'Commented' : '', h.tourCount ? 'Tour asked' : ''].filter(Boolean).join(' · ')
   const previewIds = new Set(previewProperties.map(p => String((p as any).id || p.ListingKey)))
   // Engaged homes the new search drops - they stay in the Showcase; shown first, marked.
   // Towns / counties + a search center stack (owner, 11/09): only homes in those places AND inside the circle.
@@ -942,6 +943,14 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
       return
     }
 
+    // Must-haves read every home the search finds - the chat's own ceiling (300) applies (owner, 11/09).
+    const savedWants = (Array.isArray(savedSmart) ? savedSmart : savedSmart?.wants || []).map(w => w.toLowerCase()).join('|')
+    if (wants.length && wants.map(w => w.toLowerCase()).join('|') !== savedWants && Math.min(previewCount, SHOWCASE_MAX_HOMES) > SMART_READ_CAP) {
+      setLocationError(`Must-haves have the AI read every home, so the search needs ${SMART_READ_CAP} homes or fewer (it finds ${countLabel}). Narrow it, or take the must-haves off.`)
+      document.querySelector('[data-testid=smart-wants]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+
     if (keptHomes.length && !keepNotice) { setKeepNotice(true); return }
     setKeepNotice(false)
     setIsSubmitting(true)
@@ -1194,11 +1203,6 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
             ),
           })}
 
-          {card({
-            i: 3, icon: <Sparkles className="h-4 w-4" />, title: 'Must-haves (AI)', hint: 'optional', set: wants.length > 0,
-            children: <SmartWantsInput wants={wants} onChange={setWants} state={!Array.isArray(savedSmart) && savedSmart?.wants?.length ? savedSmart as SmartState : null} />,
-          })}
-
           {/* Geography criteria stack: address+radius, towns/school-districts/counties, and drawn
               shapes can all be combined at once - a property matches if it falls in any of them.
               A school district narrows all of them (radius AND district, like Zillow/Redfin). */}
@@ -1436,6 +1440,16 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
                 </AnimatePresence>
               </div>
             ),
+          })}
+
+          {/* Last on purpose (owner, 11/09): the AI reads the homes the search above finds, so it's the
+              final thing set - with the chat's own limits (300 homes, room in the chat usage) and its cost. */}
+          {card({
+            i: 6, icon: <Sparkles className="h-4 w-4" />, title: 'Must-haves (AI)', hint: 'optional · set last', set: wants.length > 0,
+            children: <SmartWantsInput wants={wants} onChange={setWants} atLimit={atLimit}
+              // the Showcase keeps at most SHOWCASE_MAX_HOMES - those are the homes the AI reads
+              count={geoMode === 'none' || isLoadingPreview ? null : Math.min(previewCount, SHOWCASE_MAX_HOMES)}
+              state={!Array.isArray(savedSmart) && savedSmart?.wants?.length ? savedSmart as SmartState : null} />,
           })}
         </div>
 

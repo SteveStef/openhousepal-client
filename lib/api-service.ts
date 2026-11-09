@@ -1152,6 +1152,10 @@ class ApiService {
     /** The smart filter (owner, 11/09): up to 3 must-haves the AI looks for in every home - agent only. */
     saveSmartFilter: (collectionId: string, wants: string[]) =>
       this.request<{ success: boolean; smart_filter: import('@/components/showcases/SmartWants').SmartState }>(`/collections/${collectionId}/smart-filter`, { method: 'PUT', body: JSON.stringify({ wants }) }),
+    // What reading the search's homes for the must-haves takes of the chat usage - free, no AI.
+    smartFilterEstimate: (count: number, wants: number) =>
+      this.request<{ count: number; cap: number; usage_percent: number; left_percent: number | null; enough: boolean; ready: boolean }>(
+        '/collections/smart-filter/estimate', { method: 'POST', body: JSON.stringify({ count, wants }) }),
     smartFilter: (collectionId: string) =>
       this.request<{ smart_filter: import('@/components/showcases/SmartWants').SmartState }>(`/collections/${collectionId}/smart-filter`),
     updatePreferencesAndRefresh: (collectionId: string, preferences: any) =>

@@ -149,6 +149,7 @@ function ShowcaseContent() {
 
   const fetchInProgressRef = useRef(false)
   const isInternalSyncRef = useRef(false)
+  const urlPropertyRef = useRef<string | null | undefined>(undefined)   // the ?property= last acted on
 
   useEffect(() => {
     if (!user) return
@@ -640,17 +641,23 @@ function ShowcaseContent() {
   }, [])
 
   // Handle URL sync for property details (Refresh/Direct Link Support)
+  // Acts only when the address's ?property= actually moves (a link, a refresh, Back/Forward). A state
+  // change alone - the home list reloading, the window closing - never re-reads an older address: closing
+  // a home with Escape then had it pop back open a moment later (11/09).
   useEffect(() => {
-    // If we just updated the state manually, ignore this sync cycle
-    if (isInternalSyncRef.current) return
-
     const propertyId = searchParams.get('property')
-    
+    if (propertyId === urlPropertyRef.current) return
+    // If we just updated the state manually, ignore this sync cycle
+    if (isInternalSyncRef.current) { urlPropertyRef.current = propertyId; return }
+
     // Only trigger if URL has a property that isn't currently selected
+    if (!propertyId) urlPropertyRef.current = null
     if (propertyId && matchedProperties.length > 0) {
+      if (selectedProperty && String(selectedProperty.id) === propertyId) urlPropertyRef.current = propertyId
       if (!selectedProperty || String(selectedProperty.id) !== propertyId) {
         const property = matchedProperties.find(p => String(p.id) === propertyId)
         if (property) {
+          urlPropertyRef.current = propertyId
           setSelectedProperty(property)
           setIsModalOpen(true)
           loadPropertyDetails(property)
@@ -817,8 +824,13 @@ function ShowcaseContent() {
     const { ai_wants: wants, ...search } = preferences || {}
     const { success, error } = await api.collections.updatePreferencesAndRefresh(collectionId, search)
     // The smart filter saves on its own (agent only - it reads with the agent's chat usage)
-    if (success && Array.isArray(wants)) await api.collections.saveSmartFilter(collectionId, wants)
-    if (success) {
+    const smart = success && Array.isArray(wants) ? await api.collections.saveSmartFilter(collectionId, wants) : null
+    if (success && smart && !smart.success) {
+      // The search saved; the must-haves didn't (over 300 homes) - say why, and let the list refresh.
+      showToast(smart.error || "The search saved, but the must-haves didn't", 'error')
+      setIsEditPreferencesModalOpen(false)
+      fetchCollections()
+    } else if (success) {
       showToast('Preferences updated and properties refreshed!', 'success')
       setIsEditPreferencesModalOpen(false)
       // Since backend doesn't return full transformed collection, refresh the list
