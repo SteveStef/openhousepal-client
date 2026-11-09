@@ -46,7 +46,7 @@ const RESERVED_APP_SEGMENTS = new Set([
 // (user, 10/29: googling OpenHousePal showed "Lori D'Onofrio", "Setup My Own Showcase" under our
 // own result). Agents' own sites (<slug>.openhousepal.com, own domains) aren't touched.
 // Not robots.txt: a blocked page can still be listed from links, and Google can't see the noindex.
-const INDEXABLE_APP_PATHS = new Set(['/', '/tools', '/pricing', '/idx-websites', '/faq', '/about', '/resources', '/brokerages', '/register', '/login', '/privacy', '/terms'])
+const INDEXABLE_APP_PATHS = new Set(['/', '/llms.txt', '/tools', '/pricing', '/idx-websites', '/faq', '/about', '/resources', '/brokerages', '/register', '/login', '/privacy', '/terms'])
 
 // An agent's Hub (/<slug>/...) is shown on their own website's /hub, /about and /sales inside a
 // frame. `indexifembedded` lets Google count it as part of THAT page (owner, 10/30: their hub and

@@ -22,6 +22,8 @@ import { Check, ChevronDown, Loader2, Send, Sparkles } from 'lucide-react'
 import HeroTagline from '@/components/home/HeroTagline'
 import CalmLoops, { usePlayWhenSeen } from '@/components/CalmLoops'
 import AskQuestionCard from '@/components/home/AskQuestionCard'
+import { TOOL_PAGES } from '@/components/marketing/toolPagesData'
+import { SUMMARY_LINE, softwareSchema } from '@/lib/seoSummary'
 
 function FAQItem({ faq, index, isVisible }: { faq: { question: string; answer: string }; index: number; isVisible: boolean }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -86,6 +88,8 @@ const HOME_SCHEMA = {
   '@graph': [
     { '@type': 'Organization', '@id': 'https://openhousepal.com/#organization', name: 'OpenHousePal', url: 'https://openhousepal.com', logo: 'https://openhousepal.com/icon-512.png' },
     { '@type': 'WebSite', '@id': 'https://openhousepal.com/#website', name: 'OpenHousePal', url: 'https://openhousepal.com', publisher: { '@id': 'https://openhousepal.com/#organization' } },
+    // What it is, every tool and every plan's price - from the approved tool pages and lib/pricing (lib/seoSummary).
+    softwareSchema(),
   ],
 }
 
@@ -99,6 +103,25 @@ function HomeFirstPaint() {
       <div className="sr-only">
         <h1>Less Busywork. More Business.</h1>
         <h2>Open houses, leads and marketing in one platform for real estate agents.</h2>
+        {/* The same tools and prices the page shows (owner, 11/09) - search engines and AI answer tools read this
+            part before the page finishes loading, so they see what OpenHousePal really does. Approved copy only. */}
+        <p>{SUMMARY_LINE}</p>
+        <section aria-label="Tools">
+          {TOOL_PAGES.map(t => (
+            <article key={t.slug}>
+              <h3><a href={`/tools/${t.slug}`}>{t.label}</a>: {t.title}</h3>
+              <p>{t.description} {t.plans}</p>
+            </article>
+          ))}
+        </section>
+        <section aria-label="Plans">
+          <h3>Plans</h3>
+          <ul>
+            {(['NO_MLS', 'PRO_NO_MLS', 'BASIC', 'PREMIUM', 'IDX'] as const).map(k => (
+              <li key={k}>{PRICING_PLANS[k].name}: {PRICING_PLANS[k].priceString} a month</li>
+            ))}
+          </ul>
+        </section>
         <nav aria-label="OpenHousePal">
           {[['/tools', 'All Tools'], ['/pricing', 'Pricing'], ['/idx-websites', 'IDX Websites'], ['/resources', 'Resources'], ['/brokerages', 'For Brokerages'], ['/faq', 'FAQ'], ['/about', 'About'], ['/register', 'Create Your Account']].map(([href, label]) => <Link key={href} href={href}>{label}</Link>)}
         </nav>
