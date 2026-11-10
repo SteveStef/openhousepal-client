@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { ChevronDown, MapPin, MonitorPlay, Plus, Sparkles, Tablet, Ticket, Trash2 } from 'lucide-react'

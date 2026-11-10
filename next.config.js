@@ -2,6 +2,10 @@
 const nextConfig = {
   images: {
     qualities: [50, 70, 75, 80, 85, 90, 100],
+    // Each resized photo is kept a day (our server's disk copy, Cloudflare's copy of /pimg/... and the
+    // visitor's browser). MLS photo addresses change when the photo changes; 1 day keeps a replaced
+    // agent headshot from lingering.
+    minimumCacheTTL: 86400,
     remotePatterns: [
       // {
       //   protocol: 'https',
@@ -57,7 +61,21 @@ const nextConfig = {
   // never appear in Google Images under OpenHousePal (owner, 10/30). Every other path on
   // openhousepal.com gets its noindex from proxy.ts, but /_next/image skips the proxy.
   async headers() {
-    return [{ source: '/_next/image', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }] }]
+    return [
+      { source: '/_next/image', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }] },
+      { source: '/pimg/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }] },
+    ]
+  },
+  // /pimg/<w>/<q>/p.webp?u=<photo> (lib/photoUrl.ts) is Next's own resizer under an address Cloudflare
+  // stores (it only keeps files ending in a picture extension; /_next/image has none).
+  async rewrites() {
+    return {
+      beforeFiles: [{
+        source: '/pimg/:w/:q/p.webp',
+        has: [{ type: 'query', key: 'u', value: '(?<u>.+)' }],
+        destination: '/_next/image?url=:u&w=:w&q=:q',
+      }],
+    }
   },
   // Enable standalone output for Docker
   output: 'standalone',

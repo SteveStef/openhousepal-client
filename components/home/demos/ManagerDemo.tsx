@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import type { LucideIcon } from 'lucide-react'
 import { BarChart3, Bell, Building2, CalendarDays, Check, MessageSquare, UserCheck } from 'lucide-react'
 import BrowserFrame from '@/components/home/BrowserFrame'

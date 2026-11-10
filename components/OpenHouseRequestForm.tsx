@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import { AnimatePresence, motion } from 'framer-motion'
 import { MapPin, Bed, Bath, Square } from 'lucide-react'
 import { Property } from '@/types'

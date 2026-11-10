@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import { AnimatePresence, motion, useInView } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import {

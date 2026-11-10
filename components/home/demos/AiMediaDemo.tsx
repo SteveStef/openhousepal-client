@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import { Check, ChevronLeft, ChevronRight, Clapperboard, Loader2, Moon, Sofa, Video } from 'lucide-react'
 import BrowserFrame from '@/components/home/BrowserFrame'
 import TitleSlide from './TitleSlide'

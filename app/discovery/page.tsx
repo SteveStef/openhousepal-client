@@ -3,7 +3,7 @@
 import { OhpSpinner } from '@/components/brand/OhpLoader'
 import React, { useState, memo, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import { AnimatePresence, motion } from 'framer-motion'
 import OhSheet from '@/components/open-house-manager/OhSheet'
 import PageReveal from '@/components/ui/PageReveal'

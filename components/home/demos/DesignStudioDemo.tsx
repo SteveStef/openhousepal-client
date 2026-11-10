@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import { ArrowLeft, ArrowRight, Check, Loader2, Palette, Search, X } from 'lucide-react'
 import BrowserFrame from '@/components/home/BrowserFrame'
 import TitleSlide from './TitleSlide'

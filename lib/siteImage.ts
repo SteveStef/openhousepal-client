@@ -8,6 +8,8 @@
 // Anything not from an allowed host (data:, blob:, local /demos, unknown CDNs) passes through
 // untouched, so these helpers are always safe to wrap around a URL.
 
+import { pimg } from './photoUrl'
+
 // Mirrors next.config.js images.remotePatterns (only hosts that serve real photos).
 const OPTIMIZABLE = [
   /(^|\.)brightmls\.com$/i,
@@ -39,7 +41,7 @@ function snapWidth(w: number): number {
 export function sizedImage(url: string | null | undefined, width: number, quality = 70): string {
   if (!url) return ''
   if (!canOptimize(url)) return url
-  return `/_next/image?url=${encodeURIComponent(url)}&w=${snapWidth(width)}&q=${quality}`
+  return pimg(url, snapWidth(width), quality)
 }
 
 /** srcset across `widths` (browser picks by layout width x screen density). Empty when not optimizable. */

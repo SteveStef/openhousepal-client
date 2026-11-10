@@ -171,5 +171,5 @@ async function siteHostResponse(request: NextRequest, rawHost: string, hostWitho
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|icon-512.png|apple-touch-icon.png|uploads).*)'],
+  matcher: ['/((?!_next/static|_next/image|pimg/|favicon.ico|icon-512.png|apple-touch-icon.png|uploads).*)'],
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import { Check, ArrowRight } from 'lucide-react'
 import TypingAnimation from './TypingAnimation'
 import { REAL_OPEN_HOUSE as OH } from './home/demos/realData'

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import { Smartphone, Check, QrCode, ClipboardList, UserCheck, UserPlus, Layout } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { DemoNote, DEMO_NOTE_CSS } from './DemoNote'

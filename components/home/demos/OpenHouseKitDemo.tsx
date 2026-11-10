@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import { Check, ClipboardList, MapPin, Sparkles, UserPlus } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { KitsIcon } from '@/components/icons/CustomIcons'

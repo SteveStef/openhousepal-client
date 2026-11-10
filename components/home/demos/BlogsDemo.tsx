@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import NextImage from 'next/image'
+import NextImage from '@/components/ui/CachedImage'
 import { BadgeCheck, Calendar, Check, Clapperboard, Clock, FileSearch, Home, Loader2, MapPin, Newspaper, Play, ShieldCheck, Sparkles, Tag, Target, Users, Wand2 } from 'lucide-react'
 import TypingAnimation from '@/components/TypingAnimation'
 import BrowserFrame from '@/components/home/BrowserFrame'

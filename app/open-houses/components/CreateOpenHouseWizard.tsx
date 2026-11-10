@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, memo, useCallback, useRef, useEffect } from 'react'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import { v4 as uuidv4 } from 'uuid'

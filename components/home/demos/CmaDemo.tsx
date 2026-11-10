@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import { Sparkles, Check, Calculator, ScanLine, MapPin, ShieldCheck, Search, DollarSign, Share2, FileText } from 'lucide-react'
 import { DemoStep, DEMO_NOTE_CSS } from './DemoNote'
 import TypingAnimation from '@/components/TypingAnimation'

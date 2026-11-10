@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { pimg } from './photoUrl'
 
 // A logo can be any color, and the bar it sits on can be light or dark (owner, 11/05: Peter's white
 // Compass logo vanished on a light top bar). A logo is never recolored (owner, 11/06: do what's
@@ -43,7 +44,7 @@ function measure(url: string): Promise<LogoTone | null> {
       } catch { done(null) }
     }
     // Through this site's own image route: the photo host doesn't let pages read a file's pixels directly.
-    img.src = `/_next/image?url=${encodeURIComponent(url)}&w=64&q=75`
+    img.src = pimg(url, 64, 75)
   })
 }
 

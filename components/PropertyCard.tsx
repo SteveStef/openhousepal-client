@@ -3,7 +3,7 @@
 import { SmartMatchLine } from '@/components/showcases/SmartWants'
 import { useMemo, memo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import { Property } from '@/types'
 import { formatOpenHouse, formatOpenHouseDay, upcomingOpenHouses } from '@/lib/mlsOpenHouses'
 import { ThumbsUp, ThumbsDown, MessageCircle, Calendar, Eye, Bed, Bath, Square, Home, MapPin, School, Trees, Navigation, Star, FolderInput, Undo2, Send, CheckCircle2, Link2, Check } from 'lucide-react'

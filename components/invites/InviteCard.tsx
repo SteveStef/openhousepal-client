@@ -312,7 +312,7 @@ function Host({ d, color, sub, ring, font = SERIF, italic = false, weight = 600,
     <div className="mx-auto flex min-w-0 flex-col items-center text-center" data-invite-host=""
       style={{ maxWidth: maxW, ...(plate ? { background: plate, borderRadius: 18, padding: '6px 14px 6px', boxShadow: '0 6px 16px -10px rgba(0,0,0,.25)' } : {}) }}>
       {photoSet(d.hostPhoto)
-        ? <img src={(d.hostPhoto as string).startsWith('/_next/image') ? d.hostPhoto as string : resolveMediaUrl(d.hostPhoto as string)} alt="" className="shrink-0 rounded-full object-cover" style={{ width: P, height: P, boxShadow: `0 0 0 1.5px ${ring}, 0 0 0 3.5px ${dark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.9)'}` }} />
+        ? <img src={/^\/(_next\/image|pimg\/)/.test(d.hostPhoto as string) ? d.hostPhoto as string : resolveMediaUrl(d.hostPhoto as string)} alt="" className="shrink-0 rounded-full object-cover" style={{ width: P, height: P, boxShadow: `0 0 0 1.5px ${ring}, 0 0 0 3.5px ${dark ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.9)'}` }} />
         : <span className="grid shrink-0 place-items-center rounded-full" style={{ width: P, height: P, background: dark ? '#1a1e27' : mix(ring, '#ffffff', 0.86), boxShadow: `0 0 0 1.5px ${ring}`, fontFamily: SERIF, fontSize: 14, fontWeight: 700, color: dark ? mix(ring, '#ffffff', 0.35) : mix(ring, '#000000', 0.3), letterSpacing: 0.5 }}>{initialsOf(d.hostName)}</span>}
       <p className="mt-1.5 w-full truncate" title={d.hostName} style={{ fontFamily: font, fontStyle: italic ? 'italic' : 'normal', fontSize: nameSize, fontWeight: weight, color, lineHeight: 1.15 }}>{d.hostName}</p>
       {lines.map(x => (

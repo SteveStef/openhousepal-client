@@ -3,7 +3,7 @@
 import { OhpSpinner } from '@/components/brand/OhpLoader'
 import MotionModal from '@/components/ui/MotionModal'
 import { useState } from 'react'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import { X, Calendar, Phone, Mail, User, MapPin, AlertTriangle, Check } from 'lucide-react'
 import { PropertyTour } from '@/types'
 import { useEscapeToClose } from '@/components/ui/windowMotion'

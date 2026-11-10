@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import type { LucideIcon } from 'lucide-react'
 import { Bell, CalendarCheck, Check, MapPin, Search, Send, UserPlus } from 'lucide-react'
 import BrowserFrame from '@/components/home/BrowserFrame'

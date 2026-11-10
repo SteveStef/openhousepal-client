@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Property, SignInFormData } from '@/types'
 import AutoHeight from '@/components/ui/AutoHeight'

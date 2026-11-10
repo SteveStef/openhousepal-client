@@ -151,7 +151,7 @@ const GooglePlacesAutocomplete = forwardRef<GooglePlacesAutocompleteRef, GoogleP
       }
 
       try {
-        await googleMapsLoader.load()
+        await googleMapsLoader.loadPlaces()
         setIsLoaded(true)
 
         if (inputRef.current) {

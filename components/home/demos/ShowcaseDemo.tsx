@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import { Bell, BedDouble, Calendar, Check, ChevronLeft, ChevronRight, ClipboardList, DollarSign, Heart, Home as HomeIcon, Layout, Mail, MapPin, MessageSquare, Radio, Send, SlidersHorizontal, Sparkles, ThumbsDown, ThumbsUp, TrendingDown, UserCheck, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import BrowserFrame from '@/components/home/BrowserFrame'

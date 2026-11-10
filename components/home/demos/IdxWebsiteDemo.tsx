@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Image from 'next/image'
+import Image from '@/components/ui/CachedImage'
 import type { LucideIcon } from 'lucide-react'
 import { ArrowDown, ArrowUp, Bath, Bed, BookOpen, Building2, Calendar, Check, ChevronRight, Eye, EyeOff, Globe, GraduationCap, Home as HomeIcon, Landmark, Layers, Layout, Lock, Map as MapIcon, MapPin, Maximize, Menu, Palette, PlaySquare, Scale, Search, SlidersHorizontal, Sparkles, Star, Train, Trees, TrendingUp, UserPlus, Utensils, Wand2 } from 'lucide-react'
 import BrowserFrame from '@/components/home/BrowserFrame'
