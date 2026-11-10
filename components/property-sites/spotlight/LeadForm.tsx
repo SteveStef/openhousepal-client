@@ -11,6 +11,7 @@ import { InfoRequestWindow } from './GuestFlows'
 import { useCompactScreen as useCompact } from './SpotSheet'
 import { readVisitor, saveVisitor } from '@/lib/visitor'
 import type { Property, TourRequest } from '@/types'
+import { useSmartFields } from '@/lib/smartFields'
 
 // The one lead-capture form for both Spotlight templates. "Request info" and "Schedule a tour"
 // post to the same-origin proxies (app/api/website-property-sites/[siteId]/...) which create a
@@ -63,6 +64,8 @@ export default function LeadForm({
   const [tourOpen, setTourOpen] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
   const phoneForm = useCompact()
+  // Autofill / Enter hop first -> last -> email -> phone -> message box.
+  const smartFields = useSmartFields()
   const phoneRef = useRef(phoneForm)
   phoneRef.current = phoneForm
   const openTour = () => {
@@ -279,7 +282,7 @@ export default function LeadForm({
   }
 
   return (
-    <form onSubmit={submit} noValidate className={t.text}>
+    <form {...smartFields} onSubmit={submit} noValidate className={t.text}>
       {tourWindow}
       {allowTour && (
         <div className={`mb-6 grid grid-cols-2 gap-2 ${compact ? '' : 'max-w-sm'}`} role="tablist">

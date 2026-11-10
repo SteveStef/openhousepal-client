@@ -25,6 +25,7 @@ import { placeNameOf } from './InviteCard'
 import InviteEnvelope from './InviteEnvelope'
 import InviteLuxeOpening, { foilOf, metalOfInvite } from './InviteLuxeOpening'
 import { SERIF, inviteSerif } from './inviteFonts'
+import { useSmartFields } from '@/lib/smartFields'
 
 // The Cheat Sheet only loads when a guest opens it.
 const CheatSheetView = dynamic(() => import('@/components/guest-pass/CheatSheetView'), { ssr: false })
@@ -923,6 +924,8 @@ function RsvpFlow({ response, inv, initial, t, accent, onSent, onCancel, inSheet
   onSent: (r: InviteRsvp) => void; onCancel: () => void; inSheet?: boolean; onSwitch?: (r: RsvpResponse) => void
 }) {
   const visitor = typeof window !== 'undefined' ? readVisitor() : null
+  // Autofill / Enter hop email -> phone, and close the keyboard after the last box of a step.
+  const smartFields = useSmartFields()
   const [name, setName] = useState(initial?.name || visitor?.name || '')
   const [email, setEmail] = useState(initial?.email || visitor?.email || '')
   const [phone, setPhone] = useState(initial?.phone || visitor?.phone || '')
@@ -1091,7 +1094,7 @@ function RsvpFlow({ response, inv, initial, t, accent, onSent, onCancel, inSheet
   const auto = ['interested', 'isAgent', 'hasAgent'].includes(step.id) || (qOf(step.id)?.type === 'select')
 
   return (
-    <div data-testid="rsvp-flow">
+    <div data-testid="rsvp-flow" {...smartFields}>
       {inSheet && (
         <div className="mb-4 pr-12">
           <p className="flex text-[10px] font-black uppercase tracking-[0.26em]" style={foilText(t, accent)}>
@@ -1189,6 +1192,7 @@ function RequestFlow({ kind, inv, mine, t, accent, done, onSend, onClose }: {
   onSend: (k: InviteRequestKind, extra?: { name?: string; email?: string; phone?: string; times?: string }) => Promise<{ ok: boolean; error: string }>; onClose: () => void
 }) {
   const visitor = typeof window !== 'undefined' ? readVisitor() : null
+  const smartFields = useSmartFields()
   const [name, setName] = useState(mine?.name || visitor?.name || '')
   const [email, setEmail] = useState(mine?.email || visitor?.email || '')
   const [phone, setPhone] = useState(mine?.phone || visitor?.phone || '')
@@ -1227,7 +1231,7 @@ function RequestFlow({ kind, inv, mine, t, accent, done, onSend, onClose }: {
     )
   }
   return (
-    <div data-testid="invite-request">
+    <div data-testid="invite-request" {...smartFields}>
       <p className="pr-12 text-[10px] font-black uppercase tracking-[0.26em]" style={foilText(t, accent)}>{kind === 'updates' ? 'Stay updated' : 'One tap'}</p>
       <h3 className="mt-1 pr-12 text-[24px] font-black leading-tight" style={{ fontFamily: SERIF }}>{title}</h3>
       <p className="mt-1 text-[13px]" style={{ color: t.sub }}>{sub}</p>

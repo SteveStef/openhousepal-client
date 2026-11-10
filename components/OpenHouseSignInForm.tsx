@@ -5,6 +5,7 @@ import Image from '@/components/ui/CachedImage'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Property, SignInFormData } from '@/types'
 import AutoHeight from '@/components/ui/AutoHeight'
+import { useSmartFields } from '@/lib/smartFields'
 
 // Plain opacity + x slide, one tween for both - no `scale` (an extra property fighting for the
 // same frames as the slide) and no spring (its duration varies with velocity, which is what was
@@ -75,6 +76,8 @@ export default function OpenHouseSignInForm({
   intro = false,
 }: OpenHouseSignInFormProps) {
   const reduce = useReducedMotion()
+  // Autofill / Enter hop to the next box, and close the keyboard after the last one.
+  const smartFields = useSmartFields()
   const [unlocking, setUnlocking] = useState(intro && !reduce)
   const [formData, setFormData] = useState<SignInFormData>({
     firstName: '',
@@ -298,7 +301,7 @@ export default function OpenHouseSignInForm({
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="flex-1 flex flex-col px-8 pb-8">
+      <form {...smartFields} onSubmit={handleSubmit} className="flex-1 flex flex-col px-8 pb-8">
         {/* This box (not the steps) owns the height: it measures the step inside and glides to
             its height, the leaving step popped out of the flow (popLayout) so there's never a
             moment with both or neither - the buttons under it ride along smoothly. */}
@@ -320,6 +323,7 @@ export default function OpenHouseSignInForm({
                 <input
                   type="text"
                   name="fullName"
+                  autoComplete="name"
                   value={formData.fullName}
                   onChange={handleInputChange}
                   className="w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white font-medium focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all"
@@ -333,6 +337,7 @@ export default function OpenHouseSignInForm({
                 <input
                   type="email"
                   name="email"
+                  autoComplete="email"
                   value={formData.email}
                   onChange={handleInputChange}
                   onBlur={handleEmailBlur}
@@ -354,6 +359,7 @@ export default function OpenHouseSignInForm({
                 <input
                   type="tel"
                   name="phone"
+                  autoComplete="tel"
                   value={formData.phone}
                   onChange={handlePhoneChange}
                   className="w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white font-medium focus:outline-none focus:ring-4 focus:ring-[#C9A24D]/10 focus:border-[#C9A24D] transition-all"

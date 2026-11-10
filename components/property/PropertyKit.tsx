@@ -12,6 +12,7 @@ import { upcomingOpenHouses, formatOpenHouse, type MlsOpenHouse } from '@/lib/ml
 import { copyText } from '@/lib/copyText'
 import { API_BASE_URL } from '@/lib/api-service'
 import { sizedImage } from '@/lib/siteImage'
+import { useSmartFields } from '@/lib/smartFields'
 
 // One design for every place a single home opens: the Listing Page (/property/...), the IDX site's
 // property page and its quick look, and the Showcase detail window. Each page keeps its own extras
@@ -1361,6 +1362,8 @@ export function AskForm({ id, title, sub, agentFirst, agent, initial, onSend, em
   className?: string
 }) {
   const serif = useSerif()
+  // Autofill / Enter hop name -> phone -> email -> question box.
+  const smartFields = useSmartFields()
   const [name, setName] = useState(initial?.name || '')
   const [email, setEmail] = useState(initial?.email || '')
   const [phone, setPhone] = useState(initial?.phone || '')
@@ -1423,7 +1426,7 @@ export function AskForm({ id, title, sub, agentFirst, agent, initial, onSend, em
         ) : (
           <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             {!embedded && sub && <p className="mt-1 text-xs font-semibold text-white/50">{sub}</p>}
-            <form onSubmit={submit} className="mt-4 space-y-2.5" noValidate>
+            <form {...smartFields} onSubmit={submit} className="mt-4 space-y-2.5" noValidate>
               <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Your name" aria-label="Your name" className={field} autoComplete="name" />
               <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                 <input type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone" aria-label="Phone" className={field} autoComplete="tel" />

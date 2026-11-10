@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, CalendarDays, Check, Loader2, Moon, Send, Sun, S
 import { Property, TourRequest } from '@/types'
 import { cleanAddress, normalizeImageUrl } from '@/lib/utils'
 import AutoHeight from '@/components/ui/AutoHeight'
+import { useSmartFields } from '@/lib/smartFields'
 
 interface ScheduleTourModalProps {
   property: Property | null
@@ -94,6 +95,8 @@ function ScheduleTourWindow({
   contactStyle = 'compact',
   maxPicks = 3,
 }: ScheduleTourModalProps & { property: NonNullable<ScheduleTourModalProps['property']> }) {
+  // Autofill / Enter hop name -> email -> phone -> note; no form here, so Enter never sends.
+  const smartFields = useSmartFields()
   // The agent's busy blocks (ms), read once when the window opens.
   const [busy, setBusy] = useState<[number, number][]>([])
   useEffect(() => {
@@ -382,7 +385,7 @@ function ScheduleTourWindow({
               )}
 
               {step === 'you' && (
-                <motion.div key="you" custom={dir} variants={slide} initial="initial" animate="animate" exit="exit" className="flex h-full flex-col gap-3 px-5 pt-3 sm:px-8">
+                <motion.div key="you" {...smartFields} custom={dir} variants={slide} initial="initial" animate="animate" exit="exit" className="flex h-full flex-col gap-3 px-5 pt-3 sm:px-8">
                   {showContactFields && (
                     <>
                       <Field label="Your name" value={name} onChange={setName} placeholder="First and last name" autoComplete="name" />

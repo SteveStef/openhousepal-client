@@ -12,6 +12,7 @@ import SearchableSelect from '@/components/forms/SearchableSelect'
 import api from '@/lib/api-service'
 import { formatNumberWithCommas, sanitizeNumericInput, stripCommas } from '@/lib/utils'
 import { FORM_LOOK_CSS, formLookClass, formLookVars, formPaint, type FormLook } from '@/lib/formLook'
+import { smartStep, useSmartFields } from '@/lib/smartFields'
 import WhenPicker, { WhenField, WhenSheet, emptyWhen } from '@/components/ui/WhenPicker'
 import { AreaPicker, ShowcaseCard, ShowcaseTrail, WHEEL_CSS, WheelPicker, emptyLabelOf, isAreaField, pickerKindOf, pickerOptions, questionHasAnswer, showcaseStepOf, stateNameOf, useCoarsePointer } from '@/components/forms/FormRunnerParts'
 
@@ -1699,6 +1700,9 @@ export default function FormRunner({ questions, branding, successHeading, succes
   }, [chosen])
 
   const coarse = useCoarsePointer()
+  // Autofill / Enter hop to the next box of a group (first name -> last name -> email ...); the last
+  // box keeps its "Enter = next question" (pass), and an autofill there just closes the keyboard.
+  const smartFields = useSmartFields('pass')
   const fieldOpts = (q: FormQuestion): FieldOpts => ({ onChoose: choose, noAutoFocus: coarse || focusBlockId !== undefined, showcase: !!showcaseStepOf(q) })
   // Single choice = tap to answer: no Next button (Back, plus Skip when it's optional).
   const tapToAnswer = (q: FormQuestion) => q.type === 'select' && !q.searchable
@@ -1775,6 +1779,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
     <FormIdContext.Provider value={formId}>
     <div
       ref={containerRef}
+      {...smartFields}
       onKeyDown={handleKeyDown}
       // z-0 (not just "relative") - relative positioning alone, with no z-index, does NOT
       // establish a new stacking context, so the backdrop's -z-10 below would otherwise compare
@@ -1914,6 +1919,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
             {currentQuestion && (
               <motion.div
                 key={currentQuestion.id}
+                {...smartStep}
                 layout
                 custom={direction}
                 variants={variants}

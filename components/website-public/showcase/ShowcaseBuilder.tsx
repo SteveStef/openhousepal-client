@@ -18,6 +18,7 @@ import api, { resolveMediaUrl } from '@/lib/api-service'
 import { saveVisitor, showcaseCodeOf, useVisitor, type SiteVisitor } from '@/lib/visitor'
 import AreaPicksMap from '@/components/maps/AreaPicksMap'
 import RadiusMap from './RadiusMap'
+import { useSmartFields } from '@/lib/smartFields'
 
 export interface BuilderCriteria {
   cities?: string[]
@@ -71,6 +72,8 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
   startStep?: 'where' | 'place'
 }) {
   const live = useVisitor()
+  // Autofill / Enter hop name -> email -> phone, then close the keyboard.
+  const smartFields = useSmartFields()
   const visitor = live || serverVisitor || null
   const agentFirst = (agent.name || 'your agent').split(' ')[0]
   const first = visitor?.firstName || visitor?.name?.split(' ')[0] || ''
@@ -461,7 +464,7 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
                 ))}
               </ul>
 
-              <div className="mt-6 grid gap-3">
+              <div className="mt-6 grid gap-3" {...smartFields}>
                 {visitor?.email && name && email === visitor.email ? (
                   <div className="flex items-center gap-3 rounded-2xl p-3.5" style={{ backgroundColor: 'var(--site-bg-alt)' }}>
                     <span className="grid h-9 w-9 place-items-center rounded-full text-sm font-black" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>{(name[0] || '?').toUpperCase()}</span>

@@ -8,6 +8,7 @@ import api from '@/lib/api-service'
 import { LuxeSurface } from '@/components/ui/LuxeSurface'
 import { OhpWordmark } from '@/components/brand/OhpBrand'
 import { copyText } from '@/lib/copyText'
+import { useSmartFields } from '@/lib/smartFields'
 
 type Dests = { google_place_id: string | null; google_review_url: string | null; zillow_review_url: string | null }
 
@@ -410,11 +411,13 @@ function ReviewFields({ name, setName, email, setEmail, body, setBody, first, pl
   body: string; setBody: (v: string) => void
   first: string; placeholderPrompt?: boolean; emailHint?: boolean
 }) {
+  // Autofill / Enter hop name -> email -> review box.
+  const smartFields = useSmartFields()
   return (
-    <div className="mt-4 space-y-2.5">
+    <div className="mt-4 space-y-2.5" {...smartFields}>
       {[
-        <input key="n" value={name} onChange={e => setName(e.target.value)} placeholder="Your name" className={`${FIELD} font-semibold`} />,
-        <input key="e" value={email} onChange={e => setEmail(e.target.value)} placeholder={emailHint ? 'Email (so they can reach you)' : 'Email (optional)'} className={`${FIELD} font-semibold`} />,
+        <input key="n" autoComplete="name" value={name} onChange={e => setName(e.target.value)} placeholder="Your name" className={`${FIELD} font-semibold`} />,
+        <input key="e" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={emailHint ? 'Email (so they can reach you)' : 'Email (optional)'} className={`${FIELD} font-semibold`} />,
         <textarea key="b" value={body} onChange={e => setBody(e.target.value)} rows={5}
           placeholder={placeholderPrompt ? `What stood out about working with ${first || 'them'}? Write it once — you'll copy & paste it.` : `Tell ${first || 'them'} what didn’t go well.`}
           className={FIELD} />,

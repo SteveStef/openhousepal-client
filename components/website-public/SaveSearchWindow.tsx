@@ -9,6 +9,7 @@ import { openHousePalPublicUrl } from '@/lib/publicResourceLinks'
 import SitePhoto from '@/components/website-public/SitePhoto'
 import { IMG, sizedBg } from '@/lib/siteImage'
 import { useIsPhone, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
+import { useSmartFields } from '@/lib/smartFields'
 
 // "Save this search" and the heart on a home, on the IDX website. Instead of the full Showcase
 // form (welcome page + a question per screen), a short window: (1) here's what we'll watch for -
@@ -93,6 +94,8 @@ function answersFor(c: SavedSearch, contact: { name: string; email: string; phon
 
 export default function SaveSearchWindow({ siteId, criteria, onClose }: { siteId: string; criteria: SavedSearch | null; onClose: () => void }) {
   const [step, setStep] = useState<'review' | 'contact' | 'represented' | 'done'>('review')
+  // Autofill / Enter hop name -> email -> phone, then close the keyboard (Enter on phone still sends).
+  const smartFields = useSmartFields()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   // Signed in with Google on this site (lib/visitor): their name + email are already filled in.
@@ -219,7 +222,7 @@ export default function SaveSearchWindow({ siteId, criteria, onClose }: { siteId
               )}
 
               {step === 'contact' && (
-                <motion.form key="contact" className="p-6 pt-5" onSubmit={e => { e.preventDefault(); send() }}
+                <motion.form key="contact" {...smartFields} className="p-6 pt-5" onSubmit={e => { e.preventDefault(); send() }}
                   initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.35, ease }}>
                   <h2 className="ohp-site-heading pr-10 text-2xl font-black leading-tight" style={{ color: 'var(--site-heading)' }}>Where should we send your matches?</h2>
                   <div className="mt-4 space-y-2.5">

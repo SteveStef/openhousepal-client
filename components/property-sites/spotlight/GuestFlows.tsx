@@ -8,6 +8,7 @@ import AutoHeight from '@/components/ui/AutoHeight'
 import { backdropMotion, useEscapeToClose, useIsPhone, usePagePin, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 import { readVisitor, saveVisitor } from '@/lib/visitor'
 import { visitSource } from '@/lib/visitSource'
+import { useSmartFields } from '@/lib/smartFields'
 import { fmtNumber, type PropertySiteAgent, type SpotlightModel } from './model'
 
 // The Spotlight's "Request info" and "Get the documents" windows (user, 10/24), built exactly like
@@ -82,6 +83,8 @@ function FlowShell({ home, kicker, icon, steps, stepNo, done, onClose, busy, chi
   const isPhone = useIsPhone()
   const { sheetRef, y } = useSwipeToClose(onClose, isPhone && !busy)
   useEscapeToClose(onClose, !busy)
+  // Autofill / Enter hop name -> email -> phone, then close the keyboard (no form: Enter never sends).
+  const smartFields = useSmartFields()
   const street = home.street
   return (
     <motion.div {...backdropMotion} data-scroll-lock="off"
@@ -136,7 +139,7 @@ function FlowShell({ home, kicker, icon, steps, stepNo, done, onClose, busy, chi
 
         {/* ---- the steps */}
         <div className="flex min-h-0 min-w-0 flex-col">
-          <div className="scrollbar-hide relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:none]">
+          <div {...smartFields} className="scrollbar-hide relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:none]">
             <AutoHeight>{children}</AutoHeight>
           </div>
           {footer && !done && (

@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { MapPin, Bed, Bath, Square } from 'lucide-react'
 import { Property } from '@/types'
 import { todayLocal } from '@/lib/relativeDays'
+import { useSmartFields } from '@/lib/smartFields'
 
 export interface OpenHouseRequestFormData {
   fullName: string
@@ -37,6 +38,8 @@ export default function OpenHouseRequestForm({
   isLoading = false,
   accentColor = '#C9A24D',
 }: OpenHouseRequestFormProps) {
+  // Autofill / Enter hop name -> email -> phone (Enter on the last box still sends).
+  const smartFields = useSmartFields()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -167,11 +170,12 @@ export default function OpenHouseRequestForm({
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="px-8 py-8 space-y-5">
+      <form {...smartFields} onSubmit={handleSubmit} className="px-8 py-8 space-y-5">
         <div>
           <label className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Full Name*</label>
           <input
             type="text"
+            autoComplete="name"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             className="w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white font-medium focus:outline-none focus:ring-4 focus:ring-[var(--accent)] focus:border-[var(--accent)] transition-all"
@@ -184,6 +188,7 @@ export default function OpenHouseRequestForm({
           <label className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Email Address*</label>
           <input
             type="email"
+            autoComplete="email"
             value={email}
             onChange={(e) => { setEmail(e.target.value); setEmailError(null) }}
             onBlur={() => setEmailError(email && !validateEmail(email) ? 'Please enter a valid email address' : null)}
@@ -200,6 +205,7 @@ export default function OpenHouseRequestForm({
           <label className="block text-[10px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest mb-2 ml-1">Phone Number*</label>
           <input
             type="tel"
+            autoComplete="tel"
             value={phone}
             onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
             className="w-full px-4 py-3.5 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-700 rounded-xl text-[#0B0B0B] dark:text-white font-medium focus:outline-none focus:ring-4 focus:ring-[var(--accent)] focus:border-[var(--accent)] transition-all"

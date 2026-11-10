@@ -12,6 +12,7 @@ const SpotlightFactSheet = dynamic(() => import('../SpotlightFactSheet'), { ssr:
 import { formatPhone } from './GuestFlows'
 import { readVisitor, saveVisitor } from '@/lib/visitor'
 import { visitSource } from '@/lib/visitSource'
+import { useSmartFields } from '@/lib/smartFields'
 
 // Two things guests keep asking for, side by side above "Get in touch" on both templates:
 // - Follow this home: name + email -> an email only when the price changes, an open house is
@@ -71,6 +72,8 @@ function FollowCard({ m, siteId, dark }: { m: SpotlightModel; siteId: string; da
     const t = window.setTimeout(() => setSheet(false), 2400)
     return () => window.clearTimeout(t)
   }, [state, sheet])
+  // Autofill / Enter hop name -> email -> phone (Enter on the last one still sends).
+  const smartFields = useSmartFields()
   const valid = /\S+@\S+\.\S+/.test(email.trim())
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -89,7 +92,7 @@ function FollowCard({ m, siteId, dark }: { m: SpotlightModel; siteId: string; da
     }
   }
   const fields = (stacked: boolean) => (
-    <form onSubmit={submit} className={`grid gap-2.5 ${stacked ? '' : 'sm:grid-cols-2'}`}>
+    <form {...smartFields} onSubmit={submit} className={`grid gap-2.5 ${stacked ? '' : 'sm:grid-cols-2'}`}>
       <input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" autoComplete="name" className="gt-input" aria-label="Your name" />
       <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" type="email" inputMode="email" autoComplete="email" className="gt-input" aria-label="Email" required />
       <input value={phone} onChange={e => setPhone(formatPhone(e.target.value))} placeholder="Phone (for a quick text)" type="tel" inputMode="tel" autoComplete="tel" className="gt-input" aria-label="Phone" />
