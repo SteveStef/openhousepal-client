@@ -17,6 +17,7 @@ import { OhpWordmark } from '@/components/brand/OhpBrand'
 import { useVisitor } from '@/lib/visitor'
 import { IdxNotice } from '@/components/MLSComplianceFooter'
 import { sizedImage } from '@/lib/siteImage'
+import { formatPhone } from '@/lib/leadEventDetails'
 
 // The visitor's light/dark switch. Flips data-mode on the nearest .ohp-site root (the public
 // SiteShell, or the editor's preview box) and remembers the choice per site, which SiteShell's
@@ -526,7 +527,7 @@ export function SiteFooter({
         <FooterLink href={`${basePrefix}/contact`}>Contact</FooterLink>
       </FooterColumn>
       <FooterColumn title="Get in touch" classic={classic} delay={0.18}>
-        {profile?.phone && <li><a href={`tel:${tel}`} className="inline-flex min-h-[40px] items-center gap-2 transition-colors hover:text-white"><Phone className="h-3.5 w-3.5" style={{ color: 'var(--site-accent)' }} />{profile.phone}</a></li>}
+        {profile?.phone && <li><a href={`tel:${tel}`} className="inline-flex min-h-[40px] items-center gap-2 transition-colors hover:text-white"><Phone className="h-3.5 w-3.5" style={{ color: 'var(--site-accent)' }} />{formatPhone(profile.phone)}</a></li>}
         {profile?.email && <li><a href={`mailto:${profile.email}`} title={profile.email} className="inline-flex min-h-[40px] max-w-full items-center gap-2 whitespace-nowrap text-[13px] transition-colors hover:text-white"><Mail className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--site-accent)' }} /><span className="truncate">{profile.email}</span></a></li>}
         {socials.length > 0 && (
           <li className="flex flex-wrap gap-2 pt-1">
@@ -568,8 +569,8 @@ export function SiteFooter({
           <motion.div initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-60px' }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
             className="text-center md:col-span-2 xl:order-2 xl:col-span-1">
             <p className="text-[10px] font-black uppercase tracking-[0.32em]" style={{ color: 'var(--site-accent-text)' }}>Ready when you are</p>
-            <h2 className={`mx-auto mt-3 max-w-3xl text-3xl leading-[1.08] sm:text-[2.6rem] ${classic ? 'font-extrabold tracking-tight' : `font-black ${serif}`}`} style={{ color: head }}>
-              Let&apos;s talk about your <span className={classic ? '' : 'ohp-text-shimmer'} style={classic ? { color: 'var(--site-accent)' } : undefined}>next move</span>
+            <h2 className={`mx-auto mt-3 max-w-3xl text-3xl leading-[1.08] sm:text-[2.6rem] ${classic ? 'font-extrabold tracking-tight' : `font-black ${serif}`}`} style={{ color: head, textWrap: 'balance' }}>
+              Let&apos;s talk about your <span className={`whitespace-nowrap ${classic ? '' : 'ohp-text-shimmer'}`} style={classic ? { color: 'var(--site-accent)' } : undefined}>next move</span>
             </h2>
             <p className="mx-auto mt-3 max-w-md text-sm" style={{ color: muted }}>Buying, selling, or just curious what your home is worth - pick one and I&apos;ll take it from there.</p>
             <div className="mt-6 flex flex-wrap justify-center gap-2.5">

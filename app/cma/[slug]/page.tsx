@@ -304,7 +304,7 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
           <div>
             <SectionHeading eyebrow="The Evidence" title="Individual Comparable Analysis" />
             <div className="mt-6 space-y-10">
-              {comparables.map((c, i) => <ComparableSection key={c.id} comp={c} index={i} onOpen={() => setOpenComp(c)} />)}
+              {comparables.map((c, i) => <ComparableSection key={c.id} comp={c} index={i} mapRef={data.map_ref} onOpen={() => setOpenComp(c)} />)}
             </div>
           </div>
         )}
@@ -524,7 +524,7 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
         </p>
       </footer>
 
-      <ComparablePopupModal comp={openComp} subject={subject} onClose={() => setOpenComp(null)} />
+      <ComparablePopupModal comp={openComp} subject={subject} mapRef={data.map_ref} onClose={() => setOpenComp(null)} />
     </div>
   )
 }
@@ -864,7 +864,7 @@ function formatUtilityValue(value?: string[] | string | null) {
   return value
 }
 
-function ComparableSection({ comp, index, onOpen }: { comp: CmaComparable, index: number, onOpen: () => void }) {
+function ComparableSection({ comp, index, onOpen, mapRef }: { comp: CmaComparable, index: number, onOpen: () => void, mapRef?: string | null }) {
   const photos = useMemo(() => {
     const all = [...(comp.photos || []), comp.photo_url].filter((p): p is string => Boolean(p))
     return Array.from(new Set(all.map(normalizeImageUrl)))
@@ -882,7 +882,7 @@ function ComparableSection({ comp, index, onOpen }: { comp: CmaComparable, index
   const note = comp.commentary || comp.ai_commentary
   const displayedStrength = clientCompStrength(comp)
   const cityOnly = comp.city || ''
-  const locationMapUrl = buildCompLocationMapUrl(comp, '700x320')
+  const locationMapUrl = buildCompLocationMapUrl(comp, '700x320', 17, mapRef)
   const statusLabel = COMP_STATUS_LABEL[comp.status] || comp.status
   const statusBadgeText = compSoldDate(comp) ? `${statusLabel} • ${compSoldDate(comp)}` : compStatusBadgeText(comp)
   const shiftPhoto = (direction: -1 | 1) => {
@@ -1129,7 +1129,7 @@ function WideCompFact({ icon: Icon, label, value, compact = false, large = false
   )
 }
 
-function ComparablePopupModal({ comp, subject, onClose }: { comp: CmaComparable | null, subject: CmaPublicResponse['subject'], onClose: () => void }) {
+function ComparablePopupModal({ comp, subject, onClose, mapRef }: { comp: CmaComparable | null, subject: CmaPublicResponse['subject'], onClose: () => void, mapRef?: string | null }) {
   const [photoIndex, setPhotoIndex] = useState(0)
   useEffect(() => { setPhotoIndex(0) }, [comp])
   useEffect(() => {
@@ -1142,7 +1142,7 @@ function ComparablePopupModal({ comp, subject, onClose }: { comp: CmaComparable 
   const pics = comp ? (comp.photos && comp.photos.length > 0 ? comp.photos : (comp.photo_url ? [comp.photo_url] : [])) : []
   // Zoomed in on just this property (not the wide subject-vs-comp overview) - close enough to
   // actually read the street layout: cul-de-sac, corner lot, highway frontage.
-  const locationMapUrl = comp ? buildCompLocationMapUrl(comp, '700x320') : null
+  const locationMapUrl = comp ? buildCompLocationMapUrl(comp, '700x320', 17, mapRef) : null
 
   if (!comp) return null
   const psf = compPricePerSqft(comp)

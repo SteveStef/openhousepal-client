@@ -611,7 +611,7 @@ export function PhotoViewer({ photos, title, index, onChange }: { photos: string
   return createPortal(
     <AnimatePresence>
       {index !== null && photos[index] && (
-        <motion.div className="fixed inset-0 z-[400] flex flex-col bg-black" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div role="dialog" aria-modal="true" aria-label={title ? `Photos of ${title}` : 'Photos'} className="fixed inset-0 z-[400] flex flex-col bg-black" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <div className="flex items-center justify-between gap-4 px-5 py-4 text-white">
             <p className="truncate text-sm font-bold text-white/80">{title}</p>
             <div className="flex shrink-0 items-center gap-3">

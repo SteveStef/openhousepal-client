@@ -764,7 +764,13 @@ export function buildCompLocationMapUrl(
   comp: { latitude?: number | null; longitude?: number | null },
   size: string = '700x320',
   zoom: number = 17,
+  // Report id or share slug: the server draws it once and keeps it (11/09) - straight from Google in
+  // the browser, every view of every comp was a billed map picture.
+  mapRef?: string | null,
 ): string | null {
+  if (mapRef && comp.latitude != null && comp.longitude != null) {
+    return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/cma/map/${encodeURIComponent(mapRef)}.png?size=${size}&z=${zoom}&m=${encodeURIComponent(`C:${comp.latitude},${comp.longitude}`)}`
+  }
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY
   if (!apiKey || comp.latitude == null || comp.longitude == null) return null
   const center = `${comp.latitude},${comp.longitude}`

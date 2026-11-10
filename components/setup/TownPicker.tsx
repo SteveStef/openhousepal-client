@@ -32,7 +32,7 @@ const title = (s: string) => s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase
 const keyOf = (name: string, state: string) => `${name.trim().toLowerCase()}|${state.trim().toUpperCase()}`
 const splitCity = (raw: string) => { const [c, s] = raw.split(',').map(x => x.trim()); return { name: title(c || ''), state: (s || '').toUpperCase() } }
 
-export default function TownPicker({ idx = true }: { idx?: boolean }) {
+export default function TownPicker({ idx = true, onCount }: { idx?: boolean; onCount?: (n: number) => void }) {
   const [areas, setAreas] = useState<AgentMarketArea[] | null>(null)
   const [adding, setAdding] = useState<Row[]>([])
   const [sales, setSales] = useState<AgentSale[]>([])
@@ -69,6 +69,9 @@ export default function TownPicker({ idx = true }: { idx?: boolean }) {
   }, [areas, adding])
   const picked = new Set(rows.map(r => r.key))
   const full = rows.length >= MAX
+  // The setup step's Continue needs at least one town on the website plan (owner, 11/09).
+  const loaded = areas !== null
+  useEffect(() => { if (loaded) onCount?.(rows.length) }, [rows.length, loaded, onCount])
 
   // research runs in the background - check on it until every town is ready
   const researching = rows.some(r => r.status === 'PENDING' || r.status === 'RESEARCHING')
@@ -134,9 +137,11 @@ export default function TownPicker({ idx = true }: { idx?: boolean }) {
   const remove = async (row: Row) => {
     if (!row.linkId) return
     setConfirmId(null)
+    // A website always keeps at least one town - its homes come from them (owner, 11/09).
+    if (idx && rows.length <= 1) { setError('Your website needs at least one town - add another before removing this one.'); return }
     setAreas(a => (a || []).filter(x => x.id !== row.linkId))
     const r = await api.sites.removeArea(row.linkId)
-    if (!r.success) { setError(`We couldn't remove ${row.name} - please try again.`); load() }
+    if (!r.success) { setError(r.error || `We couldn't remove ${row.name} - please try again.`); load() }
   }
 
   const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {

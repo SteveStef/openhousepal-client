@@ -267,8 +267,16 @@ export function AreasStep({ ctx }: { ctx: StepCtx }) {
   // No preview here - there's nothing to see until towns are picked (user, 10/15). A tapped town
   // shows as added at once; its save and research carry on in the background (TownPicker), and
   // Continue waits a moment for any save still on its way so the step counts as done.
-  useGate(ctx, { ok: true, onContinue: async () => { await waitForTownSaves(6000) } }, [])
-  return <TownPicker idx={ctx.plan === 'IDX'} />
+  // Website plan: at least one town before Continue (owner, 11/09) - the website's homes come from
+  // them; without any it showed homes from the whole MLS. One is enough.
+  const idx = ctx.plan === 'IDX'
+  const [count, setCount] = useState<number | null>(null)
+  useGate(ctx, {
+    ok: !idx || (count ?? 0) > 0,
+    message: 'Add at least one town you work in - your website shows homes from the towns you pick. One is enough.',
+    onContinue: async () => { await waitForTownSaves(6000) },
+  }, [idx, count])
+  return <TownPicker idx={idx} onCount={setCount} />
 }
 
 const HOME_TYPES = [

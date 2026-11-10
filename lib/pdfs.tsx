@@ -1856,7 +1856,7 @@ export const OpenHouseCheatSheetDocument = ({ property, agent, amenities, fit = 
           </View>
           <View style={[styles.areaMapCard, { height: f.actionH }]}>
             {staticMapUrl ? (
-              <Image src={staticMapUrl} style={styles.areaMapImage} />
+              <Image src={pdfImageUrl(staticMapUrl)} style={styles.areaMapImage} />
             ) : (
               <View style={styles.areaMapFallback}>
                 <Text style={styles.areaMapFallbackText}>Map unavailable until Google Maps Static API is enabled.</Text>

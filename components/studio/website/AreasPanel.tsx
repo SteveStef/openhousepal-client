@@ -156,9 +156,12 @@ export default function AreasPanel({ onChange }: { onChange?: (what?: { added?: 
   }
 
   const handleRemove = async (linkId: string) => {
+    // A website always keeps at least one town - its homes come from them (owner, 11/09).
+    if (areas.length <= 1) { setError('Your website needs at least one town - add another before removing this one.'); return }
     if (!confirm('Stop serving this area? Its community page will no longer appear on your site.')) return
     const gone = areas.find(a => a.id === linkId)?.area?.name
-    await api.sites.removeArea(linkId)
+    const res = await api.sites.removeArea(linkId)
+    if (!res.success) { setError(res.error || 'Could not remove that area.'); load(); return }
     load()
     onChange?.({ removed: gone || 'that area' })
   }

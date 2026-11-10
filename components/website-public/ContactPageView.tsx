@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { formatPhone } from '@/lib/leadEventDetails'
 import { ArrowUpRight, CalendarDays, ChevronRight, DollarSign, KeyRound, Mail, MapPin, MessageSquare, Phone, Sparkles, Star, TrendingUp, User } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/api-service'
 import { openHousePalPublicUrl } from '@/lib/publicResourceLinks'
@@ -79,7 +80,7 @@ export default function ContactPageView({ profile, theme, basePrefix = '' }: { p
               {profile.email && <a href={`mailto:${profile.email}`} className="flex flex-col items-center gap-1 rounded-2xl border py-3 text-xs font-black transition hover:-translate-y-0.5" style={{ borderColor: 'var(--site-line-strong)', color: 'var(--site-heading)' }}><Mail className="h-4 w-4" />Email</a>}
             </div>
             <div className="mt-4 space-y-1.5 px-6 text-sm font-semibold" style={{ color: 'var(--site-ink-soft)' }}>
-              {profile.phone && <p className="flex items-center gap-2"><Phone className="h-3.5 w-3.5" style={{ color: 'var(--site-faint)' }} />{profile.phone}</p>}
+              {profile.phone && <p className="flex items-center gap-2"><Phone className="h-3.5 w-3.5" style={{ color: 'var(--site-faint)' }} />{formatPhone(profile.phone)}</p>}
               {profile.email && <p className="flex items-center gap-2 truncate"><Mail className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--site-faint)' }} />{profile.email}</p>}
               {profile.market && <p className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5" style={{ color: 'var(--site-faint)' }} />{profile.market}</p>}
             </div>
@@ -112,7 +113,7 @@ export default function ContactPageView({ profile, theme, basePrefix = '' }: { p
             {src
               ? <iframe title="Contact form" src={src} className="block h-[680px] w-full border-0" />
               : <div className="flex h-[680px] items-center justify-center p-8 text-center text-sm font-semibold" style={{ color: 'var(--site-faint)' }}>
-                  {main ? 'Loading the form…' : <span>Reach me directly - {profile.phone ? <a href={`tel:${tel}`} className="underline">{profile.phone}</a> : null}{profile.email ? <> or <a href={`mailto:${profile.email}`} className="underline">{profile.email}</a></> : null}</span>}
+                  {main ? 'Loading the form…' : <span>Reach me directly - {profile.phone ? <a href={`tel:${tel}`} className="underline">{formatPhone(profile.phone)}</a> : null}{profile.email ? <> or <a href={`mailto:${profile.email}`} className="underline">{profile.email}</a></> : null}</span>}
                 </div>}
           </div>
         </Reveal>

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
+import { useIdxFrameMode } from '@/lib/idxFrameMode'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Home, Mail, MapPin, TrendingUp, X } from 'lucide-react'
 import { samePlace } from '@/lib/matchScore'
@@ -58,9 +59,10 @@ function useGridColumns() {
 export default function AgentHubSalesPage() {
   const params = useParams<{ slug: string }>()
   const agentSlug = params.slug
-  // An IDX site opens the hub with ?idx_light=1 - always light there, like the hub page itself.
+  // An IDX site opens the hub with ?idx_light=1 - it wears the WEBSITE's light/dark look there (lib/idxFrameMode).
   const searchParams = useSearchParams()
   const forceLightMode = searchParams.get('idx_light') === '1'
+  const { idxDark } = useIdxFrameMode(searchParams)
   // From an IDX town page's "View all" (?town=Malvern): only that town's sales, with Back going
   // to the page they came from (idx_return - the IDX site frames this page, so Back leaves the frame).
   const [town, setTown] = useState(() => (searchParams.get('town') || '').trim())
@@ -135,8 +137,9 @@ export default function AgentHubSalesPage() {
   }
 
   // The Sales page follows THE HUB'S light/dark choice (it was going dark for app users in dark mode).
-  useHubColorMode(visitorDarkMode && !forceLightMode, hubStatus === 'found')
-  useHubLookChanged(`${hubStatus}|${luxe}|${luxeMetal}|${hubAccent}|${visitorDarkMode && !forceLightMode}`)
+  const hubDark = forceLightMode ? idxDark : visitorDarkMode
+  useHubColorMode(hubDark, hubStatus === 'found')
+  useHubLookChanged(`${hubStatus}|${luxe}|${luxeMetal}|${hubAccent}|${hubDark}`)
 
   const buyingForm = publicForms.find(form => form.formType === 'buying')
   const sellingForm = publicForms.find(form => form.formType === 'selling')
@@ -167,7 +170,7 @@ export default function AgentHubSalesPage() {
     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${luxe ? 'border border-[rgba(var(--m-rgb),.45)] bg-white/60 text-[var(--m-mid)] dark:bg-white/[0.06] dark:text-[var(--m-light)]' : 'border border-gray-200 bg-white text-[#8b7355] dark:border-gray-700 dark:bg-[#151517] dark:text-[#d7b974]'}`}>{text}</span>
   )
 
-  const dark = visitorDarkMode && !forceLightMode
+  const dark = hubDark
   return (
     <div className={dark ? 'dark' : ''}>
     <main data-page-edge className={`relative min-h-screen overflow-hidden bg-[#f7f5f1] text-[#101827] dark:bg-[#0B0B0B] dark:text-[#F3F4F6] ${luxe ? `hub-luxe ${hubLuxeMetalClass(luxeMetal)}` : hubClassicClass('classic', hubAccent)}`} style={luxe ? undefined : hubAccentStyle(hubAccent)}>

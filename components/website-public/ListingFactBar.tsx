@@ -24,7 +24,7 @@ function fitTextClass(value: string | number): string {
 // next to a full-bleed hero photo, not a boutique real estate site. This is the alternative:
 // plain figures with small tracked caps labels underneath, separated by hairline gold dividers -
 // the "spec line" pattern real luxury listing sites use, no icons, no background boxes.
-function StatItem({ value, label, theme, first }: { value: string | number; label: string; theme: SiteTheme; first: boolean }) {
+function StatItem({ value, label, theme, first, phoneHidden = false }: { value: string | number; label: string; theme: SiteTheme; first: boolean; phoneHidden?: boolean }) {
   return (
     // shrink-0 - without it, a flex row that doesn't quite fit (a long school district name is
     // the usual culprit) squeezes this item's box narrower than its own text, wrapping the value
@@ -32,7 +32,7 @@ function StatItem({ value, label, theme, first }: { value: string | number; labe
     // whole item wraps down to its own row instead (via the parent's flex-wrap) rather than the
     // text breaking mid-word.
     <div
-      className={`flex shrink-0 flex-col items-center px-4 sm:px-6 ${first ? 'pl-0' : 'border-l'}`}
+      className={`${phoneHidden ? 'hidden sm:flex' : 'flex'} shrink-0 flex-col items-center px-4 sm:px-6 ${first ? 'pl-0' : 'border-l'}`}
       style={first ? undefined : { borderColor: `${theme.secondary_color}40` }}
     >
       <span className={`whitespace-nowrap font-black leading-none text-white ${fitTextClass(value)} ${fontClass(theme.heading_font, 'font-serif')}`}>{value}</span>
@@ -66,7 +66,9 @@ export default function ListingFactBar({ listing, theme }: { listing: ShowcaseLi
     // shrink-0 protecting its text) still occasionally dropped School to its own second line.
     // This guarantees one line always - on a narrow viewport it scrolls horizontally instead.
     <div className="scrollbar-hide mt-3 flex flex-nowrap items-center justify-between overflow-x-auto border-t pt-3" style={{ borderColor: `${theme.secondary_color}30` }}>
-      {stats.map((s, i) => <StatItem key={i} value={s.value} label={s.label} theme={theme} first={i === 0} />)}
+      {/* Phones get the first four (beds, baths, size, $/sq ft) - a fifth ran off the card's edge with
+          nothing showing the row scrolls (11/09 IDX pass). The rest show from tablet width up. */}
+      {stats.map((s, i) => <StatItem key={i} value={s.value} label={s.label} theme={theme} first={i === 0} phoneHidden={i >= 4} />)}
     </div>
   )
 }

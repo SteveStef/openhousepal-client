@@ -139,7 +139,13 @@ export const staticMapUrlFor = (property: any, size = '640x210'): string | null 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY
   const lat = numberFrom(property.googleRooftopLatitude, property.google_rooftop_latitude, property.latitude, property.lat)
   const lng = numberFrom(property.googleRooftopLongitude, property.google_rooftop_longitude, property.longitude, property.lng)
-  if (!apiKey || lat == null || lng == null) return null
+  if (lat == null || lng == null) return null
+  // A home we have: the server draws its map once and keeps it (11/09) - from Google in the browser,
+  // every Cheat Sheet made (and each of its fit-to-2-pages test renders) was a billed map picture.
+  const key = property.listingKey || property.listing_key || property.ListingKey || property.id
+  const api = process.env.NEXT_PUBLIC_API_URL
+  if (key && api) return `${api.replace(/\/$/, '')}/public/sites/maps/home/${encodeURIComponent(String(key))}.png?size=${size}`
+  if (!apiKey) return null
   const marker = encodeURIComponent(`color:red|${lat},${lng}`)
   return `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=${size}&scale=2&maptype=roadmap&markers=${marker}&key=${apiKey}`
 }

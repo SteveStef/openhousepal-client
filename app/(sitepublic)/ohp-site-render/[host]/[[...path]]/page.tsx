@@ -1,4 +1,5 @@
 import { Metadata, Viewport } from 'next'
+import HubFrame from '@/components/website-public/HubFrame'
 import {
   OpenHouseFrame, PropertyGallery, FeaturedPageClient, PropertyMapSearch, PropertyLocationMap, ExploreNearby, NeighborhoodCompareLauncher, WebsitePublicFormPage, ContactPageView, NeighborhoodsExplorer, MediaHub, SiteBlogArticle, IdxPropertyPage, MyShowcase, ShowcaseBuilder, CinematicLuxuryTemplate, EditorialEstateTemplate, SpotlightFactSheet,
 } from '@/components/website-public/LazySiteParts'
@@ -1143,7 +1144,7 @@ async function PropertyDetailView({ p, theme, basePrefix, siteId }: { p: any; th
 // The About page - a live mirror of this agent's real Agent Hub (see
 // content_adapters.get_agent_hub_snapshot) rather than a separately hand-written bio block, so
 // the agent's own site can work as their link-tree too, not just openhousepal.com/{slug}.
-async function AboutPage({ siteId, basePrefix, host, framed = false, query = '', hubPage = '' }: { siteId: string; basePrefix: string; host: string; framed?: boolean; query?: string; hubPage?: '' | 'sales' }) {
+async function AboutPage({ siteId, basePrefix, host, framed = false, query = '', hubPage = '', mode = 'light' }: { siteId: string; basePrefix: string; host: string; framed?: boolean; query?: string; hubPage?: '' | 'sales'; mode?: 'light' | 'dark' }) {
   const slug = await resolveAgentHubSlug(siteId)
   if (!slug) notFound()
   const visitorQs = new URLSearchParams(query)
@@ -1159,18 +1160,19 @@ async function AboutPage({ siteId, basePrefix, host, framed = false, query = '',
     : (basePrefix ? `${basePrefix}/` : `https://${host}/`))
   // The visit's own params reach the hub inside (?src=qr counts a QR scan, ?intro=0 from setup,
   // campaign tags) - incl. old openhousepal.com/<slug> links forwarded here (proxy.ts).
-  for (const k of ['idx_light', 'idx_return', 'preview', 'from']) visitorQs.delete(k)
+  for (const k of ['idx_light', 'idx_mode', 'idx_return', 'preview', 'from']) visitorQs.delete(k)
   const extra = visitorQs.toString() ? `&${visitorQs.toString()}` : ''
   const hubPath = `/${encodeURIComponent(slug)}${hubPage ? `/${hubPage}` : ''}`
   const src = basePrefix.startsWith('/ohp-site-render/')
-    ? `${hubPath}?idx_light=1&idx_return=${idxReturn}${extra}`
-    : `https://${OHP_BASE_DOMAIN}${hubPath}?idx_light=1&idx_return=${idxReturn}${extra}`
+    ? `${hubPath}?idx_light=1&idx_mode=${mode}&idx_return=${idxReturn}${extra}`
+    : `https://${OHP_BASE_DOMAIN}${hubPath}?idx_light=1&idx_mode=${mode}&idx_return=${idxReturn}${extra}`
   return (
     // dvh, not vh: on phones 100vh runs under the browser bar and cut off the hub's bottom. The
     // 18px overhang (hides the frame's scrollbar) only on desktop - phones have no scrollbar, so it
     // was cutting 18px off the hub's right edge.
-    <main className={`${framed ? 'h-[calc(100dvh-5rem)]' : 'h-[100dvh]'} w-full overflow-hidden bg-[#f7f5f1]`}>
-      <iframe src={src} title="Agent Hub" className="h-full w-full border-0 lg:w-[calc(100%+18px)]" />
+    // The hub wears the website's light/dark look, and follows the visitor's sun/moon switch (HubFrame).
+    <main className={`${framed ? 'h-[calc(100dvh-5rem)]' : 'h-[100dvh]'} w-full overflow-hidden ${mode === 'dark' ? 'bg-[#0B0B0B]' : 'bg-[#f7f5f1]'}`}>
+      <HubFrame src={src} title="Agent Hub" className="h-full w-full border-0 lg:w-[calc(100%+18px)]" />
     </main>
   )
 }
@@ -1307,7 +1309,9 @@ async function SearchResults({ siteId, theme, basePrefix, filters }: { siteId: s
     property_type: filters.property_type || applied.property_type || undefined,
     min_acres: filters.min_acres || (applied.min_acres != null ? String(applied.min_acres) : undefined),
   }
-  return <PropertyMapSearch listings={results} theme={theme} basePrefix={basePrefix} filters={effectiveFilters} towns={Array.isArray(applied.cities) ? applied.cities : []} />
+  return <PropertyMapSearch listings={results} theme={theme} basePrefix={basePrefix} filters={effectiveFilters} towns={Array.isArray(applied.cities) ? applied.cities : []}
+    unmatched={Array.isArray(applied.unmatched) ? applied.unmatched : []} zip={applied.zip || null}
+    features={Array.isArray(applied.features) ? applied.features : []} keywords={Array.isArray(applied.keywords) ? applied.keywords : []} />
 }
 
 async function SearchPropertyDetail({ siteId, listingKey, theme, basePrefix }: { siteId: string; listingKey: string; theme: any; basePrefix: string }) {
@@ -1939,14 +1943,14 @@ export default async function PublicSitePage({
     content = <CmaAliasPage siteId={resolved.site_id} shareSlug={path[1]} basePrefix={basePrefix} />
     exactExternalResource = true
   } else if ((path?.[0] === 'hub' || path?.[0] === 'agent-hub') && !path[1]) {
-    content = <AboutPage siteId={resolved.site_id} basePrefix={basePrefix} host={host} framed query={queryString(currentSearchParams)} />
+    content = <AboutPage siteId={resolved.site_id} basePrefix={basePrefix} host={host} framed query={queryString(currentSearchParams)} mode={theme.mode === 'dark' ? 'dark' : 'light'} />
     hideFooter = true
   } else if (path?.[0] === 'about' && !path[1]) {
-    content = <AboutPage siteId={resolved.site_id} basePrefix={basePrefix} host={host} framed />
+    content = <AboutPage siteId={resolved.site_id} basePrefix={basePrefix} host={host} framed mode={theme.mode === 'dark' ? 'dark' : 'light'} />
     hideFooter = true
   } else if (path?.[0] === 'sales' && !path[1]) {
     // The Agent Hub's Sales page inside the site - a town page's "View all" (?town=&from=).
-    content = <AboutPage siteId={resolved.site_id} basePrefix={basePrefix} host={host} framed query={queryString(currentSearchParams)} hubPage="sales" />
+    content = <AboutPage siteId={resolved.site_id} basePrefix={basePrefix} host={host} framed query={queryString(currentSearchParams)} hubPage="sales" mode={theme.mode === 'dark' ? 'dark' : 'light'} />
     hideFooter = true
   } else if (path?.[0] === 'home-value' && !path[1]) {
     // "What's my home worth?" landing page - for ads, mailers and the agent's email signature.

@@ -3,6 +3,7 @@
 import { formVisitContext, type FormVisitContext } from '@/lib/formTracking'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
+import { useIdxFrameMode } from '@/lib/idxFrameMode'
 import { ArrowLeft } from 'lucide-react'
 import FormRunner from '@/components/forms/FormRunner'
 import OhpLoader from '@/components/brand/OhpLoader'
@@ -70,7 +71,9 @@ export default function PublicFormPage() {
   const [notFound, setNotFound] = useState(false)
   const sessionKeyRef = useRef(generateSessionKey())
   const visitRef = useRef<FormVisitContext | null>(null)
-  useForcedLightMode(forceLightMode)
+  // Inside the agent's website: the website's light/dark look (lib/idxFrameMode), not the form's own.
+  const { idxDark } = useIdxFrameMode(searchParams)
+  useForcedLightMode(forceLightMode && !idxDark)
   // ?preview=1: a live preview inside an editor (form Settings, the setup flow) - the editor hands
   // over the look being picked, so it changes the instant a choice is tapped. Not a visit.
   const preview = searchParams.get('preview') === '1'
@@ -101,7 +104,7 @@ export default function PublicFormPage() {
   useEffect(() => (recolor ? applyAccentRecolor(recolor) : undefined), [recolor])
   // The form's own light/dark choice, never the app's: an agent who uses OpenHousePal in dark mode
   // put 'dark' on <html> for this whole browser, turning a light form's text white (user, 10/18).
-  useHubColorMode(!!look?.dark, !!form && !forceLightMode)
+  useHubColorMode(forceLightMode ? idxDark : !!look?.dark, !!form && (!forceLightMode || idxDark))
   // The question pages sit still: the phone's keyboard can't drag the page down (user, 10/24).
   const pinnedRef = useFormViewportLock(!!form && !canUseShowingFlow(form))
 
@@ -152,13 +155,13 @@ export default function PublicFormPage() {
   }
 
   // Schedule a Showing: find the home, then the Showcase's tour window + Pending/Confirmed status.
-  const dark = !!look?.dark && !forceLightMode
+  const dark = forceLightMode ? idxDark : !!look?.dark
   const pageBg = look?.theme === 'luxe' ? (dark ? 'dark bg-[#0c0c0e]' : 'bg-[#fffdf8]') : dark ? 'dark bg-[#0B0B0B]' : 'bg-[#FAFAF7]'
-  const shownLook = look && forceLightMode ? { ...look, dark: false } : look
+  const shownLook = look && forceLightMode ? { ...look, dark: idxDark } : look
 
   if (canUseShowingFlow(form)) {
     return (
-      <div className={`relative ${forceLightMode ? 'ohp-force-light' : ''} ${pageBg} min-h-screen`}>
+      <div className={`relative ${forceLightMode && !idxDark ? 'ohp-force-light' : ''} ${pageBg} min-h-screen`}>
         {forceLightMode && <PublicFormBackButton fallbackHref={idxFallbackHref} />}
         <ShowingRequestFlow
           form={{ ...form, agentPhotoUrl: resolvePhotoUrl(form.agentPhotoUrl), showBranding: forceLightMode ? false : form.showBranding }}
@@ -180,7 +183,7 @@ export default function PublicFormPage() {
   }
 
   return (
-    <div ref={pinnedRef} className={`fixed inset-x-0 top-0 ${forceLightMode ? 'ohp-force-light' : ''} ${pageBg} h-[100dvh]`}>
+    <div ref={pinnedRef} className={`fixed inset-x-0 top-0 ${forceLightMode && !idxDark ? 'ohp-force-light' : ''} ${pageBg} h-[100dvh]`}>
       {forceLightMode && <PublicFormBackButton fallbackHref={idxFallbackHref} />}
       <FormRunner
         formId={form.formId}

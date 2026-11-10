@@ -7,7 +7,7 @@ import { IMG, sizedBg, sizedImage } from '@/lib/siteImage'
 
 function Lightbox({ photos, address, index, onClose, onIndex }: { photos: string[]; address: string; index: number; onClose: () => void; onIndex: (i: number) => void }) {
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-black/95">
+    <div role="dialog" aria-modal="true" aria-label={`Photos of ${address}`} className="fixed inset-0 z-[100] flex flex-col bg-black/95">
       <div className="flex items-center justify-between px-6 py-4 text-white/80">
         <span className="text-xs font-semibold uppercase tracking-wide">{index + 1} / {photos.length}</span>
         <button onClick={onClose} aria-label="Close" className="rounded-full p-2 transition hover:bg-white/10 hover:text-white">

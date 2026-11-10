@@ -3,6 +3,8 @@
 // (ChatGPT, Perplexity, Google AI answers) that read it, the way search engines read sitemap.xml.
 // Same facts and the same "hide me" switch as the sitemap.
 
+import { formatPhone } from '@/lib/leadEventDetails'
+
 const INTERNAL_API_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
 async function json(url: string) {
@@ -28,7 +30,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ host: s
   const name = line(profile?.name || seo.site_name || resolved.subdomain_slug)
   const who = [profile?.title, profile?.brokerage ? `with ${profile.brokerage}` : '', profile?.market ? `serving ${profile.market}` : ''].filter(Boolean).join(' ')
   const out: string[] = [`# ${name}`, '', `> ${line(seo.description || `${name}${who ? `, ${who}` : ''} - homes for sale, neighborhood guides, market data and local real estate advice.`)}`, '']
-  const contact = [profile?.phone ? `Phone: ${profile.phone}` : '', profile?.email ? `Email: ${profile.email}` : '', profile?.license_number ? `License: ${profile.license_number}` : ''].filter(Boolean)
+  const contact = [profile?.phone ? `Phone: ${formatPhone(profile.phone)}` : '', profile?.email ? `Email: ${profile.email}` : '', profile?.license_number ? `License: ${profile.license_number}` : ''].filter(Boolean)
   if (contact.length) out.push(contact.join(' · '), '')
   // Same rule as the Google data: a rating only when it's safe to share (profile.google_rating).
   const rated = seo.share_rating !== false ? profile?.google_rating : null

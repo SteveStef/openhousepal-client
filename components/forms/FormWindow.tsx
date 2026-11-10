@@ -55,6 +55,7 @@ export default function FormWindow({ url, title, prefill, onClose }: {
       {url && (
         <motion.div key="fw" {...backdropMotion} className="fixed inset-0 z-[95] flex items-end justify-center bg-black/65 p-0 sm:items-center sm:p-6" onClick={onClose}>
           <motion.div ref={sheetRef} {...sheetMotion} style={phone ? { y } : undefined}
+            role="dialog" aria-modal="true" aria-label={title || 'Form'}
             onClick={e => e.stopPropagation()}
             className="relative flex h-[calc(100dvh-12px)] w-full max-w-xl flex-col overflow-hidden rounded-t-[26px] bg-white shadow-2xl sm:h-[82vh] sm:rounded-3xl dark:bg-[#111]">
             {phone ? (

@@ -7,12 +7,10 @@
 import { ImageResponse } from 'next/og'
 import {
   OG_SIZE, ogFonts, ogFetch, imgToDataUri, imgSize, firstName, money, C,
-  PhotoCard, findShowcaseHome,
+  PhotoCard, findShowcaseHome, showcasePreviewHomes,
 } from './shared'
-import { computeMatchScore } from '@/lib/matchScore'
 import { showcaseHomeCount, showcaseHomesLabel, showcaseMoreLabel } from '@/lib/showcaseLink'
 import { hubAccentOf } from '@/components/agent-hub/HubClassicTheme'
-import { isPropertyAvailableStatus } from '@/lib/utils'
 import { usableAccent } from '@/components/property-sites/spotlight/tone'
 import { DEFAULT_SITE_THEME } from '@/components/website-public/types'
 import { CLASSIC_DEFAULT_ACCENT, normalizeSiteTheme, siteLuxeMetal, siteMode, siteTemplate } from '@/lib/siteTheme'
@@ -295,20 +293,10 @@ export async function renderShowcaseCard(shareToken: string, fonts: Fonts, accen
   try {
     const data = await ogFetch<any>(`/collections/shared/${encodeURIComponent(shareToken)}`)
     const all: any[] = Array.isArray(data?.matchedProperties) ? data.matchedProperties : []
-    // Not the home they toured (it's in the set at 100%) - the card shows them new homes.
-    const orig = data?.originalProperty || {}
-    const origKey = String(orig.listingKey || orig.ListingKey || '')
-    const origStreet = String(orig.address || '').split(',')[0].trim().toLowerCase()
-    const isOrig = (p: any) => (origKey && String(p?.ListingKey || '') === origKey) || (origStreet && String(p?.FullStreetAddress || '').trim().toLowerCase() === origStreet)
-    const live = all.filter(p => !isOrig(p) && isPropertyAvailableStatus(p?.MlsStatus || p?.StandardStatus))
-    const pool = live.length >= 3 ? live : all.filter(p => !isOrig(p))
-    // The three NEWEST homes in their Showcase (user, 10/17) - so a link copied today shows what just
-    // came in - each still wearing the same "X% Match" the client sees on their cards.
-    const subject = data?.preferences?.show_match_score !== false ? data?.originalProperty : null
-    const scored = pool.map(p => ({ p, match: subject ? computeMatchScore(p, subject, pool) : null }))
+    // The homes the follow-up text leads with first (the one it names, then the must-have homes), then
+    // the newest (user, 10/17) - never the home they toured. Same order its ?v= is made from.
     const t = (p: any) => Date.parse(p?.AddedAt || '') || Date.parse(p?.MLSListDate || p?.ListingContractDate || '') || 0
-    scored.sort((a, b) => (t(b.p) - t(a.p)) || ((b.match ?? 0) - (a.match ?? 0)))
-    const top = scored.filter(s => s.p?.ListPictureURL).slice(0, 3)
+    const top = showcasePreviewHomes(data).filter(s => s.p?.ListPictureURL).slice(0, 3)
     const [agentPhoto, ...photos] = await Promise.all([
       imgToDataUri(data?.agentPhotoUrl),
       ...top.map(s => imgToDataUri(s.p.ListPictureURL, 4500)),

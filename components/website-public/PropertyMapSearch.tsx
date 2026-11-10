@@ -157,13 +157,25 @@ function Pop({ label, active, children, align = 'left' }: { label: ReactNode; ac
 // get_search_results); the view is client state over what the server returned. Applying a filter
 // swaps the results in place (client navigation, no page reload): the map stays where the
 // visitor left it, the site's loading mark shows over it until the new homes arrive.
-export default function PropertyMapSearch({ listings, theme, basePrefix = '', filters, towns = [] }: {
+// "a pool", "a pool and a garage", "a pool, a garage and a fireplace"
+function andList(items: string[]): string {
+  return items.length <= 1 ? (items[0] || '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
+}
+
+export default function PropertyMapSearch({ listings, theme, basePrefix = '', filters, towns = [], unmatched = [], zip = null, features = [], keywords = [] }: {
   listings: MapListing[]
   theme: SiteTheme
   basePrefix?: string
   filters: SearchFilterParams
   // The towns this search covered (server-side) - what "Save this search" watches.
   towns?: string[]
+  // Words the search box couldn't filter by ("pool") - said out loud, never silently dropped.
+  unmatched?: string[]
+  zip?: string | null
+  // What the search box's feature words matched ("a pool", "a finished basement") and the other words
+  // looked for in the listing descriptions ("gazebo") - no AI, see backend search_features.py.
+  features?: string[]
+  keywords?: string[]
 }) {
   const luxe = theme.template !== 'default'
   const formRef = useRef<HTMLFormElement>(null)
@@ -600,9 +612,23 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
       </form>
 
       {/* results bar */}
+      {!pending && unmatched.length > 0 && (
+        <p className="px-4 pt-3 text-xs font-semibold sm:px-6" style={{ color: 'var(--site-muted)', backgroundColor: 'var(--site-bg)' }} data-testid="search-unmatched">
+          No home here mentions “{unmatched.join(' ')}” - the homes below match the rest of what you typed.
+        </p>
+      )}
+      {!pending && (features.length > 0 || keywords.length > 0) && (
+        <p className="px-4 pt-3 text-xs font-semibold sm:px-6" style={{ color: 'var(--site-muted)', backgroundColor: 'var(--site-bg)' }} data-testid="search-features">
+          {features.length > 0 && <>Homes with {andList(features)}</>}
+          {features.length > 0 && keywords.length > 0 && ', whose description mentions '}
+          {features.length === 0 && 'Homes whose description mentions '}
+          {keywords.length > 0 && andList(keywords.map(k => `“${k}”`))}
+          {' '}- going by each listing&apos;s details and description.
+        </p>
+      )}
       <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6" style={{ backgroundColor: 'var(--site-bg)' }}>
         <p className="text-sm font-bold" style={{ color: 'var(--site-heading)' }}>
-          {pending ? <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" style={{ color: 'var(--site-accent)' }} />Finding homes…</span> : <>{listings.length >= 120 ? '120+' : listings.length.toLocaleString()} {listings.length === 1 ? 'home' : 'homes'} <span className="font-semibold" style={{ color: 'var(--site-muted)' }}>{filters.include_rentals === 'true' ? 'for sale & rent' : 'for sale'}{area ? ' in your drawn area' : ''}</span></>}
+          {pending ? <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" style={{ color: 'var(--site-accent)' }} />Finding homes…</span> : <>{listings.length >= 120 ? '120+' : listings.length.toLocaleString()} {listings.length === 1 ? 'home' : 'homes'} <span className="font-semibold" style={{ color: 'var(--site-muted)' }}>{filters.include_rentals === 'true' ? 'for sale & rent' : 'for sale'}{area ? ' in your drawn area' : zip ? ` in ${zip}` : filters.q && towns.length > 0 && towns.length <= 3 ? ` in ${towns.map(t => t.split(',')[0]).join(', ')}` : ''}</span></>}
         </p>
         <div className="flex items-center gap-2">
           <label className="relative inline-flex items-center">

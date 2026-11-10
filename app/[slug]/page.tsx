@@ -11,6 +11,7 @@ import { pinnedFirst } from '@/lib/hubPins'
 import { applySalesDisplay, salesSortOf, type SalesSort } from '@/lib/agentSales'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useIdxFrameMode } from '@/lib/idxFrameMode'
 import { Children, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react'
 import api, { API_BASE_URL } from '@/lib/api-service'
 import { PublicFormSummary, PublicBlogSummary } from '@/types'
@@ -226,10 +227,13 @@ export default function PublicAgentHubPage() {
   const forceLightMode = searchParams.get('idx_light') === '1'
   const idxReturn = searchParams.get('idx_return')
   const agentHubBasePath = `/${agentSlug}`
-  const idxLightSuffix = forceLightMode ? `?idx_light=1${idxReturn ? `&idx_return=${encodeURIComponent(idxReturn)}` : ''}` : ''
-  const salesPath = `${agentHubBasePath}/sales`
+  // Inside the agent's IDX website the hub wears the website's light/dark look (lib/idxFrameMode).
+  const { idxDark } = useIdxFrameMode(searchParams)
+  const idxLightSuffix = forceLightMode ? `?idx_light=1&idx_mode=${idxDark ? 'dark' : 'light'}${idxReturn ? `&idx_return=${encodeURIComponent(idxReturn)}` : ''}` : ''
+  // Inside the website, Sales stays inside it too (same look, Back to the website).
+  const salesPath = `${agentHubBasePath}/sales${idxLightSuffix}`
   // Current listings lead the Sales page now (the separate Listings page redirects there).
-  const listingsPath = `${agentHubBasePath}/sales`
+  const listingsPath = salesPath
   const blogsPath = `${agentHubBasePath}/blogs`
   const [visibleSectionIds, setVisibleSectionIds] = useState(defaultVisibleSectionIds)
   const [layoutSections, setLayoutSections] = useState(defaultLayoutSections)
@@ -298,8 +302,9 @@ export default function PublicAgentHubPage() {
   }, [forceLightMode])
 
   // The hub follows ITS OWN light/dark choice, never the OpenHousePal app's (same on the Sales page).
-  useHubColorMode(visitorDarkMode && !forceLightMode)
-  useHubLookChanged(`${hubStatus}|${hubTheme}|${hubLuxeMetal}|${hubAccent}|${visitorDarkMode && !forceLightMode}`)
+  const hubDark = forceLightMode ? idxDark : visitorDarkMode
+  useHubColorMode(hubDark)
+  useHubLookChanged(`${hubStatus}|${hubTheme}|${hubLuxeMetal}|${hubAccent}|${hubDark}`)
 
   // The setup flow's preview frame (?preview=1): the look being picked arrives here the moment
   // it's tapped (same-origin parent only), so the phone changes at once instead of after a save
@@ -853,7 +858,7 @@ export default function PublicAgentHubPage() {
   }
 
   return (
-    <div className={visitorDarkMode && !forceLightMode ? 'dark' : ''}>
+    <div className={hubDark ? 'dark' : ''}>
     <main data-page-edge className={`agent-hub-public relative min-h-screen overflow-hidden bg-[#f7f5f1] text-[#101827] dark:bg-[#0B0B0B] dark:text-[#F3F4F6] ${luxe ? `hub-luxe ${hubLuxeMetalClass(hubLuxeMetal)} ${luxeIntro ? 'hub-lx-intro-on' : ''}` : hubClassicClass(hubTheme, hubAccent)}${returning ? ' hub-returning' : ''}`} style={luxe ? undefined : hubAccentStyle(hubAccent)}>
       {luxe ? <><HubLuxeStyles /><HubLuxeDecor /></> : <HubClassicStyles />}
       {luxe && luxeIntro && <HubLuxeIntro name={profile.name} kicker={[profile.title, profile.brokerage].filter(Boolean).join(' · ')} photoUrl={profilePhotoUrl} photoPosition={profilePhotoPosition} onDone={() => setLuxeIntro(false)} />}
@@ -861,7 +866,7 @@ export default function PublicAgentHubPage() {
       <SignedInToast show={searchParams.get('src') === 'signin'} />
       {/* Form buttons open in a window over the hub, not a new page. */}
       <HubFormLauncher hubSlug={agentSlug} forms={publicForms} />
-      {visitorDarkMode && !forceLightMode && (
+      {hubDark && (
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-white/5 to-transparent" />
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.02)_0%,rgba(255,255,255,0.01)_18%,transparent_100%)]" />

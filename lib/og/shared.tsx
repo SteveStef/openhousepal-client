@@ -11,6 +11,8 @@ import path from 'node:path'
 import { DEFAULT_SITE_THEME } from '@/components/website-public/types'
 import { CLASSIC_DEFAULT_ACCENT, normalizeSiteTheme, siteLuxeMetal, siteMode, siteTemplate } from '@/lib/siteTheme'
 import { homeSlug } from '@/lib/showcaseLink'
+import { computeMatchScore } from '@/lib/matchScore'
+import { isPropertyAvailableStatus } from '@/lib/utils'
 
 export const OG_SIZE = { width: 1200, height: 630 }
 export const OG_CONTENT_TYPE = 'image/png'
@@ -152,10 +154,33 @@ export function firstName(full?: string | null): string {
   return (full || '').trim().split(/\s+/)[0] || ''
 }
 
+/** The homes a Showcase link's preview card shows, best first (renderShowcaseCard takes the first three
+ *  with a photo). Leads with the homes the follow-up text leads with (owner, 11/09) - `previewLead` from
+ *  the backend (tasks_service.preview_lead_ids): the home the text names first, then the other homes
+ *  that have every must-have - and after them the newest in the Showcase, each with the same "X% Match"
+ *  the client sees. Never the home they toured, nor one they passed on. */
+export function showcasePreviewHomes(data: any): { p: any; match: number | null }[] {
+  const all: any[] = Array.isArray(data?.matchedProperties) ? data.matchedProperties : []
+  const orig = data?.originalProperty || {}
+  const origKey = String(orig.listingKey || orig.ListingKey || '')
+  const origStreet = String(orig.address || '').split(',')[0].trim().toLowerCase()
+  const isOrig = (p: any) => (origKey && String(p?.ListingKey || '') === origKey) || (origStreet && String(p?.FullStreetAddress || '').trim().toLowerCase() === origStreet)
+  const live = all.filter(p => !isOrig(p) && !p?.disliked && isPropertyAvailableStatus(p?.MlsStatus || p?.StandardStatus))
+  const pool = live.length >= 3 ? live : all.filter(p => !isOrig(p) && !p?.disliked)
+  const subject = data?.preferences?.show_match_score !== false ? data?.originalProperty : null
+  const scored = pool.map(p => ({ p, match: subject ? computeMatchScore(p, subject, pool) : null }))
+  const lead: string[] = Array.isArray(data?.previewLead) ? data.previewLead.map(String) : []
+  const rank = (p: any) => { const i = lead.indexOf(String(p?.id)); return i < 0 ? lead.length : i }
+  const t = (p: any) => Date.parse(p?.AddedAt || '') || Date.parse(p?.MLSListDate || p?.ListingContractDate || '') || 0
+  scored.sort((a, b) => (rank(a.p) - rank(b.p)) || (t(b.p) - t(a.p)) || ((b.match ?? 0) - (a.match ?? 0)))
+  return scored
+}
+
 /** A Showcase link's preview text, the same on openhousepal.com and on the agent's own domain:
  *  "Lori's personal Showcase" (the guest it was made for - never the agent's name tacked on) over
- *  "26 homes hand-picked for you by ...". `v` changes when new homes land, so iMessage never
- *  reuses an old card for a client the agent has texted before. */
+ *  "26 homes hand-picked for you by ...". `v` is a fingerprint of the homes the card shows (which,
+ *  in what order, their price and photo), so iMessage never reuses an old card once the Showcase
+ *  changes - new homes, a home gone, or the must-haves reordering it. */
 export function showcaseShareText(data: any): { title: string; description: string; v: string } {
   const agent = data?.agentFullName || data?.agentName
   const raw = firstName(data?.customer?.firstName)
@@ -167,8 +192,8 @@ export function showcaseShareText(data: any): { title: string; description: stri
   const description = agent
     ? `${count ? `${count} homes` : 'Homes'} hand-picked for you by ${agent} - updated the moment new ones list. Tap a home to save it, comment or book a tour.`
     : 'Homes hand-picked for you - updated the moment new ones list. Tap a home to save it, comment or book a tour.'
-  const newest = homes.reduce((m, h) => Math.max(m, Date.parse(h?.AddedAt || '') || 0), 0)
-  return { title, description, v: `c3-${count}-${Math.floor(newest / 60000) || 0}` }
+  const shown = showcasePreviewHomes(data).filter(s => s.p?.ListPictureURL).slice(0, 3)
+  return { title, description, v: cardVersion('c4', count, ...shown.map(s => [s.p.id, s.p.ListPrice, s.p.ListPictureURL, s.p.MlsStatus].join(':'))) }
 }
 
 /** The home a one-home Showcase link points at: its slug (/showcase/dana-k7q2/732-buck-ln, see
