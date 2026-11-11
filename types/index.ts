@@ -4298,16 +4298,57 @@ export interface BillingGroupMember {
   id: string; name: string; email: string; brokerage?: string | null; plan_tier?: string | null; subscription_status?: string | null
   /** Still has their own PayPal subscription - may be paying twice. */
   has_paypal_subscription: boolean; last_seen_at?: string | null; joined_at?: string | null; broker_authorized: boolean
+  /** AI used this calendar month ($) and their monthly allowance ($, null = no allowance). Admin only. */
+  ai_used_usd?: number; ai_limit_usd?: number | null
+  /** This person's own monthly AI allowance inside the group ($) - null = the group's / plan's. */
+  ai_budget_override_usd?: number | null
 }
 export interface BillingGroup {
   id: string; name: string; brokerage?: string | null; contact_name?: string | null; contact_email?: string | null; contact_phone?: string | null
   paypal_reference?: string | null; amount?: number | null; billing_cycle: 'monthly' | 'quarterly' | 'yearly'; seats?: number | null
   plan_tier?: string | null; status: 'active' | 'paused' | 'ended'; started_on?: string | null; next_invoice_on?: string | null
   notes?: string | null; created_at: string; per_agent?: number | null; members: BillingGroupMember[]
+  /** AI usage per agent each month ($) - null = the plan's normal allowance. */
+  ai_budget_per_agent_usd?: number | null
+  /** AI usage for the whole group together each month ($) - null = no group cap. */
+  ai_budget_total_usd?: number | null
+  ai_used_month_usd?: number
+  /** Emails waiting to sign up - they join this group (and its plan) when they do. */
+  pending_emails?: { id: string; email: string; apply_plan: boolean; invited_at?: string | null; created_at: string }[]
   /** Only after adding agents: who still had their own PayPal subscription (cancel it in PayPal). */
   had_paypal?: { id: string; name: string; subscription_id: string }[]
 }
-export type BillingGroupInput = Partial<Omit<BillingGroup, 'id' | 'created_at' | 'per_agent' | 'members'>>
+export type BillingGroupInput = Partial<Omit<BillingGroup, 'id' | 'created_at' | 'per_agent' | 'members' | 'ai_used_month_usd' | 'pending_emails'>>
+export interface GroupEmailsResult extends BillingGroup { joined: string[]; listed: string[]; moved: string[]; invalid: string[]; invited: number }
+
+/** Admin payment requests - a card pay link, one time or recurring (payment_request_routes.py). */
+export type PaymentCycle = 'once' | 'monthly' | 'quarterly' | 'yearly'
+export type PaymentRequestStatus = 'open' | 'active' | 'paid' | 'past_due' | 'cancelled' | 'ended'
+export interface PaymentRequest {
+  id: string; token: string; link: string; title: string; note?: string | null
+  amount: number; cycle: PaymentCycle; total_payments?: number | null; price_line: string
+  billing_group_id?: string | null; group_name?: string | null; user_id?: string | null; user_name?: string | null
+  payer_name?: string | null; payer_email?: string | null; plan_tier?: string | null; seats?: number | null
+  status: PaymentRequestStatus; paypal_subscription_id?: string | null
+  payments_count: number; amount_paid_total: number; last_paid_at?: string | null; next_charge_at?: string | null
+  sent_at?: string | null; sent_count: number; cancelled_at?: string | null; created_at: string
+  replaces_request_id?: string | null
+  /** Only right after create with send_email. */
+  emailed?: boolean
+}
+export interface PaymentRequestInput {
+  title?: string; note?: string | null; amount?: number; cycle?: PaymentCycle; total_payments?: number | null
+  billing_group_id?: string | null; user_id?: string | null; payer_name?: string | null; payer_email?: string | null
+  plan_tier?: string | null; seats?: number | null; new_group_name?: string | null; send_email?: boolean
+  replaces_request_id?: string | null
+}
+/** What the payer sees at /pay/<token>. */
+export interface PublicPaymentRequest {
+  title: string; note?: string | null; amount: number; cycle: PaymentCycle; total_payments?: number | null; price_line: string
+  payer_name?: string | null; group_name?: string | null; plan_name?: string | null; seats?: number | null
+  status: PaymentRequestStatus; payments_count: number; last_paid_at?: string | null; next_charge_at?: string | null
+  start: { plan_id: string; custom_id: string } | null
+}
 
 // The Showcases page header's two inboxes (GET /collections/inbox).
 export interface ShowcaseActivityItem {

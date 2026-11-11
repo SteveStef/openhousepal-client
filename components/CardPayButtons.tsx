@@ -72,6 +72,11 @@ export function CardPayButtons({ start, onApproved, onCancel, onError, disabled 
           <div style={{ colorScheme: 'light' }} className="rounded-xl border border-gray-200 bg-white p-2.5 pb-1 shadow-sm dark:border-white/10">
             <PayPalButtons {...common} fundingSource={FUNDING.CARD} style={{ layout: 'vertical', color: 'black', shape: 'rect', label: 'pay' }} />
           </div>
+          {/* PayPal's own card form offers "Save info & create your PayPal account" (switched on) and
+              then asks Yes / No - we can't hide that from here, so say it's optional (11/11). */}
+          <p className="text-center text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400">
+            PayPal’s form may offer to make a PayPal account - that’s optional. Switch it off or pick “No” to just pay by card.
+          </p>
           <div aria-disabled="true" title="Paying with a PayPal account is coming soon"
             className="flex h-[42px] cursor-not-allowed select-none items-center justify-center gap-2 whitespace-nowrap rounded-md border border-dashed border-gray-300 bg-gray-100 px-2 text-[12px] font-bold text-gray-400 dark:border-white/15 dark:bg-white/[0.04] dark:text-white/35">
             PayPal account <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[9.5px] font-black uppercase tracking-wide text-gray-500 dark:bg-white/10 dark:text-white/50">Coming soon</span>

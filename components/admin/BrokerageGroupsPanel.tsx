@@ -134,6 +134,7 @@ function GroupDrawer({ group, users, groups, onClose, onSaved, onToast }: {
     name: group.name, brokerage: group.brokerage, contact_name: group.contact_name, contact_email: group.contact_email, contact_phone: group.contact_phone,
     paypal_reference: group.paypal_reference, amount: group.amount, billing_cycle: group.billing_cycle, seats: group.seats, plan_tier: group.plan_tier,
     status: group.status, started_on: group.started_on, next_invoice_on: group.next_invoice_on, notes: group.notes,
+    ai_budget_per_agent_usd: group.ai_budget_per_agent_usd ?? null, ai_budget_total_usd: group.ai_budget_total_usd ?? null,
   } : { name: '', billing_cycle: 'monthly', status: 'active', plan_tier: 'PREMIUM' })
   const [saving, setSaving] = useState(false)
   const [q, setQ] = useState('')
@@ -234,16 +235,24 @@ function GroupDrawer({ group, users, groups, onClose, onSaved, onToast }: {
             )}
           </Box>
 
-          <div className="flex gap-2">
-            <button onClick={save} disabled={saving} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#111827] py-3 text-sm font-black text-white disabled:opacity-50 dark:bg-white dark:text-[#111827]">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {group ? 'Save changes' : 'Create group'}
-            </button>
+          <Box title="AI usage">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <L label="Each agent, per month ($)"><input className={FIELD} type="number" inputMode="decimal" min={1} value={form.ai_budget_per_agent_usd ?? ''} onChange={e => set('ai_budget_per_agent_usd', e.target.value === '' ? null : Number(e.target.value))} placeholder="Plan's normal allowance" /></L>
+              <L label="Whole group together, per month ($)"><input className={FIELD} type="number" inputMode="decimal" min={1} value={form.ai_budget_total_usd ?? ''} onChange={e => set('ai_budget_total_usd', e.target.value === '' ? null : Number(e.target.value))} placeholder="No group limit" /></L>
+            </div>
+            <p className="mt-2 text-[11px] font-semibold text-gray-400">
+              Blank = what everyone has now. Set one person's own amount on their row below. The group total resets on the 1st; agents only ever see a percent bar.
+            </p>
             {group && (
-              <button onClick={() => setConfirm('delete')} className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-4 text-sm font-black text-red-600 hover:bg-red-50 dark:border-red-500/25 dark:text-red-300 dark:hover:bg-red-500/10">
-                <Trash2 className="h-4 w-4" /> Delete
-              </button>
+              <div className="mt-3 rounded-xl bg-[#faf9f7] p-3 dark:bg-white/[0.04]">
+                <div className="flex items-baseline justify-between gap-2 text-xs font-black text-[#111827] dark:text-white">
+                  <span>Used this month</span>
+                  <span>{money(group.ai_used_month_usd ?? 0)}{group.ai_budget_total_usd ? <span className="font-bold text-gray-400"> of {money(group.ai_budget_total_usd)}</span> : <span className="font-bold text-gray-400"> · no group total</span>}</span>
+                </div>
+                {group.ai_budget_total_usd ? <Meter pct={(group.ai_used_month_usd ?? 0) / group.ai_budget_total_usd * 100} className="mt-2 h-2" /> : null}
+              </div>
             )}
-          </div>
+          </Box>
 
           {paypalWarning.length > 0 && (
             <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-4 dark:border-red-500/40 dark:bg-red-500/10">
@@ -265,17 +274,27 @@ function GroupDrawer({ group, users, groups, onClose, onSaved, onToast }: {
 
           {group && (
             <Box title={`Agents in this group (${group.members.length}${group.seats ? ` of ${group.seats} seats` : ''})`}>
+              {group.seats != null && group.members.length + (group.pending_emails?.length || 0) > group.seats && (
+                <p className="mb-3 flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {group.members.length + (group.pending_emails?.length || 0)} people for a {group.seats}-seat deal (counting emails waiting to sign up) - raise the seats or send a new payment request.
+                </p>
+              )}
               {group.members.length === 0 ? <p className="text-sm font-semibold text-gray-400">No agents yet - add them below.</p> : (
                 <div className="divide-y divide-gray-100 rounded-xl border border-gray-100 dark:divide-white/[0.06] dark:border-white/[0.06]">
                   {group.members.map(m => (
-                    <div key={m.id} className="flex flex-wrap items-center gap-2 px-3 py-2.5">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-black text-[#111827] dark:text-white">{m.name}</p>
-                        <p className="truncate text-[11px] font-semibold text-gray-400">{m.email} · {m.last_seen_at ? `in ${timeAgo(m.last_seen_at).toLowerCase()}` : 'not seen yet'}</p>
-                        {m.has_paypal_subscription && <p className="mt-0.5 flex items-center gap-1 text-[11px] font-bold text-red-600 dark:text-red-400"><AlertTriangle className="h-3 w-3" /> Still on their own PayPal subscription - cancel it in PayPal</p>}
+                    <div key={m.id} className="px-3.5 py-3">
+                      <div className="flex items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="flex min-w-0 items-center gap-2">
+                            <span className="truncate text-sm font-black text-[#111827] dark:text-white">{m.name}</span>
+                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${PLAN_CHIP[m.plan_tier || 'FREE']}`}>{PLAN_LABEL[m.plan_tier || 'FREE']}</span>
+                          </p>
+                          <p className="truncate text-[11px] font-semibold text-gray-400">{m.email} · {m.last_seen_at ? `seen ${timeAgo(m.last_seen_at)}` : 'not signed in yet'}</p>
+                        </div>
+                        <button onClick={() => remove(m.id)} title="Take out of this group (plan unchanged)" aria-label={`Take ${m.name} out of this group`} className="-mr-1 shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 max-sm:p-2.5 dark:hover:bg-red-500/10"><UserMinus className="h-4 w-4" /></button>
                       </div>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${PLAN_CHIP[m.plan_tier || 'FREE']}`}>{PLAN_LABEL[m.plan_tier || 'FREE']}</span>
-                      <button onClick={() => remove(m.id)} title="Take out of this group (plan unchanged)" aria-label="Take out of this group" className="rounded-lg p-1.5 max-sm:p-3 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"><UserMinus className="h-4 w-4" /></button>
+                      {m.has_paypal_subscription && <p className="mt-1 flex items-center gap-1 text-[11px] font-bold text-red-600 dark:text-red-400"><AlertTriangle className="h-3 w-3" /> Still on their own PayPal subscription - cancel it in PayPal</p>}
+                      <MemberAi groupId={group.id} m={m} onToast={onToast} onSaved={g => onSaved(g, false)} />
                     </div>
                   ))}
                 </div>
@@ -309,7 +328,7 @@ function GroupDrawer({ group, users, groups, onClose, onSaved, onToast }: {
                     })}
                   </div>
                 )}
-                {q && candidates.length === 0 && <p className="mt-2 text-xs font-semibold text-gray-400">No agents match.</p>}
+                {q && candidates.length === 0 && <p className="mt-2 text-xs font-semibold text-gray-400">No agents match - add them by email below.</p>}
                 {picked.size > 0 && (
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     {group.plan_tier && (
@@ -324,6 +343,7 @@ function GroupDrawer({ group, users, groups, onClose, onSaved, onToast }: {
                   </div>
                 )}
               </div>
+              <GroupEmails group={group} onToast={onToast} onSaved={g => onSaved(g, false)} onPaypalWarning={setPaypalWarning} />
             </Box>
           )}
 
@@ -332,6 +352,16 @@ function GroupDrawer({ group, users, groups, onClose, onSaved, onToast }: {
               <a href={`mailto:${group.contact_email}`} className="inline-flex items-center gap-1 hover:text-[#8b7355]"><Mail className="h-3.5 w-3.5" /> {group.contact_email}</a>
               {group.contact_phone && <a href={`tel:${group.contact_phone}`} className="inline-flex items-center gap-1 hover:text-[#8b7355]"><Phone className="h-3.5 w-3.5" /> {group.contact_phone}</a>}
             </div>
+          )}
+        </div>
+        <div className="flex shrink-0 gap-2 border-t border-gray-200 bg-[#faf9f7]/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 dark:border-gray-800 dark:bg-[#0B0B0B]/95">
+          <button onClick={save} disabled={saving} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#111827] py-3 text-sm font-black text-white disabled:opacity-50 dark:bg-white dark:text-[#111827]">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {group ? 'Save deal details' : 'Create group'}
+          </button>
+          {group && (
+            <button onClick={() => setConfirm('delete')} aria-label="Delete group" className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-4 text-sm font-black text-red-600 hover:bg-red-50 dark:border-red-500/25 dark:text-red-300 dark:hover:bg-red-500/10">
+              <Trash2 className="h-4 w-4" /> <span className="max-sm:hidden">Delete</span>
+            </button>
           )}
         </div>
       </motion.div>
@@ -366,6 +396,133 @@ export function Sel({ value, onChange, options }: { value: string; onChange: (v:
         {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
       <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+    </div>
+  )
+}
+
+function MemberAi({ groupId, m, onToast, onSaved }: {
+  groupId: string; m: BillingGroup['members'][number]
+  onToast: (message: string, type: 'success' | 'error') => void; onSaved: (g: BillingGroup) => Promise<void>
+}) {
+  const [val, setVal] = useState(m.ai_budget_override_usd != null ? String(m.ai_budget_override_usd) : '')
+  const [busy, setBusy] = useState(false)
+  const pct = m.ai_limit_usd ? Math.min(100, Math.round((m.ai_used_usd ?? 0) / m.ai_limit_usd * 100)) : null
+  const save = async () => {
+    const next = val.trim() === '' ? null : Number(val)
+    if ((m.ai_budget_override_usd ?? null) === next) return
+    if (next != null && (!Number.isFinite(next) || next < 1)) { onToast('Use a dollar amount of 1 or more, or leave it blank', 'error'); return }
+    setBusy(true)
+    const r = await api.admin.setGroupMemberAi(groupId, m.id, next)
+    setBusy(false)
+    if (r.success && r.data) { onToast(next == null ? `${m.name} is back on the normal AI amount` : `${m.name}: ${money(next)} of AI a month`, 'success'); await onSaved(r.data) }
+    else onToast(r.error || 'Could not save', 'error')
+  }
+  return (
+    <div className="mt-2.5 flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2 text-[11px] font-bold text-gray-500 dark:text-gray-400">
+          <span>AI this month</span>
+          <span className="tabular-nums">{money(m.ai_used_usd ?? 0)}{m.ai_limit_usd ? ` of ${money(m.ai_limit_usd)}` : ''}</span>
+        </div>
+        {m.ai_limit_usd ? <Meter pct={pct ?? 0} className="mt-1 h-1.5" /> : <div className="mt-1 h-1.5 rounded-full bg-gray-100 dark:bg-white/[0.06]" />}
+      </div>
+      <label className={`flex shrink-0 items-center rounded-xl border px-2 py-1 ${m.ai_budget_override_usd != null ? 'border-[#C9A24D]/60 bg-[#C9A24D]/10' : 'border-gray-200 dark:border-gray-700'}`} title="This person's own monthly AI amount - blank uses the group's">
+        <span className="text-[10px] font-black uppercase tracking-wide text-gray-400">Own $</span>
+        <input value={val} onChange={e => setVal(e.target.value.replace(/[^0-9.]/g, ''))} onBlur={save} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+          inputMode="decimal" placeholder="-" aria-label={`${m.name} own monthly AI limit in dollars`}
+          className="w-12 bg-transparent px-1 text-right text-xs font-black text-[#111827] outline-none placeholder:text-gray-300 max-sm:w-14 max-sm:py-1 dark:text-white dark:placeholder:text-gray-600" />
+        {busy && <Loader2 className="h-3 w-3 animate-spin text-gray-400" />}
+      </label>
+    </div>
+  )
+}
+
+export function Meter({ pct, className = '' }: { pct: number; className?: string }) {
+  const p = Math.max(0, Math.min(100, pct))
+  const tone = p >= 90 ? 'bg-red-500' : p >= 70 ? 'bg-amber-500' : 'bg-[#C9A24D]'
+  return (
+    <div className={`overflow-hidden rounded-full bg-gray-100 dark:bg-white/[0.08] ${className}`} role="meter" aria-valuenow={Math.round(p)} aria-valuemin={0} aria-valuemax={100}>
+      <div className={`h-full rounded-full ${tone}`} style={{ width: `${Math.max(p, p > 0 ? 3 : 0)}%` }} />
+    </div>
+  )
+}
+
+function GroupEmails({ group, onToast, onSaved, onPaypalWarning }: {
+  group: BillingGroup
+  onToast: (message: string, type: 'success' | 'error') => void
+  onSaved: (g: BillingGroup) => Promise<void>
+  onPaypalWarning: (w: { id: string; name: string; subscription_id: string }[]) => void
+}) {
+  const [text, setText] = useState('')
+  const [applyPlan, setApplyPlan] = useState(true)
+  const [invite, setInvite] = useState(true)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [result, setResult] = useState<string | null>(null)
+  const pending = group.pending_emails || []
+  const add = async () => {
+    if (!text.trim()) return
+    setBusy('add'); setResult(null)
+    const r = await api.admin.addGroupEmails(group.id, text, applyPlan, invite)
+    setBusy(null)
+    if (!(r.success && r.data)) { onToast(r.error || 'Could not add them', 'error'); return }
+    const d = r.data
+    const bits: string[] = []
+    if (d.joined.length) bits.push(`${d.joined.length} already had an account and joined now`)
+    if (d.listed.length) bits.push(`${d.listed.length} will join when they sign up${d.invited ? ` (${d.invited} invite${d.invited === 1 ? '' : 's'} emailed)` : ''}`)
+    if (d.moved.length) bits.push(`${d.moved.length} moved here from another group list`)
+    if (d.invalid.length) bits.push(`not emails, skipped: ${d.invalid.join(', ')}`)
+    setResult(bits.join(' · ') || 'Nothing new to add')
+    if (d.had_paypal?.length) onPaypalWarning(d.had_paypal)
+    setText('')
+    await onSaved(d)
+  }
+  const act = async (id: string, what: 'invite' | 'remove') => {
+    setBusy(id + what)
+    const r = what === 'invite' ? await api.admin.reinviteGroupEmail(group.id, id) : await api.admin.removeGroupEmail(group.id, id)
+    setBusy(null)
+    if (r.success && r.data) { onToast(what === 'invite' ? 'Invite emailed' : 'Taken off the list', 'success'); await onSaved(r.data) }
+    else onToast(r.error || 'That did not work', 'error')
+  }
+  return (
+    <div className="mt-4 border-t border-gray-100 pt-4 dark:border-white/[0.06]">
+      <p className="text-[11px] font-black uppercase tracking-widest text-gray-400">Add by email</p>
+      <p className="mt-1 text-[11px] font-semibold text-gray-400">
+        Paste emails, one per line. People with an account join now. Everyone else joins{group.plan_tier ? ` (with ${PLAN_LABEL[group.plan_tier]}, no card)` : ''} the moment they sign up with that email.
+      </p>
+      <textarea value={text} onChange={e => setText(e.target.value)} placeholder={'agent.one@brokerage.com\nagent.two@brokerage.com'} className={FIELD + ' mt-2 min-h-[84px] font-mono text-xs'} />
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+        {group.plan_tier && (
+          <label className="flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300">
+            <input type="checkbox" checked={applyPlan} onChange={e => setApplyPlan(e.target.checked)} className="h-4 w-4 accent-[#C9A24D]" /> Give them {PLAN_LABEL[group.plan_tier]}, paid by the brokerage
+          </label>
+        )}
+        <label className="flex items-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300">
+          <input type="checkbox" checked={invite} onChange={e => setInvite(e.target.checked)} className="h-4 w-4 accent-[#C9A24D]" /> Email new people an invite to sign up
+        </label>
+        <button onClick={add} disabled={!text.trim() || busy === 'add'} className="ml-auto inline-flex items-center gap-1.5 rounded-xl bg-[#C9A24D] px-4 py-2 text-xs font-black text-white disabled:opacity-50 max-sm:w-full max-sm:justify-center max-sm:py-2.5">
+          {busy === 'add' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />} Add emails
+        </button>
+      </div>
+      {result && <p className="mt-2 rounded-xl bg-[#C9A24D]/10 px-3 py-2 text-xs font-bold text-[#8b7355] dark:text-[#e8c97a]">{result}</p>}
+      {pending.length > 0 && (
+        <div className="mt-3">
+          <p className="mb-1.5 text-[11px] font-black text-gray-500 dark:text-gray-400">Waiting to sign up ({pending.length})</p>
+          <div className="divide-y divide-gray-100 rounded-xl border border-gray-100 dark:divide-white/[0.06] dark:border-white/[0.06]">
+            {pending.map(p => (
+              <div key={p.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-bold text-[#111827] dark:text-white">{p.email}</span>
+                  <span className="block text-[11px] font-semibold text-gray-400">{p.invited_at ? `Invite emailed ${timeAgo(p.invited_at).toLowerCase()}` : 'No invite sent'}{p.apply_plan && group.plan_tier ? ` · gets ${PLAN_LABEL[group.plan_tier]}` : ' · joins with no plan change'}</span>
+                </span>
+                <button onClick={() => act(p.id, 'invite')} disabled={!!busy} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[11px] font-black text-gray-600 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300">
+                  {busy === p.id + 'invite' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Mail className="h-3 w-3" />} {p.invited_at ? 'Resend' : 'Invite'}
+                </button>
+                <button onClick={() => act(p.id, 'remove')} disabled={!!busy} aria-label={`Take ${p.email} off the list`} className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 max-sm:p-3 dark:hover:bg-red-500/10"><X className="h-4 w-4" /></button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

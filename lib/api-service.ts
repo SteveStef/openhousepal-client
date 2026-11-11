@@ -13,7 +13,7 @@ import { ApiResponse, User, OpenHouse, OpenHouseFormRequest, SearchPreferences, 
   BuyerCashNeeded, BuyerCashNeededListItem, BcnProperty, BcnAmount, BcnDownPaymentScenario, BcnLoanType, BcnLineItem, BcnCredits, BcnMonthlyContext, BuyerCashNeededPublicResponse,
   AIConversationListItem, AIConversation, AISendMessageResponse, AIInsightsResponse, DailyDigest,
   AIAdminOverview, AIAdminAgentSummary, AIAdminAgentDetail,
-  AdminStorageAgentSummary, AdminActivityOverview, AdminActivityAgentDetail, BillingGroup, BillingGroupInput, PromoCode, PromoCodeInput, AdminAreaList, AdminAreaListQuery, AdminAreaDetail, AdminAreaPlaceInput, PayPalPlanTerms, CheckoutCode, AdminStorageAgentDetail,
+  AdminStorageAgentSummary, AdminActivityOverview, AdminActivityAgentDetail, BillingGroup, BillingGroupInput, GroupEmailsResult, PaymentRequest, PaymentRequestInput, PublicPaymentRequest, PromoCode, PromoCodeInput, AdminAreaList, AdminAreaListQuery, AdminAreaDetail, AdminAreaPlaceInput, PayPalPlanTerms, CheckoutCode, AdminStorageAgentDetail,
   AIRealtimeSessionOut, AIRealtimeToolCallResult, AgentMarketArea, CollectionPreferences,
   SupportTicketDetail, SupportTicketListItem, AdminSupportTicketListItem, SupportTicketCategory, SupportTicketDetails, SavedManualProperty, PublicQuestion,
   StudioMediaAsset, StudioMediaGeneratePayload, StudioVideoTestGridPayload, StudioVideoTestGridResponse, MonthlyAiUsage, ChatUsage,
@@ -756,6 +756,12 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ plan_tier: planTier, code: code || undefined, buttons: true }),
     }),
+
+    // A payment request the admin sent (/pay/<token>) - public, no sign-in.
+    getPaymentRequest: (token: string) => this.request<PublicPaymentRequest>(`/pay/${encodeURIComponent(token)}`),
+    confirmPaymentRequest: (token: string, subscriptionId: string) => this.request<PublicPaymentRequest>(`/pay/${encodeURIComponent(token)}/confirm`, {
+      method: 'POST', body: JSON.stringify({ subscription_id: subscriptionId }),
+    }),
   };
 
   /**
@@ -812,6 +818,20 @@ class ApiService {
       this.request<BillingGroup>(`/admin/groups/${id}/members`, { method: 'POST', body: JSON.stringify({ user_ids: userIds, apply_plan: applyPlan }) }),
     removeGroupMember: (id: string, userId: string) => this.request<BillingGroup>(`/admin/groups/${id}/members/${userId}`, { method: 'DELETE' }),
     applyGroupPlan: (id: string) => this.request<BillingGroup>(`/admin/groups/${id}/apply-plan`, { method: 'POST' }),
+    setGroupMemberAi: (id: string, userId: string, aiBudgetUsd: number | null) =>
+      this.request<BillingGroup>(`/admin/groups/${id}/members/${userId}`, { method: 'PATCH', body: JSON.stringify({ ai_budget_usd: aiBudgetUsd }) }),
+    addGroupEmails: (id: string, emails: string, applyPlan: boolean, sendInvite: boolean) =>
+      this.request<GroupEmailsResult>(`/admin/groups/${id}/emails`, { method: 'POST', body: JSON.stringify({ emails, apply_plan: applyPlan, send_invite: sendInvite }) }),
+    reinviteGroupEmail: (id: string, emailId: string) => this.request<BillingGroup>(`/admin/groups/${id}/emails/${emailId}/invite`, { method: 'POST' }),
+    removeGroupEmail: (id: string, emailId: string) => this.request<BillingGroup>(`/admin/groups/${id}/emails/${emailId}`, { method: 'DELETE' }),
+    /** Payment requests - card pay links, one time or recurring. */
+    getPaymentRequests: () => this.request<PaymentRequest[]>('/admin/payment-requests'),
+    createPaymentRequest: (data: PaymentRequestInput) => this.request<PaymentRequest>('/admin/payment-requests', { method: 'POST', body: JSON.stringify(data) }),
+    updatePaymentRequest: (id: string, data: PaymentRequestInput) => this.request<PaymentRequest>(`/admin/payment-requests/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    sendPaymentRequest: (id: string) => this.request<PaymentRequest>(`/admin/payment-requests/${id}/send`, { method: 'POST' }),
+    cancelPaymentRequest: (id: string) => this.request<PaymentRequest>(`/admin/payment-requests/${id}/cancel`, { method: 'POST' }),
+    refreshPaymentRequest: (id: string) => this.request<PaymentRequest>(`/admin/payment-requests/${id}/refresh`, { method: 'POST' }),
+    deletePaymentRequest: (id: string) => this.request<{ success: boolean }>(`/admin/payment-requests/${id}`, { method: 'DELETE' }),
 
     getPromoCodes: () => this.request<PromoCode[]>('/admin/promo-codes'),
     getPromoPlans: () => this.request<{ plan_tier: string; plan_id: string; label: string }[]>('/admin/promo-codes/plans'),

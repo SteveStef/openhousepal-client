@@ -18,10 +18,11 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     tabs: [{ key: 'overview', label: 'Overview', icon: LayoutDashboard, blurb: 'Everything that needs you, at a glance.' }],
   },
   {
-    key: 'people', label: 'People', icon: Users, title: 'Agents & deals', subtitle: 'Approve agents, change plans, brokerage deals and sign-up codes.',
+    key: 'people', label: 'People', icon: Users, title: 'Agents & deals', subtitle: 'Approve agents, change plans, brokerage deals, payments and sign-up codes.',
     tabs: [
       { key: 'agents', label: 'Agents', icon: Users, blurb: 'Approve agents, change plans and see how each one pays.' },
       { key: 'groups', label: 'Brokerage groups', icon: Building2, blurb: 'Custom deals where a brokerage pays for its agents.' },
+      { key: 'payments', label: 'Payments', icon: Receipt, blurb: 'Send a card pay link for any deal - one time or charged automatically.' },
       { key: 'codes', label: 'Codes', icon: Ticket, blurb: 'Sign-up codes for teams and deals - a special PayPal plan, or billed by you.' },
       { key: 'activity', label: 'Agent activity', icon: Activity, blurb: 'What every agent uses, how often, and whether it works for them.' },
     ],

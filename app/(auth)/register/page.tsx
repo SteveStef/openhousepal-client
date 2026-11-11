@@ -125,6 +125,12 @@ export default function RegisterPage() {
     const code = (new URLSearchParams(window.location.search).get('code') || '').trim().toUpperCase()
     if (code) setSignupCode(code)
   }, [])
+  // A brokerage group invite (/register?email=...): the email they were listed under, so they join
+  // their group's plan when they sign up (backend join_from_list matches on it).
+  useEffect(() => {
+    const email = (new URLSearchParams(window.location.search).get('email') || '').trim()
+    if (email) setFormData(prev => prev.email ? prev : { ...prev, email })
+  }, [])
   useEffect(() => {
     const plan = new URLSearchParams(window.location.search).get('plan') || ''
     if (plan) { try { localStorage.setItem('ohp_signup_plan', plan) } catch {} }
