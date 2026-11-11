@@ -22,6 +22,8 @@ export default function ReviewsSettingsPanel({ onShowingChange, onMinRatingChang
   const [minRating, setMinRating] = useState(1)
   const [ratings, setRatings] = useState<number[]>([])
   const [saving, setSaving] = useState<'' | 'idx' | 'min'>('')
+  // A failed load or save used to just flip the switch back with no word why (audit 11/11).
+  const [error, setError] = useState('')
 
   useEffect(() => {
     api.agentHub.listReviews().then(r => {
@@ -29,7 +31,7 @@ export default function ReviewsSettingsPanel({ onShowingChange, onMinRatingChang
         setShowOnIdx(!!r.data.settings.show_on_idx)
         setMinRating(r.data.settings.min_rating ?? 1)
         setRatings(r.data.reviews.filter(x => x.status === 'published').map(x => x.rating))
-      }
+      } else setError('Could not load your reviews - refresh the page to try again.')
       setLoading(false)
     })
   }, [])
@@ -40,18 +42,19 @@ export default function ReviewsSettingsPanel({ onShowingChange, onMinRatingChang
 
   const save = async (which: 'idx' | 'min') => {
     setSaving(which)
+    setError('')
     if (which === 'idx') {
       const next = !showOnIdx
       setShowOnIdx(next)
       const r = await api.agentHub.updateReviewSettings({ show_on_idx: next })
-      if (!r.success) setShowOnIdx(!next)
+      if (!r.success) { setShowOnIdx(!next); setError(r.error || 'That did not save - please try again.') }
       else onSwitch?.(next, shown.length > 0)
     } else {
       const next = minRating >= 4 ? 1 : 4
       const prev = minRating
       setMinRating(next)
       const r = await api.agentHub.updateReviewSettings({ min_rating: next })
-      if (!r.success) setMinRating(prev)
+      if (!r.success) { setMinRating(prev); setError(r.error || 'That did not save - please try again.') }
       else onMinRatingChange?.(next >= 4)
     }
     setSaving('')
@@ -76,13 +79,14 @@ export default function ReviewsSettingsPanel({ onShowingChange, onMinRatingChang
         </p>
         <p className="mt-1 text-[10px] font-semibold text-gray-400">
           {loading ? 'Loading your reviews...' : shown.length
-            ? <>{shown.length} review{shown.length === 1 ? '' : 's'} would show{avg != null && <> · <Star className="inline h-3 w-3 fill-[#C9A24D] text-[#C9A24D]" /> {avg.toFixed(1)}</>}. Saves right away - no Publish needed.</>
+            ? <>{shown.length} review{shown.length === 1 ? '' : 's'} would show{avg != null && <> · <Star className="inline h-3 w-3 fill-[#C9A24D] text-[#C9A24D]" /> {avg.toFixed(1)}</>}..</>
             : 'No reviews to show yet - add or import some first.'}
         </p>
         <div className="mt-4 space-y-2 border-t border-gray-100 pt-4 dark:border-gray-800">
           {row({ on: showOnIdx, which: 'idx', title: 'Show reviews on my website', sub: 'A Reviews page with your rating, a featured review and every review - plus a Reviews link in your menu and footer' })}
-          {row({ on: minRating >= 4, which: 'min', title: 'Only show 4 and 5 stars', sub: 'Also applies to your Agent Hub. Your rating counts only the reviews shown' })}
+          {row({ on: minRating >= 4, which: 'min', title: 'Only show 4 and 5 stars', sub: 'Also applies to your Agent Hub. Your rating counts only the reviews shown. While on, your stars are not sent to Google (Google only allows a rating from every review)' })}
         </div>
+        {error && <p role="alert" className="mt-2 text-[11px] font-black text-red-600 dark:text-red-400">{error}</p>}
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           {siteUrl && showOnIdx && shown.length > 0 && (
             <a href={`${siteUrl}/testimonials`} target="_blank" rel="noreferrer"

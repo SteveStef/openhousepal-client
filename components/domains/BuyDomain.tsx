@@ -222,8 +222,12 @@ export default function BuyDomain({ back = 'website', shop: given, suggestion = 
 }
 
 /** A domain they bought here - status, renewal, and the "stop renewing" / "move it" controls. */
-export function PurchasedDomainCard({ p, onChanged }: { p: PurchasedDomain; onChanged: () => void }) {
+/** `embedded`: shown INSIDE the connected domain's own card (DomainsPanel, 11/11 - one card per
+ *  domain instead of a second "bought here" card): no outer box or name, and the rarely used
+ *  buttons fold under "Domain options". */
+export function PurchasedDomainCard({ p, onChanged, embedded = false }: { p: PurchasedDomain; onChanged: () => void; embedded?: boolean }) {
   const [busy, setBusy] = useState('')
+  const [more, setMore] = useState(!embedded)
   const [code, setCode] = useState('')
   const [msg, setMsg] = useState('')
   const [askStop, setAskStop] = useState(false)
@@ -264,8 +268,19 @@ export function PurchasedDomainCard({ p, onChanged }: { p: PurchasedDomain; onCh
     setMsg(r.success && r.data?.sent ? `Sent again to ${p.email}.` : 'Your email is already confirmed, or we couldn’t resend - contact support if you need help.')
   }
   const working = p.status === 'CHECKOUT' || p.status === 'REGISTERING'
+  const statusLine = <>
+    {p.status === 'ACTIVE' && (p.auto_renew
+      ? `Bought here · renews ${prettyDate(p.expires_at)} for ${money(p.renewal_price)}`
+      : p.last_error === 'payment_failed'
+        ? `The yearly payment didn’t go through - it ends ${prettyDate(p.expires_at)} unless you renew`
+        : `Bought here · not renewing - yours until ${prettyDate(p.expires_at)}, then it ends`)}
+    {working && 'Getting it ready - this takes a minute or two.'}
+    {p.status === 'FAILED' && 'We couldn’t get this one - your payment was refunded.'}
+    {p.status === 'EXPIRED' && `Ended ${prettyDate(p.expires_at)} - your website is back on its OpenHousePal address. Contact support to try to get it back.`}
+    {p.status === 'TRANSFERRED' && 'Moved to another company.'}
+  </>
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-3.5 dark:border-gray-800 dark:bg-[#151517]">
+    <div className={embedded ? 'relative mt-3 border-t border-gray-200/80 pt-3 dark:border-white/10' : 'rounded-2xl border border-gray-200 bg-white p-3.5 dark:border-gray-800 dark:bg-[#151517]'}>
       <DomainWarningSheet open={askStop} onClose={() => setAskStop(false)} onConfirm={stop}
         title={`Stop renewing ${p.domain}?`} subtitle="Bought through OpenHousePal"
         points={[
@@ -275,25 +290,21 @@ export function PurchasedDomainCard({ p, onChanged }: { p: PurchasedDomain; onCh
           { text: <>Want to keep the name at another domain company instead? Get its transfer code here first (the move option on this card).</>, tone: 'ok' },
         ]}
         confirmLabel="Stop renewing" />
+      {embedded ? (
+        <p className={`flex items-start gap-1.5 text-[12px] font-semibold leading-snug ${p.status === 'ACTIVE' && !p.auto_renew ? 'text-amber-800 dark:text-amber-200' : 'text-gray-600 dark:text-white/65'}`}>
+          <Globe2 className="mt-px h-3.5 w-3.5 shrink-0 text-[#C9A24D]" /><span>{statusLine}</span>
+        </p>
+      ) : (
       <div className="flex items-start gap-2.5">
         <span className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl ${p.status === 'ACTIVE' ? 'bg-[#C9A24D] text-white' : 'bg-[#FAFAF7] text-[#8b7355] dark:bg-white/[0.06] dark:text-[#e8c97a]'}`}>
           {working ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe2 className="h-4 w-4" />}
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-mono text-[13px] font-bold text-[#111827] [overflow-wrap:anywhere] dark:text-white"><DomainName d={p.domain} /></p>
-          <p className="mt-0.5 text-[11px] font-semibold text-gray-500 dark:text-white/55">
-            {p.status === 'ACTIVE' && (p.auto_renew
-              ? `Bought here · renews ${prettyDate(p.expires_at)} for ${money(p.renewal_price)}`
-              : p.last_error === 'payment_failed'
-                ? `The yearly payment didn’t go through - it ends ${prettyDate(p.expires_at)} unless you renew`
-                : `Bought here · not renewing - ends ${prettyDate(p.expires_at)}`)}
-            {working && 'Getting it ready - this takes a minute or two.'}
-            {p.status === 'FAILED' && 'We couldn’t get this one - your payment was refunded.'}
-            {p.status === 'EXPIRED' && `Ended ${prettyDate(p.expires_at)} - your website is back on its OpenHousePal address. Contact support to try to get it back.`}
-            {p.status === 'TRANSFERRED' && 'Moved to another company.'}
-          </p>
+          <p className="mt-0.5 text-[11px] font-semibold text-gray-500 dark:text-white/55">{statusLine}</p>
         </div>
       </div>
+      )}
       <CardPayModal
         open={!!renew}
         start={renew}
@@ -309,7 +320,12 @@ export function PurchasedDomainCard({ p, onChanged }: { p: PurchasedDomain; onCh
           {busy === 'renew' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Renew with card
         </button>
       )}
-      {p.status === 'ACTIVE' && (
+      {p.status === 'ACTIVE' && !more && (
+        <button type="button" onClick={() => setMore(true)} className="mt-2.5 text-[11px] font-black uppercase tracking-wide text-gray-500 underline-offset-2 hover:text-[#111827] hover:underline dark:text-white/55 dark:hover:text-white">
+          Domain options ▾
+        </button>
+      )}
+      {p.status === 'ACTIVE' && more && (
         <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" onClick={resend} disabled={!!busy} className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-gray-600 transition hover:border-[#C9A24D] disabled:opacity-50 dark:border-gray-700 dark:text-gray-300">
             {busy === 'resend' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Mail className="h-3 w-3" />} Resend confirm email
@@ -335,7 +351,7 @@ export function PurchasedDomainCard({ p, onChanged }: { p: PurchasedDomain; onCh
         </div>
       )}
       {msg && <p className="mt-2 text-[12px] font-semibold text-gray-500 dark:text-white/55">{msg}</p>}
-      {p.status === 'ACTIVE' && (
+      {p.status === 'ACTIVE' && more && (
         <p className="mt-2 flex items-start gap-1.5 text-[11px] font-semibold text-gray-400"><ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0 text-emerald-500" /> Registered in your name at Name.com - your address is kept private.</p>
       )}
     </div>

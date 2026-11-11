@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { ArrowRight, Check, CheckCircle2, Copy, ExternalLink, Globe2, Loader2, Lock, Plus, RefreshCw, ShieldCheck, Star, Trash2 } from 'lucide-react'
 import api from '@/lib/api-service'
 import { SiteDomain } from '@/types'
+import type { PurchasedDomain } from '@/lib/domainShop'
 import { copyText } from '@/lib/copyText'
 import { ohpHostUrl } from '@/lib/publicResourceLinks'
 import DomainSetupGuide from './DomainSetupGuide'
@@ -23,10 +24,10 @@ const CUSTOM_DOMAINS_LIVE = process.env.NEXT_PUBLIC_CUSTOM_DOMAINS_LIVE === 'tru
 // Agent-facing labels/colors - never show the raw backend status string or a resolver/ACME
 // error verbatim (see backend/app/services/website/domain_verification_service.py).
 const STATUS_META: Record<SiteDomain['status'], { label: string; className: string; dot: string }> = {
-  PENDING: { label: 'Waiting for DNS', className: 'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:ring-amber-500/30', dot: 'bg-amber-500 animate-pulse' },
-  VERIFIED: { label: 'Setting up HTTPS...', className: 'bg-blue-50 text-blue-600 ring-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:ring-blue-500/30', dot: 'bg-blue-500 animate-pulse' },
+  PENDING: { label: 'Waiting for your records', className: 'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:ring-amber-500/30', dot: 'bg-amber-500 animate-pulse' },
+  VERIFIED: { label: 'Setting up the padlock...', className: 'bg-blue-50 text-blue-600 ring-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:ring-blue-500/30', dot: 'bg-blue-500 animate-pulse' },
   ACTIVE: { label: 'Active', className: 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-500/30', dot: 'bg-emerald-500' },
-  FAILED: { label: 'Problem — check DNS', className: 'bg-red-50 text-red-600 ring-red-200 dark:bg-red-900/20 dark:text-red-300 dark:ring-red-500/30', dot: 'bg-red-500' },
+  FAILED: { label: 'Problem - check your records', className: 'bg-red-50 text-red-600 ring-red-200 dark:bg-red-900/20 dark:text-red-300 dark:ring-red-500/30', dot: 'bg-red-500' },
 }
 
 // Where a custom domain is in setup: DNS record -> we verify it -> HTTPS live.
@@ -56,7 +57,10 @@ function StatusChip({ status }: { status: SiteDomain['status'] }) {
   )
 }
 
-function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHost }: { domain: SiteDomain; partner?: SiteDomain; onChanged: () => void; back: string; bought: boolean; isDefault: boolean; ohpHost: string }) {
+/** `purchase`: bought here - its renewal line + Renew / options sit inside this same card (11/11:
+ *  one card per domain, not a second "bought here" card). `siteOff`: the IDX website is switched
+ *  off, so a connected domain only shows the Agent Hub - never call it "Active"/"Live" then. */
+function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHost, purchase, siteOff = false }: { domain: SiteDomain; partner?: SiteDomain; onChanged: () => void; back: string; bought: boolean; isDefault: boolean; ohpHost: string; purchase?: PurchasedDomain; siteOff?: boolean }) {
   const [checking, setChecking] = useState(false)
   const [settingPrimary, setSettingPrimary] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -64,7 +68,8 @@ function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHos
   const isRedirect = !!domain.redirect_target_domain_id
   const step = stepOf(domain.status)
   const failed = domain.status === 'FAILED'
-  const live = domain.status === 'ACTIVE'
+  const connected = domain.status === 'ACTIVE'
+  const live = connected && !siteOff
   const both = partner ? `${domain.hostname} and ${partner.hostname}` : domain.hostname
 
   const handleCheck = async () => {
@@ -100,7 +105,16 @@ function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHos
         <div className="min-w-0 flex-1">
           <p className="break-all font-mono text-[14px] font-bold leading-snug text-[#111827] dark:text-white">{domain.hostname}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <StatusChip status={domain.status} />
+            {connected && siteOff ? (
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-600 ring-1 ring-gray-200 dark:bg-white/10 dark:text-white/70 dark:ring-white/15">
+                <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />Website off · shows your Agent Hub
+              </span>
+            ) : bought && !connected ? (
+              // Bought here: we set the records ourselves - never "waiting for DNS" at the agent.
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-blue-600 ring-1 ring-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:ring-blue-500/30">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />Setting up for you
+              </span>
+            ) : <StatusChip status={domain.status} />}
             {live && isDefault && (
               <span data-testid="own-domain-default" className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#111827]">
                 <Star className="h-2.5 w-2.5" /> Default
@@ -128,6 +142,11 @@ function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHos
           </a>
         </div>
       )}
+      {connected && siteOff && (
+        <p className="relative mt-2.5 rounded-xl bg-[#FAFAF7] p-2.5 text-[12px] font-semibold leading-snug text-gray-600 dark:bg-white/[0.04] dark:text-white/65">
+          Your IDX website is turned off, so this domain opens your Agent Hub instead. Turn the IDX website back on (top of this page) to show your website here again.
+        </p>
+      )}
       {live && isDefault && (
         <p data-testid="own-domain-note" className="relative mt-2.5 flex items-start gap-1.5 rounded-xl bg-emerald-50 p-2.5 text-[12px] font-semibold leading-snug text-emerald-900 ring-1 ring-emerald-200/70 dark:bg-emerald-500/10 dark:text-emerald-100 dark:ring-emerald-500/20">
           <CheckCircle2 className="mt-px h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-300" />
@@ -140,7 +159,7 @@ function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHos
       )}
 
       {/* Live checklist - the three things that have to be true, ticked as our checks see them */}
-      {(domain.status !== 'ACTIVE' || (partner && partner.status !== 'ACTIVE')) && (
+      {!bought && (domain.status !== 'ACTIVE' || (partner && partner.status !== 'ACTIVE')) && (
         <ul className="mt-3 space-y-1.5">
           {[
             { label: `${domain.hostname.split('.')[0] === 'www' ? '"www"' : 'Domain'} record found`, done: domain.status === 'VERIFIED' || domain.status === 'ACTIVE', bad: failed },
@@ -191,6 +210,13 @@ function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHos
         </p>
       )}
 
+      {domain.status === 'ACTIVE' && partner?.status === 'ACTIVE' && partner.last_error === 'apex_extra_records' && (
+        // Old forwarding left on next to our A record (owner's mainlinerealty.co, 11/11).
+        <p className="mt-2 rounded-xl bg-amber-50 p-2.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+          Old forwarding is still on for {partner.hostname}. It&apos;s fighting your new record, so most pages without the www still show &quot;page not found&quot;. At your domain company, delete the forwarding (or redirect) for {partner.hostname} - on GoDaddy it&apos;s the Forwarding tab next to DNS Records. Keep the A record: name @, value {partner.instructions.find(i => i.type === 'A')?.value || 'shown above'}.
+        </p>
+      )}
+
       {(domain.status !== 'ACTIVE' || (partner && partner.status !== 'ACTIVE') || (!domain.is_primary && !isRedirect)) && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {(domain.status !== 'ACTIVE' || (partner && partner.status !== 'ACTIVE')) && (
@@ -214,16 +240,18 @@ function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHos
         </div>
       )}
 
+      {purchase && <PurchasedDomainCard p={purchase} onChanged={onChanged} embedded />}
+
       <DomainWarningSheet
         open={askDelete}
         onClose={() => setAskDelete(false)}
         onConfirm={handleDelete}
         title="Disconnect your domain?"
         subtitle={both}
-        intro={live
+        intro={connected
           ? <>Your website stops opening on <b className="font-mono">{both}</b>. Here&apos;s everything that changes:</>
           : <>This domain isn&apos;t live yet, so nothing you&apos;ve shared uses it. Here&apos;s what changes:</>}
-        points={live ? [
+        points={connected ? [
           { text: <>Your website goes back to your free OpenHousePal address, <b className="font-mono">{ohpHost}</b>.</> },
           ...(isDefault ? [{ text: <>Everything new you share - sign-in QR codes, Guest Passes, Showcases, forms, your Agent Hub and signature links - goes back to <b>openhousepal.com</b>.</> }] : []),
           { text: <>Links and QR codes you already handed out with <b className="font-mono">{domain.hostname}</b> stop opening (printed signs, old emails, bookmarks).</> },
@@ -311,6 +339,14 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
   const { shop, reload: reloadShop } = useDomainShop()
   const purchases = (shop?.purchases || []).filter(p => p.status !== 'ABANDONED')
   const boughtHosts = new Set(purchases.filter(p => p.status === 'ACTIVE' || p.status === 'REGISTERING').flatMap(p => [p.domain, `www.${p.domain}`]))
+  // A bought domain that's also connected shows as ONE card (its renewal inside); only the rest
+  // (getting ready, failed, ended, moved) keep their own card.
+  const purchaseFor = (host: string) => purchases.find(p => (p.status === 'ACTIVE' || p.status === 'REGISTERING') && (host === p.domain || host === `www.${p.domain}`))
+  const [showAdd, setShowAdd] = useState(false)
+  const rowHosts = new Set(domains.map(d => d.hostname))
+  const standalonePurchases = purchases.filter(p => !((p.status === 'ACTIVE' || p.status === 'REGISTERING') && (rowHosts.has(p.domain) || rowHosts.has(`www.${p.domain}`))))
+  // Open when there's nothing yet (or the setup step's own cards chose for them); otherwise behind a button.
+  const addOpen = hideTabs || showAdd || (!loading && domains.length === 0 && standalonePurchases.length === 0)
 
   // Which address links use right now - the own domain gets the "Default" badge only when it
   // really is the one we share (connected, primary, "use my own domain" on, opening).
@@ -332,7 +368,8 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
   // a connected own domain (not just its bare-domain forward) - its old site's pages get rerouted
   const hasActiveCustom = domains.some(d => d.status === 'ACTIVE' && !d.redirect_target_domain_id)
   const ohpHost = `${subdomainSlug}.${OHP_BASE_DOMAIN}`
-  const ownDefaultHost = linkState?.use_own_domain && linkState.own_base_url && linkState.current_base_url === linkState.own_base_url
+  const siteOff = linkState?.site_enabled === false
+  const ownDefaultHost = !siteOff && linkState?.use_own_domain && linkState.own_base_url && linkState.current_base_url === linkState.own_base_url
     ? linkState.custom_domain : null
 
   const handleAdd = async () => {
@@ -357,6 +394,11 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
         <div className="relative flex items-center justify-between gap-2">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#e8c97a]">OpenHousePal address</p>
           <div className="flex shrink-0 items-center gap-1.5">
+            {siteOff ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-500 dark:bg-white/10 dark:text-white/60">
+                <span className="h-1.5 w-1.5 rounded-full bg-gray-400" /> Website off
+              </span>
+            ) : <>
             {!ownDefaultHost && (
               <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#111827]">
                 <Star className="h-2.5 w-2.5" /> Default
@@ -371,6 +413,7 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
                 <CheckCircle2 className="h-2.5 w-2.5" /> Active
               </span>
             )}
+            </>}
           </div>
         </div>
         <div className="relative mt-2 flex items-center gap-2 rounded-xl border border-white/80 bg-white/90 py-1.5 pl-3 pr-1.5 shadow-sm dark:border-white/10 dark:bg-black/30">
@@ -382,7 +425,9 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
           </a>
         </div>
         <ChangeAddress slug={subdomainSlug} href={changeHref} />
-        <p className="relative mt-2 text-[11px] font-semibold text-gray-500 dark:text-white/50">{ownDefaultHost
+        <p className="relative mt-2 text-[11px] font-semibold text-gray-500 dark:text-white/50">{siteOff
+          ? 'Your IDX website is turned off, so this address shows a "not available" page. Turn the website back on (top of this page) to use it again.'
+          : ownDefaultHost
           ? <>Still works - visitors who open it are sent to {ownDefaultHost}.</>
           : 'Always available, even if a custom domain has an issue.'}</p>
       </div>
@@ -413,18 +458,27 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
       ) : domains.length > 0 && (
         <div className="mt-2.5 space-y-2.5">
           {domains.filter(d => !(d.redirect_target_domain_id && domains.some(m => m.id === d.redirect_target_domain_id))).map(domain => (
-            <DomainRow key={domain.id} domain={domain} partner={domains.find(d => d.redirect_target_domain_id === domain.id)} onChanged={refreshAll} back={back} bought={boughtHosts.has(domain.hostname)} isDefault={!!ownDefaultHost && ownDefaultHost === domain.hostname} ohpHost={ohpHost} />
+            <DomainRow key={domain.id} domain={domain} partner={domains.find(d => d.redirect_target_domain_id === domain.id)} onChanged={refreshAll} back={back} bought={boughtHosts.has(domain.hostname)} isDefault={!!ownDefaultHost && ownDefaultHost === domain.hostname} ohpHost={ohpHost}
+              purchase={purchaseFor(domain.hostname)} siteOff={linkState?.site_enabled === false} />
           ))}
         </div>
       )}
       {ownDefaultHost && freeCard}
-      {purchases.length > 0 && (
+      {standalonePurchases.length > 0 && (
         <div className="mt-2.5 space-y-2.5">
-          {purchases.map(p => <PurchasedDomainCard key={p.id} p={p} onChanged={refreshAll} />)}
+          {standalonePurchases.map(p => <PurchasedDomainCard key={p.id} p={p} onChanged={refreshAll} />)}
         </div>
       )}
 
-      {CUSTOM_DOMAINS_LIVE && !hideTabs && (
+      {/* Already have a domain? The connect / buy form folds behind one button so the tab stays short. */}
+      {CUSTOM_DOMAINS_LIVE && !addOpen && (
+        <button type="button" onClick={() => setShowAdd(true)}
+          className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[#C9A24D]/50 bg-[#fffdf8] px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-[#8b7355] transition hover:border-[#C9A24D] dark:border-white/15 dark:bg-white/[0.02] dark:text-[#e8c97a]">
+          <Plus className="h-3.5 w-3.5" /> Connect or buy another domain
+        </button>
+      )}
+
+      {addOpen && CUSTOM_DOMAINS_LIVE && !hideTabs && (
         <div className="mt-3 grid grid-cols-2 gap-1 rounded-2xl bg-[#f4efe4] p-1 dark:bg-white/[0.05]" role="tablist">
           {([['have', 'I already have one'], ['buy', 'Get a new one']] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={mode === id} onClick={() => setMode(id)}
@@ -435,7 +489,7 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
         </div>
       )}
 
-      {CUSTOM_DOMAINS_LIVE && mode === 'buy' ? (
+      {CUSTOM_DOMAINS_LIVE && !addOpen ? null : CUSTOM_DOMAINS_LIVE && mode === 'buy' ? (
         <div className="mt-3 rounded-2xl border border-dashed border-[#C9A24D]/50 bg-[#fffdf8] p-3 dark:border-white/15 dark:bg-white/[0.02]">
           <p className="mb-2.5 text-[12px] font-semibold leading-snug text-gray-500 dark:text-white/55">Don&apos;t have a domain yet? Pick one here - we buy it in your name and set it all up. Nothing to do at any other company.</p>
           <BuyDomain back={back} shop={shop} />

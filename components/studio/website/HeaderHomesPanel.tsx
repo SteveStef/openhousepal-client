@@ -20,8 +20,10 @@ const TYPES = [
   { value: 'multi_family', label: 'Multi-family' },
 ]
 
-export default function HeaderHomesPanel({ data, onChange, onEditHero }: {
+export default function HeaderHomesPanel({ data, onChange, onEditHero, hidden = false }: {
   data: Record<string, any> | null
+  /** The header section is switched off on the Sections tab - none of this shows (audit 11/11). */
+  hidden?: boolean
   onChange: (patch: Record<string, any>) => void
   /** Opens the Sections tab on the header (headline, search box, buttons). */
   onEditHero?: () => void
@@ -36,7 +38,8 @@ export default function HeaderHomesPanel({ data, onChange, onEditHero }: {
   }
 
   const picked: string[] = Array.isArray(data.header_towns) ? data.header_towns : []
-  const manual = data.photo_source_mode === 'manual'
+  // Same rule as the site (content_adapters): one uploaded photo only when there IS a photo.
+  const manual = data.photo_source_mode === 'manual' && !!data.image_url
   const mineFirst = data.header_mine_first !== false && data.header_mine_first !== 'false'
   const toggleTown = (t: string) => onChange({ header_towns: picked.includes(t) ? picked.filter(x => x !== t) : [...picked, t] })
   const input = 'mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white'
@@ -44,6 +47,12 @@ export default function HeaderHomesPanel({ data, onChange, onEditHero }: {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#151517]" data-testid="header-homes-panel">
       <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-[#8b7355]"><Home className="h-3.5 w-3.5" /> Your header</p>
+      {hidden && (
+        <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] font-semibold text-amber-800 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-200">
+          Your header is switched off, so these homes don&apos;t show on your home page.
+          {onEditHero && <button type="button" onClick={onEditHero} className="ml-1 font-black underline">Turn it on in Sections</button>}
+        </div>
+      )}
       <p className="mt-1 text-[10px] font-semibold text-gray-400">The top of your home page shows the <b>newest homes for sale</b> that match below - price, address and how new each one is, one tap to the home. It refreshes itself every visit.</p>
 
       {manual ? (

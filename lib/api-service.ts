@@ -1767,6 +1767,10 @@ class ApiService {
     removeArea: (linkId: string) =>
       this.request<null>(`/studio/sites/me/areas/${linkId}`, { method: 'DELETE' }),
 
+    // Try again on a town whose page couldn't be built (FAILED).
+    retryArea: (linkId: string) =>
+      this.request<AgentMarketArea>(`/studio/sites/me/areas/${linkId}/retry`, { method: 'POST' }),
+
     // The Areas list's up/down arrows - the website's town lists follow this order.
     reorderAreas: (linkIds: string[]) =>
       this.request<null>('/studio/sites/me/areas/order', { method: 'PUT', body: JSON.stringify({ link_ids: linkIds }) }),

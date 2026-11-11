@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, Globe2, Loader2, MapPin, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Globe2, Loader2, MapPin, Plus, RotateCw, Trash2 } from 'lucide-react'
 import api from '@/lib/api-service'
 import { AgentMarketArea } from '@/types'
 import { PopupPortal, useAnchoredStyle } from '@/components/ui/AnchoredPopup'
@@ -11,7 +11,7 @@ const STATUS_META: Record<string, { label: string; className: string }> = {
   RESEARCHING: { label: 'Researching...', className: 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300' },
   ENRICHED: { label: 'Ready', className: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300' },
   PARTIAL: { label: 'Ready', className: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300' },
-  FAILED: { label: 'Couldn\'t research this town', className: 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300' },
+  FAILED: { label: 'Page not built', className: 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300' },
 }
 
 type AddMode = 'city' | 'neighborhood'
@@ -166,6 +166,16 @@ export default function AreasPanel({ onChange }: { onChange?: (what?: { added?: 
     onChange?.({ removed: gone || 'that area' })
   }
 
+  // A town whose page couldn't be built (FAILED) - try again without remove + re-add (audit 11/11).
+  const [retrying, setRetrying] = useState<string | null>(null)
+  const handleRetry = async (linkId: string) => {
+    setRetrying(linkId); setError(null)
+    const res = await api.sites.retryArea(linkId)
+    if (!res.success) setError(res.error || 'Could not try again - please try in a minute.')
+    load(); onChange?.()
+    setRetrying(null)
+  }
+
   // Up/down arrows: the first town leads the website's Neighborhoods page and town lists.
   const move = (index: number, by: -1 | 1) => {
     const next = [...areas]
@@ -204,8 +214,8 @@ export default function AreasPanel({ onChange }: { onChange?: (what?: { added?: 
                 <div className="flex min-w-0 items-center gap-2">
                   {areas.length > 1 ? (
                     <span className="flex shrink-0 flex-col">
-                      <button type="button" aria-label={`Move ${link.area.name} up`} disabled={index === 0} onClick={() => move(index, -1)} className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] disabled:opacity-25 dark:hover:bg-gray-800 dark:hover:text-white"><ChevronUp className="h-3 w-3" /></button>
-                      <button type="button" aria-label={`Move ${link.area.name} down`} disabled={index === areas.length - 1} onClick={() => move(index, 1)} className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-[#111827] disabled:opacity-25 dark:hover:bg-gray-800 dark:hover:text-white"><ChevronDown className="h-3 w-3" /></button>
+                      <button type="button" aria-label={`Move ${link.area.name} up`} disabled={index === 0} onClick={() => move(index, -1)} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-[#111827] disabled:opacity-25 sm:p-0.5 dark:hover:bg-gray-800 dark:hover:text-white"><ChevronUp className="h-4 w-4 sm:h-3 sm:w-3" /></button>
+                      <button type="button" aria-label={`Move ${link.area.name} down`} disabled={index === areas.length - 1} onClick={() => move(index, 1)} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-[#111827] disabled:opacity-25 sm:p-0.5 dark:hover:bg-gray-800 dark:hover:text-white"><ChevronDown className="h-4 w-4 sm:h-3 sm:w-3" /></button>
                     </span>
                   ) : <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-300" />}
                   <span className="truncate text-sm font-bold text-[#111827] dark:text-white">{displayName}, {link.area.state}</span>
@@ -217,11 +227,16 @@ export default function AreasPanel({ onChange }: { onChange?: (what?: { added?: 
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ${meta.className}`}>
-                    {link.area.enrichment_status === 'PENDING' && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
+                    {(link.area.enrichment_status === 'PENDING' || link.area.enrichment_status === 'RESEARCHING') && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
                     {meta.label}
                   </span>
-                  <button onClick={() => handleRemove(link.id)} className="rounded-lg p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20">
-                    <Trash2 className="h-3 w-3" />
+                  {link.area.enrichment_status === 'FAILED' && (
+                    <button type="button" onClick={() => handleRetry(link.id)} disabled={retrying === link.id} className="inline-flex items-center gap-1 rounded-lg bg-[#111827] px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white transition hover:bg-black disabled:opacity-60 dark:bg-white dark:text-[#111827]">
+                      {retrying === link.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCw className="h-3 w-3" />} Try again
+                    </button>
+                  )}
+                  <button type="button" onClick={() => handleRemove(link.id)} aria-label={`Remove ${link.area.name}`} title="Remove this town" className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 sm:p-1 dark:hover:bg-red-900/20">
+                    <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
                   </button>
                 </div>
               </div>

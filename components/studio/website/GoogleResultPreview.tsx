@@ -123,7 +123,7 @@ export default function GoogleResultPreview({ seo, pages, defaults, siteUrl, foc
               <Swap text={clip(one.title, 62)} className="block text-xl leading-snug hover:underline" style={{ color: c.link }} />
               <Swap text={clip(one.description, 165)} className="mt-1 block text-sm leading-relaxed" style={{ color: c.sub }} />
             </div>
-            <p className="mt-4 text-[11px]" style={{ color: c.sub }}>How /{one.path} shows when someone searches for it. Pick another page on the left, or tap your main result to see the home page again.</p>
+            <p className="mt-4 text-[11px]" style={{ color: c.sub }}>How /{one.path} shows when someone searches for it. Pick another page from your list, or tap your main result to see the home page again.</p>
           </motion.div>
         ) : (
         <LayoutGroup>

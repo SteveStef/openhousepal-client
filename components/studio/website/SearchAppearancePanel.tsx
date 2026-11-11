@@ -91,6 +91,21 @@ export default function SearchAppearancePanel({ seo, onChange, pages, defaults, 
     else setIconError(r.error || 'That icon could not be uploaded. Try a JPG or PNG.')
   }
 
+  // "Use my logo": a wide logo squeezed into a browser tab looked like a smudge - fit it into the
+  // same square as an upload (audit 11/11). If the logo can't be read here, use it as-is.
+  const useLogo = async () => {
+    const logo = defaults.logoUrl
+    if (!logo) return
+    try {
+      const res = await fetch(logo)
+      if (!res.ok) throw new Error('fetch')
+      const blob = await res.blob()
+      await upload(new File([blob], 'logo', { type: blob.type || 'image/png' }))
+    } catch {
+      set({ favicon_url: logo })
+    }
+  }
+
   // The live site fills a blank home title/description automatically - those count as ready.
   const autoHome = data ? autoSectionMeta('home', seoCtxFrom(data)) : null
   const checks = [
@@ -142,7 +157,7 @@ export default function SearchAppearancePanel({ seo, onChange, pages, defaults, 
               <motion.button type="button" whileTap={{ scale: 0.95 }} onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-xl bg-[#111827] px-3 py-2 text-[11px] font-black text-white transition hover:-translate-y-0.5 dark:bg-white dark:text-[#111827]">
                 {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} {seo.favicon_url ? 'Change icon' : 'Upload my own'}
               </motion.button>
-              {defaults.logoUrl && seo.favicon_url !== defaults.logoUrl && <button type="button" onClick={() => set({ favicon_url: defaults.logoUrl! })} className="rounded-xl px-2.5 py-2 text-[11px] font-black text-[#8b7355] transition hover:text-[#111827] dark:text-[#e8c97a]">Use my logo</button>}
+              {defaults.logoUrl && seo.favicon_url !== defaults.logoUrl && <button type="button" onClick={useLogo} className="rounded-xl px-2.5 py-2 text-[11px] font-black text-[#8b7355] transition hover:text-[#111827] dark:text-[#e8c97a]">Use my logo</button>}
               {seo.favicon_url && <button type="button" onClick={() => set({ favicon_url: null })} className="rounded-xl px-2.5 py-2 text-[11px] font-black text-gray-400 transition hover:text-[#111827] dark:hover:text-white">Back to house icon</button>}
             </div>
             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = '' }} />

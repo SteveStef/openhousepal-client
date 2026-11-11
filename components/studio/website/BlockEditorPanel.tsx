@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Reorder, useDragControls } from 'framer-motion'
 import {
   ArrowRight, Check, ChevronDown, ChevronRight, ChevronUp, Eye, EyeOff, ExternalLink, GripVertical,
-  Loader2, Plus, Trash2, Upload, X,
+  Loader2, Lock, Plus, Trash2, Upload, X,
 } from 'lucide-react'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { SiteBlock, SiteBlockType } from '@/types'
@@ -157,7 +157,7 @@ function SectionRow({
           <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition ${expanded ? 'bg-[#C9A24D] text-white' : 'bg-[#111827] text-[#e8c97a] dark:bg-white/10'}`}><Icon className="h-4 w-4" /></span>
           <span className="min-w-0">
             <span className="flex items-center gap-1.5">
-              <span className="truncate text-sm font-black text-[#111827] dark:text-white">{def.label}</span>
+              <span className="text-sm font-black leading-tight text-[#111827] sm:truncate dark:text-white">{def.label}</span>
               {off && <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-500 dark:bg-gray-800">Off</span>}
             </span>
             {!expanded && <span className="block truncate text-[10px] font-semibold text-gray-400">{def.blurb}</span>}
@@ -165,9 +165,10 @@ function SectionRow({
           {expanded ? <ChevronDown className="ml-auto h-3.5 w-3.5 shrink-0 text-[#8b7355]" /> : <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 text-gray-300 transition group-hover/blk:text-[#8b7355]" />}
         </div>
         <div className="flex shrink-0 items-center">
-          <button type="button" onClick={() => onMove(-1)} disabled={index === 0} title="Move up" className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-gray-800"><ChevronUp className="h-3.5 w-3.5" /></button>
-          <button type="button" onClick={() => onMove(1)} disabled={index === count - 1} title="Move down" className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-gray-800"><ChevronDown className="h-3.5 w-3.5" /></button>
-          <button type="button" onClick={onHide} title={off ? 'Turn this section on' : 'Turn this section off'} className={`rounded-lg p-1.5 transition hover:bg-gray-100 dark:hover:bg-gray-800 ${off ? 'text-gray-400' : 'text-[#8b7355] dark:text-[#e8c97a]'}`}>
+          {/* phones: bigger tap areas (audit 11/11) */}
+          <button type="button" onClick={() => onMove(-1)} disabled={index === 0} title="Move up" aria-label="Move up" className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-30 sm:p-1 dark:hover:bg-gray-800"><ChevronUp className="h-4 w-4 sm:h-3.5 sm:w-3.5" /></button>
+          <button type="button" onClick={() => onMove(1)} disabled={index === count - 1} title="Move down" aria-label="Move down" className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-30 sm:p-1 dark:hover:bg-gray-800"><ChevronDown className="h-4 w-4 sm:h-3.5 sm:w-3.5" /></button>
+          <button type="button" onClick={onHide} title={off ? 'Turn this section on' : 'Turn this section off'} aria-label={off ? 'Turn this section on' : 'Turn this section off'} className={`rounded-lg p-2 transition hover:bg-gray-100 sm:p-1.5 dark:hover:bg-gray-800 ${off ? 'text-gray-400' : 'text-[#8b7355] dark:text-[#e8c97a]'}`}>
             {off ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
@@ -236,12 +237,18 @@ export default function BlockEditorPanel({
   // the template later never overwrites this customization (backend starter_template._merge_page).
   const updateBlockData = (id: string, key: string, value: string) => onChange(blocks.map(b => (b.id === id ? { ...b, data: { ...setNested(b.data, key, value), _template_generated: false } } : b)))
   const removeBlock = (id: string) => { if (expandedId === id) setExpandedId(null); onChange(blocks.filter(b => b.id !== id)) }
+  // The home page never draws a Contact Band section - it always closes with the footer's
+  // "Let's talk about your next move" band (SitePageRenderer, owner's call 10/07). Older sites may
+  // still carry one in their data: keep it there (last) but never list it, so agents can't edit
+  // fields that change nothing (audit 11/11).
+  const isBand = (b: SiteBlock) => b.type === 'contact_cta'
+  const rows = order.filter(b => !isBand(b))
   const moveBlock = (index: number, direction: -1 | 1) => {
+    const list = blocks.filter(b => !isBand(b))
     const target = index + direction
-    if (target < 0 || target >= blocks.length) return
-    const next = [...blocks]
-    ;[next[index], next[target]] = [next[target], next[index]]
-    onChange(next)
+    if (target < 0 || target >= list.length) return
+    ;[list[index], list[target]] = [list[target], list[index]]
+    onChange([...list, ...blocks.filter(isBand)])
   }
   const commitDrag = () => {
     const next = orderRef.current
@@ -273,7 +280,7 @@ export default function BlockEditorPanel({
   }
   const turnOn = (block: SiteBlock) => { updateBlock(block.id, { hidden: false }); setCatalogueOpen(false); setExpandedId(block.id) }
 
-  const onCount = blocks.filter(b => !b.hidden).length
+  const onCount = blocks.filter(b => !b.hidden && !isBand(b)).length
 
   return (
     <div className="space-y-3">
@@ -282,13 +289,13 @@ export default function BlockEditorPanel({
         <p className="text-[10px] font-semibold text-gray-400">Top to bottom, like your site. Drag the grip to reorder.</p>
       </div>
 
-      <Reorder.Group axis="y" values={order} onReorder={setOrder} as="div" className="space-y-2.5">
-        {order.map((block, index) => (
+      <Reorder.Group axis="y" values={rows} onReorder={vis => setOrder([...vis, ...orderRef.current.filter(isBand)])} as="div" className="space-y-2.5">
+        {rows.map((block, index) => (
           <SectionRow
             key={block.id}
             block={block}
             index={index}
-            count={order.length}
+            count={rows.length}
             expanded={expandedId === block.id}
             options={options}
             onToggleOpen={() => setExpandedId(expandedId === block.id ? null : block.id)}
@@ -301,6 +308,18 @@ export default function BlockEditorPanel({
           />
         ))}
       </Reorder.Group>
+
+      {/* Always-on closing band - shown so agents know it's there and where its info comes from */}
+      <div className="flex items-start gap-2.5 rounded-2xl border border-dashed border-gray-200 bg-gray-50/70 p-2.5 dark:border-gray-800 dark:bg-white/[0.03]">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-200 text-gray-500 dark:bg-white/10 dark:text-gray-300"><Lock className="h-3.5 w-3.5" /></span>
+        <span className="min-w-0">
+          <span className="flex flex-wrap items-center gap-1.5">
+            <span className="text-sm font-black text-[#111827] dark:text-white">&quot;Let&apos;s talk&quot; closing band</span>
+            <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-500 dark:bg-gray-800">Always last</span>
+          </span>
+          <span className="block text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400">Your site always closes with &quot;Let&apos;s talk about your next move&quot;: home value, home search and consultation buttons, then your agent card. Your photo and contact info come from your Agent Hub - change them there.</span>
+        </span>
+      </div>
 
       {/* Add a section - the catalogue */}
       {!catalogueOpen ? (
@@ -318,7 +337,8 @@ export default function BlockEditorPanel({
           </div>
           <div className="mt-3 space-y-4">
             {SECTION_GROUPS.map(group => {
-              const defs = SECTION_ORDER.map(t => SECTIONS[t]).filter(d => d.group === group.id && d.addable !== false)
+              // (This panel edits the home page, which always ends with its own contact band.)
+              const defs = SECTION_ORDER.map(t => SECTIONS[t]).filter(d => d.group === group.id && d.addable !== false && d.type !== 'contact_cta')
               if (!defs.length) return null
               return (
                 <div key={group.id}>

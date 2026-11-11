@@ -65,7 +65,7 @@ function MiniSite({ template, mode, accent, primary }: { template: 'default' | '
   )
 }
 
-export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onChange: (theme: SiteTheme) => void }) {
+export default function ThemePanel({ theme, onChange, kitLogo = null }: { theme: SiteTheme; onChange: (theme: SiteTheme) => void; kitLogo?: string | null }) {
   const { showToast } = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -142,7 +142,7 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
     <div className="space-y-5">
       {/* 0. Where it comes from - the Brand Kit (default) or this site's own */}
       <div>
-        <p className={label}>Look comes from</p>
+        <p className={label}>Where your colors come from</p>
         <div className="mt-1.5 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Where the look comes from">
           {([['brand', 'My Brand Kit', brandSummary || 'Your Brand Kit'], ['own', 'Choose my own', 'Pick a look just for this site below.']] as const).map(([id, name, blurb]) => {
             const on = (id === 'brand') === following
@@ -247,7 +247,7 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
 
       {/* 3. Ivory / Midnight (light / dark) */}
       <div>
-        <p className={label}>Ivory or Midnight</p>
+        <p className={label}>Light or dark pages</p>
         <div className="mt-1.5 grid grid-cols-2 gap-2">
           {([['light', 'Ivory', Sun, 'Bright pages, dark text.'], ['dark', 'Midnight', Moon, 'Deep pages, light text - your accent glows.']] as const).map(([id, name, Icon, blurb]) => {
             const on = mode === id
@@ -309,19 +309,19 @@ export default function ThemePanel({ theme, onChange }: { theme: SiteTheme; onCh
 
       {/* 5b. Loading mark */}
       <div>
-        <p className={label}>Loading mark</p>
+        <p className={label}>Loading logo</p>
         <div className="mt-1.5 flex items-center gap-3 rounded-xl border border-gray-200 p-2.5 dark:border-gray-800">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white p-1.5" style={{ borderColor: theme.secondary_color }}>
-            {theme.loader_logo_url ? <img src={resolveMediaUrl(theme.loader_logo_url)} alt="Loading logo" className="max-h-full max-w-full object-contain" /> : <span className="font-serif text-sm font-black text-[#111827]">AB</span>}
+            {theme.loader_logo_url || kitLogo ? <img src={resolveMediaUrl((theme.loader_logo_url || kitLogo)!)} alt="Loading logo" className="max-h-full max-w-full object-contain" /> : <span className="font-serif text-sm font-black text-[#111827]">AB</span>}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold leading-snug text-gray-400">{theme.loader_logo_url ? 'Your logo spins in the loading animation across your site.' : 'While a page, home or search loads, visitors see your Brand Kit logo (or your initials) in an animated ring. Upload a logo here to use a different one.'}</p>
+            <p className="text-[10px] font-semibold leading-snug text-gray-400">{theme.loader_logo_url ? 'This logo spins in the ring while a page, home or search loads.' : kitLogo ? 'While a page, home or search loads, your Brand Kit logo spins in a ring. Upload one here to use a different logo.' : 'While a page, home or search loads, your initials spin in a ring. Upload a logo to use it instead.'}</p>
             <div className="mt-1.5 flex gap-1.5">
               <button type="button" onClick={() => loaderRef.current?.click()} disabled={loaderUploading} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-[#111827] transition hover:border-[#C9A24D] disabled:opacity-50 dark:border-gray-700 dark:text-white">
                 {loaderUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />} {theme.loader_logo_url ? 'Replace' : 'Upload logo'}
               </button>
               {theme.loader_logo_url && (
-                <button type="button" onClick={() => setOwn({ loader_logo_url: null })} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-black uppercase tracking-wide text-gray-400 transition hover:text-red-600"><Trash2 className="h-3 w-3" /> Use my initials</button>
+                <button type="button" onClick={() => setOwn({ loader_logo_url: null })} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-black uppercase tracking-wide text-gray-400 transition hover:text-red-600"><Trash2 className="h-3 w-3" /> {kitLogo ? 'Use my Brand Kit logo' : 'Use my initials'}</button>
               )}
             </div>
           </div>

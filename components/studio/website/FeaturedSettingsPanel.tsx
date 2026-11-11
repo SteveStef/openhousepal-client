@@ -24,7 +24,7 @@ export default function FeaturedSettingsPanel({
           <Star className="h-3.5 w-3.5" /> Featured Page
         </p>
         <p className="mb-3 mt-1 text-[10px] font-semibold text-gray-400">
-          Controls what shows on your site&apos;s public &quot;Featured&quot; tab (yoursite.com/properties).
+          The Featured page in your site&apos;s menu - pick which homes it shows and in what order.
         </p>
         <FeaturedPagePicker compact value={value} onChange={onChange} />
       </div>

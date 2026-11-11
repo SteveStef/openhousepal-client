@@ -32,7 +32,10 @@ type Guide = {
     | { can: false; why: string }
   /** Step 3 when our bare-domain redirect server is set (WEBSITE_APEX_IP, 11/10): one A record "@" ->
    *  its IP, on the same DNS page - every page without www then goes to the same page on www. */
-  apexA: { lines: Line[]; cols: [string, string, string]; note?: string }
+  /** `clear`: delete any old forwarding FIRST - left on, the company keeps its own forwarding
+   *  addresses next to ours and most visits to other pages without www still dead-end (owner's
+   *  mainlinerealty.co, 11/11). Shown as its own highlighted step, not a footnote. */
+  apexA: { lines: Line[]; cols: [string, string, string]; note?: string; clear?: string }
   help: { dns: string; forward?: string }
 }
 
@@ -46,7 +49,7 @@ function guides(apex: string, target: string, ip = ''): Record<DomainProvider, G
       name: 'GoDaddy',
       dnsUrl: d => `https://dcc.godaddy.com/control/portfolio/${d}/settings?tab=dns`,
       home: 'godaddy.com',
-      path: `godaddy.com → Sign In → your name (top right) → My Products → Domains → ${apex} → DNS`,
+      path: `godaddy.com → Sign In → your name (top right) → My Products → Domain Portfolio (or Domains) → ${apex} → DNS`,
       record: {
         edit: true, cols: ['Type', 'Name', 'Data'],
         lines: [
@@ -77,7 +80,8 @@ function guides(apex: string, target: string, ip = ''): Record<DomainProvider, G
           'Delete what\'s in the Value box and paste this number in:', { text: 'Value', copy: ip },
           'Click Save.',
         ],
-        note: 'No A line with @? Click Add New Record → Type: A → Name: @ → Value: paste the number → Save. Set up Forwarding for this domain before? Open the Forwarding tab and delete it.',
+        note: 'No A line with @? Click Add New Record → Type: A → Name: @ → Value: paste the number → Save.',
+        clear: 'At the top, click the Forwarding tab (next to DNS Records). If there\'s a forward under "Domain" for this domain, click the trash can to delete it. Then come back to the DNS Records tab.',
       },
       help: { dns: 'https://www.godaddy.com/help/edit-a-cname-record-19237', forward: 'https://www.godaddy.com/help/forward-my-godaddy-domain-12123' },
     },
@@ -112,13 +116,14 @@ function guides(apex: string, target: string, ip = ''): Record<DomainProvider, G
         cols: ['Host', 'Type', 'Data'],
         lines: [
           'Stay on the same DNS Settings page.',
+          'Is "Squarespace Defaults" still listed? Click Delete on it first - it has its own @ lines.',
           'Under Custom Records, click Add record.',
           { text: 'Host', value: '@' },
           { text: 'Type', value: 'A' },
           'Data - paste this number in:', { text: 'Value', copy: ip },
           'Click Save.',
         ],
-        note: 'Set up a Domain Forwarding Rule for this domain before? Delete it (Website → Domain Forwarding Rules).',
+        clear: 'In your domain\'s menu, click Website → Domain Forwarding Rules. If there\'s a rule for this domain, click its red trash can and enter your password to confirm. Then come back to DNS Settings.',
       },
       help: { dns: 'https://support.squarespace.com/hc/en-us/articles/215744668-Pointing-a-Squarespace-domain', forward: 'https://support.squarespace.com/hc/en-us/articles/214767107-Forwarding-a-domain' },
     },
@@ -132,7 +137,7 @@ function guides(apex: string, target: string, ip = ''): Record<DomainProvider, G
         lines: [
           'Find the line where Host says www (it points to "parkingpage").',
           'Click on its Value and replace it with:', T(target),
-          'Click the green ✓ checkmark.',
+          'Click the green ✓ checkmark (or Save All Changes).',
         ],
         note: 'No www line? Click Add New Record → CNAME Record → Host: www → Value: paste the address above → ✓.',
       },
@@ -151,9 +156,10 @@ function guides(apex: string, target: string, ip = ''): Record<DomainProvider, G
         lines: [
           'Stay on the same Advanced DNS page.',
           'Find the line with Type "A Record" and Host @. Click its Value and replace it with this number:', { text: 'Value', copy: ip },
-          'Click the green ✓ checkmark.',
+          'Click the green ✓ checkmark (or Save All Changes).',
         ],
-        note: 'No such line? Click Add New Record → A Record → Host: @ → Value: paste the number → ✓. See a "URL Redirect Record" with Host @? Delete it (trash can).',
+        note: 'No such line? Click Add New Record → A Record → Host: @ → Value: paste the number → ✓. This only works if Nameservers (on the Domain tab) says Namecheap BasicDNS.',
+        clear: 'On the same Advanced DNS page, look for a "URL Redirect Record" with Host @. If there is one, delete it (trash can).',
       },
       help: { dns: 'https://www.namecheap.com/support/knowledgebase/article.aspx/9646/2237/how-to-create-a-cname-record-for-your-domain/', forward: 'https://www.namecheap.com/support/knowledgebase/article.aspx/385/2237/how-to-set-up-a-url-redirect-for-a-domain/' },
     },
@@ -169,7 +175,7 @@ function guides(apex: string, target: string, ip = ''): Record<DomainProvider, G
           'Scroll to CNAME (Aliases). Edit the www line, or click + Add Record.',
           { text: 'Host name', value: 'www' },
           'Value - paste this in:', T(target),
-          'Click Save.',
+          'Click Save, then Save Changes.',
         ],
         note: 'If this domain is still connected to a Wix website, Wix keeps "www" for it - disconnect it from the Wix site first.',
       },
@@ -181,9 +187,9 @@ function guides(apex: string, target: string, ip = ''): Record<DomainProvider, G
         cols: ['Type', 'Host name', 'Value'],
         lines: [
           'Stay on the same Manage DNS Records page.',
-          'Scroll to A (Host). Find the line with no Host name (or @) and click Edit.',
+          'Scroll to A (Host). Find the line with no Host name (or @) and click Edit, then Got it.',
           'Value - delete what\'s there and paste this number in:', { text: 'Value', copy: ip },
-          'Click Save.',
+          'Click Save, then Save Changes.',
         ],
         note: 'If this domain is still connected to a Wix website, disconnect it from the Wix site first.',
       },
@@ -195,11 +201,11 @@ function guides(apex: string, target: string, ip = ''): Record<DomainProvider, G
       home: 'ionos.com',
       path: `ionos.com → Sign In → Domain & SSL → ${apex} → DNS`,
       record: {
-        edit: false, cols: ['Type', 'Host name', 'Points to'],
+        edit: false, cols: ['Type', 'Hostname', 'Point to'],
         lines: [
           'Click Add record, then CNAME (edit the www line instead if there is one).',
-          { text: 'Host name', value: 'www' },
-          'Points to - paste this in:', { text: 'Points to', copy: target },
+          { text: 'Hostname', value: 'www' },
+          'Point to - paste this in:', { text: 'Point to', copy: target },
           'Click Save.',
         ],
       },
@@ -213,15 +219,17 @@ function guides(apex: string, target: string, ip = ''): Record<DomainProvider, G
         ],
       },
       apexA: {
-        cols: ['Type', 'Host name', 'Points to'],
+        cols: ['Type', 'Hostname', 'Point to'],
         lines: [
           'Stay on the same DNS page.',
-          'Click Add record, then A (edit the A line with Host name @ instead if there is one).',
-          { text: 'Host name', value: '@' },
-          'Points to - paste this number in:', { text: 'Value', copy: ip },
+          'Click Add record, then A (edit the A line with Hostname @ instead if there is one).',
+          { text: 'Hostname', value: '@' },
+          'Point to - paste this number in:', { text: 'Value', copy: ip },
           'Click Save. If IONOS asks to replace a record, click Yes.',
+          'Delete any other A or AAAA line with Hostname @ (IONOS adds parking ones).',
         ],
-        note: 'Set up Domain Forwarding for this domain before? Open its Details → Adjust Destination → pick DNS instead.',
+        note: 'This only works if the domain uses IONOS nameservers (the default).',
+        clear: 'Open your domain\'s Details → Adjust Destination. If it says Domain Forwarding, pick DNS instead and save.',
       },
       help: { dns: 'https://www.ionos.com/help/domains/configuring-cname-records-for-subdomains/configuring-a-cname-record-for-a-subdomain/', forward: 'https://www.ionos.com/help/domains/forwarding-a-domain/forwarding-a-domain-to-a-different-domain/' },
     },
@@ -262,7 +270,7 @@ function guides(apex: string, target: string, ip = ''): Record<DomainProvider, G
           'Proxy status: switch it OFF - the cloud turns grey ("DNS only"). This one matters.',
           'Click Save.',
         ],
-        note: 'Made a "Redirect from Root to WWW" rule before? Delete it (Rules → Redirect Rules).',
+        clear: 'In the left menu click Rules → Redirect Rules. If there\'s a "Redirect from Root to WWW" rule, delete it. Also check Page Rules and delete any Forwarding URL rule for this domain. Delete any A line with Name @ pointing to 192.0.2.1, and any AAAA line with Name @.',
       },
       help: { dns: 'https://developers.cloudflare.com/dns/manage-dns-records/how-to/create-dns-records/', forward: 'https://developers.cloudflare.com/fundamentals/manage-domains/redirect-domain/' },
     },
@@ -270,14 +278,14 @@ function guides(apex: string, target: string, ip = ''): Record<DomainProvider, G
       name: 'Network Solutions',
       dnsUrl: null,
       home: 'networksolutions.com',
-      path: `networksolutions.com → Sign In → Account Manager → Domains → ${apex} → DNS`,
+      path: `networksolutions.com → Sign In → My Account → Domains → ${apex} → Manage → DNS`,
       record: {
-        edit: false, cols: ['Type', 'Host', 'Points to'],
+        edit: false, cols: ['Type', 'Refers to', 'Alias to'],
         lines: [
           'Click + Add Record, then CNAME.',
-          { text: 'Host / Alias', value: 'www' },
-          'Points to - paste this in:', { text: 'Points to', copy: target },
-          'Click Save.',
+          { text: 'Refers to', value: 'www' },
+          'Alias to - paste this in:', { text: 'Alias to', copy: target },
+          'Click Add.',
         ],
       },
       forward: {
@@ -291,15 +299,16 @@ function guides(apex: string, target: string, ip = ''): Record<DomainProvider, G
         ],
       },
       apexA: {
-        cols: ['Type', 'Host', 'Points to'],
+        cols: ['Type', 'Refers to', 'Points to'],
         lines: [
           'Stay on the same DNS page.',
-          'Click + Add Record, then A (edit the A line with Host @ instead if there is one).',
-          { text: 'Host', value: '@' },
+          'There\'s probably already an A line with @ (it points to an "Under Construction" address). Click its pencil to edit it - don\'t add a second one. No @ line? Click + Add Record, then A.',
+          { text: 'Refers to', value: '@' },
           'Points to - paste this number in:', { text: 'Value', copy: ip },
-          'Click Save.',
+          'Click Edit (or Add for a new line).',
         ],
-        note: 'No paid forwarding needed. Set up Web Forwarding for this domain before? You can remove it.',
+        note: 'No paid forwarding needed.',
+        clear: 'At the bottom of the domain page, click Advanced Tools → Web Forwarding. If there\'s a forward, click its pencil, then Delete (top right), tick the box and click Delete.',
       },
       help: { dns: 'https://www.networksolutions.com/help/article/manage-dns-adns-records', forward: 'https://www.networksolutions.com/help/article/what-is-web-forwarding' },
     },
@@ -338,7 +347,7 @@ function guides(apex: string, target: string, ip = ''): Record<DomainProvider, G
           'Answer - paste this number in:', { text: 'Value', copy: ip },
           'Click Add.',
         ],
-        note: 'Set up URL Forwarding for this domain before? Delete it (Details → URL Forwarding).',
+        clear: 'In Details, open URL Forwarding. If there\'s a forward under Current Forwards, click its trash can.',
       },
       help: { dns: 'https://kb.porkbun.com/article/68-how-to-edit-dns-records', forward: 'https://kb.porkbun.com/article/39-how-to-set-up-url-forwarding' },
     },
@@ -362,20 +371,22 @@ function guides(apex: string, target: string, ip = ''): Record<DomainProvider, G
         lines: [
           'On the same page, open the Redirects tab.',
           'Redirect to:', { text: 'Redirect to', copy: full },
-          'Pick Permanent (301). Click Save.',
+          'Pick Permanent (301). Click Create redirect.',
         ],
       },
       apexA: {
         cols: ['Type', 'Name', 'Target'],
         lines: [
           'Stay on the same DNS page.',
+          'Using Hostinger CDN? Turn it off first.',
           'Edit the A line with Name @, or add a record:',
           { text: 'Type', value: 'A' },
           { text: 'Name', value: '@' },
           'Points to - paste this number in:', { text: 'Value', copy: ip },
-          'Click Save / Add Record.',
+          'Click Add Record.',
+          'Delete any other A, AAAA or "cloudflare-resolve-to" line with Name @.',
         ],
-        note: 'Set up a Redirect for this domain before? Delete it (Redirects tab).',
+        clear: 'Open the Redirects tab. If there\'s a redirect for this domain, delete it.',
       },
       help: { dns: 'https://www.hostinger.com/support/1583249-how-to-manage-dns-records-at-hostinger/', forward: 'https://www.hostinger.com/support/3212384-how-to-redirect-a-domain-without-a-hosting-plan' },
     },
@@ -413,7 +424,7 @@ function guides(apex: string, target: string, ip = ''): Record<DomainProvider, G
           'Value (or "Points to" / "IP address") - paste this number in:', { text: 'Value', copy: ip },
           'Save.',
         ],
-        note: 'Set up "forwarding" or a "redirect" for this domain before? Delete it - this record replaces it.',
+        clear: 'Look for "Forwarding", "Redirect" or "URL redirect". If this domain has one, delete it - the record below replaces it.',
       },
       help: { dns: '' },
     },
@@ -662,7 +673,17 @@ export default function DomainSetupGuide({ hostname, target, pair, apexIp = null
           <p className="mt-2 text-[14.5px] leading-snug text-gray-600 dark:text-white/60">
             One more line on the same page, so people who type {apex} without the www land on your website too.
           </p>
+          {g.apexA.clear && (
+            <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2.5 dark:border-amber-500/30 dark:bg-amber-500/10">
+              <p className="text-[12px] font-black uppercase tracking-wide text-amber-800 dark:text-amber-200">First: delete any old forwarding</p>
+              <p className="mt-1 text-[14px] font-semibold leading-snug text-amber-900 dark:text-amber-100">{g.apexA.clear}</p>
+              <p className="mt-1 text-[12.5px] leading-snug text-amber-800/80 dark:text-amber-200/70">Left on, it fights the record below and most pages without www keep showing &quot;page not found&quot;. Never set one up? Skip this.</p>
+            </div>
+          )}
           <Lines lines={g.apexA.lines} />
+          <p className="mt-2.5 text-[13.5px] font-semibold leading-snug text-[#111827] dark:text-white/85">
+            Last check: only ONE line with @ should be left - this A line. See any other A or AAAA line with @ (often marked Parked)? Delete it.
+          </p>
           {g.apexA.note && <p className="mt-2.5 text-[13px] leading-snug text-gray-500 dark:text-white/50">{g.apexA.note}</p>}
           <ARecordSketch g={g} apex={apex} ip={apexIp} />
         </>

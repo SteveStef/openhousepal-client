@@ -74,8 +74,11 @@ export default function SeoPagesList({ seo, onChange, pages, data, siteName, foc
 
   const final = (r: Row) => {
     const own = r.editable ? seo.pages[r.key] : null
-    const title = (own?.title || '').trim() || r.auto.title
-    return { title, fullTitle: withSiteName(title, siteName), description: (own?.description || '').trim() || r.auto.description }
+    const typed = (own?.title || '').trim()
+    const title = typed || r.auto.title
+    // A title the agent typed goes out exactly as typed (the live site doesn't add the site name
+    // to it) - show and check it the same way here (audit 11/11).
+    return { title, fullTitle: typed ? typed : withSiteName(title, siteName), description: (own?.description || '').trim() || r.auto.description }
   }
   const okCount = (k: Kind) => rows.filter(r => r.kind === k && seoChecks({ title: final(r).title, description: final(r).description }, final(r).fullTitle).every(c => c.ok)).length
   const shown = rows.filter(r => r.kind === kind)

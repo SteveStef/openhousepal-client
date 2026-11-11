@@ -43,8 +43,8 @@ export default function MediaSettingsPanel({
           <PlaySquare className="h-3.5 w-3.5" /> Media Page
         </p>
         <p className="mt-1 text-[10px] font-semibold text-gray-400">
-          Controls what shows on your site&apos;s public &quot;Media&quot; tab (yoursite.com/blog). Blog articles always
-          show automatically - videos and house tours are synced from your Agent Hub.
+          The Media page in your site&apos;s menu. Your blog articles always show there. Switch on the videos
+          and house tours from your Agent Hub to show them too - add or change them in your Agent Hub.
         </p>
 
         <div className="mt-4 space-y-2 border-t border-gray-100 pt-4 dark:border-gray-800">

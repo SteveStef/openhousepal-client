@@ -47,7 +47,7 @@ export type EditorTab = 'content' | 'design' | 'featured' | 'media' | 'reviews' 
 
 export const TABS: { id: EditorTab; label: string; icon: typeof Layers; title: string; blurb: string }[] = [
   { id: 'content', label: 'Sections', icon: Layers, title: 'Build Your Home Page', blurb: 'Drag sections into any order, switch them on or off, open one to edit it. Add more from the catalogue - each arrives complete and working.' },
-  { id: 'design', label: 'Design', icon: Palette, title: 'Look & Feel', blurb: 'Classic or Luxe, your accent color, Ivory or Midnight by default - one click changes the whole site.' },
+  { id: 'design', label: 'Design', icon: Palette, title: 'Look & Feel', blurb: 'Classic or Luxe, your accent color, light or dark pages - one click changes the whole site.' },
   { id: 'featured', label: 'Featured', icon: Star, title: 'Featured Homes', blurb: 'The newest homes in your header, and what your Featured page shows.' },
   { id: 'media', label: 'Media', icon: PlaySquare, title: 'Videos & Tours', blurb: 'Show listing videos and 3D tours on your site.' },
   { id: 'reviews', label: 'Reviews', icon: MessageSquareQuote, title: 'Client Reviews', blurb: 'Show or hide your Reviews page - your rating and what clients say, with a menu link.' },
@@ -80,6 +80,12 @@ export default function WebsiteEditorShell({ onActionsChange, onBarEndChange, ta
   // live site) on the very first save after the starter template created them.
   const [otherPages, setOtherPages] = useState<SitePage[]>([])
   const [theme, setTheme] = useState<SiteTheme>(DEFAULT_SITE_THEME)
+  // The live site's loading mark falls back to the Brand Kit personal logo (SiteShell brandLogo) -
+  // the editor showed initials instead, so it didn't match what visitors see (audit 11/11).
+  const [kitLogo, setKitLogo] = useState<string | null>(null)
+  useEffect(() => {
+    api.studio.getBrandKit().then(r => { if (r.success && r.data) setKitLogo(r.data.personal_logo_url || null) })
+  }, [])
   const [featuredSettings, setFeaturedSettings] = useState<FeaturedSettings>(DEFAULT_FEATURED_SETTINGS)
   const [mediaSettings, setMediaSettings] = useState<MediaSettings>(DEFAULT_MEDIA_SETTINGS)
   const [seo, setSeo] = useState<SiteSeo>(DEFAULT_SITE_SEO)
@@ -615,6 +621,21 @@ export default function WebsiteEditorShell({ onActionsChange, onBarEndChange, ta
   // Areas tab: the Neighborhoods section.
   const onAreasChange = (what?: { added?: string; removed?: string }) => {
     setAreasVersion(v => v + 1)
+    // Adding a town also adds it to a hand-picked Neighborhoods section on the server (draft +
+    // live). Pull that section's town list into the open editor, or the next Save/Publish would
+    // send the old list back and quietly drop the new town (audit 11/11).
+    if (what?.added) {
+      api.sites.getMine().then(res => {
+        const serverHome = res.success ? res.data?.draft_data?.pages?.find(p => p.is_home) : null
+        if (!serverHome) return
+        const picked = new Map((serverHome.blocks || []).filter(b => b.type === 'communities').map(b => [b.id, b.data?.selected_ids]))
+        setHomePage(prev => ({
+          ...prev,
+          blocks: (prev.blocks || []).map(b => b.type === 'communities' && picked.has(b.id) && b.data?.source_mode === 'selected'
+            ? { ...b, data: { ...b.data, selected_ids: picked.get(b.id) } } : b),
+        }))
+      }).catch(() => {})
+    }
     const find = either(blockOfType('communities'), inPreview('[data-ohp-spot="nav-neighborhoods"]'))
     if (what?.added) runSpot({ kind: 'on', find, refresh: true, label: `Added · ${what.added}` })
     else if (what?.removed) runSpot({ kind: 'off', find, label: `Removing · ${what.removed}` })
@@ -957,16 +978,22 @@ Your website is built from your Agent Hub, so these parts will show up blank. Pu
             <div className="min-w-0">
               <p className="font-serif text-lg font-black leading-tight text-[#111827] dark:text-white">{tab.title}</p>
               <p className="mt-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400">{tab.blurb}</p>
+              {/* How this tab saves - Areas/Reviews save by themselves, the rest wait for Publish (audit 11/11) */}
+              {activeTab !== 'domains' && (
+                <p className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${activeTab === 'areas' || activeTab === 'reviews' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#e8c97a]'}`}>
+                  {activeTab === 'areas' || activeTab === 'reviews' ? 'Saves by itself · shows on your site right away' : 'Shows on your site when you press Publish'}
+                </p>
+              )}
             </div>
           </div>
           <div className="mb-4 h-px bg-gradient-to-r from-[#C9A24D]/55 via-[#C9A24D]/15 to-transparent" />
           {activeTab === 'content' && <BlockEditorPanel blocks={homePage.blocks} onChange={updateBlocks} onOpenChange={setOpenBlockId} onSwitchTab={setActiveTab} />}
-          {activeTab === 'design' && <ThemePanel theme={theme} onChange={onThemeChange} />}
+          {activeTab === 'design' && <ThemePanel theme={theme} onChange={onThemeChange} kitLogo={kitLogo} />}
           {activeTab === 'featured' && (() => {
             const hero = homePage.blocks.find(b => b.type === 'hero') || null
             return (
               <div className="space-y-3">
-                <HeaderHomesPanel data={hero ? hero.data : null} onEditHero={() => setActiveTab('content')}
+                <HeaderHomesPanel data={hero ? hero.data : null} hidden={!!hero?.hidden} onEditHero={() => setActiveTab('content')}
                   onChange={patch => hero && onHeaderHomesChange(hero.id, patch)} />
                 <FeaturedSettingsPanel value={featuredSettings} onChange={onFeaturedChange} />
               </div>
@@ -1031,7 +1058,7 @@ Your website is built from your Agent Hub, so these parts will show up blank. Pu
             )}
             {loaderDemo && (
               <div key={loaderDemo.key} aria-hidden className="ohp-loader-demo absolute inset-x-0 z-[70] flex flex-col items-center justify-center" style={{ top: loaderDemo.top, height: loaderDemo.height, backgroundColor: 'var(--site-bg)' }}>
-                <SiteLoader mark={{ initials: [user?.first_name?.[0], user?.last_name?.[0]].filter(Boolean).join('').toUpperCase(), logo: viewTheme.loader_logo_url || null }} />
+                <SiteLoader mark={{ initials: [user?.first_name?.[0], user?.last_name?.[0]].filter(Boolean).join('').toUpperCase(), logo: viewTheme.loader_logo_url || kitLogo || null }} />
                 <span className="ohp-spot-tag" data-at="static">What visitors see while a page loads</span>
               </div>
             )}
