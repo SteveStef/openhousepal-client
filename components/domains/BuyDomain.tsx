@@ -5,7 +5,7 @@
 // there's nothing to set up afterwards. Shown on the website builder's Domain tab, Settings > IDX
 // Domain, and the setup flow's "Your web address" step. Backend: domain_purchase_service.py.
 import { useEffect, useState } from 'react'
-import CardPay from '@/components/CardPayButtons'
+import CardPay, { CardPayModal, type SubscriptionStart } from '@/components/CardPayButtons'
 import { ArrowLeft, Check, Copy, Globe2, Loader2, Lock, Mail, RefreshCw, Search, ShieldCheck, Sparkles, X } from 'lucide-react'
 import api from '@/lib/api-service'
 import { copyText } from '@/lib/copyText'
@@ -239,6 +239,24 @@ export function PurchasedDomainCard({ p, onChanged }: { p: PurchasedDomain; onCh
     setBusy('')
     if (r.success && r.data) setCode(r.data.code); else setMsg(r.error || 'Try again.')
   }
+  // "Renew with card": renewing was stopped or the yearly card payment failed (CardPayModal).
+  const [renew, setRenew] = useState<SubscriptionStart | null>(null)
+  const [renewBusy, setRenewBusy] = useState(false)
+  const [renewErr, setRenewErr] = useState('')
+  const startRenew = async () => {
+    setBusy('renew'); setMsg('')
+    const r = await api.sites.renewDomainCheckout(p.id)
+    setBusy('')
+    if (r.success && r.data) setRenew({ plan_id: r.data.plan_id, custom_id: r.data.custom_id, start_time: r.data.start_time })
+    else setMsg(r.error || 'Try again.')
+  }
+  const finishRenew = async (sid: string) => {
+    setRenewBusy(true); setRenewErr('')
+    const r = await api.sites.attachDomainRenewal(p.id, sid)
+    setRenewBusy(false)
+    if (r.success) { setRenew(null); onChanged() }
+    else setRenewErr(`${r.error || 'Your card went through, but we couldn’t switch renewing back on yet.'} Contact support and mention ${sid} - you won’t be charged twice.`)
+  }
   const resend = async () => {
     setBusy('resend')
     const r = await api.sites.resendDomainEmail(p.id)
@@ -264,14 +282,33 @@ export function PurchasedDomainCard({ p, onChanged }: { p: PurchasedDomain; onCh
         <div className="min-w-0 flex-1">
           <p className="font-mono text-[13px] font-bold text-[#111827] [overflow-wrap:anywhere] dark:text-white"><DomainName d={p.domain} /></p>
           <p className="mt-0.5 text-[11px] font-semibold text-gray-500 dark:text-white/55">
-            {p.status === 'ACTIVE' && (p.auto_renew ? `Bought here · renews ${prettyDate(p.expires_at)} for ${money(p.renewal_price)}` : `Bought here · not renewing - ends ${prettyDate(p.expires_at)}`)}
+            {p.status === 'ACTIVE' && (p.auto_renew
+              ? `Bought here · renews ${prettyDate(p.expires_at)} for ${money(p.renewal_price)}`
+              : p.last_error === 'payment_failed'
+                ? `The yearly payment didn’t go through - it ends ${prettyDate(p.expires_at)} unless you renew`
+                : `Bought here · not renewing - ends ${prettyDate(p.expires_at)}`)}
             {working && 'Getting it ready - this takes a minute or two.'}
             {p.status === 'FAILED' && 'We couldn’t get this one - your payment was refunded.'}
-            {p.status === 'EXPIRED' && `Ended ${prettyDate(p.expires_at)}.`}
+            {p.status === 'EXPIRED' && `Ended ${prettyDate(p.expires_at)} - your website is back on its OpenHousePal address. Contact support to try to get it back.`}
             {p.status === 'TRANSFERRED' && 'Moved to another company.'}
           </p>
         </div>
       </div>
+      <CardPayModal
+        open={!!renew}
+        start={renew}
+        title={`Renew ${p.domain}`}
+        note={`${money(p.renewal_price)} a year, charged about 2 weeks before it would end (${prettyDate(p.expires_at)}), then every year. Stop any time.`}
+        busy={renewBusy}
+        error={renewErr}
+        onApproved={finishRenew}
+        onClose={() => { if (!renewBusy) { setRenew(null); setRenewErr('') } }}
+      />
+      {p.status === 'ACTIVE' && !p.auto_renew && (
+        <button type="button" onClick={startRenew} disabled={!!busy} className={`${gold} mt-3 w-full`}>
+          {busy === 'renew' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Renew with card
+        </button>
+      )}
       {p.status === 'ACTIVE' && (
         <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" onClick={resend} disabled={!!busy} className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-gray-600 transition hover:border-[#C9A24D] disabled:opacity-50 dark:border-gray-700 dark:text-gray-300">

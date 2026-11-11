@@ -1822,6 +1822,10 @@ class ApiService {
     searchDomains: (q: string) => this.request<DomainSearch>(`/studio/sites/me/domain-shop/search?q=${encodeURIComponent(q)}`),
     buyDomain: (domain: string, contact: DomainContact, back: string, buttons = false) =>
       this.request<{ purchase_id: string; approve_url: string | null; plan_id?: string }>('/studio/sites/me/domain-shop/buy', { method: 'POST', body: JSON.stringify({ domain, contact, back, buttons }) }),
+    renewDomainCheckout: (id: string) =>
+      this.request<{ plan_id: string; custom_id: string; start_time: string | null }>(`/studio/sites/me/domain-shop/purchases/${id}/renew-checkout`, { method: 'POST' }),
+    attachDomainRenewal: (id: string, subscriptionId: string) =>
+      this.request<PurchasedDomain>(`/studio/sites/me/domain-shop/purchases/${id}/attach-renewal`, { method: 'POST', body: JSON.stringify({ subscription_id: subscriptionId }) }),
     attachDomainPayment: (id: string, subscriptionId: string) =>
       this.request<PurchasedDomain>(`/studio/sites/me/domain-shop/purchases/${id}/attach`, { method: 'POST', body: JSON.stringify({ subscription_id: subscriptionId }) }),
     getDomainPurchase: (id: string) => this.request<PurchasedDomain>(`/studio/sites/me/domain-shop/purchases/${id}`),
