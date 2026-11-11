@@ -58,12 +58,20 @@ export function CardPayButtons({ start, onApproved, onCancel, onError, disabled 
         </div>
       )}
       {isRejected && <p className="text-sm font-bold text-red-500">The payment form didn’t load - refresh the page and try again.</p>}
+      {/* PayPal's secure frame is a light page: inside a dark-mode page the browser paints it on an
+          opaque white box (the "white strip" under the card button). Seat it on a deliberate white
+          panel in every mode - colorScheme light keeps the frame see-through onto it, and the card
+          form that opens after a tap reads cleanly on it too (11/11). */}
       {PAYPAL_LOGIN_LIVE ? (
-        <PayPalButtons {...common} style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'subscribe' }} />
+        <div style={{ colorScheme: 'light' }} className="rounded-xl border border-gray-200 bg-white p-2.5 pb-1 shadow-sm dark:border-white/10">
+          <PayPalButtons {...common} style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'subscribe' }} />
+        </div>
       ) : (
         <>
           <p className="text-center text-[12px] font-black text-[#111827] dark:text-white">Pay with any debit or credit card</p>
-          <PayPalButtons {...common} fundingSource={FUNDING.CARD} style={{ layout: 'vertical', color: 'black', shape: 'rect', label: 'pay' }} />
+          <div style={{ colorScheme: 'light' }} className="rounded-xl border border-gray-200 bg-white p-2.5 pb-1 shadow-sm dark:border-white/10">
+            <PayPalButtons {...common} fundingSource={FUNDING.CARD} style={{ layout: 'vertical', color: 'black', shape: 'rect', label: 'pay' }} />
+          </div>
           <div aria-disabled="true" title="Paying with a PayPal account is coming soon"
             className="flex h-[42px] cursor-not-allowed select-none items-center justify-center gap-2 whitespace-nowrap rounded-md border border-dashed border-gray-300 bg-gray-100 px-2 text-[12px] font-bold text-gray-400 dark:border-white/15 dark:bg-white/[0.04] dark:text-white/35">
             PayPal account <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[9.5px] font-black uppercase tracking-wide text-gray-500 dark:bg-white/10 dark:text-white/50">Coming soon</span>

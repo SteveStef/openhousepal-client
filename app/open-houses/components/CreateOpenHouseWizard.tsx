@@ -2555,7 +2555,7 @@ function OpensToolBlock({ href, icon, title, blurb, count, className = '', delay
       className={`ohp-otb group relative isolate flex min-h-[108px] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-3xl border border-[#C9A24D]/30 bg-gradient-to-b from-white/95 to-[#fbf3df]/90 px-3 py-3 text-center shadow-[0_18px_40px_-28px_rgba(139,115,85,.8)] transition-all duration-300 hover:-translate-y-1 hover:border-[#C9A24D] hover:shadow-[0_26px_50px_-24px_rgba(201,162,77,.75)] dark:border-white/10 dark:from-white/[0.07] dark:to-[#C9A24D]/[0.08] dark:hover:border-[#e8c97a]/60 ${className}`}
       style={{ '--otb-d': `${delay}s` } as React.CSSProperties}
     >
-      <style>{`.ohp-otb .otb-halo{animation:otbSpin 9s linear infinite;animation-delay:calc(var(--otb-d) * -1)}.ohp-otb .otb-icon{animation:otbFloat 4.2s ease-in-out infinite;animation-delay:var(--otb-d)}@keyframes otbSpin{to{transform:rotate(360deg)}}@keyframes otbFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}@media (prefers-reduced-motion:reduce){.ohp-otb .otb-halo,.ohp-otb .otb-icon{animation:none}}`}</style>
+      <style>{`@property --otb-a{syntax:'<angle>';inherits:false;initial-value:0deg}.ohp-otb .otb-halo{background:conic-gradient(from var(--otb-a),#C9A24D,#f1d58b,transparent 40%,#C9A24D 70%,#8b6a2b,#C9A24D);animation:otbSpin 9s linear infinite;animation-delay:calc(var(--otb-d) * -1)}.ohp-otb .otb-icon{animation:otbFloat 4.2s ease-in-out infinite;animation-delay:var(--otb-d)}@keyframes otbSpin{to{--otb-a:360deg}}@keyframes otbFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}@media (prefers-reduced-motion:reduce){.ohp-otb .otb-halo,.ohp-otb .otb-icon{animation:none}}`}</style>
       <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/50 to-transparent transition-transform duration-1000 group-hover:translate-x-full dark:via-white/10" />
       {count > 0 && (
         <span className="absolute right-2.5 top-2.5 z-10 flex h-6 min-w-[24px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-black text-white shadow-lg shadow-red-500/40 ring-2 ring-white dark:ring-[#0b0f0e]">
@@ -2563,7 +2563,10 @@ function OpensToolBlock({ href, icon, title, blurb, count, className = '', delay
         </span>
       )}
       <span className="relative grid h-12 w-12 place-items-center">
-        <span className="otb-halo absolute inset-0 rounded-2xl bg-[conic-gradient(from_0deg,#C9A24D,#f1d58b,transparent_40%,#C9A24D_70%,#8b6a2b)] opacity-70" />
+        {/* A still gold ring whose shine travels around it (the gradient's angle animates, the
+            box never turns) - it used to be a blurred spinning square; once blur was removed for
+            speed it showed as a hard tilted tile behind the icon (11/11). */}
+        <span className="otb-halo absolute inset-0 rounded-[16px] opacity-80 shadow-[0_6px_18px_-6px_rgba(201,162,77,.7)]" />
         <span className="otb-icon relative grid h-[44px] w-[44px] place-items-center rounded-[14px] bg-gradient-to-br from-[#111827] to-[#2a2218] text-[#e8c97a] shadow-lg transition-transform duration-300 group-hover:scale-105">
           {icon}
         </span>
