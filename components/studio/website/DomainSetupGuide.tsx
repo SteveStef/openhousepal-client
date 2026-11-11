@@ -30,12 +30,15 @@ type Guide = {
   forward:
     | { can: true; url?: (d: string) => string; lines: Line[]; split?: boolean; note?: string; httpsShortOk: boolean; labels: { to: string; type: string } }
     | { can: false; why: string }
+  /** Step 3 when our bare-domain redirect server is set (WEBSITE_APEX_IP, 11/10): one A record "@" ->
+   *  its IP, on the same DNS page - every page without www then goes to the same page on www. */
+  apexA: { lines: Line[]; cols: [string, string, string]; note?: string }
   help: { dns: string; forward?: string }
 }
 
 const T = (target: string) => ({ text: 'Value', copy: target })
 
-function guides(apex: string, target: string): Record<DomainProvider, Guide> {
+function guides(apex: string, target: string, ip = ''): Record<DomainProvider, Guide> {
   const www = `www.${apex}`
   const full = `https://www.${apex}`
   return {
@@ -64,6 +67,17 @@ function guides(apex: string, target: string): Record<DomainProvider, Guide> {
           'Forward type: Permanent (301). Leave "Forward only" picked.',
           'Click Save. If GoDaddy asks to update your DNS, click Yes.',
         ],
+      },
+      apexA: {
+        cols: ['Type', 'Name', 'Data'],
+        lines: [
+          'Stay on the same DNS page.',
+          'Find the line where Type says A and Name says @.',
+          'Click the pencil ✏️ at the end of that line.',
+          'Delete what\'s in the Value box and paste this number in:', { text: 'Value', copy: ip },
+          'Click Save.',
+        ],
+        note: 'No A line with @? Click Add New Record → Type: A → Name: @ → Value: paste the number → Save. Set up Forwarding for this domain before? Open the Forwarding tab and delete it.',
       },
       help: { dns: 'https://www.godaddy.com/help/edit-a-cname-record-19237', forward: 'https://www.godaddy.com/help/forward-my-godaddy-domain-12123' },
     },
@@ -94,6 +108,18 @@ function guides(apex: string, target: string): Record<DomainProvider, Guide> {
           'Click Save.',
         ],
       },
+      apexA: {
+        cols: ['Host', 'Type', 'Data'],
+        lines: [
+          'Stay on the same DNS Settings page.',
+          'Under Custom Records, click Add record.',
+          { text: 'Host', value: '@' },
+          { text: 'Type', value: 'A' },
+          'Data - paste this number in:', { text: 'Value', copy: ip },
+          'Click Save.',
+        ],
+        note: 'Set up a Domain Forwarding Rule for this domain before? Delete it (Website → Domain Forwarding Rules).',
+      },
       help: { dns: 'https://support.squarespace.com/hc/en-us/articles/215744668-Pointing-a-Squarespace-domain', forward: 'https://support.squarespace.com/hc/en-us/articles/214767107-Forwarding-a-domain' },
     },
     namecheap: {
@@ -120,6 +146,15 @@ function guides(apex: string, target: string): Record<DomainProvider, Guide> {
           'In the little menu, pick Permanent (301). Click the green ✓.',
         ],
       },
+      apexA: {
+        cols: ['Type', 'Host', 'Value'],
+        lines: [
+          'Stay on the same Advanced DNS page.',
+          'Find the line with Type "A Record" and Host @. Click its Value and replace it with this number:', { text: 'Value', copy: ip },
+          'Click the green ✓ checkmark.',
+        ],
+        note: 'No such line? Click Add New Record → A Record → Host: @ → Value: paste the number → ✓. See a "URL Redirect Record" with Host @? Delete it (trash can).',
+      },
       help: { dns: 'https://www.namecheap.com/support/knowledgebase/article.aspx/9646/2237/how-to-create-a-cname-record-for-your-domain/', forward: 'https://www.namecheap.com/support/knowledgebase/article.aspx/385/2237/how-to-set-up-a-url-redirect-for-a-domain/' },
     },
     wix: {
@@ -141,6 +176,16 @@ function guides(apex: string, target: string): Record<DomainProvider, Guide> {
       forward: {
         can: false,
         why: `Wix can't send the short name (${apex}) to a website outside Wix - so skip this. Your website works at ${www}: put that address on your cards, email signature and ads. Want the short one too? Move the domain to GoDaddy and come back to this page.`,
+      },
+      apexA: {
+        cols: ['Type', 'Host name', 'Value'],
+        lines: [
+          'Stay on the same Manage DNS Records page.',
+          'Scroll to A (Host). Find the line with no Host name (or @) and click Edit.',
+          'Value - delete what\'s there and paste this number in:', { text: 'Value', copy: ip },
+          'Click Save.',
+        ],
+        note: 'If this domain is still connected to a Wix website, disconnect it from the Wix site first.',
       },
       help: { dns: 'https://support.wix.com/en/article/adding-or-update-cname-records-in-your-wix-account' },
     },
@@ -166,6 +211,17 @@ function guides(apex: string, target: string): Record<DomainProvider, Guide> {
           'Type:', { text: 'Destination', copy: full },
           'Leave "forward the www subdomain" un-ticked. Click Save.',
         ],
+      },
+      apexA: {
+        cols: ['Type', 'Host name', 'Points to'],
+        lines: [
+          'Stay on the same DNS page.',
+          'Click Add record, then A (edit the A line with Host name @ instead if there is one).',
+          { text: 'Host name', value: '@' },
+          'Points to - paste this number in:', { text: 'Value', copy: ip },
+          'Click Save. If IONOS asks to replace a record, click Yes.',
+        ],
+        note: 'Set up Domain Forwarding for this domain before? Open its Details → Adjust Destination → pick DNS instead.',
       },
       help: { dns: 'https://www.ionos.com/help/domains/configuring-cname-records-for-subdomains/configuring-a-cname-record-for-a-subdomain/', forward: 'https://www.ionos.com/help/domains/forwarding-a-domain/forwarding-a-domain-to-a-different-domain/' },
     },
@@ -195,6 +251,19 @@ function guides(apex: string, target: string): Record<DomainProvider, Guide> {
           'Status 301. Click Deploy.',
         ],
       },
+      apexA: {
+        cols: ['Type', 'Name', 'Content'],
+        lines: [
+          'Stay on the same DNS Records page.',
+          'Is there an A line with Name @? Click Edit on it. If not, click Add record.',
+          { text: 'Type', value: 'A' },
+          { text: 'Name', value: '@' },
+          'IPv4 address - paste this number in:', { text: 'Value', copy: ip },
+          'Proxy status: switch it OFF - the cloud turns grey ("DNS only"). This one matters.',
+          'Click Save.',
+        ],
+        note: 'Made a "Redirect from Root to WWW" rule before? Delete it (Rules → Redirect Rules).',
+      },
       help: { dns: 'https://developers.cloudflare.com/dns/manage-dns-records/how-to/create-dns-records/', forward: 'https://developers.cloudflare.com/fundamentals/manage-domains/redirect-domain/' },
     },
     networksolutions: {
@@ -220,6 +289,17 @@ function guides(apex: string, target: string): Record<DomainProvider, Guide> {
           'Type:', { text: 'Destination', copy: www },
           'Pick Permanent (301). Click Save.',
         ],
+      },
+      apexA: {
+        cols: ['Type', 'Host', 'Points to'],
+        lines: [
+          'Stay on the same DNS page.',
+          'Click + Add Record, then A (edit the A line with Host @ instead if there is one).',
+          { text: 'Host', value: '@' },
+          'Points to - paste this number in:', { text: 'Value', copy: ip },
+          'Click Save.',
+        ],
+        note: 'No paid forwarding needed. Set up Web Forwarding for this domain before? You can remove it.',
       },
       help: { dns: 'https://www.networksolutions.com/help/article/manage-dns-adns-records', forward: 'https://www.networksolutions.com/help/article/what-is-web-forwarding' },
     },
@@ -248,6 +328,18 @@ function guides(apex: string, target: string): Record<DomainProvider, Guide> {
           'Under advanced, pick Permanent (301). Click Submit.',
         ],
       },
+      apexA: {
+        cols: ['Type', 'Host', 'Answer'],
+        lines: [
+          'Stay on the same DNS Records page.',
+          'Delete any line with an empty Host that points to "pixie.porkbun.com".',
+          { text: 'Type', value: 'A' },
+          'Host - leave it empty.',
+          'Answer - paste this number in:', { text: 'Value', copy: ip },
+          'Click Add.',
+        ],
+        note: 'Set up URL Forwarding for this domain before? Delete it (Details → URL Forwarding).',
+      },
       help: { dns: 'https://kb.porkbun.com/article/68-how-to-edit-dns-records', forward: 'https://kb.porkbun.com/article/39-how-to-set-up-url-forwarding' },
     },
     hostinger: {
@@ -272,6 +364,18 @@ function guides(apex: string, target: string): Record<DomainProvider, Guide> {
           'Redirect to:', { text: 'Redirect to', copy: full },
           'Pick Permanent (301). Click Save.',
         ],
+      },
+      apexA: {
+        cols: ['Type', 'Name', 'Target'],
+        lines: [
+          'Stay on the same DNS page.',
+          'Edit the A line with Name @, or add a record:',
+          { text: 'Type', value: 'A' },
+          { text: 'Name', value: '@' },
+          'Points to - paste this number in:', { text: 'Value', copy: ip },
+          'Click Save / Add Record.',
+        ],
+        note: 'Set up a Redirect for this domain before? Delete it (Redirects tab).',
       },
       help: { dns: 'https://www.hostinger.com/support/1583249-how-to-manage-dns-records-at-hostinger/', forward: 'https://www.hostinger.com/support/3212384-how-to-redirect-a-domain-without-a-hosting-plan' },
     },
@@ -298,6 +402,18 @@ function guides(apex: string, target: string): Record<DomainProvider, Guide> {
           'Send it to:', { text: 'Destination', copy: full },
           'Pick Permanent (301). If there\'s an http:// or https:// choice, pick https://',
         ],
+      },
+      apexA: {
+        cols: ['Type', 'Name', 'Value'],
+        lines: [
+          'Stay on the same DNS page.',
+          'If there\'s already an A line named @ (or with no name), edit it. If not, add a new record:',
+          { text: 'Type', value: 'A' },
+          { text: 'Name (or Host)', value: '@' },
+          'Value (or "Points to" / "IP address") - paste this number in:', { text: 'Value', copy: ip },
+          'Save.',
+        ],
+        note: 'Set up "forwarding" or a "redirect" for this domain before? Delete it - this record replaces it.',
       },
       help: { dns: '' },
     },
@@ -366,6 +482,34 @@ function RecordSketch({ g, apex, target }: { g: Guide; apex: string; target: str
         {g.record.proxy && (
           <div className="flex items-center justify-end gap-1.5 px-3 pb-2 text-[10px] font-black text-gray-500"><span className="h-2.5 w-4 rounded-full bg-gray-400" /> DNS only (grey)</div>
         )}
+        <div className={`${row} text-gray-300 dark:text-white/25`}><span>MX</span><span>@</span><span className="truncate">(your email - leave it)</span><span /></div>
+      </div>
+      <figcaption className="mt-1 text-[10.5px] font-semibold text-gray-400">A simple drawing - {g.name}&apos;s screen may look a little different. Only the gold line changes.</figcaption>
+    </figure>
+  )
+}
+
+/** A simple drawing of the DNS list: the "@" A line circled, its value changing to our number. */
+function ARecordSketch({ g, apex, ip }: { g: Guide; apex: string; ip: string }) {
+  const [c1, c2, c3] = g.apexA.cols
+  const row = 'grid grid-cols-[46px_40px_minmax(0,1fr)_24px] items-center gap-1.5 px-2 py-2 text-[10.5px] sm:grid-cols-[64px_70px_minmax(0,1fr)_28px] sm:gap-2 sm:px-3 sm:text-[11.5px]'
+  return (
+    <figure className="mt-3">
+      <div className="overflow-hidden rounded-xl border border-gray-300 bg-white shadow-sm dark:border-white/15 dark:bg-[#1b1b1e]">
+        <div className="flex items-center gap-1.5 border-b border-gray-200 bg-gray-50 px-3 py-1.5 dark:border-white/10 dark:bg-white/[0.04]">
+          <span className="h-2 w-2 rounded-full bg-gray-300" /><span className="h-2 w-2 rounded-full bg-gray-300" /><span className="h-2 w-2 rounded-full bg-gray-300" />
+          <span className="ml-2 truncate text-[10px] font-bold text-gray-400">{g.name} · DNS · {apex}</span>
+        </div>
+        <div className={`${row} border-b border-gray-100 font-black uppercase tracking-wide text-gray-400 dark:border-white/10`} style={{ fontSize: 9.5 }}>
+          <span>{c1}</span><span>{c2}</span><span>{c3}</span><span />
+        </div>
+        <div className={`${row} relative rounded-lg bg-[#C9A24D]/10 ring-2 ring-[#C9A24D]`}>
+          <span className="font-black text-[#111827] dark:text-white">A</span>
+          <span className="font-black text-[#111827] dark:text-white">@</span>
+          <span className="block min-w-0 truncate font-mono font-black text-[#8b6a2b] dark:text-[#e8c97a]">{ip}</span>
+          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#C9A24D] text-[#111827] shadow"><Pencil className="h-3 w-3" /></span>
+        </div>
+        <div className={`${row} text-gray-300 dark:text-white/25`}><span>CNAME</span><span>www</span><span className="truncate">(the step you just did)</span><span /></div>
         <div className={`${row} text-gray-300 dark:text-white/25`}><span>MX</span><span>@</span><span className="truncate">(your email - leave it)</span><span /></div>
       </div>
       <figcaption className="mt-1 text-[10.5px] font-semibold text-gray-400">A simple drawing - {g.name}&apos;s screen may look a little different. Only the gold line changes.</figcaption>
@@ -450,7 +594,7 @@ function Step({ n, title, open, done, last, onOpen, onDone, children }: {
   )
 }
 
-export default function DomainSetupGuide({ hostname, target, pair }: { hostname: string; target: string; pair: boolean }) {
+export default function DomainSetupGuide({ hostname, target, pair, apexIp = null }: { hostname: string; target: string; pair: boolean; apexIp?: string | null }) {
   const apex = hostname.replace(/^www\./, '')
   const [provider, setProvider] = useState<DomainProvider>('godaddy')
   const [detected, setDetected] = useState<DomainProvider | null>(null)
@@ -472,13 +616,15 @@ export default function DomainSetupGuide({ hostname, target, pair }: { hostname:
     return () => { live = false }
   }, [apex])
   const pick = (p: DomainProvider) => { setProvider(p); setOpen(0); setDone(new Set()); try { localStorage.setItem(`ohp-domain-provider:${apex}`, p) } catch { /* ignore */ } }
-  const all = guides(apex, target)
+  const all = guides(apex, target, apexIp || '')
   const g = all[provider]
   const label = pair ? 'www' : hostname.split('.')[0]
   const forSupport = [
     `Please set up my domain ${apex}:`,
     `1. Add a CNAME record: name "${label}", value "${target}".`,
-    ...(pair ? [`2. Forward ${apex} to https://www.${apex} (permanent 301 redirect, https - not http).`] : []),
+    ...(pair ? [apexIp
+      ? `2. Add an A record: name "@" (the domain itself), value "${apexIp}". Remove any forwarding or redirect on ${apex}.`
+      : `2. Forward ${apex} to https://www.${apex} (permanent 301 redirect, https - not http).`] : []),
   ].join('\n')
   const finish = (i: number) => { setDone(d => new Set(d).add(i)); setOpen(i + 1) }
 
@@ -511,7 +657,16 @@ export default function DomainSetupGuide({ hostname, target, pair }: { hostname:
     },
     ...(pair ? [{
       title: `Make ${apex} (without www) work too`,
-      body: g.forward.can ? (
+      body: apexIp ? (
+        <>
+          <p className="mt-2 text-[14.5px] leading-snug text-gray-600 dark:text-white/60">
+            One more line on the same page, so people who type {apex} without the www land on your website too.
+          </p>
+          <Lines lines={g.apexA.lines} />
+          {g.apexA.note && <p className="mt-2.5 text-[13px] leading-snug text-gray-500 dark:text-white/50">{g.apexA.note}</p>}
+          <ARecordSketch g={g} apex={apex} ip={apexIp} />
+        </>
+      ) : g.forward.can ? (
         <>
           {g.forward.note && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[13px] font-semibold text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">{g.forward.note}</p>}
           {g.forward.url && <OpenButton href={g.forward.url(apex)} label={`Open ${g.name} forwarding`} />}
@@ -533,11 +688,11 @@ export default function DomainSetupGuide({ hostname, target, pair }: { hostname:
             It usually works within an hour (sometimes up to a day). We check every few minutes, email you when it&apos;s live,
             and keep an eye on it - if anything&apos;s ever off, your Dashboard tells you exactly what to change.
           </p>
-          {(g.help.dns || (g.help.forward && g.forward.can)) && (
+          {(g.help.dns || (g.help.forward && g.forward.can && !apexIp)) && (
             <p className="mt-2.5 text-[13px] font-semibold text-gray-500 dark:text-white/50">
               {g.name}&apos;s own guides, with real pictures:{' '}
               {g.help.dns && <a href={g.help.dns} target="_blank" rel="noreferrer" className="font-black text-[#8b7355] underline underline-offset-2 dark:text-[#e8c97a]">the www step</a>}
-              {g.help.forward && g.forward.can && <>{' · '}<a href={g.help.forward} target="_blank" rel="noreferrer" className="font-black text-[#8b7355] underline underline-offset-2 dark:text-[#e8c97a]">forwarding</a></>}
+              {g.help.forward && g.forward.can && !apexIp && <>{' · '}<a href={g.help.forward} target="_blank" rel="noreferrer" className="font-black text-[#8b7355] underline underline-offset-2 dark:text-[#e8c97a]">forwarding</a></>}
             </p>
           )}
           <div className="mt-3 rounded-xl bg-gray-50 p-3 dark:bg-white/[0.04]">

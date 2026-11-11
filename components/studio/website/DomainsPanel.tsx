@@ -144,7 +144,7 @@ function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHos
         <ul className="mt-3 space-y-1.5">
           {[
             { label: `${domain.hostname.split('.')[0] === 'www' ? '"www"' : 'Domain'} record found`, done: domain.status === 'VERIFIED' || domain.status === 'ACTIVE', bad: failed },
-            ...(partner ? [{ label: `${partner.hostname} forwards to it`, done: partner.status === 'ACTIVE', bad: false }] : []),
+            ...(partner ? [{ label: `${partner.hostname} (without www) opens it too`, done: partner.status === 'ACTIVE', bad: false }] : []),
             { label: 'Secure padlock (https) live', done: domain.status === 'ACTIVE', bad: false },
           ].map(item => (
             <li key={item.label} className="flex items-center gap-2 text-[12px] font-semibold">
@@ -170,7 +170,8 @@ function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHos
         <DomainSetupGuide
           hostname={domain.hostname}
           target={domain.instructions.find(i => i.type === 'CNAME')?.value || `sites.${OHP_BASE_DOMAIN}`}
-          pair={domain.instructions.some(i => i.type === 'FORWARD')}
+          pair={domain.instructions.some(i => i.type === 'FORWARD' || (i.type === 'A' && i.name === '@'))}
+          apexIp={domain.instructions.find(i => i.type === 'A' && i.name === '@')?.value || null}
         />
       )}
       {domain.status === 'ACTIVE' && partner && partner.status !== 'ACTIVE' && !bought && (
