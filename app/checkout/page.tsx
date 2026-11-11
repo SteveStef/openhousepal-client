@@ -208,7 +208,7 @@ function CheckoutContent() {
                   Cancel before then and you won&apos;t pay a thing.
                 </>
               ) : (
-                <>One last step - finish with PayPal and your account switches on.</>
+                <>One last step - add your card and your account switches on.</>
               )}
             </p>
           </div>
@@ -314,7 +314,7 @@ function CheckoutContent() {
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-[#6B7280] dark:text-gray-500 font-bold uppercase tracking-wider">Setup Fee</span>
                       <span className="text-[#111827] dark:text-white font-black">
-                        {billedByUs ? '$0.00' : terms ? (terms.setup_fee > 0 ? `$${terms.setup_fee.toFixed(2)} one-time` : '$0.00') : (selectedPlan?.tier === 'IDX' || appliedCode ? 'Shown on PayPal' : '$0.00')}
+                        {billedByUs ? '$0.00' : terms ? (terms.setup_fee > 0 ? `$${terms.setup_fee.toFixed(2)} one-time` : '$0.00') : (selectedPlan?.tier === 'IDX' || appliedCode ? 'Shown at checkout' : '$0.00')}
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
@@ -376,7 +376,7 @@ function CheckoutContent() {
                     </div>
                     
                     <div className="bg-[#FAFAF7] dark:bg-black/20 rounded-[2rem] p-4 sm:p-8 mb-8 border border-gray-100 dark:border-white/5">
-                      <p className="text-center text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-[0.3em] mb-8">{billedByUs ? 'Billed directly by OpenHousePal' : 'Pay securely with PayPal'}</p>
+                      <p className="text-center text-[10px] font-black text-[#6B7280] dark:text-gray-500 uppercase tracking-[0.3em] mb-8">{billedByUs ? 'Billed directly by OpenHousePal' : 'Pay securely by card'}</p>
                       
                       <div>
                         {billedByUs ? (

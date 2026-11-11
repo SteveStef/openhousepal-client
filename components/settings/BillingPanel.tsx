@@ -29,6 +29,7 @@ import { Sparkles, AlertCircle, Calendar, CheckCircle2, ChevronDown, ExternalLin
 import { TRIAL_PERIOD_DAYS, PRICING_PLANS, type PlanTierId } from '@/lib/pricing'
 import { PricingTierCard } from '@/components/pricing/PricingCards'
 import PlanChangeImpact from '@/components/settings/PlanChangeImpact'
+import { CardPayModal, type SubscriptionStart } from '@/components/CardPayButtons'
 
 export default function BillingPanel({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter()
@@ -50,6 +51,24 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
   // Coming back on IDX when the one-time setup fee still applies - a step to show it (and take a code) first.
   const [idxResubOpen, setIdxResubOpen] = useState(false)
   const [idxCode, setIdxCode] = useState<string | null>(null)
+  // The card checkout pop-up for a restart / plan change (CardPayButtons).
+  const [pay, setPay] = useState<{ kind: 'change' | 'restart'; tier: PlanTierId; start: SubscriptionStart } | null>(null)
+  const [payBusy, setPayBusy] = useState(false)
+  const [payErr, setPayErr] = useState('')
+  const finishPay = async (subscriptionId: string) => {
+    if (!pay) return
+    setPayBusy(true); setPayErr('')
+    const { success, data, error } = await api.paypal.completeNew(subscriptionId)
+    setPayBusy(false)
+    if (!success) {
+      setPayErr(`${error || 'Your card went through, but we couldn’t switch your plan yet.'} Email support and mention ${subscriptionId} - you won’t be charged twice.`)
+      return
+    }
+    setPay(null)
+    showToast(data?.message || `You're now on ${PRICING_PLANS[pay.tier]?.name || 'your new plan'}.`, 'success')
+    await refreshUser()
+    router.refresh()
+  }
 
   // Whether the full marketing plan-details card (the same one shown on Pricing/Upgrade) is
   // expanded - collapsed by default so this panel doesn't read as one long page. Nothing in it is
@@ -121,7 +140,12 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
       return
     }
 
-    if (data?.immediate) {
+    if (data?.checkout?.plan_id) {
+      // Card checkout - a new subscription replaces the current one (CardPayButtons).
+      setPay({ kind: 'change', tier: changePlanTarget, start: { plan_id: data.checkout.plan_id, start_time: data.checkout.start_time } })
+      setActionLoading(false)
+      setChangePlanTarget(null)
+    } else if (data?.immediate) {
       showToast(data?.message || 'Plan changed successfully!', 'success')
       setActionLoading(false)
       setChangePlanTarget(null)
@@ -217,6 +241,12 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
       return
     }
 
+    if (data?.plan_id) {
+      setPay({ kind: 'restart', tier: planTier, start: { plan_id: data.plan_id } })
+      setActionLoading(false)
+      setResubscribeModalOpen(false)
+      return
+    }
     // Redirect to PayPal approval URL
     if (data?.approval_url) {
       showToast('Redirecting to PayPal to complete your subscription...', 'success')
@@ -603,7 +633,7 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
             </div>
 
             <p className="text-[#6B7280] dark:text-gray-400 mb-5 text-sm leading-relaxed">
-              Switch to any plan below. You&apos;ll approve the change on PayPal, and the new plan switches on as soon as it&apos;s approved.
+              Switch to any plan below. You&apos;ll add your card, your new plan switches on right away, and your old plan stops so you never pay for both.
             </p>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -624,7 +654,7 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
             </div>
 
             <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-4 text-center sm:text-left">
-              * New features switch on once PayPal confirms. The new price starts with your next bill.
+              * New features switch on right away. The new price starts with your next bill.
             </p>
           </div>
         )}
@@ -658,10 +688,10 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
         title={changePlanTarget ? `Switch to ${PRICING_PLANS[changePlanTarget].name}?` : ''}
         message={
           isTrial
-            ? "You'll approve this on PayPal. Your new plan switches on as soon as it's approved, you keep your free trial, and the new price only starts when your trial ends."
-            : "You'll approve this on PayPal. Your new plan switches on as soon as it's approved, and the new price starts with your next bill."
+            ? "Next you'll add your card. Your new plan switches on right away, you keep your free trial, and the new price only starts when your trial ends."
+            : "Next you'll add your card. Your new plan switches on right away, and the new price starts with your next bill."
         }
-        confirmText="Continue to PayPal"
+        confirmText="Continue"
         isLoading={actionLoading}
       >
         {changePlanTarget === 'IDX' && owesIdxSetupFee(user) && <IdxSetupFee startsOn={user?.next_billing_date || user?.trial_ends_at} onCode={setIdxCode} />}
@@ -709,12 +739,27 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
         onClose={() => { setIdxResubOpen(false); setIdxCode(null) }}
         onConfirm={() => { setIdxResubOpen(false); handleResubscribe('IDX', true) }}
         title="Come back on IDX?"
-        message="You'll approve this on PayPal, and IDX switches on as soon as it's approved."
-        confirmText="Continue to PayPal"
+        message="Next you'll add your card, and IDX switches on right away."
+        confirmText="Continue"
         isLoading={actionLoading}
       >
         {idxResubOpen && <IdxSetupFee onCode={setIdxCode} />}
       </ConfirmationModal>
+
+      <CardPayModal
+        open={!!pay}
+        start={pay?.start || null}
+        title={pay ? (pay.kind === 'change' ? `Switch to ${PRICING_PLANS[pay.tier]?.name}` : `Restart ${PRICING_PLANS[pay.tier]?.name}`) : ''}
+        note={pay?.kind === 'change'
+          ? (isTrial
+            ? 'Add your card to switch. Your new plan switches on right away, you keep your free trial, and the new price starts when your trial ends. Your old plan stops, so you never pay for both.'
+            : 'Add your card to switch. Your new plan switches on right away and the new price starts on your next bill date. Your old plan stops, so you never pay for both.')
+          : 'Add your card and your plan switches on right away.'}
+        busy={payBusy}
+        error={payErr}
+        onApproved={finishPay}
+        onClose={() => { if (!payBusy) { setPay(null); setPayErr('') } }}
+      />
 
       {/* Resubscribe Modal */}
       <ResubscribeModal

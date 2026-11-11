@@ -5,6 +5,7 @@
 // there's nothing to set up afterwards. Shown on the website builder's Domain tab, Settings > IDX
 // Domain, and the setup flow's "Your web address" step. Backend: domain_purchase_service.py.
 import { useEffect, useState } from 'react'
+import CardPay from '@/components/CardPayButtons'
 import { ArrowLeft, Check, Copy, Globe2, Loader2, Lock, Mail, RefreshCw, Search, ShieldCheck, Sparkles, X } from 'lucide-react'
 import api from '@/lib/api-service'
 import { copyText } from '@/lib/copyText'
@@ -60,13 +61,27 @@ function Checkout({ option, shop, back, onBack }: { option: DomainOption; shop: 
   })
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  // PayPal's own on-page buttons (PayPal + "Debit or Credit Card" without a PayPal login) - the
+  // redirect page only offers PayPal login on our live account (user, 11/10).
+  const [pay, setPay] = useState<{ id: string; plan: string } | null>(null)
+  const [paidSid, setPaidSid] = useState('') // approved, but we couldn't tie it to the purchase yet
   const set = (k: keyof DomainContact) => (v: string) => setC(prev => ({ ...prev, [k]: v }))
-  const pay = async () => {
+  const toPayment = async () => {
     setBusy(true); setErr('')
-    const r = await api.sites.buyDomain(option.domain, c, back)
-    if (r.success && r.data?.approve_url) { window.location.href = r.data.approve_url; return }
+    const r = await api.sites.buyDomain(option.domain, c, back, true)
     setBusy(false)
-    setErr(r.error || 'Something went wrong - try again.')
+    if (r.success && r.data?.plan_id) setPay({ id: r.data.purchase_id, plan: r.data.plan_id })
+    else if (r.success && r.data?.approve_url) window.location.href = r.data.approve_url
+    else setErr(r.error || 'Something went wrong - try again.')
+  }
+  const finish = async (sid: string) => {
+    if (!pay) return
+    setBusy(true); setErr('')
+    const r = await api.sites.attachDomainPayment(pay.id, sid)
+    if (r.success) { window.location.href = `/studio/domains/return?purchase=${pay.id}&back=${back}`; return }
+    setBusy(false)
+    setPaidSid(sid)
+    setErr(r.error || 'Your payment went through, but we couldn’t finish setting it up. Tap Finish to try again.')
   }
   return (
     <div className="space-y-4">
@@ -89,7 +104,7 @@ function Checkout({ option, shop, back, onBack }: { option: DomainOption; shop: 
       <div>
         <p className="text-sm font-black text-[#111827] dark:text-white">Who owns it</p>
         <p className="mt-0.5 text-[12px] font-semibold text-gray-500 dark:text-white/55">Domains are registered in the owner&apos;s name - that&apos;s you. This stays private.</p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <fieldset disabled={!!pay} className="mt-3 grid min-w-0 gap-3 disabled:opacity-60 sm:grid-cols-2">
           <TextField label="First name" value={c.firstName} onChange={set('firstName')} autoComplete="given-name" />
           <TextField label="Last name" value={c.lastName} onChange={set('lastName')} autoComplete="family-name" />
           <TextField label="Street address" value={c.address1} onChange={set('address1')} autoComplete="address-line1" className="sm:col-span-2" placeholder="123 Main St" />
@@ -107,17 +122,40 @@ function Checkout({ option, shop, back, onBack }: { option: DomainOption; shop: 
           </div>
           <TextField label="Email" type="email" value={c.email} onChange={set('email')} autoComplete="email" />
           <TextField label="Phone" type="tel" value={c.phone} onChange={set('phone')} autoComplete="tel" />
-        </div>
+        </fieldset>
         <p className="mt-3 flex items-start gap-1.5 rounded-xl bg-amber-50 p-2.5 text-[12px] font-semibold text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
           <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0" /> You&apos;ll get one email from Name.com (our domain partner) asking you to confirm this email address. Click the link in it within 15 days, or the domain pauses - every domain company has to do this.
         </p>
       </div>
 
       {err && <p className="text-sm font-bold text-red-500">{err}</p>}
-      <button type="button" onClick={pay} disabled={busy} className={`${gold} w-full py-3.5 text-sm`}>
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />} Pay {money(option.price)} with PayPal
-      </button>
-      <p className="text-center text-[11px] font-semibold text-gray-400">You&apos;ll go to PayPal to pay, then come straight back here.{shop.test_mode ? ' (Test mode - no real money.)' : ''}</p>
+      {paidSid ? (
+        <button type="button" onClick={() => finish(paidSid)} disabled={busy} className={`${gold} w-full py-3.5 text-sm`}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Finish
+        </button>
+      ) : pay ? (
+        <div className="space-y-2">
+          <p className="text-center text-sm font-black text-[#111827] dark:text-white">{money(option.price)} today</p>
+          <div className="relative min-h-[110px]">
+            <CardPay
+              start={{ plan_id: pay.plan, custom_id: pay.id }}
+              disabled={busy}
+              onApproved={finish}
+              onCancel={() => setErr('You backed out - nothing was charged. Tap the card button to try again.')}
+              onError={setErr}
+            />
+            {busy && <div className="absolute inset-0 grid place-items-center rounded-2xl bg-white/80 dark:bg-[#151517]/85"><Loader2 className="h-5 w-5 animate-spin text-[#C9A24D]" /></div>}
+          </div>
+          <button type="button" onClick={() => { setPay(null); setErr('') }} className="mx-auto block text-[11px] font-black uppercase tracking-wide text-gray-500 hover:text-[#111827] dark:text-white/50 dark:hover:text-white">
+            Change my details
+          </button>
+        </div>
+      ) : (
+        <button type="button" onClick={toPayment} disabled={busy} className={`${gold} w-full py-3.5 text-sm`}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />} Continue to payment
+        </button>
+      )}
+      {shop.test_mode && <p className="text-center text-[11px] font-semibold text-gray-400">Test mode - no real money.</p>}
     </div>
   )
 }

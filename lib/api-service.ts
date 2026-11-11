@@ -736,7 +736,7 @@ class ApiService {
     // 'BASIC' | 'PREMIUM' | 'IDX').
     changePlan: (targetTier: string, code?: string | null) => this.request<any>('/subscriptions/change-plan', {
       method: 'POST',
-      body: JSON.stringify({ target_tier: targetTier, code: code || undefined }),
+      body: JSON.stringify({ target_tier: targetTier, code: code || undefined, buttons: true }),
     }),
 
     cancel: () => this.request<{ message: string }>('/subscriptions/cancel', { method: 'POST' }),
@@ -754,7 +754,7 @@ class ApiService {
 
     createNew: (planTier: 'NO_MLS' | 'PRO_NO_MLS' | 'BASIC' | 'PREMIUM' | 'IDX', code?: string | null) => this.request<any>('/subscriptions/create-new', {
       method: 'POST',
-      body: JSON.stringify({ plan_tier: planTier, code: code || undefined }),
+      body: JSON.stringify({ plan_tier: planTier, code: code || undefined, buttons: true }),
     }),
   };
 
@@ -1820,8 +1820,10 @@ class ApiService {
     /** Buy a domain (Name.com + PayPal) - see lib/domainShop.ts */
     getDomainShop: () => this.request<DomainShop>('/studio/sites/me/domain-shop'),
     searchDomains: (q: string) => this.request<DomainSearch>(`/studio/sites/me/domain-shop/search?q=${encodeURIComponent(q)}`),
-    buyDomain: (domain: string, contact: DomainContact, back: string) =>
-      this.request<{ purchase_id: string; approve_url: string | null }>('/studio/sites/me/domain-shop/buy', { method: 'POST', body: JSON.stringify({ domain, contact, back }) }),
+    buyDomain: (domain: string, contact: DomainContact, back: string, buttons = false) =>
+      this.request<{ purchase_id: string; approve_url: string | null; plan_id?: string }>('/studio/sites/me/domain-shop/buy', { method: 'POST', body: JSON.stringify({ domain, contact, back, buttons }) }),
+    attachDomainPayment: (id: string, subscriptionId: string) =>
+      this.request<PurchasedDomain>(`/studio/sites/me/domain-shop/purchases/${id}/attach`, { method: 'POST', body: JSON.stringify({ subscription_id: subscriptionId }) }),
     getDomainPurchase: (id: string) => this.request<PurchasedDomain>(`/studio/sites/me/domain-shop/purchases/${id}`),
     cancelDomainCheckout: (id: string) => this.request<{ status: string }>(`/studio/sites/me/domain-shop/purchases/${id}/cancel-checkout`, { method: 'POST' }),
     stopDomainRenewal: (id: string) => this.request<PurchasedDomain>(`/studio/sites/me/domain-shop/purchases/${id}/stop-renewing`, { method: 'POST' }),

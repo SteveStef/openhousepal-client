@@ -1,7 +1,7 @@
 'use client'
 
-import { PayPalButtons, usePayPalScriptReducer } from "@paypal/react-paypal-js";
 import { useState } from "react";
+import { CardPayButtons } from "./CardPayButtons";
 import api from "../lib/api-service";
 
 interface PayPalSubscriptionButtonProps {
@@ -23,7 +23,6 @@ export default function PayPalSubscriptionButton({
   // An approved PayPal subscription we couldn't attach to the account yet (bad connection,
   // server hiccup). Retrying re-links THIS one - never start a second subscription.
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [{ isPending }] = usePayPalScriptReducer();
 
   const link = async (subscriptionId: string) => {
     setLoading(true);
@@ -64,46 +63,13 @@ export default function PayPalSubscriptionButton({
 
   return (
     <div className="w-full min-h-[150px] relative">
-      {isPending && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center space-y-4 bg-[#FAFAF7] dark:bg-[#151517] rounded-xl transition-colors">
-          <div className="w-full h-12 bg-gray-200 dark:bg-gray-800 animate-pulse rounded-lg"></div>
-          <div className="w-full h-12 bg-gray-200 dark:bg-gray-800 animate-pulse rounded-lg"></div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 border-2 border-[#C9A24D] border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-sm font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest">Securely loading PayPal...</span>
-          </div>
-        </div>
-      )}
-      
+      {/* Card checkout; paying with a PayPal account shows "coming soon" (CardPayButtons). */}
       <div className="paypal-button-container">
-        <PayPalButtons
-          style={{
-            layout: "vertical",
-            color: "gold",
-            shape: "rect",
-            label: "subscribe"
-          }}
-          createSubscription={async (data, actions) => {
-            try {
-              return actions.subscription.create({
-                plan_id: planId
-              });
-            } catch (error) {
-              console.error('Error creating subscription:', error);
-              onError('Failed to initialize subscription');
-              throw error;
-            }
-          }}
-          onApprove={async (data) => {
-            await link(data.subscriptionID || '');
-          }}
-          onCancel={() => {
-            onError('Payment setup was cancelled. Please complete payment to continue.');
-          }}
-          onError={(err) => {
-            console.error('PayPal error:', err);
-            onError('Payment system error. Please try again.');
-          }}
+        <CardPayButtons
+          start={{ plan_id: planId }}
+          onApproved={link}
+          onCancel={() => onError('Payment setup was cancelled. Please complete payment to continue.')}
+          onError={onError}
           disabled={loading}
         />
       </div>
