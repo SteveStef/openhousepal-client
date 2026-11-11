@@ -37,7 +37,7 @@ const RESERVED_APP_SEGMENTS = new Set([
   'checkout', 'cma', 'dash', 'discovery', 'leads', 'net-sheet', 'open-houses',
   'gsi', 'privacy', 'property', 'settings', 'setup', 'showcase', 'showcases', 'studio', 'terms', 'unsubscribe',
   'upgrade-required', 'forgot-password', 'login', 'register', 'reset-password',
-  'tools', 'pricing', 'idx-websites', 'faq', 'about', 'resources', 'brokerages', 'pay',
+  'tools', 'pricing', 'idx-websites', 'faq', 'about', 'resources', 'brokerages', 'pay', 'offer',
 ])
 
 // openhousepal.com is for agents (we sell them subscriptions), so these are the only pages on the

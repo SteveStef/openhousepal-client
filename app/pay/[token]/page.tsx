@@ -13,7 +13,7 @@ import CardPay from '@/components/CardPayButtons'
 import { OhpWordmark } from '@/components/brand/OhpBrand'
 import OhpLoader from '@/components/brand/OhpLoader'
 
-const EVERY: Record<string, string> = { once: 'one time', monthly: 'every month', quarterly: 'every 3 months', yearly: 'every year' }
+const EVERY: Record<string, string> = { once: 'one time', monthly: 'every month', quarterly: 'every 3 months', semiannual: 'every 6 months', yearly: 'every year' }
 const money = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })}`
 const day = (iso?: string | null) => iso ? new Date(iso).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : ''
 
@@ -39,6 +39,12 @@ export default function PayPage() {
     const r = await api.paypal.confirmPaymentRequest(token, subscriptionId)
     setBusy(false)
     if (r.success && r.data) { setReq(r.data); setPendingSub(null); setJustPaid(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+    else if (r.error && /refunded/i.test(r.error)) {
+      // Not kept (paid twice, or the request changed while this page was open) - show what's true now.
+      setPendingSub(null); setError(r.error)
+      const fresh = await api.paypal.getPaymentRequest(token)
+      if (fresh.success && fresh.data) setReq(fresh.data)
+    }
     else setError(r.error || 'We couldn’t confirm the payment yet - tap Finish to try again.')
   }, [token])
 
@@ -87,6 +93,11 @@ export default function PayPage() {
 
             {req.note && !done && <p className="mt-4 whitespace-pre-line rounded-2xl border border-gray-200 p-4 text-sm font-medium leading-relaxed text-gray-600 dark:border-white/10 dark:text-gray-300">{req.note}</p>}
 
+            {(done || closed) && error && (
+              <p className="mt-6 flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-sm font-semibold text-amber-900 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-200">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {error}
+              </p>
+            )}
             {done ? (
               <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/25 dark:bg-emerald-500/10">
                 <p className="flex items-center gap-2 text-base font-black text-emerald-800 dark:text-emerald-300"><CheckCircle2 className="h-5 w-5" /> {justPaid ? 'Thank you - you’re all set' : 'This is paid and set up'}</p>

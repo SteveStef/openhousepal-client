@@ -23,6 +23,7 @@ import IdxSetupFee, { owesIdxSetupFee } from '@/components/settings/IdxSetupFee'
 import { IdxDomainNotice } from '@/components/IdxDomainNotice'
 import api from '@/lib/api-service'
 import { User } from '@/types'
+import type { OfferPlanView } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
 import { Sparkles, AlertCircle, Calendar, CheckCircle2, ChevronDown, ExternalLink } from 'lucide-react'
@@ -355,10 +356,20 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
     return 'Unknown Plan'
   }
 
+  // Signed up through a sign-up offer: their real price, not the regular one.
+  const [offerPlan, setOfferPlan] = useState<OfferPlanView | null>(null)
+  useEffect(() => {
+    if (!user?.plan_id || !user?.subscription_id) { setOfferPlan(null); return }
+    let live = true
+    api.paypal.myOfferPlan().then(r => { if (live && r.success) setOfferPlan(r.data?.plan || null) })
+    return () => { live = false }
+  }, [user?.plan_id, user?.subscription_id])
+
   // Determine plan price
   const getPlanPrice = () => {
     if (hasFreeSub) return 'Brokerage Paid'
     if (user?.subscription_status === 'PENDING_PAYMENT') return '$0.00'
+    if (offerPlan && offerPlan.tier === user?.plan_tier) return `$${offerPlan.offer_price.toFixed(2)}`
     if (currentTierPlan) return currentTierPlan.priceString
     return 'N/A'
   }
@@ -554,6 +565,11 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
             </div>
             {user?.subscription_status && <StatusBadge status={user.subscription_status} />}
           </div>
+          {offerPlan && offerPlan.tier === user?.plan_tier && offerPlan.percent_off > 0 && (
+            <p className="-mt-3 mb-5 rounded-xl bg-[#C9A24D]/10 px-3 py-2 text-xs font-bold text-[#8b7355] dark:text-[#e8c97a]">
+              Your sign-up offer: {offerPlan.percent_off}% off {offerPlan.discount_months ? `for your first ${offerPlan.discount_months === 1 ? 'month' : `${offerPlan.discount_months} months`}, then $${offerPlan.full_price.toFixed(2)}/mo` : 'every month'}.
+            </p>
+          )}
 
           {hasFreeSub ? (
             <div className="p-4 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100/50 dark:border-indigo-900/20 rounded-xl">

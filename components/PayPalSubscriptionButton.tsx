@@ -7,6 +7,8 @@ import api from "../lib/api-service";
 interface PayPalSubscriptionButtonProps {
   planId: string;
   bundleCode?: string;
+  /** A sign-up offer's plan: PayPal carries "offer:<user id>" so only this account can link it. */
+  customId?: string;
   onSuccess: () => void;
   onError: (error: string) => void;
   isCheckoutOnly?: boolean; // Kept for compatibility with checkout page
@@ -15,6 +17,7 @@ interface PayPalSubscriptionButtonProps {
 export default function PayPalSubscriptionButton({
   planId,
   bundleCode,
+  customId,
   onSuccess,
   onError,
   isCheckoutOnly = true
@@ -66,7 +69,7 @@ export default function PayPalSubscriptionButton({
       {/* Card checkout; paying with a PayPal account shows "coming soon" (CardPayButtons). */}
       <div className="paypal-button-container">
         <CardPayButtons
-          start={{ plan_id: planId }}
+          start={{ plan_id: planId, ...(customId ? { custom_id: customId } : {}) }}
           onApproved={link}
           onCancel={() => onError('Payment setup was cancelled. Please complete payment to continue.')}
           onError={onError}

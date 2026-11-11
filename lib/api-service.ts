@@ -13,7 +13,7 @@ import { ApiResponse, User, OpenHouse, OpenHouseFormRequest, SearchPreferences, 
   BuyerCashNeeded, BuyerCashNeededListItem, BcnProperty, BcnAmount, BcnDownPaymentScenario, BcnLoanType, BcnLineItem, BcnCredits, BcnMonthlyContext, BuyerCashNeededPublicResponse,
   AIConversationListItem, AIConversation, AISendMessageResponse, AIInsightsResponse, DailyDigest,
   AIAdminOverview, AIAdminAgentSummary, AIAdminAgentDetail,
-  AdminStorageAgentSummary, AdminActivityOverview, AdminActivityAgentDetail, BillingGroup, BillingGroupInput, GroupEmailsResult, PaymentRequest, PaymentRequestInput, PublicPaymentRequest, PromoCode, PromoCodeInput, AdminAreaList, AdminAreaListQuery, AdminAreaDetail, AdminAreaPlaceInput, PayPalPlanTerms, CheckoutCode, AdminStorageAgentDetail,
+  AdminStorageAgentSummary, AdminActivityOverview, AdminActivityAgentDetail, BillingGroup, BillingGroupInput, GroupEmailsResult, AdminOffer, OfferInput, PublicOffer, HeldOffer, OfferPlanView, PaymentRequest, PaymentRequestInput, PublicPaymentRequest, PromoCode, PromoCodeInput, AdminAreaList, AdminAreaListQuery, AdminAreaDetail, AdminAreaPlaceInput, PayPalPlanTerms, CheckoutCode, AdminStorageAgentDetail,
   AIRealtimeSessionOut, AIRealtimeToolCallResult, AgentMarketArea, CollectionPreferences,
   SupportTicketDetail, SupportTicketListItem, AdminSupportTicketListItem, SupportTicketCategory, SupportTicketDetails, SavedManualProperty, PublicQuestion,
   StudioMediaAsset, StudioMediaGeneratePayload, StudioVideoTestGridPayload, StudioVideoTestGridResponse, MonthlyAiUsage, ChatUsage,
@@ -757,6 +757,13 @@ class ApiService {
       body: JSON.stringify({ plan_tier: planTier, code: code || undefined, buttons: true }),
     }),
 
+    // Sign-up offers: the public page, holding a spot, and the offer held by the signed-in person.
+    getOffer: (token: string) => this.request<PublicOffer>(`/offers/${encodeURIComponent(token)}`),
+    claimOffer: (token: string) => this.request<{ offer: HeldOffer | null }>(`/offers/${encodeURIComponent(token)}/claim`, { method: 'POST' }),
+    heldOffer: () => this.request<{ offer: HeldOffer | null }>('/offers/mine'),
+    // The offer price a subscriber is on (Billing shows it instead of the regular price).
+    myOfferPlan: () => this.request<{ plan: OfferPlanView | null }>('/offers/my-plan'),
+
     // A payment request the admin sent (/pay/<token>) - public, no sign-in.
     getPaymentRequest: (token: string) => this.request<PublicPaymentRequest>(`/pay/${encodeURIComponent(token)}`),
     confirmPaymentRequest: (token: string, subscriptionId: string) => this.request<PublicPaymentRequest>(`/pay/${encodeURIComponent(token)}/confirm`, {
@@ -828,9 +835,17 @@ class ApiService {
     getPaymentRequests: () => this.request<PaymentRequest[]>('/admin/payment-requests'),
     createPaymentRequest: (data: PaymentRequestInput) => this.request<PaymentRequest>('/admin/payment-requests', { method: 'POST', body: JSON.stringify(data) }),
     updatePaymentRequest: (id: string, data: PaymentRequestInput) => this.request<PaymentRequest>(`/admin/payment-requests/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    changePaymentRequest: (id: string, data: { amount?: number; plan_tier?: string | null; seats?: number | null; title?: string }) =>
+      this.request<PaymentRequest & { change_notes: string[] }>(`/admin/payment-requests/${id}/change`, { method: 'POST', body: JSON.stringify(data) }),
     sendPaymentRequest: (id: string) => this.request<PaymentRequest>(`/admin/payment-requests/${id}/send`, { method: 'POST' }),
     cancelPaymentRequest: (id: string) => this.request<PaymentRequest>(`/admin/payment-requests/${id}/cancel`, { method: 'POST' }),
     refreshPaymentRequest: (id: string) => this.request<PaymentRequest>(`/admin/payment-requests/${id}/refresh`, { method: 'POST' }),
+    /** Sign-up offers. */
+    getOffers: () => this.request<AdminOffer[]>('/admin/offers'),
+    offerSettings: () => this.request<{ trial_days: number; idx_setup_fee: number; prices: Record<string, number> }>('/admin/offers/settings'),
+    createOffer: (data: OfferInput) => this.request<AdminOffer>('/admin/offers', { method: 'POST', body: JSON.stringify(data) }),
+    updateOffer: (id: string, data: OfferInput) => this.request<AdminOffer>(`/admin/offers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    deleteOffer: (id: string) => this.request<{ success: boolean }>(`/admin/offers/${id}`, { method: 'DELETE' }),
     deletePaymentRequest: (id: string) => this.request<{ success: boolean }>(`/admin/payment-requests/${id}`, { method: 'DELETE' }),
 
     getPromoCodes: () => this.request<PromoCode[]>('/admin/promo-codes'),

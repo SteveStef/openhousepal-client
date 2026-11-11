@@ -9,14 +9,14 @@ import api from '@/lib/api-service'
 import PayPalSubscriptionButton from '@/components/PayPalSubscriptionButton'
 import { PayPalScriptProvider } from "@paypal/react-paypal-js"
 import { PRICING_PLANS, TRIAL_PERIOD_DAYS, type PlanTierId } from '@/lib/pricing'
-import type { CheckoutCode } from '@/types'
+import type { CheckoutCode, HeldOffer, OfferPlanView } from '@/types'
 import { PricingTierCard } from '@/components/pricing/PricingCards'
 import { hasValidSubscription } from '@/lib/auth-helpers'
 import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
 import AuthGuard from '@/components/AuthGuard'
 import Toast from '@/components/Toast'
 import Footer from '@/components/Footer'
-import { CheckCircle2, CreditCard, Gift, ShieldCheck, ArrowLeft } from 'lucide-react'
+import { CheckCircle2, CreditCard, Gift, ShieldCheck, ArrowLeft, Sparkles } from 'lucide-react'
 
 // PayPal configuration
 const paypalOptions = {
@@ -61,6 +61,11 @@ function CheckoutContent() {
   const [isVerifyingCode, setIsVerifyingCode] = useState(false)
   const [appliedCode, setAppliedCode] = useState<CheckoutCode | null>(null)
   const [isActivating, setIsActivating] = useState(false)
+  // A sign-up offer this person holds (/offer/<token>): checkout shows its plans and prices.
+  const [offer, setOffer] = useState<HeldOffer | null>(null)
+  const [offerReady, setOfferReady] = useState(false)
+  const [showAllPlans, setShowAllPlans] = useState(false)
+  const [wantedTier, setWantedTier] = useState<PlanTierId | null>(null)
   // A 'billed by us' code: no PayPal at all, we invoice the agent ourselves.
   const billedByUs = appliedCode?.kind === 'billed_by_us'
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' })
@@ -81,10 +86,38 @@ function CheckoutContent() {
     if (noMlsSide) setCheckoutAudience('no_mls')
     // Outside Bright only the No-MLS plans exist; a Bright agent who came from a No-MLS card just sees that side.
     if (tier && (user.mls_id ? !['NO_MLS', 'PRO_NO_MLS'].includes(tier) : ['NO_MLS', 'PRO_NO_MLS'].includes(tier))) {
-      setSelectedPlan(planToSelected(tier))
-      setRegistrationStep('payment')
+      setWantedTier(tier)
     }
   }, [user])
+
+  // Hold the offer they came from (if the sign-up page couldn't), then load the one they hold.
+  const offerRead = useRef(false)
+  useEffect(() => {
+    if (!user || offerRead.current || hasValidSubscription(user)) return
+    offerRead.current = true
+    ;(async () => {
+      let token = '', note = ''
+      try { token = localStorage.getItem('ohp_offer') || ''; note = localStorage.getItem('ohp_offer_note') || ''; localStorage.removeItem('ohp_offer'); localStorage.removeItem('ohp_offer_note') } catch {}
+      if (token) {
+        const c = await api.paypal.claimOffer(token)
+        if (!c.success) note = c.error || 'That offer isn’t available any more.'
+      }
+      if (note) setNotification({ type: 'error', message: `${note} Here are our regular plans.` })
+      const r = await api.paypal.heldOffer()
+      if (r.success && r.data?.offer) setOffer(r.data.offer)
+      setOfferReady(true)
+    })()
+  }, [user])
+
+  const offerToSelected = (p: OfferPlanView): SelectedPlan => ({ id: p.plan_id || '', name: p.name, price: `$${p.offer_price.toFixed(2)}`, priceValue: p.offer_price, tier: p.tier })
+  useEffect(() => {
+    if (!offerReady || !wantedTier) return
+    const op = offer?.plans.find(p => p.tier === wantedTier)
+    setSelectedPlan(op ? offerToSelected(op) : planToSelected(wantedTier))
+    setRegistrationStep('payment')
+    setWantedTier(null)
+  }, [offerReady, wantedTier, offer])
+  const offerPlan = offer?.plans.find(p => p.plan_id && p.plan_id === selectedPlan?.id) || null
 
   useEffect(() => {
     if (isAuthLoading || !user) return
@@ -107,11 +140,11 @@ function CheckoutContent() {
   useEffect(() => {
     setTerms(null)
     const id = selectedPlan?.id
-    if (!id || id.startsWith('P-DEFAULT') || billedByUs) return
+    if (!id || id.startsWith('P-DEFAULT') || billedByUs || offer?.plans.some(p => p.plan_id === id)) return
     let live = true
     api.paypal.planTerms(id).then(({ success, data }) => { if (live && success && data) setTerms(data) })
     return () => { live = false }
-  }, [selectedPlan?.id, billedByUs])
+  }, [selectedPlan?.id, billedByUs, offer])
 
   // Picking a plan swaps the page to the payment step - bring it into view (the plan cards are
   // long, so the button that was tapped is often far down the page).
@@ -120,7 +153,7 @@ function CheckoutContent() {
   }, [registrationStep])
 
   // IDX never has a free trial; the others fall back to the standard trial until PayPal answers.
-  const trialDays = billedByUs ? 0 : terms ? terms.trial_days : (selectedPlan?.tier === 'IDX' || appliedCode ? 0 : TRIAL_PERIOD_DAYS)
+  const trialDays = offerPlan ? offerPlan.trial_days : billedByUs ? 0 : terms ? terms.trial_days : (selectedPlan?.tier === 'IDX' || appliedCode ? 0 : TRIAL_PERIOD_DAYS)
   const hasTrial = trialDays > 0
   const trialEndText = new Date(Date.now() + trialDays * 86400000).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
 
@@ -169,7 +202,7 @@ function CheckoutContent() {
     setNotification({ type: 'error', message: error || "Couldn't switch your account on" })
     setIsActivating(false)
   }
-  const cycleWord = (c?: string | null) => (c === 'yearly' ? 'yr' : c === 'quarterly' ? 'qtr' : 'mo')
+  const cycleWord = (c?: string | null) => (c === 'yearly' ? 'yr' : c === 'semiannual' ? '6 mo' : c === 'quarterly' ? 'qtr' : 'mo')
 
   if (isAuthLoading) {
     return (
@@ -213,7 +246,31 @@ function CheckoutContent() {
             </p>
           </div>
 
-          {registrationStep === 'pricing' ? (
+          {registrationStep === 'pricing' && offer && !showAllPlans ? (
+            <div className="mx-auto max-w-4xl">
+              <div className="mb-8 flex flex-col items-center gap-2 text-center">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C9A24D]/12 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[#8b7355] dark:text-[#e8c97a]"><Sparkles className="h-3.5 w-3.5" /> Your offer</span>
+                {offer.headline && <p className="text-lg font-black text-[#111827] dark:text-white">{offer.headline}</p>}
+              </div>
+              <div className={`grid gap-5 ${offer.plans.length === 1 ? 'mx-auto max-w-md' : offer.plans.length === 2 ? 'sm:grid-cols-2' : 'md:grid-cols-3'}`}>
+                {offer.plans.map(p => (
+                  <div key={p.tier} className="relative flex flex-col rounded-[1.75rem] border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
+                    {p.percent_off > 0 && <span className="absolute -top-3 right-5 rounded-full bg-[#C9A24D] px-3 py-1 text-[11px] font-black text-[#111827]">{p.percent_off}% off</span>}
+                    <p className="text-lg font-black text-[#111827] dark:text-white">{p.name}</p>
+                    <p className="mt-3 text-[34px] font-black leading-none tracking-tight text-[#111827] dark:text-white">${p.offer_price.toFixed(2)}<span className="ml-1 text-sm font-bold text-gray-400">/month</span></p>
+                    <p className="mt-1.5 text-[13px] font-bold text-[#8b7355] dark:text-[#e8c97a]">{p.deal ? (p.discount_months ? `${p.deal}, then $${p.full_price.toFixed(2)}/mo` : p.deal) : 'Regular price'}</p>
+                    <ul className="mt-3 space-y-1.5 text-sm font-semibold text-gray-600 dark:text-gray-300">
+                      {p.trial_days > 0 && <li>{p.trial_days}-day free trial</li>}
+                      {p.tier === 'IDX' && <li>{p.setup_fee > 0 ? `$${p.setup_fee.toFixed(0)} one-time setup fee` : `No setup fee (normally $${p.normal_setup_fee.toFixed(0)})`}</li>}
+                    </ul>
+                    <button onClick={() => { setSelectedPlan(offerToSelected(p)); setRegistrationStep('payment') }}
+                      className="mt-5 w-full rounded-2xl bg-[#111827] py-3.5 text-[11px] font-black uppercase tracking-[0.2em] text-white transition hover:bg-[#C9A24D] dark:bg-white dark:text-[#111827]">Select {p.name}</button>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => setShowAllPlans(true)} className="mx-auto mt-8 block text-xs font-black text-gray-500 underline-offset-4 hover:underline dark:text-gray-400">See our regular plans instead</button>
+            </div>
+          ) : registrationStep === 'pricing' ? (
             <>
               {/* Audience Toggle - only for Bright agents (they may pick either side) */}
               {!inBright && (
@@ -303,6 +360,11 @@ function CheckoutContent() {
                   <div className="mb-8">
                     <h3 className="text-[10px] font-black text-[#C9A24D] uppercase tracking-[0.3em] mb-2">Order Summary</h3>
                     <div className="text-2xl font-black text-[#111827] dark:text-white uppercase tracking-tight">{selectedPlan?.name}</div>
+                    {offerPlan && (
+                      <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#C9A24D]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]">
+                        <Sparkles className="h-3 w-3" /> Offer{offerPlan.percent_off ? ` · ${offerPlan.percent_off}% off` : ''}
+                      </div>
+                    )}
                     {appliedCode && (
                       <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#C9A24D]/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]">
                         <Gift className="h-3 w-3" /> {appliedCode.code}{appliedCode.label ? ` · ${appliedCode.label}` : ''}
@@ -314,17 +376,17 @@ function CheckoutContent() {
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-[#6B7280] dark:text-gray-500 font-bold uppercase tracking-wider">Setup Fee</span>
                       <span className="text-[#111827] dark:text-white font-black">
-                        {billedByUs ? '$0.00' : terms ? (terms.setup_fee > 0 ? `$${terms.setup_fee.toFixed(2)} one-time` : '$0.00') : (selectedPlan?.tier === 'IDX' || appliedCode ? 'Shown at checkout' : '$0.00')}
+                        {offerPlan ? (offerPlan.setup_fee > 0 ? `$${offerPlan.setup_fee.toFixed(2)} one-time` : offerPlan.tier === 'IDX' ? '$0.00 (waived)' : '$0.00') : billedByUs ? '$0.00' : terms ? (terms.setup_fee > 0 ? `$${terms.setup_fee.toFixed(2)} one-time` : '$0.00') : (selectedPlan?.tier === 'IDX' || appliedCode ? 'Shown at checkout' : '$0.00')}
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-[#6B7280] dark:text-gray-500 font-bold uppercase tracking-wider">Free Trial</span>
                       <span className="text-[#111827] dark:text-white font-black">{hasTrial ? `${trialDays} Days` : 'None'}</span>
                     </div>
-                    {hasTrial && (
+                    {(hasTrial || offerPlan) && (
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-[#6B7280] dark:text-gray-500 font-bold uppercase tracking-wider">Due Today</span>
-                        <span className="text-green-600 dark:text-green-400 font-black">$0.00</span>
+                        <span className="text-green-600 dark:text-green-400 font-black">${(offerPlan ? (hasTrial ? offerPlan.setup_fee : offerPlan.offer_price + offerPlan.setup_fee) : 0).toFixed(2)}</span>
                       </div>
                     )}
                     <div className="pt-4 border-t border-gray-50 dark:border-gray-800 flex justify-between items-baseline">
@@ -332,6 +394,11 @@ function CheckoutContent() {
                       <div className="text-right">
                         {billedByUs ? (
                           <div className="text-2xl font-black text-[#C9A24D] tracking-tighter">{appliedCode?.test_account ? 'Free' : appliedCode?.custom_price != null ? `$${appliedCode.custom_price.toFixed(2)}` : 'As agreed'}{appliedCode?.custom_price != null && <span className="text-[10px] ml-1">/{cycleWord(appliedCode.billing_cycle)}</span>}</div>
+                        ) : offerPlan ? (
+                          <>
+                            <div className="text-2xl font-black text-[#C9A24D] tracking-tighter">${offerPlan.offer_price.toFixed(2)}<span className="text-[10px] ml-1">/mo</span></div>
+                            {offerPlan.discount_months ? <div className="text-[10px] font-bold text-gray-400">then ${offerPlan.full_price.toFixed(2)}/mo after {offerPlan.discount_months === 1 ? '1 month' : `${offerPlan.discount_months} months`}</div> : offerPlan.percent_off ? <div className="text-[10px] font-bold text-gray-400">{offerPlan.percent_off}% off every month</div> : null}
+                          </>
                         ) : (
                           <div className="text-2xl font-black text-[#C9A24D] tracking-tighter">{terms?.price ? `$${terms.price.toFixed(2)}` : appliedCode ? 'Special Rate' : selectedPlan?.price}<span className="text-[10px] ml-1">/mo</span></div>
                         )}
@@ -404,7 +471,8 @@ function CheckoutContent() {
                           <PayPalSubscriptionButton 
                             planId={selectedPlan?.id || ''}
                             isCheckoutOnly={true}
-                            bundleCode={appliedCode?.code}
+                            bundleCode={offerPlan ? undefined : appliedCode?.code}
+                            customId={offerPlan ? offer?.custom_id : undefined}
                             onSuccess={async () => {
                               await refreshUser()
                               router.push('/dash')

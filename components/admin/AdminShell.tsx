@@ -27,6 +27,7 @@ import AgentActivityPanel from '@/components/admin/AgentActivityPanel'
 import AgentControlPanel from '@/components/admin/AgentControlPanel'
 import BrokerageGroupsPanel from '@/components/admin/BrokerageGroupsPanel'
 import PaymentRequestsPanel from '@/components/admin/PaymentRequestsPanel'
+import OffersPanel from '@/components/admin/OffersPanel'
 import AdminOverviewPanel from '@/components/admin/AdminOverviewPanel'
 import PromoCodesPanel from '@/components/admin/PromoCodesPanel'
 import NeighborhoodsPanel from '@/components/admin/NeighborhoodsPanel'
@@ -82,7 +83,7 @@ export default function AdminShell({ sectionKey, tabKey }: { sectionKey: string;
   const count = (k: string) => k === 'support' ? supportUnread : k === 'questions' ? questionsUnread : k === 'agents' ? pending : 0
   const k = tab.key
   // Panels with their own big heading skip the small one.
-  const ownHeading = ['overview', 'activity', 'groups', 'payments', 'codes', 'neighborhoods'].includes(k) || section.key === 'insights'
+  const ownHeading = ['overview', 'activity', 'groups', 'payments', 'offers', 'codes', 'neighborhoods'].includes(k) || section.key === 'insights'
 
   return (
     <div className="ohp-admin min-h-screen bg-[#faf9f7] pb-20 transition-colors duration-300 dark:bg-[#0B0B0B]">
@@ -132,6 +133,7 @@ export default function AdminShell({ sectionKey, tabKey }: { sectionKey: string;
             {k === 'agents' && <AgentControlPanel users={users} setUsers={setUsers} groups={groups} onToast={showToast} onRefresh={fetchUsers} onGroupsChanged={fetchGroups} />}
             {k === 'groups' && <BrokerageGroupsPanel users={users} groups={groups} onToast={showToast} onChanged={async () => { await Promise.all([fetchGroups(), fetchUsers()]) }} />}
             {k === 'payments' && <PaymentRequestsPanel users={users} groups={groups} onToast={showToast} onGroupsChanged={async () => { await Promise.all([fetchGroups(), fetchUsers()]) }} />}
+            {k === 'offers' && <OffersPanel onToast={showToast} />}
             {k === 'codes' && <PromoCodesPanel groups={groups} onToast={showToast} onAgentsChanged={fetchUsers} />}
             {k === 'activity' && <AgentActivityPanel groups={groups} />}
             {section.key === 'insights' && k !== 'emailhealth' && <InsightsPanel page={k} blurb={tab.blurb} title={tab.label} onGo={go} />}

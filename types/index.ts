@@ -4305,7 +4305,7 @@ export interface BillingGroupMember {
 }
 export interface BillingGroup {
   id: string; name: string; brokerage?: string | null; contact_name?: string | null; contact_email?: string | null; contact_phone?: string | null
-  paypal_reference?: string | null; amount?: number | null; billing_cycle: 'monthly' | 'quarterly' | 'yearly'; seats?: number | null
+  paypal_reference?: string | null; amount?: number | null; billing_cycle: 'monthly' | 'quarterly' | 'semiannual' | 'yearly'; seats?: number | null
   plan_tier?: string | null; status: 'active' | 'paused' | 'ended'; started_on?: string | null; next_invoice_on?: string | null
   notes?: string | null; created_at: string; per_agent?: number | null; members: BillingGroupMember[]
   /** AI usage per agent each month ($) - null = the plan's normal allowance. */
@@ -4322,7 +4322,7 @@ export type BillingGroupInput = Partial<Omit<BillingGroup, 'id' | 'created_at' |
 export interface GroupEmailsResult extends BillingGroup { joined: string[]; listed: string[]; moved: string[]; invalid: string[]; invited: number }
 
 /** Admin payment requests - a card pay link, one time or recurring (payment_request_routes.py). */
-export type PaymentCycle = 'once' | 'monthly' | 'quarterly' | 'yearly'
+export type PaymentCycle = 'once' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly'
 export type PaymentRequestStatus = 'open' | 'active' | 'paid' | 'past_due' | 'cancelled' | 'ended'
 export interface PaymentRequest {
   id: string; token: string; link: string; title: string; note?: string | null
@@ -4342,6 +4342,36 @@ export interface PaymentRequestInput {
   plan_tier?: string | null; seats?: number | null; new_group_name?: string | null; send_email?: boolean
   replaces_request_id?: string | null
 }
+/** Sign-up offers (offer_routes.py): a private /offer/<token> page with a deal on chosen plans. */
+export type OfferTier = 'BASIC' | 'PREMIUM' | 'IDX' | 'NO_MLS' | 'PRO_NO_MLS'
+export type OfferDuration = 'first' | 'months' | 'forever'
+export interface OfferPlanView {
+  tier: OfferTier; name: string; percent_off: number; full_price: number; offer_price: number
+  setup_fee: number; normal_setup_fee: number; trial_days: number; deal: string | null; discount_months: number | null
+  /** Only for the person holding the offer (checkout). */
+  plan_id?: string
+}
+export interface AdminOffer {
+  id: string; token: string; link: string; name: string; headline?: string | null
+  duration: OfferDuration; months?: number | null; trial: boolean; trial_days: number; waive_idx_fee: boolean
+  max_uses: number; uses: number; paid: number; expires_at?: string | null; is_active: boolean
+  status: 'live' | 'ended' | 'full' | 'off'; plans: OfferPlanView[]; created_at: string
+}
+export interface OfferInput {
+  name?: string; headline?: string | null; percents?: Partial<Record<OfferTier, number>>; duration?: OfferDuration
+  months?: number | null; trial?: boolean; waive_idx_fee?: boolean; max_uses?: number; ends_on?: string | null
+  clear_end?: boolean; is_active?: boolean
+}
+export interface PublicOffer {
+  headline?: string | null; status: 'live' | 'ended' | 'full' | 'off'; duration: OfferDuration; months?: number | null
+  trial: boolean; trial_days: number; waive_idx_fee: boolean; idx_setup_fee: number; expires_at?: string | null
+  spots_left: number; plans: OfferPlanView[]
+}
+export interface HeldOffer {
+  token: string; headline?: string | null; duration: OfferDuration; months?: number | null; trial: boolean
+  waive_idx_fee: boolean; plans: OfferPlanView[]; custom_id: string
+}
+
 /** What the payer sees at /pay/<token>. */
 export interface PublicPaymentRequest {
   title: string; note?: string | null; amount: number; cycle: PaymentCycle; total_payments?: number | null; price_line: string
@@ -4384,7 +4414,7 @@ export interface PromoCode {
   paypal_plan_id: string | null
   trial_days: number
   custom_price: number | null
-  billing_cycle: 'monthly' | 'quarterly' | 'yearly' | null
+  billing_cycle: 'monthly' | 'quarterly' | 'semiannual' | 'yearly' | null
   billing_group_id: string | null
   billing_group_name: string | null
   max_uses: number | null

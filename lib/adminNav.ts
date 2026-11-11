@@ -1,6 +1,6 @@
 import {
   Activity, AlertOctagon, BarChart3, Building2, ClipboardCheck, ClipboardSignature, Cpu, FileSearch, FlaskConical, HardDrive, HelpCircle, Inbox,
-  LayoutDashboard, LifeBuoy, Mail, MapPin, MailWarning, MousePointerClick, Layout, Receipt, Ticket, Users, Wallet, Workflow, Wrench, Gauge,
+  LayoutDashboard, LifeBuoy, Mail, MapPin, MailWarning, MousePointerClick, Layout, Receipt, Sparkles, Ticket, Users, Wallet, Workflow, Wrench, Gauge,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -23,6 +23,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
       { key: 'agents', label: 'Agents', icon: Users, blurb: 'Approve agents, change plans and see how each one pays.' },
       { key: 'groups', label: 'Brokerage groups', icon: Building2, blurb: 'Custom deals where a brokerage pays for its agents.' },
       { key: 'payments', label: 'Payments', icon: Receipt, blurb: 'Send a card pay link for any deal - one time or charged automatically.' },
+      { key: 'offers', label: 'Offers', icon: Sparkles, blurb: 'A private sign-up offer page + QR code for a presentation or a team.' },
       { key: 'codes', label: 'Codes', icon: Ticket, blurb: 'Sign-up codes for teams and deals - a special PayPal plan, or billed by you.' },
       { key: 'activity', label: 'Agent activity', icon: Activity, blurb: 'What every agent uses, how often, and whether it works for them.' },
     ],

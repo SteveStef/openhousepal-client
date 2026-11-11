@@ -10,8 +10,8 @@ import { copyText } from '@/lib/copyText'
 import { PLAN_CHIP, PLAN_LABEL } from './AgentControlPanel'
 import { Box, FIELD, L, Mini, Sel, Stat } from './BrokerageGroupsPanel'
 
-const CYCLE: Record<string, string> = { monthly: '/mo', quarterly: '/qtr', yearly: '/yr' }
-const PER_MONTH: Record<string, number> = { monthly: 1, quarterly: 3, yearly: 12 }
+const CYCLE: Record<string, string> = { monthly: '/mo', quarterly: '/qtr', semiannual: '/6 mo', yearly: '/yr' }
+const PER_MONTH: Record<string, number> = { monthly: 1, quarterly: 3, semiannual: 6, yearly: 12 }
 const STATE: Record<PromoCode['state'], [string, string]> = {
   active: ['Active', 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'],
   off: ['Switched off', 'bg-gray-100 text-gray-500 dark:bg-white/[0.06] dark:text-gray-400'],
@@ -239,7 +239,7 @@ function CodeDrawer({ code, groups, onClose, onSaved, onToast }: {
             <Box title="What you'll bill them">
               <div className="grid gap-3 sm:grid-cols-2">
                 <L label="Price"><input className={FIELD} type="number" min={0} step="0.01" value={form.custom_price ?? ''} onChange={e => set('custom_price', e.target.value === '' ? null : Number(e.target.value))} placeholder="79.00" /></L>
-                <L label="Every"><Sel value={form.billing_cycle || 'monthly'} onChange={v => set('billing_cycle', v)} options={[['monthly', 'Month'], ['quarterly', 'Quarter'], ['yearly', 'Year']]} /></L>
+                <L label="Every"><Sel value={form.billing_cycle || 'monthly'} onChange={v => set('billing_cycle', v)} options={[['monthly', 'Month'], ['quarterly', '3 months'], ['semiannual', '6 months'], ['yearly', 'Year']]} /></L>
               </div>
               <p className="mt-3 text-xs font-semibold leading-relaxed text-gray-500 dark:text-gray-400">
                 Their account switches on the moment they enter the code - no PayPal. You send their invoices. Each sign-up pings Discord so you know to bill them, and they're listed below.

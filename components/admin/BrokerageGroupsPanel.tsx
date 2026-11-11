@@ -12,8 +12,8 @@ import { timeAgo } from '@/lib/leadActivity'
 import { PLAN_CHIP, PLAN_LABEL } from './AgentControlPanel'
 import { copyText } from '@/lib/copyText'
 
-const CYCLE: Record<string, string> = { monthly: '/mo', quarterly: '/qtr', yearly: '/yr' }
-const PER_MONTH: Record<string, number> = { monthly: 1, quarterly: 3, yearly: 12 }
+const CYCLE: Record<string, string> = { monthly: '/mo', quarterly: '/qtr', semiannual: '/6 mo', yearly: '/yr' }
+const PER_MONTH: Record<string, number> = { monthly: 1, quarterly: 3, semiannual: 6, yearly: 12 }
 const STATUS_CLS: Record<string, string> = {
   active: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300',
   paused: 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300',
@@ -214,7 +214,7 @@ function GroupDrawer({ group, users, groups, onClose, onSaved, onToast }: {
               </L>
               <L label="Status"><Sel value={form.status || 'active'} onChange={v => set('status', v)} options={[['active', 'Active'], ['paused', 'Paused'], ['ended', 'Ended']]} /></L>
               <L label="Amount they pay"><input className={FIELD} type="number" min={0} step="0.01" value={form.amount ?? ''} onChange={e => set('amount', e.target.value === '' ? null : Number(e.target.value))} placeholder="1500" /></L>
-              <L label="Every"><Sel value={form.billing_cycle || 'monthly'} onChange={v => set('billing_cycle', v)} options={[['monthly', 'Month'], ['quarterly', 'Quarter'], ['yearly', 'Year']]} /></L>
+              <L label="Every"><Sel value={form.billing_cycle || 'monthly'} onChange={v => set('billing_cycle', v)} options={[['monthly', 'Month'], ['quarterly', '3 months'], ['semiannual', '6 months'], ['yearly', 'Year']]} /></L>
               <L label="Seats in the deal"><input className={FIELD} type="number" min={0} value={form.seats ?? ''} onChange={e => set('seats', e.target.value === '' ? null : Number(e.target.value))} placeholder="Leave blank if no set number" /></L>
               <L label="PayPal invoice / reference"><input className={FIELD} value={form.paypal_reference || ''} onChange={e => set('paypal_reference', e.target.value)} placeholder="INV2-XXXX-XXXX" /></L>
               <L label="Started"><input className={FIELD} type="date" value={form.started_on || ''} onChange={e => set('started_on', e.target.value)} /></L>

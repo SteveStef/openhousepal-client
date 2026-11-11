@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  AlertTriangle, ArrowLeft, Building2, Check, CheckCircle2, Copy, ExternalLink, Loader2, Mail, MoreHorizontal, Pencil, Plus, Receipt, RefreshCw, Search, Trash2, User as UserIcon, UserPlus, X, XCircle,
+  AlertTriangle, ArrowLeft, Building2, Check, CheckCircle2, Copy, ExternalLink, Loader2, Mail, MoreHorizontal, Pencil, SlidersHorizontal, Plus, Receipt, RefreshCw, Search, Trash2, User as UserIcon, UserPlus, X, XCircle,
 } from 'lucide-react'
 import api from '@/lib/api-service'
 import type { BillingGroup, PaymentCycle, PaymentRequest, PaymentRequestInput, User } from '@/types'
@@ -16,8 +16,9 @@ import { copyText } from '@/lib/copyText'
 import { PLAN_LABEL } from './AgentControlPanel'
 import { Box, FIELD, L, Sel, Stat } from './BrokerageGroupsPanel'
 
-const CYCLES: [PaymentCycle, string][] = [['once', 'One time'], ['monthly', 'Monthly'], ['quarterly', 'Every 3 months'], ['yearly', 'Yearly']]
-const PER_MONTH: Record<string, number> = { monthly: 1, quarterly: 3, yearly: 12 }
+const CYCLES: [PaymentCycle, string][] = [['once', 'One time'], ['monthly', 'Monthly'], ['quarterly', '3 months'], ['semiannual', '6 months'], ['yearly', 'Yearly']]
+const PER_MONTH: Record<string, number> = { monthly: 1, quarterly: 3, semiannual: 6, yearly: 12 }
+const EVERY_WORDS: Record<string, string> = { once: 'one time', monthly: 'every month', quarterly: 'every 3 months', semiannual: 'every 6 months', yearly: 'every year' }
 const STATUS: Record<string, [string, string]> = {
   open: ['Waiting to pay', 'bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300'],
   active: ['Active - charging', 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'],
@@ -41,6 +42,7 @@ export default function PaymentRequestsPanel({ users, groups, onToast, onGroupsC
   const [confirm, setConfirm] = useState<{ kind: 'cancel' | 'delete'; req: PaymentRequest } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [showDone, setShowDone] = useState(false)
+  const [changing, setChanging] = useState<PaymentRequest | null>(null)
 
   const load = async () => {
     const r = await api.admin.getPaymentRequests()
@@ -82,7 +84,7 @@ export default function PaymentRequestsPanel({ users, groups, onToast, onGroupsC
         <div>
           <h2 className="flex items-center gap-2 text-xl font-black text-[#111827] dark:text-white"><Receipt className="h-5 w-5 text-[#C9A24D]" /> Payment requests</h2>
           <p className="mt-1 max-w-2xl text-sm font-medium text-gray-500 dark:text-gray-400">
-            Any deal, any price: one time or charged automatically each month, quarter or year. They pay with any debit or credit card once - no PayPal account needed.
+            Any deal, any price: one time, or charged automatically every month, 3 months, 6 months or year. They pay with any debit or credit card once - no PayPal account needed.
           </p>
         </div>
         <button onClick={() => setOpen('new')} className="inline-flex items-center gap-1.5 rounded-xl bg-[#111827] px-4 py-2.5 text-xs font-black text-white shadow-sm hover:bg-black max-sm:w-full max-sm:justify-center max-sm:py-3 dark:bg-white dark:text-[#111827]">
@@ -125,7 +127,7 @@ export default function PaymentRequestsPanel({ users, groups, onToast, onGroupsC
                   <div className="grid gap-3 lg:grid-cols-2">
                     {items.map(r => (
                       <RequestCard key={r.id} r={r} busy={busy} onToast={onToast} onSend={() => act(r, 'send')} onRefresh={() => act(r, 'refresh')}
-                        onEdit={() => setOpen(r)} onStop={() => setConfirm({ kind: 'cancel', req: r })} onDelete={() => setConfirm({ kind: 'delete', req: r })} />
+                        onEdit={() => setOpen(r)} onChange={() => setChanging(r)} onStop={() => setConfirm({ kind: 'cancel', req: r })} onDelete={() => setConfirm({ kind: 'delete', req: r })} />
                     ))}
                   </div>
                 )}
@@ -164,6 +166,11 @@ export default function PaymentRequestsPanel({ users, groups, onToast, onGroupsC
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {changing && <ChangeDeal key={changing.id} r={changing} onClose={() => setChanging(null)} onToast={onToast}
+          onSaved={async r => { put(r); setChanging(null); await onGroupsChanged() }} />}
+      </AnimatePresence>
+
       <ConfirmationModal isOpen={!!confirm} onClose={() => setConfirm(null)} onConfirm={doConfirm} isLoading={!!busy}
         title={confirm?.kind === 'cancel' ? `Stop charging for “${confirm.req.title}”?` : `Delete “${confirm?.req.title}”?`}
         message={confirm?.kind === 'cancel'
@@ -183,10 +190,10 @@ const SECTIONS = [
 
 const CHIP_BTN = 'inline-flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-black transition disabled:opacity-50 max-sm:min-h-[42px] max-sm:flex-1'
 
-function RequestCard({ r, busy, onToast, onSend, onRefresh, onEdit, onStop, onDelete }: {
+function RequestCard({ r, busy, onToast, onSend, onRefresh, onEdit, onChange, onStop, onDelete }: {
   r: PaymentRequest; busy: string | null
   onToast: (message: string, type: 'success' | 'error') => void
-  onSend: () => void; onRefresh: () => void; onEdit: () => void; onStop: () => void; onDelete: () => void
+  onSend: () => void; onRefresh: () => void; onEdit: () => void; onChange: () => void; onStop: () => void; onDelete: () => void
 }) {
   const [label, cls] = STATUS[r.status] || STATUS.open
   const who = r.group_name || r.user_name || r.payer_name || r.payer_email || 'No payer set'
@@ -194,6 +201,7 @@ function RequestCard({ r, busy, onToast, onSend, onRefresh, onEdit, onStop, onDe
   const finished = r.status === 'cancelled' || r.status === 'ended'
   const failed = r.status === 'past_due'
   const menu: MenuItem[] = [
+    ...(r.status === 'active' || r.status === 'past_due' || r.status === 'paid' ? [{ label: 'Change the deal', icon: SlidersHorizontal, onClick: onChange }] : []),
     { label: 'Open pay page', icon: ExternalLink, href: r.link },
     ...(r.paypal_subscription_id ? [{ label: 'Check PayPal now', icon: RefreshCw, onClick: onRefresh }] : []),
     ...(r.status === 'open' && !r.paypal_subscription_id ? [{ label: 'Edit', icon: Pencil, onClick: onEdit }] : []),
@@ -258,15 +266,15 @@ function RequestCard({ r, busy, onToast, onSend, onRefresh, onEdit, onStop, onDe
   )
 }
 
-const CYCLE_SHORT: Record<string, string> = { once: 'one time', monthly: '/ month', quarterly: '/ 3 months', yearly: '/ year' }
+const CYCLE_SHORT: Record<string, string> = { once: 'one time', monthly: '/ month', quarterly: '/ 3 months', semiannual: '/ 6 months', yearly: '/ year' }
 
-function Pill({ children }: { children: React.ReactNode }) {
+export function Pill({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full bg-[#f4f1ea] px-2.5 py-1 text-[11px] font-bold text-gray-600 dark:bg-white/[0.06] dark:text-gray-300">{children}</span>
 }
 
-type MenuItem = { label: string; icon: typeof Copy; onClick?: () => void; href?: string; danger?: boolean }
+export type MenuItem = { label: string; icon: typeof Copy; onClick?: () => void; href?: string; danger?: boolean }
 
-function MoreMenu({ items, busy }: { items: MenuItem[]; busy?: boolean }) {
+export function MoreMenu({ items, busy }: { items: MenuItem[]; busy?: boolean }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -450,7 +458,7 @@ function RequestDrawer({ req, existing, users, groups, onClose, onSaved, onToast
               <L label="People it covers"><input className={FIELD} type="number" inputMode="numeric" min={1} value={f.seats ?? ''} onChange={e => set('seats', e.target.value === '' ? null : Number(e.target.value))} placeholder="e.g. 12" /></L>
             </div>
             <p className="mb-1.5 mt-3 text-[11px] font-black text-gray-500 dark:text-gray-400">How often</p>
-            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5 [&>*:first-child]:col-span-2 sm:[&>*:first-child]:col-span-1">
               {CYCLES.map(([k, l]) => (
                 <button key={k} onClick={() => set('cycle', k)}
                   className={`rounded-xl border px-2 py-2.5 text-xs font-black transition ${f.cycle === k ? 'border-[#C9A24D] bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#e8c97a]' : 'border-gray-200 text-gray-500 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'}`}>
@@ -465,7 +473,7 @@ function RequestDrawer({ req, existing, users, groups, onClose, onSaved, onToast
             )}
             {f.amount ? (
               <p className="mt-3 rounded-xl bg-[#C9A24D]/10 px-3 py-2 text-xs font-bold text-[#8b7355] dark:text-[#e8c97a]">
-                They pay {money(f.amount)} now{f.cycle !== 'once' ? `, then ${money(f.amount)} ${CYCLES.find(c => c[0] === f.cycle)?.[1].toLowerCase()} automatically${f.total_payments ? ` (${f.total_payments} payments in all)` : ' until you stop it'}` : ''}.
+                They pay {money(f.amount)} now{f.cycle !== 'once' ? `, then ${money(f.amount)} ${EVERY_WORDS[f.cycle || 'monthly']} automatically${f.total_payments ? ` (${f.total_payments} payments in all)` : ' until you stop it'}` : ''}.
                 {f.seats && f.seats > 1 ? ` That's ${money(Math.round(f.amount / f.seats * 100) / 100)} per person.` : ''}
               </p>
             ) : null}
@@ -528,6 +536,71 @@ function RequestDrawer({ req, existing, users, groups, onClose, onSaved, onToast
             </>
           )}
         </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+function ChangeDeal({ r, onClose, onSaved, onToast }: {
+  r: PaymentRequest; onClose: () => void
+  onSaved: (r: PaymentRequest) => Promise<void>
+  onToast: (message: string, type: 'success' | 'error') => void
+}) {
+  const [amount, setAmount] = useState(String(r.amount))
+  const [plan, setPlan] = useState(r.plan_tier || '')
+  const [seats, setSeats] = useState(r.seats != null ? String(r.seats) : '')
+  const [saving, setSaving] = useState(false)
+  const recurring = r.cycle !== 'once'
+  const newAmount = Number(amount)
+  const priceChanged = recurring && amount.trim() !== '' && Math.abs(newAmount - r.amount) > 0.004
+  const save = async () => {
+    if (priceChanged && (!Number.isFinite(newAmount) || newAmount < 1)) { onToast('Put in a price of $1 or more', 'error'); return }
+    const body: { amount?: number; plan_tier?: string | null; seats?: number | null } = {}
+    if (priceChanged) body.amount = newAmount
+    if (plan && plan !== (r.plan_tier || '')) body.plan_tier = plan
+    if (seats.trim() !== '' && Number(seats) !== r.seats) body.seats = Number(seats)
+    if (!Object.keys(body).length) { onClose(); return }
+    setSaving(true)
+    const res = await api.admin.changePaymentRequest(r.id, body)
+    setSaving(false)
+    if (res.success && res.data) { onToast(res.data.change_notes?.join(' ') || 'Deal updated', 'success'); await onSaved(res.data) }
+    else onToast(res.error || 'That didn’t save - nothing was changed', 'error')
+  }
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center max-sm:!m-0 max-sm:p-0" onClick={onClose}>
+      <motion.div initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} onClick={e => e.stopPropagation()}
+        className="w-full max-w-md rounded-[1.75rem] bg-white p-6 shadow-2xl max-sm:rounded-b-none max-sm:p-5 max-sm:pb-[max(1.25rem,env(safe-area-inset-bottom))] dark:bg-[#151517]">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-widest text-[#9a7a35] dark:text-[#e6c47c]">Change the deal</p>
+            <h3 className="mt-1 text-lg font-black leading-snug text-[#111827] dark:text-white">{r.title}</h3>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="mt-4 space-y-3">
+          {recurring && (
+            <L label={`Price ${EVERY_WORDS[r.cycle]}`}>
+              <div className="relative"><span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-black text-gray-400">$</span>
+                <input className={FIELD + ' pl-7'} type="number" inputMode="decimal" min={1} step="0.01" value={amount} onChange={e => setAmount(e.target.value)} /></div>
+            </L>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <L label="Plan they get">
+              <Sel value={plan} onChange={setPlan} options={[['', 'No plan change'], ...['NO_MLS', 'PRO_NO_MLS', 'BASIC', 'PREMIUM', 'IDX'].map(t => [t, PLAN_LABEL[t]])]} />
+            </L>
+            <L label="People it covers"><input className={FIELD} type="number" inputMode="numeric" min={1} value={seats} onChange={e => setSeats(e.target.value)} placeholder="-" /></L>
+          </div>
+        </div>
+        <div className="mt-4 space-y-1.5 rounded-xl bg-[#faf9f7] p-3 text-[11.5px] font-semibold leading-relaxed text-gray-500 dark:bg-white/[0.04] dark:text-gray-400">
+          {recurring
+            ? <p><b className="text-[#111827] dark:text-white">Price:</b> starts with the next charge that's at least 10 days away. PayPal emails them about it - same card, same link, nothing to cancel.</p>
+            : <p><b className="text-[#111827] dark:text-white">One-time payment:</b> the price can't change after it's paid. Send a new request for any difference.</p>}
+          <p><b className="text-[#111827] dark:text-white">Plan and people:</b> change right now{r.group_name ? ` for everyone in ${r.group_name}` : ''}.</p>
+          {r.group_name && <p><b className="text-[#111827] dark:text-white">AI usage and adding people:</b> on the {r.group_name} group page - they change instantly.</p>}
+        </div>
+        <button onClick={save} disabled={saving} className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#111827] py-3 text-sm font-black text-white disabled:opacity-50 dark:bg-white dark:text-[#111827]">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save the new deal
+        </button>
       </motion.div>
     </motion.div>
   )

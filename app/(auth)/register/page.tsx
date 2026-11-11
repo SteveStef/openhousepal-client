@@ -343,6 +343,17 @@ export default function RegisterPage() {
         // Backend now creates user and returns token during verify-code
         // Refresh local auth state to reflect the new account
         await refreshUser()
+        // Came from a sign-up offer (/offer/<token>): hold their spot now, before any wait for
+        // Bright approval. If it just filled up, checkout shows the regular plans and says so.
+        let offerToken = ''
+        try { offerToken = localStorage.getItem('ohp_offer') || '' } catch {}
+        if (offerToken) {
+          const claimed = await api.paypal.claimOffer(offerToken)
+          try {
+            localStorage.removeItem('ohp_offer')
+            if (!claimed.success) localStorage.setItem('ohp_offer_note', claimed.error || 'That offer isn’t available any more.')
+          } catch {}
+        }
         // Outside Bright there's no data feed to approve - straight to picking a plan.
         router.push(isBright ? '/broker-authorization' : '/checkout')
       }}
