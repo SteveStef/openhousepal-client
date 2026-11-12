@@ -73,12 +73,13 @@ export default function AdminOverviewPanel({ users, groups, supportUnread, quest
           <p className="mt-0.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">The agent sees this on their Dashboard too - a quick note from you usually gets it fixed.</p>
           <div className="mt-2 divide-y divide-gray-100 dark:divide-white/[0.06]">
             {domainIssues.map(i => (
-              <div key={i.agent_id + i.hostname + i.code} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center">
+              <div key={i.key} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center">
                 <button type="button" onClick={() => setDrawer(i.agent_id)} className="min-w-0 flex-1 text-left">
                   <span className="block text-[13px] font-black text-[#111827] dark:text-white">{i.agent_name}{i.brokerage ? <span className="font-semibold text-gray-400"> · {i.brokerage}</span> : null}</span>
                   <span className="block text-[12px] font-bold text-red-700 dark:text-red-300">{i.title}</span>
                   <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{i.fix}</span>
                 </button>
+                <div className="flex shrink-0 gap-2 self-start sm:self-center">
                 <a href={`mailto:${i.agent_email}?subject=${encodeURIComponent(`Quick fix for ${i.hostname}`)}&body=${encodeURIComponent(`Hi ${i.agent_name.split(' ')[0]},
 
 Quick heads up - ${i.title}.
@@ -86,9 +87,15 @@ Quick heads up - ${i.title}.
 ${i.fix}
 
 Happy to help if you get stuck.`)}`}
-                  className="inline-flex shrink-0 items-center gap-1 self-start rounded-lg bg-[#111827] px-2.5 py-1.5 max-sm:px-3.5 max-sm:py-2.5 text-[11px] font-black text-white hover:bg-[#C9A24D] dark:bg-white dark:text-[#111827] sm:self-center">
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#111827] px-2.5 py-1.5 max-sm:px-3.5 max-sm:py-2.5 text-[11px] font-black text-white hover:bg-[#C9A24D] dark:bg-white dark:text-[#111827]">
                   <Mail className="h-3 w-3" /> Email {i.agent_name.split(' ')[0]}
                 </a>
+                <button type="button"
+                  onClick={async () => { const r = await api.admin.dismissDomainIssue(i.key); if (r.success) setDomainIssues(list => list.filter(x => x.key !== i.key)) }}
+                  className="inline-flex shrink-0 items-center rounded-lg border border-gray-200 px-2.5 py-1.5 max-sm:px-3.5 max-sm:py-2.5 text-[11px] font-black text-gray-600 hover:border-red-300 hover:text-red-600 dark:border-white/10 dark:text-gray-300">
+                  Hide
+                </button>
+                </div>
               </div>
             ))}
           </div>

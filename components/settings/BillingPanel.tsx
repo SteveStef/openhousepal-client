@@ -53,7 +53,7 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
   const [idxResubOpen, setIdxResubOpen] = useState(false)
   const [idxCode, setIdxCode] = useState<string | null>(null)
   // The card checkout pop-up for a restart / plan change (CardPayButtons).
-  const [pay, setPay] = useState<{ kind: 'change' | 'restart'; tier: PlanTierId; start: SubscriptionStart } | null>(null)
+  const [pay, setPay] = useState<{ kind: 'change' | 'restart'; tier: PlanTierId; start: SubscriptionStart; offer?: { price: number; full: number } } | null>(null)
   const [payBusy, setPayBusy] = useState(false)
   const [payErr, setPayErr] = useState('')
   const finishPay = async (subscriptionId: string) => {
@@ -243,7 +243,8 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
     }
 
     if (data?.plan_id) {
-      setPay({ kind: 'restart', tier: planTier, start: { plan_id: data.plan_id } })
+      setPay({ kind: 'restart', tier: planTier, start: { plan_id: data.plan_id },
+        offer: data.offer_price ? { price: Number(data.offer_price), full: Number(data.full_price) } : undefined })
       setActionLoading(false)
       setResubscribeModalOpen(false)
       return
@@ -567,7 +568,9 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
           </div>
           {offerPlan && offerPlan.tier === user?.plan_tier && offerPlan.percent_off > 0 && (
             <p className="-mt-3 mb-5 rounded-xl bg-[#C9A24D]/10 px-3 py-2 text-xs font-bold text-[#8b7355] dark:text-[#e8c97a]">
-              Your sign-up offer: {offerPlan.percent_off}% off {offerPlan.discount_months ? `for your first ${offerPlan.discount_months === 1 ? 'month' : `${offerPlan.discount_months} months`}, then $${offerPlan.full_price.toFixed(2)}/mo` : 'every month'}.
+              {isCancelled
+                ? <>Your sign-up offer {offerPlan.discount_months ? 'months you have left are' : `price ($${offerPlan.offer_price.toFixed(2)}/mo) is`} still yours if you restart {user?.next_billing_date ? `by ${formatDate(user.next_billing_date)}` : 'before your paid time ends'}. After that it's gone for good.</>
+                : <>Your sign-up offer: {offerPlan.percent_off}% off {offerPlan.discount_months ? `for your first ${offerPlan.discount_months === 1 ? 'month' : `${offerPlan.discount_months} months`}, then $${offerPlan.full_price.toFixed(2)}/mo` : 'every month'}.</>}
             </p>
           )}
 
@@ -726,6 +729,14 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
         confirmButtonClass="bg-red-500 hover:bg-red-600"
         isLoading={actionLoading}
       >
+        {cancelModalOpen && offerPlan && offerPlan.tier === user?.plan_tier && offerPlan.percent_off > 0 && (
+          <div className="mb-3 rounded-xl border-2 border-[#C9A24D] bg-[#C9A24D]/10 p-4 text-left" data-testid="cancel-offer-warning">
+            <p className="text-sm font-black text-[#111827] dark:text-white">You&apos;ll lose your sign-up offer for good</p>
+            <p className="mt-1 text-xs font-semibold leading-relaxed text-[#6B7280] dark:text-gray-300">
+              You pay ${offerPlan.offer_price.toFixed(2)}/mo ({offerPlan.percent_off}% off). Change your mind {user?.next_billing_date ? `by ${formatDate(user.next_billing_date)}` : 'before your paid time ends'} and you can restart {offerPlan.discount_months ? 'and keep any discounted months you have left' : 'at this same price'}. After that, the offer is gone and plans are back to the regular ${offerPlan.full_price.toFixed(2)}/mo.
+            </p>
+          </div>
+        )}
         {cancelModalOpen && currentTierId && <PlanChangeImpact from={currentTierId} to="CANCEL" />}
       </ConfirmationModal>
 
@@ -770,7 +781,9 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
           ? (isTrial
             ? 'Add your card to switch. Your new plan switches on right away, you keep your free trial, and the new price starts when your trial ends. Your old plan stops, so you never pay for both.'
             : 'Add your card to switch. Your new plan switches on right away and the new price starts on your next bill date. Your old plan stops, so you never pay for both.')
-          : 'Add your card and your plan switches on right away.'}
+          : pay?.offer
+            ? `Add your card and your plan switches on right away - at your sign-up offer price of $${pay.offer.price.toFixed(2)}/mo.`
+            : 'Add your card and your plan switches on right away.'}
         busy={payBusy}
         error={payErr}
         onApproved={finishPay}

@@ -18,6 +18,7 @@ import OhpLoader from '@/components/brand/OhpLoader'
 import NewListingSpotlightCard from '@/components/dash/NewListingSpotlightCard'
 import SetupChecklistCard from '@/components/dash/SetupChecklistCard'
 import DomainHealthBanner from '@/components/DomainHealthBanner'
+import DomainConfirmReminder from '@/components/domains/DomainConfirmReminder'
 import EmailHealthBanner from '@/components/EmailHealthBanner'
 import StatCard from '@/components/stats/StatCard'
 import { refreshOpenHouseActionCounts, useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
@@ -516,6 +517,7 @@ export default function DashPage() {
         <RundownDashCard className="mt-4" />
 
         {/* The setup flow - every step for this plan, until all are done (skipped ones stay as chips). */}
+        <DomainConfirmReminder className="mt-4" />
         <DomainHealthBanner className="mt-4" />
         <EmailHealthBanner className="pt-4" />
         <SetupChecklistCard className="mt-4" />

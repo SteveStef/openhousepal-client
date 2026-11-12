@@ -14,6 +14,7 @@ import { ArrowUpRight, CheckCircle2, Globe, Link2, Loader2, Lock, PowerOff, Star
 import api from '@/lib/api-service'
 import { useSaveTracker } from '@/components/ui/SaveStatus'
 import DomainHealthBanner from '@/components/DomainHealthBanner'
+import DomainConfirmReminder from '@/components/domains/DomainConfirmReminder'
 import DomainWarningSheet from '@/components/domains/DomainWarningSheet'
 import type { LinkDomainState } from '@/types'
 
@@ -119,6 +120,7 @@ export default function IdxDomainCard({ children, linkDomain }: { children?: Rea
       <p className="mt-1.5 text-sm font-semibold text-gray-500 dark:text-gray-400">
         Your web addresses and which one your links use.
       </p>
+      <DomainConfirmReminder inline className="mt-4" />
       <DomainHealthBanner inline className="mt-4" />
 
       {/* The address list only earns its space once there's a domain of their own to compare -

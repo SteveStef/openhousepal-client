@@ -193,7 +193,22 @@ function EmailSettingsInner() {
                             <AnimatePresence initial={false}>
                               {c.email && (
                                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                                  <label className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#C9A24D]/15 pt-3 text-[12px] font-black text-[#6b5a45] dark:border-white/10 dark:text-white/70">
+                                  <div id="digest" className="mt-3 flex scroll-mt-24 flex-wrap items-center gap-2 border-t border-[#C9A24D]/15 pt-3 text-[12px] font-black text-[#6b5a45] dark:border-white/10 dark:text-white/70">
+                                    <span>How often</span>
+                                    <div className="inline-flex rounded-xl border border-[#C9A24D]/35 bg-white p-0.5 dark:border-white/15 dark:bg-[#1a1a1d]" role="radiogroup" aria-label="How often">
+                                      {(['daily', 'weekly'] as const).map(f => {
+                                        const sel = (s.briefing_frequency || 'daily') === f
+                                        return (
+                                          <button key={f} type="button" role="radio" aria-checked={sel} disabled={busy === 'briefing'} data-testid={`digest-${f}`}
+                                            onClick={() => { if (!sel) save('briefing', { briefing_frequency: f }, { ...s, briefing_frequency: f }) }}
+                                            className={`min-h-[34px] rounded-[10px] px-3 text-[12px] font-black transition-colors ${sel ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'text-[#6b5a45] hover:bg-[#C9A24D]/10 dark:text-white/70'}`}>
+                                            {f === 'daily' ? 'Every day' : 'Once a week (Mondays)'}
+                                          </button>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+                                  <label className="mt-2 flex flex-wrap items-center gap-2 text-[12px] font-black text-[#6b5a45] dark:text-white/70">
                                     <Clock className="h-3.5 w-3.5 text-[#C9A24D]" /> Arrives at
                                     <select value={s.briefing_time} disabled={busy === 'briefing'}
                                       onChange={e => save('briefing', { briefing_time: e.target.value }, { ...s, briefing_time: e.target.value })}

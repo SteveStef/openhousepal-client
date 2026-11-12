@@ -2419,7 +2419,7 @@ export type EmailDelivery = 'delivered' | 'delayed' | 'bounced' | 'blocked' | 's
 /** Whether the agent opens OpenHousePal's own emails (backend agent_email_health_service).
  *  warned = 5 unopened in a row (junk?); weekly = routine emails now come as one weekly summary. */
 export interface EmailHealth {
-  mode: 'normal' | 'warned' | 'weekly';
+  mode: 'normal' | 'warned' | 'weekly' | 'off';
   unopened: number;
   after_warning: number;
   show_banner: boolean;

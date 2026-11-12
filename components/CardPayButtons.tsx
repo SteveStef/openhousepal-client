@@ -8,7 +8,8 @@
 import { ReactNode } from 'react'
 import { FUNDING, PayPalButtons, PayPalScriptProvider, usePayPalScriptReducer } from '@paypal/react-paypal-js'
 import type { CreateSubscriptionActions, OnApproveData } from '@paypal/paypal-js'
-import { Loader2, Lock, X } from 'lucide-react'
+import { CreditCard, Loader2, Lock } from 'lucide-react'
+import OhSheet from '@/components/open-house-manager/OhSheet'
 
 export const PAYPAL_LOGIN_LIVE = process.env.NEXT_PUBLIC_PAYPAL_LOGIN_LIVE === 'true'
 
@@ -111,24 +112,18 @@ export function CardPayModal({ open, title, note, start, busy, error, onApproved
   onClose: () => void
   children?: ReactNode
 }) {
-  if (!open || !start) return null
+  // A sheet that slides up on a phone, a small window on a computer (owner, 11/11).
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 max-sm:!m-0">
-      <div className="absolute inset-0 bg-[#111827]/40 dark:bg-black/60" onClick={busy ? undefined : onClose} />
-      <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-[2rem] border border-white bg-[#FAFAF7] p-7 shadow-2xl max-sm:p-5 dark:border-gray-800 dark:bg-[#151517]">
-        <button type="button" onClick={onClose} disabled={busy} aria-label="Close"
-          className="absolute right-5 top-5 rounded-full p-2 text-gray-400 shadow-sm transition-colors hover:bg-white hover:text-[#111827] disabled:opacity-50 dark:hover:bg-gray-800 dark:hover:text-white">
-          <X className="h-5 w-5" />
-        </button>
-        <h3 className="mb-2 pr-10 text-xl font-black tracking-tight text-[#111827] dark:text-white">{title}</h3>
-        {note && <p className="mb-4 text-sm font-medium leading-relaxed text-[#6B7280] dark:text-gray-300">{note}</p>}
-        {children}
+    <OhSheet open={open && !!start} onClose={() => { if (!busy) onClose() }} width="max-w-md" title={title} icon={<CreditCard className="h-5 w-5" />} zClass="z-[120]">
+      {note && <p className="mb-4 text-sm font-medium leading-relaxed text-[#6B7280] dark:text-gray-300">{note}</p>}
+      {children}
+      {start && (
         <div className="relative">
           <CardPay start={start} onApproved={onApproved} disabled={busy} />
           {busy && <div className="absolute inset-0 grid place-items-center rounded-2xl bg-[#FAFAF7]/85 dark:bg-[#151517]/85"><Loader2 className="h-5 w-5 animate-spin text-[#C9A24D]" /></div>}
         </div>
-        {error && <p className="mt-3 text-sm font-bold text-red-500">{error}</p>}
-      </div>
-    </div>
+      )}
+      {error && <p className="mt-3 text-sm font-bold text-red-500">{error}</p>}
+    </OhSheet>
   )
 }

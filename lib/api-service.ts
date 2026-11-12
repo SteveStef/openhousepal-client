@@ -53,7 +53,21 @@ export type OldLinksPayload = {
   redirects: OldLink[]
   targets: { path: string; label: string; group: string }[]
 }
-export type AdminDomainIssue = DomainIssue & { agent_id: string; agent_name: string; agent_email: string; brokerage?: string | null }
+/** A client's Showcase emails, as their Showcase page sees them. code "unopened_days" = slowed to
+ *  weekly, "weekly_unopened" = stopped, because the emails weren't being opened. */
+export interface ClientEmailState {
+  frequency: 'daily' | 'weekly' | 'biweekly'; emails_on: boolean; blocked: boolean
+  mode?: 'daily' | 'weekly' | 'biweekly' | 'off'; code?: string | null; since?: string | null; send_time?: string
+  /** The rules slowed ('weekly') or stopped ('off') their emails since they last looked - shown once. */
+  notice?: 'weekly' | 'off' | null
+}
+
+export interface EmailBlockState {
+  email: string; blocked: boolean; can_unblock: boolean; why: string; unblocked?: boolean
+  unsubscribed?: boolean; spam?: boolean; bounce?: { code?: string | number | null; error?: string; at?: string } | null
+}
+
+export type AdminDomainIssue = DomainIssue & { key: string; agent_id: string; agent_name: string; agent_email: string; brokerage?: string | null }
 
 export interface PlanImpact {
   active_showcases: number;
@@ -806,6 +820,12 @@ class ApiService {
     // connections) - see backend admin_failures_service.py.
     getRecentFailures: (days = 14, includeLimits = false) =>
       this.request<import('@/types').AdminFailuresResponse>(`/admin/ai/failures?days=${days}&include_limits=${includeLimits}`),
+    // "Clean": everything up to now moves to Past (nothing is deleted).
+    failuresCleaned: () => this.request<{ cleaned_at: string | null }>('/admin/failures/cleaned'),
+    cleanFailures: () => this.request<{ cleaned_at: string }>('/admin/failures/clean', { method: 'POST' }),
+    // Unblock an address that bounced (never one that unsubscribed or marked spam).
+    checkEmailBlock: (email: string) => this.request<EmailBlockState>(`/admin/email-tools/check?email=${encodeURIComponent(email)}`),
+    unblockEmail: (email: string) => this.request<EmailBlockState>('/admin/email-tools/unblock', { method: 'POST', body: JSON.stringify({ email }) }),
 
     getStorageAgents: () => this.request<AdminStorageAgentSummary[]>('/admin/storage/agents'),
     /** Agent activity tracker - every agent's usage (counts only, never their clients' details). */
@@ -815,6 +835,7 @@ class ApiService {
     getInsights: <T = any>(page: string, days: number) => this.request<T>(`/admin/insights/${page === 'summary' ? 'overview' : page}?days=${days}`),
     /** Agents whose own domain isn't working right now. */
     getDomainIssues: () => this.request<{ issues: AdminDomainIssue[] }>('/admin/domain-issues'),
+    dismissDomainIssue: (key: string) => this.request<{ ok: boolean }>('/admin/domain-issues/dismiss', { method: 'POST', body: JSON.stringify({ key }) }),
     getActivityAgent: (agentId: string) => this.request<AdminActivityAgentDetail>(`/admin/activity/agents/${agentId}`),
     /** Brokerage groups - agents paid for by their brokerage on a custom deal. */
     getGroups: () => this.request<BillingGroup[]>('/admin/groups'),
@@ -1872,6 +1893,9 @@ class ApiService {
     stopDomainRenewal: (id: string) => this.request<PurchasedDomain>(`/studio/sites/me/domain-shop/purchases/${id}/stop-renewing`, { method: 'POST' }),
     getDomainTransferCode: (id: string) => this.request<{ code: string }>(`/studio/sites/me/domain-shop/purchases/${id}/transfer-code`, { method: 'POST' }),
     resendDomainEmail: (id: string) => this.request<{ sent: boolean }>(`/studio/sites/me/domain-shop/purchases/${id}/resend-email`, { method: 'POST' }),
+    // Bought domains still waiting on the Name.com "verify your email" click (confirmed null = can't tell).
+    getDomainConfirmReminders: () => this.request<{ domains: { id: string; domain: string; email?: string | null; confirmed: boolean | null; days_left: number | null }[] }>('/studio/sites/me/domain-shop/confirm-reminders'),
+    dismissDomainConfirmReminder: (id: string) => this.request<{ ok: boolean }>(`/studio/sites/me/domain-shop/purchases/${id}/confirm-reminder/dismiss`, { method: 'POST' }),
 
     getPublicBaseUrl: () => this.request<{ base_url: string; is_idx_site?: boolean }>('/studio/sites/me/public-base-url'),
 
@@ -3007,6 +3031,8 @@ export interface EmailSettings {
   client: EmailSettingsClientRow[]
   invite_delay: number; invite_delays: number[]
   briefing_time: string; briefing_times: string[]
+  /** Their own daily digest: every day, or once a week (Mondays). */
+  briefing_frequency?: 'daily' | 'weekly'
   mailbox: { connected: boolean; account_email: string | null; provider: 'google' | 'microsoft' | null; status: string | null }
   receive: { tier: number; title: string; blurb: string; categories: { id: string; label: string; help: string; email: boolean }[] }[]
   always_on: string[]
@@ -3015,5 +3041,6 @@ export interface EmailSettingsPatch {
   client?: Record<string, Partial<Pick<EmailSettingsClientRow, 'on' | 'via' | 'mode'>>>
   invite_delay?: number
   briefing_time?: string
+  briefing_frequency?: 'daily' | 'weekly'
   receive?: Record<string, boolean>
 }

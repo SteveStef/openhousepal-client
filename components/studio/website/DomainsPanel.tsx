@@ -13,6 +13,7 @@ import OldLinksPanel from './OldLinksPanel'
 import OneClickConnect from '@/components/domains/OneClickConnect'
 import BuyDomain, { PurchasedDomainCard, useDomainShop } from '@/components/domains/BuyDomain'
 import DomainWarningSheet from '@/components/domains/DomainWarningSheet'
+import DomainConfirmReminder from '@/components/domains/DomainConfirmReminder'
 import type { LinkDomainState } from '@/types'
 
 const OHP_BASE_DOMAIN = process.env.NEXT_PUBLIC_OHP_BASE_DOMAIN || 'openhousepal.com'
@@ -435,6 +436,7 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
 
   return (
     <div className={bare ? '' : 'rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#151517]'}>
+      <DomainConfirmReminder inline className="mb-3" />
       {!bare && (
         <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-[#8b7355]">
           <Globe2 className="h-3.5 w-3.5" /> Domain
