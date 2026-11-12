@@ -29,6 +29,10 @@ function when(iso: string | null): string {
   return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
+function shortDay(iso?: string | null): string {
+  return iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'
+}
+
 // Check why an address is blocked and, when it only bounced, unblock it (Mailgun + our list).
 function Unblock({ email: start, compact }: { email?: string, compact?: boolean }) {
   const [email, setEmail] = useState(start || '')
@@ -231,12 +235,28 @@ export default function RecentFailuresPanel() {
                         <p className="text-sm font-black text-[#111827] dark:text-white">{f.feature}</p>
                         {f.code && <code className={`rounded-md px-1.5 py-0.5 text-[10.5px] font-bold ${f.kind === 'limit' ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'}`}>{f.code}</code>}
                         {f.kind === 'limit' && <span className="text-[10px] font-black uppercase tracking-wide text-amber-600">limit, not an error</span>}
+                        {(f.count || 1) > 1 && (
+                          <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10.5px] font-black text-gray-600 dark:bg-white/10 dark:text-gray-300" data-testid="failure-repeat">
+                            {f.count}× since {shortDay(f.first_at)}
+                          </span>
+                        )}
                       </div>
                       <p className={`mt-0.5 text-xs font-semibold text-gray-600 dark:text-gray-300 ${isOpen ? 'whitespace-pre-wrap break-words' : 'line-clamp-1'}`}>{f.message || 'No message recorded.'}</p>
-                      <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] font-bold text-gray-400">
-                        <span className="min-w-0 break-all">{f.owner_name || 'Unknown agent'}{f.owner_email && f.owner_email !== f.owner_name ? ` · ${f.owner_email}` : ''}</span>
-                        {f.ref && <span className="min-w-0 break-all">· {f.source === 'email' ? `to ${f.ref}` : f.ref}</span>}
-                      </p>
+                      {f.source === 'email' && f.audience === 'client' ? (
+                        <p className="mt-1 text-[11px] font-bold text-gray-400 break-words" data-testid="failure-who">
+                          {f.what ? `${f.what} · ` : ''}from {f.owner_name || 'an agent'}&rsquo;s account to their client <span className="break-all text-gray-500 dark:text-gray-300">{f.ref}</span>
+                          <span className="block font-semibold">Not the agent&rsquo;s own email - fix the address on their lead</span>
+                        </p>
+                      ) : f.source === 'email' && f.audience === 'agent' ? (
+                        <p className="mt-1 text-[11px] font-bold text-gray-400 break-words" data-testid="failure-who">
+                          {f.what ? `${f.what} · ` : ''}to the agent {f.owner_name || ''} <span className="break-all text-gray-500 dark:text-gray-300">{f.ref || f.owner_email}</span>
+                        </p>
+                      ) : (
+                        <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] font-bold text-gray-400">
+                          <span className="min-w-0 break-all">{f.owner_name || 'Unknown agent'}{f.owner_email && f.owner_email !== f.owner_name ? ` · ${f.owner_email}` : ''}</span>
+                          {f.ref && <span className="min-w-0 break-all">· {f.source === 'email' ? `to ${f.ref}` : f.ref}</span>}
+                        </p>
+                      )}
                       {/* Phones: the time sits under the details, so the title gets the full width. */}
                       <p className="mt-1 flex items-center gap-1 text-[11px] font-bold text-gray-400 sm:hidden"><CalendarClock className="h-3.5 w-3.5" /> {when(f.at)}</p>
                     </div>

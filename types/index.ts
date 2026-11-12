@@ -4458,6 +4458,13 @@ export interface AdminFailure {
   message: string | null;
   kind: 'error' | 'limit';
   ref: string | null;
+  /** Emails: 'agent' = to the agent themself, 'client' = from the agent's account to their client. */
+  audience?: 'agent' | 'client' | null;
+  /** Emails: which email it was, in plain words ("Showcase daily update"). */
+  what?: string | null;
+  /** The same failure repeated: how many times, and the first time (at = the latest). */
+  count?: number;
+  first_at?: string | null;
 }
 
 export interface AdminFailuresResponse {
