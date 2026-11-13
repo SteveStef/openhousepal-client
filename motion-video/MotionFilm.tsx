@@ -176,7 +176,7 @@ const Shot: React.FC<{ shot: ShotTiming; props: MotionProps; t: number; W: numbe
   }
   return (
     <AbsoluteFill style={{ opacity, transform: shiftX ? `translateX(${shiftX}px)` : undefined }}>
-      <CinePhoto src={p.src} depth={p.depth} W={W} H={H} cam={cam} preview={props.preview} />
+      <CinePhoto src={p.src} depth={p.depth} W={W} H={H} cam={cam} preview={props.preview} perf={props.perf} />
       {shot.scrim && <ShotScrim kind={shot.scrim} luxe={props.theme === 'luxe'} tall={H > W * 1.1} />}
     </AbsoluteFill>
   )

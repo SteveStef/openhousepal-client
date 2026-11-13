@@ -103,7 +103,9 @@ const Reveal: React.FC<{ text: string; t: number; at: number; step?: number; dur
           <span key={w} style={{ display: 'inline-block', whiteSpace: 'pre' }}>
             {word.split('').map((ch) => {
               const e = easeOut(clamp01((t - at - i++ * step) / dur))
-              return <span key={i} style={{ display: 'inline-block', opacity: e, transform: `translateY(${(1 - e) * 0.32}em)`, ...sheen }}>{ch}</span>
+              // whole pixels: a fractional offset makes each letter snap on its own frame (jitter)
+              const fs = typeof style.fontSize === 'number' ? style.fontSize : 40
+              return <span key={i} style={{ display: 'inline-block', opacity: e, transform: e < 1 ? `translateY(${Math.round((1 - e) * 0.32 * fs)}px)` : undefined, ...sheen }}>{ch}</span>
             })}
           </span>
         )
@@ -160,7 +162,9 @@ export const OpeningTitle: React.FC<{ props: MotionProps; look: Look; t: number;
   }
   return (
     <AbsoluteFill style={{ opacity: out, alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: `0 ${70 * u}px`, transform: `translateY(${-(t * 4 * u)}px)` }}>
+      {/* no slow upward drift (owner 11/13: the address looked jittery - text snaps to whole pixels,
+          so a 4 px/s drift hopped a pixel every few frames) */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: `0 ${70 * u}px` }}>
         <Reveal text={[kickerBase, city].filter(Boolean).join('  ·  ').toUpperCase()} t={t} at={0.7} step={0.025} style={{ fontFamily: sans, fontWeight: 600, fontSize: 19 * u, letterSpacing: '0.4em', color: IVORY, opacity: 0.9, marginBottom: 26 * u }} />
         <Reveal text={addr} t={t} at={1.15} step={0.06} dur={1.1} style={{ fontFamily: serif, fontWeight: 300, fontSize: big, color: IVORY, letterSpacing: '0.01em', lineHeight: 1, textShadow: '0 2px 30px rgba(0,0,0,0.35)', textWrap: 'balance' } as React.CSSProperties} />
         <div style={{ width: 220 * u * rule, height: 2 * u, background: accent, marginTop: 30 * u, marginBottom: 24 * u, opacity: 0.95 }} />
@@ -364,8 +368,18 @@ export const EndCard: React.FC<{ props: MotionProps; look: Look; t: number; star
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 * u, marginTop: 44 * u, opacity: easeOut(clamp01((t - S - 2.1) / 0.8)) }}>
             {agent.photo && <Img src={resolveSrc(agent.photo)} style={{ width: 74 * u, height: 74 * u, borderRadius: '50%', objectFit: 'cover', border: `${2 * u}px solid ${metal}` }} />}
             <div style={{ textAlign: 'left' }}>
-              <div style={{ fontFamily: serif, fontWeight: 600, fontSize: 30 * u, color: IVORY, lineHeight: 1.1 }}>{agent.name}</div>
-              {agent.brokerage && <div style={{ fontFamily: sans, fontWeight: 600, fontSize: 13 * u, letterSpacing: '0.14em', color: 'rgba(246,241,231,0.72)', marginTop: 5 * u }}>{agent.brokerage.toUpperCase()}</div>}
+              {/* Owner 11/13: name | brokerage on one line with a divider (same as the corner badge);
+                  the brokerage drops under the name only when the line can't fit the frame */}
+              {agent.brokerage && (agent.name.length * 30 * 0.5 + 30 + agent.brokerage.length * 13 * 0.8) * u <= look.W - (140 + 74 + 18) * u ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 * u, whiteSpace: 'nowrap' }}>
+                  <span style={{ fontFamily: serif, fontWeight: 600, fontSize: 30 * u, color: IVORY, lineHeight: 1.1 }}>{agent.name}</span>
+                  <span style={{ width: 1.5 * u, height: 22 * u, background: metal, opacity: 0.85 }} />
+                  <span style={{ fontFamily: sans, fontWeight: 600, fontSize: 13 * u, letterSpacing: '0.14em', color: 'rgba(246,241,231,0.72)' }}>{agent.brokerage.toUpperCase()}</span>
+                </div>
+              ) : <>
+                <div style={{ fontFamily: serif, fontWeight: 600, fontSize: 30 * u, color: IVORY, lineHeight: 1.1 }}>{agent.name}</div>
+                {agent.brokerage && <div style={{ fontFamily: sans, fontWeight: 600, fontSize: 13 * u, letterSpacing: '0.14em', color: 'rgba(246,241,231,0.72)', marginTop: 5 * u }}>{agent.brokerage.toUpperCase()}</div>}
+              </>}
               {(agent.phone || agent.email) && (
                 <div style={{ fontFamily: sans, fontWeight: 600, fontSize: 17 * u, letterSpacing: '0.02em', color: 'rgba(246,241,231,0.9)', marginTop: 6 * u, whiteSpace: 'nowrap' }}>
                   {[agent.phone, agent.email].filter(Boolean).join('   ·   ')}

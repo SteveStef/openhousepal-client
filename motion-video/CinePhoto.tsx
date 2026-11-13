@@ -305,10 +305,21 @@ void main(){
   vec2 uvF = clamp(proj(C + d * tFront), 0.001, 0.999);
   float D = behind ? mix(disp(uvF), dispB(uv), wB) : disp(uv);
   vec3 sc = hsv(soft(uv));
-  // trees and shrubs in a light breeze (higher up = more movement; lawns stay put)
+  // trees and shrubs in a light breeze (higher up = more movement). Owner 11/13: lawns and fields
+  // stay put - a lawn waving looked like water. Ground is told apart by its depth: going down the
+  // photo it keeps getting nearer, step after step; trees and bushes stand up (depth ~flat going down).
+  // Leaf colours only (yellow-brown stone and dull window reflections stay still).
   if (fx.w > 0.0) {
-    float tm = band(sc.x, 60.0, 165.0, 12.0) * smoothstep(0.12, 0.22, sc.y) * smoothstep(0.04, 0.1, sc.z)
+    float tm = band(sc.x, 62.0, 165.0, 8.0) * smoothstep(0.2, 0.32, sc.y) * smoothstep(0.04, 0.1, sc.z)
              * clamp((0.74 - uv.y) / 0.22, 0.0, 1.0);
+    if (tm > 0.01) {
+      float k = 0.035;
+      float g0 = texture2D(dep, clamp(uv - vec2(0.0, 2.0*k), 0.0, 1.0)).r, g1 = texture2D(dep, clamp(uv - vec2(0.0, k), 0.0, 1.0)).r;
+      float g2 = texture2D(dep, clamp(uv, 0.0, 1.0)).r;
+      float g3 = texture2D(dep, clamp(uv + vec2(0.0, k), 0.0, 1.0)).r, g4 = texture2D(dep, clamp(uv + vec2(0.0, 2.0*k), 0.0, 1.0)).r;
+      float slope = min(min(g1 - g0, g2 - g1), min(g3 - g2, g4 - g3));
+      tm *= 1.0 - smoothstep(0.0015, 0.006, slope);
+    }
     if (tm > 0.01) {
       vec2 w = vec2(fbm(uv*vec2(5.0,3.0) + vec2(t*0.32, t*0.11)) - 0.5, fbm(uv*vec2(3.0,5.0) + vec2(4.0 - t*0.21, t*0.17)) - 0.5);
       vec2 r = vec2(n(uv*80.0 + t*2.2) - 0.5, n(uv*80.0 - t*1.9 + 9.0) - 0.5);
@@ -377,7 +388,7 @@ void main(){
 const FS_LENS = `precision highp float;
 varying vec2 s;
 uniform sampler2D scene; uniform vec2 px; uniform float focus; uniform float ap; uniform float dpr;
-uniform float t; uniform float exposure; uniform float hq; uniform vec2 streak; uniform float radial; uniform float black;
+uniform float t; uniform float exposure; uniform float hq; uniform float gtaps; uniform vec2 streak; uniform float radial; uniform float black;
 ${NOISE}
 float coc(float D){ return clamp(abs(D - focus) * ap, 0.0, 9.0) * dpr; }
 void main(){
@@ -416,7 +427,7 @@ void main(){
   }
   // highlight glow only around small warm light sources (lanterns, lit windows) - not white walls
   vec3 glow = vec3(0.0);
-  float gt = hq > 0.5 ? 32.0 : 10.0;
+  float gt = hq > 0.5 ? gtaps : 10.0;
   for (int i = 0; i < 32; i++) {
     float fi = float(i);
     if (fi >= gt) break;
@@ -429,7 +440,12 @@ void main(){
   col += glow / gt * vec3(1.0, 0.8, 0.55) * 0.5;
   // film grade
   col *= exposure;
-  col = col / (1.0 + max(col - 0.85, 0.0) * 1.6);
+  // soft highlight shoulder. Owner 11/13 (melted-looking white stair spindles): the old
+  // col / (1 + max(col - 0.85, 0) * 1.6) went DOWN above ~0.85 (white 1.0 -> 0.81, darker than 0.85),
+  // so every white surface collapsed to one flat grey and lost its shading. This one only ever rises:
+  // 1:1 up to 0.8, then eases to 0.97 at white.
+  vec3 hk = max(col - 0.8, 0.0);
+  col = min(col, 0.8) + hk / (1.0 + hk * 0.882);
   col = mix(vec3(0.018, 0.015, 0.012), vec3(1.0), col);
   col = mix(col, col*col*(3.0-2.0*col), 0.22);
   float L = dot(col, vec3(0.299, 0.587, 0.114));
@@ -458,7 +474,11 @@ type GLState = {
 // preview). The in-browser preview times its own drawing for its first draws; if this device can't keep
 // up, every photo steps down to a lighter preview - fewer pixels and fewer 3D steps - and once more if
 // still slow. Never the final video (rendered on the server), never on a device that keeps up.
-const PREVIEW_LEVELS = [{ scale: 1, steps: 36 }, { scale: 0.62, steps: 24 }, { scale: 0.45, steps: 16 }]
+// Final-render cost (owner 11/13: the cheaper setting looked the same and he preferred it). The preview
+// uses the same steps at full quality.
+const RENDER_STEPS = 28
+const RENDER_GLOW = 10
+const PREVIEW_LEVELS = [{ scale: 1, steps: 28 }, { scale: 0.62, steps: 24 }, { scale: 0.45, steps: 16 }]
 const pq = { level: 0, n: 0, sum: 0, measured: 0, subs: new Set<() => void>() }
 function notePreviewDraw(ms: number) {
   if (pq.level >= PREVIEW_LEVELS.length - 1 || pq.measured > 90) return
@@ -474,9 +494,9 @@ const subscribePq = (cb: () => void) => { pq.subs.add(cb); return () => { pq.sub
 export const previewLevel = () => pq.level
 
 export const CinePhoto: React.FC<{
-  src: string; depth?: string | null; W: number; H: number; cam: CineCam; preview?: boolean
+  src: string; depth?: string | null; W: number; H: number; cam: CineCam; preview?: boolean; perf?: { steps?: number; glow?: number }
   style?: React.CSSProperties
-}> = ({ src, depth, W, H, cam, preview, style }) => {
+}> = ({ src, depth, W, H, cam, preview, perf, style }) => {
   const ref = useRef<HTMLCanvasElement>(null)
   const glRef = useRef<GLState | null>(null)
   const [handle] = useState(() => delayRender(`photo ${src}`, { timeoutInMilliseconds: 120000 }))
@@ -618,10 +638,10 @@ export const CinePhoto: React.FC<{
     const need = fitMag(k)
     k = Math.min(k, safeK(need))
     const pos: [number, number, number] = [cam.pos[0] * k, cam.pos[1] * k, cam.pos[2] * k]
-    // The push-in that was cut comes back as a gentle lens zoom (no parallax, so nothing can
-    // stretch) - half of it, from the shot's start: a full one read as zooming, not walking in.
-    const back = r ? r.back : 0
-    const crop = (need / cover) * (1 + (1 - k) * Math.max(0, cam.pos[2] + back) * 0.5) * (cam.zoom || 1)
+    // The push-in that was cut is simply dropped. (It used to come back as half a lens zoom; owner
+    // 11/13: kitchen/bedroom walk-ins read as "zooming in while panning" - no zoom inside a shot.)
+    // cam.zoom is only the "Zoom through" transition the agent picks.
+    const crop = (need / cover) * (cam.zoom || 1)
     // aiming at the subject uses only the room the turns don't need
     const maxShift = Math.max(0, 0.5 / need - 0.5 / (crop * cover) - 0.004)
     const shift = Math.max(-maxShift, Math.min(maxShift, (cam.focusX ?? 0.5) - 0.5))
@@ -636,7 +656,9 @@ export const CinePhoto: React.FC<{
     gl.uniform1f(u('imgAsp'), imgAsp); gl.uniform1f(u('frameAsp'), frameAsp); gl.uniform2f(u('texel'), 1 / imgW, 1 / imgH)
     gl.uniform3f(u('C'), pos[0], pos[1], pos[2]); gl.uniform3f(u('rot'), cam.yaw + baseYaw, cam.pitch, cam.roll)
     gl.uniform1f(u('f'), cam.focal); gl.uniform1f(u('fOut'), cam.focal * crop * cover)
-    gl.uniform1f(u('zN'), cam.zNear); gl.uniform1f(u('zF'), cam.zFar); gl.uniform1f(u('steps'), preview ? lite.steps : 72)
+    // Final render: 28 3D steps (+7 refine). Owner 11/13 compared 28 vs 72 on two homes and liked 28;
+    // it's ~46% less drawing work and measured identical to the eye (<1% of pixels change, faintly).
+    gl.uniform1f(u('zN'), cam.zNear); gl.uniform1f(u('zF'), cam.zFar); gl.uniform1f(u('steps'), preview ? lite.steps : (perf?.steps || RENDER_STEPS))
     gl.uniform1f(u('gapMin'), 6 / (cw * crop * cover))
     gl.uniform1f(u('t'), cam.time); gl.uniform1f(u('lightsOn'), cam.lightsOn); gl.uniform1f(u('flick'), cam.flicker)
     gl.uniform4f(u('fx'), cam.lights, cam.water, cam.sky, cam.sway)
@@ -652,7 +674,7 @@ export const CinePhoto: React.FC<{
     const scale = dpr * (Math.min(W, H) / 1080)
     gl.uniform2f(v('px'), 1 / cw, 1 / ch); gl.uniform1f(v('focus'), cam.focus); gl.uniform1f(v('ap'), cam.aperture)
     gl.uniform1f(v('dpr'), scale); gl.uniform1f(v('t'), cam.time); gl.uniform1f(v('exposure'), cam.exposure)
-    gl.uniform1f(v('hq'), preview ? 0 : 1); gl.uniform2f(v('streak'), cam.streak[0], cam.streak[1])
+    gl.uniform1f(v('hq'), preview ? 0 : 1); gl.uniform1f(v('gtaps'), Math.min(32, perf?.glow || RENDER_GLOW)); gl.uniform2f(v('streak'), cam.streak[0], cam.streak[1])
     gl.uniform1f(v('radial'), cam.radial); gl.uniform1f(v('black'), cam.black)
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
     if (!preview) gl.finish()
