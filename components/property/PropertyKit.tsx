@@ -1226,8 +1226,12 @@ function PanelHead({ icon, title, sub, className = '' }: { icon: ReactNode; titl
 
 /** "Schedule a showing": the next few days as one-tap chips over the big gold button - all open
  *  the page's showing flow. */
+// A day tile's date as YYYY-MM-DD, read in Eastern time like the tile shows it.
+const etYmd = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: ET })
+
 export function ShowingPicker({ onOpen, label = 'Schedule a showing', status, onAsk, availableFrom }: {
-  onOpen: () => void; label?: string
+  /** day = the day tile they tapped (YYYY-MM-DD in Eastern time); none = the big button. */
+  onOpen: (day?: string) => void; label?: string
   /** The listing's MLS status - a Coming Soon home can't be shown before it goes active (Bright
    *  rule, fines from $500), but a showing can be requested for a day on or after that. */
   status?: string | null
@@ -1255,7 +1259,7 @@ export function ShowingPicker({ onOpen, label = 'Schedule a showing', status, on
         <PanelHead icon={<CalendarDays className="h-5 w-5" />} title={`Showings start ${when}`} sub="Coming soon - pick a day on or after it, then the time." />
         <div className="mt-3.5 grid grid-cols-4 gap-1.5">
           {days.map((d, i) => (
-            <motion.button key={i} type="button" onClick={onOpen}
+            <motion.button key={i} type="button" onClick={() => onOpen(etYmd(d))}
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.06 }}
               whileHover={{ y: -2 }} whileTap={{ scale: 0.94 }}
               className="flex flex-col items-center rounded-2xl border border-white/[0.12] bg-white/[0.06] py-2 transition-colors hover:border-[color:var(--pp-gold)] hover:bg-white/[0.1]">
@@ -1264,7 +1268,7 @@ export function ShowingPicker({ onOpen, label = 'Schedule a showing', status, on
             </motion.button>
           ))}
         </div>
-        <motion.button type="button" onClick={onOpen} whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} className={`${pp.goldBtn} pp-shine mt-2.5 w-full`}>
+        <motion.button type="button" onClick={() => onOpen()} whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} className={`${pp.goldBtn} pp-shine mt-2.5 w-full`}>
           <CalendarDays className="h-4 w-4" /> Request a showing
         </motion.button>
       </div>
@@ -1274,7 +1278,7 @@ export function ShowingPicker({ onOpen, label = 'Schedule a showing', status, on
     return (
       <div className="mt-5" data-pp-showing>
         <PanelHead icon={<CalendarDays className="h-5 w-5" />} title="Coming soon" sub="Showings open the day it goes active - be first in line." />
-        <motion.button type="button" onClick={onAsk || onOpen} whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} className={`${pp.goldBtn} pp-shine mt-3.5 w-full`}>
+        <motion.button type="button" onClick={() => (onAsk ? onAsk() : onOpen())} whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} className={`${pp.goldBtn} pp-shine mt-3.5 w-full`}>
           <CalendarDays className="h-4 w-4" /> Tell me when showings open
         </motion.button>
       </div>
@@ -1285,7 +1289,7 @@ export function ShowingPicker({ onOpen, label = 'Schedule a showing', status, on
       <PanelHead icon={<CalendarDays className="h-5 w-5" />} title="Book a showing" sub="Pick a day - you'll choose the time next." />
       <div className="mt-3.5 grid grid-cols-4 gap-1.5">
         {days.map((d, i) => (
-          <motion.button key={i} type="button" onClick={onOpen}
+          <motion.button key={i} type="button" onClick={() => onOpen(etYmd(d))}
             initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.06 }}
             whileHover={{ y: -2 }} whileTap={{ scale: 0.94 }}
             className="flex flex-col items-center rounded-2xl border border-white/[0.12] bg-white/[0.06] py-2 transition-colors hover:border-[color:var(--pp-gold)] hover:bg-white/[0.1]">
@@ -1294,7 +1298,7 @@ export function ShowingPicker({ onOpen, label = 'Schedule a showing', status, on
           </motion.button>
         ))}
       </div>
-      <motion.button type="button" onClick={onOpen} whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} className={`${pp.goldBtn} pp-shine mt-2.5 w-full`}>
+      <motion.button type="button" onClick={() => onOpen()} whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} className={`${pp.goldBtn} pp-shine mt-2.5 w-full`}>
         <CalendarDays className="h-4 w-4" /> {label}
       </motion.button>
     </div>

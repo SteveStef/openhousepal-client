@@ -323,25 +323,25 @@ function CheckoutContent() {
               )}
 
               {/* Promo Code Entry */}
-              <div className="max-w-md mx-auto bg-white dark:bg-[#151517] p-8 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
+              <div className="max-w-md mx-auto bg-white dark:bg-[#151517] p-5 sm:p-8 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="p-2 bg-gray-50 dark:bg-[#0B0B0B] rounded-xl text-gray-400">
                     <Gift size={18} />
                   </div>
                   <h4 className="font-black text-[#111827] dark:text-white uppercase tracking-widest text-[10px]">Have a team or promo code?</h4>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-2 sm:gap-3">
                   <input
                     type="text"
                     value={bundleCode}
                     onChange={(e) => setBundleCode(e.target.value.toUpperCase())}
                     placeholder="ENTER CODE"
-                    className="flex-1 px-5 py-4 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-transparent focus:border-[#C9A24D]/30 rounded-2xl text-xs font-black tracking-widest focus:outline-none transition-all uppercase placeholder-gray-300 dark:placeholder-gray-700"
+                    className="min-w-0 flex-1 px-4 sm:px-5 py-4 bg-[#FAFAF7] dark:bg-[#0B0B0B] border border-transparent focus:border-[#C9A24D]/30 rounded-2xl text-xs font-black tracking-widest focus:outline-none transition-all uppercase placeholder-gray-300 dark:placeholder-gray-700"
                   />
                   <button
                     onClick={handleVerifyBundleCode}
                     disabled={isVerifyingCode || !bundleCode}
-                    className="px-8 py-4 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] dark:hover:text-white transition-all disabled:opacity-50 active:scale-95"
+                    className="shrink-0 px-5 sm:px-8 py-4 bg-[#111827] dark:bg-white text-white dark:text-[#111827] rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-[#C9A24D] dark:hover:bg-[#C9A24D] dark:hover:text-white transition-all disabled:opacity-50 active:scale-95"
                   >
                     {isVerifyingCode ? '...' : 'Apply'}
                   </button>
@@ -381,7 +381,7 @@ function CheckoutContent() {
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-[#6B7280] dark:text-gray-500 font-bold uppercase tracking-wider">Free Trial</span>
-                      <span className="text-[#111827] dark:text-white font-black">{hasTrial ? `${trialDays} Days` : 'None'}</span>
+                      <span className="text-[#111827] dark:text-white font-black">{hasTrial ? `${trialDays} ${trialDays === 1 ? 'Day' : 'Days'}` : 'None'}</span>
                     </div>
                     {(hasTrial || offerPlan) && (
                       <div className="flex justify-between items-center text-sm">
@@ -464,7 +464,7 @@ function CheckoutContent() {
                           // The plan's PayPal ID isn't configured on this server - say so plainly
                           // instead of letting PayPal fail with a vague error.
                           <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-center text-sm font-semibold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-300">
-                            {selectedPlan?.name} isn&apos;t available to sign up for just yet. Please pick another plan or email support.
+                            {selectedPlan?.name}{' '}isn&apos;t available to sign up for just yet. Please pick another plan or email support.
                           </div>
                         ) : (
                         <PayPalScriptProvider options={paypalOptions}>

@@ -26,6 +26,7 @@ import InviteEnvelope from './InviteEnvelope'
 import InviteLuxeOpening, { foilOf, metalOfInvite } from './InviteLuxeOpening'
 import { SERIF, inviteSerif } from './inviteFonts'
 import { useSmartFields } from '@/lib/smartFields'
+import { parseYmd, ymdLocal } from '@/lib/relativeDays'
 
 // The Cheat Sheet only loads when a guest opens it.
 const CheatSheetView = dynamic(() => import('@/components/guest-pass/CheatSheetView'), { ssr: false })
@@ -967,7 +968,10 @@ function RsvpFlow({ response, inv, initial, t, accent, onSent, onCancel, inSheet
       steps.push({ id: 'isAgent', title: 'Are you a real estate agent?' })
       if (isAgent === false) steps.push({ id: 'hasAgent', title: 'Are you working with an agent?' })
     }
-    questions.forEach(q => steps.push({ id: `q:${q.id}`, title: q.label, sub: q.required ? undefined : 'Optional' }))
+    // "Just me" - no guests to name, so that question is skipped (launch audit 11/13).
+    const party = questions.find(q => q.role === 'guests')
+    const solo = !!party && String(answers[party.id] ?? '') === (party.options?.[0] || 'Just me')
+    questions.forEach(q => { if (!(solo && q.id === 'guests' && q.type === 'short_text')) steps.push({ id: `q:${q.id}`, title: q.label, sub: q.required ? undefined : 'Optional' }) })
   }
   const k = Math.min(i, steps.length - 1)
   const step = steps[k]
@@ -1004,7 +1008,11 @@ function RsvpFlow({ response, inv, initial, t, accent, onSent, onCancel, inSheet
   // A one-tap answer moves on by itself (after a beat, so the tap shows).
   const tapThen = (fn: () => void) => { fn(); window.setTimeout(() => setI(n => n + 1), 220); setDir(1) }
 
+  // A double tap on Send (slow phone) used to send the RSVP two or three times - one at a time now.
+  const sending = useRef(false)
   const submit = async () => {
+    if (sending.current) return
+    sending.current = true
     setError('')
     setBusy(true)
     // Only what THIS answer asked is sent - an answer given under the other choice (the days, "Are
@@ -1018,6 +1026,7 @@ function RsvpFlow({ response, inv, initial, t, accent, onSent, onCancel, inSheet
       is_agent: asked('isAgent') ? isAgent : undefined, has_agent: asked('hasAgent') ? hasAgent : undefined,
       still_interested: response === 'no' ? !!interested : undefined, keep_updated: asked('updates') ? !!keep : undefined,
     })
+    sending.current = false
     setBusy(false)
     if (!r.success) { setError(r.error); return }
     saveVisitor({ name: name.trim(), email: email.trim(), phone: phone.trim() || undefined })
@@ -1211,7 +1220,7 @@ function RequestFlow({ kind, inv, mine, t, accent, done, onSend, onClose }: {
   const sub = kind === 'disclosure' ? `${first} will email it to you.` : kind === 'second_tour' ? `Pick a day and time - ${first} will confirm.` : 'An email when the price changes, an open house is set, or it goes under contract.'
   const send = async () => {
     setBusy(true); setError('')
-    const times = kind === 'second_tour' && day ? `${new Date(day).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} - ${part}` : undefined
+    const times = kind === 'second_tour' && day ? `${(parseYmd(day) as Date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} - ${part}` : undefined
     const r = await onSend(kind, known ? { times } : { name: name.trim(), email: email.trim() || undefined, phone: phone.trim() || undefined, times })
     setBusy(false)
     if (!r.ok) { setError(r.error || "That didn't go through - try again in a moment."); return }
@@ -1240,7 +1249,7 @@ function RequestFlow({ kind, inv, mine, t, accent, done, onSend, onClose }: {
           <p className="mb-2 text-[10px] font-black uppercase tracking-[0.22em]" style={{ color: t.sub }}>Which day?</p>
           <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
             {upcoming.map(d => {
-              const iso = d.toISOString().slice(0, 10)
+              const iso = ymdLocal(d)   // the guest's own calendar day (toISOString is London's)
               const on = day === iso
               return (
                 <button key={iso} type="button" onClick={() => setDay(iso)} className="flex w-16 shrink-0 flex-col items-center rounded-2xl py-2.5" style={chip(on)}>

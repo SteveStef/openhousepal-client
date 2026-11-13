@@ -395,7 +395,7 @@ export function HubStep({ ctx }: { ctx: StepCtx }) {
         </div>
   )
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_260px]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_260px]">
       <MiniFlow flow={flow} pages={[lookPage, layoutPage, buttonsPage, linkPage]} />
       <div className="lg:hidden">
         <HubPhonePreview src={src} look={phoneLook} label="Your Agent Hub" width={230} />
@@ -455,7 +455,7 @@ export function FormsStep({ ctx }: { ctx: StepCtx }) {
   const redirect = defaults?.redirect_to_agent_hub
   const flow = useMiniFlow(ctx, ['Look', 'Settings'])
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_260px]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_260px]">
       <MiniFlow flow={flow} pages={[
         <div key="look">
           <SubHead sub="One look for every form you share - What's My Home Worth, I'm Buying, I'm Selling and the rest.">Your forms’ look</SubHead>

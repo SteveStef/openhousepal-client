@@ -401,6 +401,15 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
     if (step !== S.make && view !== 'video') return
     api.mediaLab.motion.health().then(r => { setWorkerUp(!!(r.success && r.data?.worker)); setSpeed(r.success && r.data ? r.data : null) })
   }, [step, view])
+  // Launch audit 11/13: the "restarting" note said "give it a minute, then press the button", but
+  // the button stayed greyed out until the page was left - look again every 15 s until it's back.
+  useEffect(() => {
+    if (workerUp !== false) return
+    const t = setInterval(() => api.mediaLab.motion.health().then(r => {
+      if (r.success && r.data?.worker) { setWorkerUp(true); setSpeed(r.data) }
+    }), 15000)
+    return () => clearInterval(t)
+  }, [workerUp])
 
   const timeline = useMemo(() => (s ? buildTimeline({ ...s, photos: s.photos.map(p => ({ ...p, src: '' })) } as never) : null), [s])
   const length = timeline?.duration ?? 0
@@ -978,7 +987,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
         </div>
         <MonthlyAiUsageMeter variant="inline" compact stretch className="mt-4" />
       </Card>
-      {workerUp === false && <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">The video maker is restarting - give it a minute, then press the button.</p>}
+      {workerUp === false && <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">The video maker is restarting - give it a minute. The button turns back on by itself.</p>}
       {est?.render_paid && est?.render_paused && <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">You&apos;ve reached your AI limit for now, so new videos can&apos;t be made until it resets. Your finished videos still play and save.</p>}
       {!est?.render_paid && (est?.sharpen_paused || est?.soft_capped) && needsSharpen > 0 && <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">You&apos;ve reached your AI limit for now, so this video is made without the extra sharpening. It still looks great, and you can update it later to add it.</p>}
       <div className={embedded ? '' : 'hidden sm:block'}>
@@ -1044,6 +1053,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
       <div className="space-y-4">
         <Card>
           <CardTitle title="Download" sub="Every shape is made for it - nothing gets cropped off" />
+          {workerUp === false && <p className="mb-2.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">The video maker is restarting - new shapes and updates turn back on by themselves in a minute. Saving what's made still works.</p>}
           <div className="space-y-2">
             {FORMAT_INFO.map(f => {
               const isMain = f.id === s.format
@@ -1064,7 +1074,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
                       {downloading === f.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Save
                     </button>
                   ) : (
-                    <button type="button" onClick={() => make(f.id)} disabled={rendering || !!busy || changesPending}
+                    <button type="button" onClick={() => make(f.id)} disabled={rendering || !!busy || changesPending || workerUp === false}
                       title={changesPending ? 'Update your video first' : est?.render_paid ? 'Uses a small share of your monthly AI' : 'Free - no AI'}
                       className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[11px] font-black text-gray-700 hover:border-[#C9A24D] disabled:opacity-50 dark:border-gray-700 dark:text-gray-200">
                       {makingThis || busy === `fmt-${f.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Make it

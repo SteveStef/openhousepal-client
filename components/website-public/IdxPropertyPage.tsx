@@ -58,8 +58,9 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
   const agentPhoto = agent?.photo_url ? resolveMediaUrl(agent.photo_url) : null
 
   const [tourOpen, setTourOpen] = useState(false)
+  const [tourDay, setTourDay] = useState<string | null>(null)
   const tourForm = showing ? { hub: showing.hubSlug || showing.path.split('/')[1], form: showing.formSlug || showing.path.split('/')[2] } : null
-  const requestTour = () => { if (tourForm?.hub && tourForm.form) setTourOpen(true); else window.location.assign(`${basePrefix}/contact`) }
+  const requestTour = (day?: string) => { setTourDay(day || null); if (tourForm?.hub && tourForm.form) setTourOpen(true); else window.location.assign(`${basePrefix}/contact`) }
 
   // Where they came from (Google, a shared link...) - sent with their question.
   const scope = `idx:${p.listing_key}`
@@ -211,7 +212,7 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
           {/* Coming Soon with no on-market date yet: no showing requests (Bright) - the question box instead */}
           {comingSoonNoDate
             ? <button type="button" onClick={toAsk} className="flex-1 rounded-xl bg-[var(--site-accent)] py-3 text-center text-[11px] font-black uppercase tracking-widest text-[color:var(--site-on-accent)]">Notify me</button>
-            : <button type="button" onClick={requestTour} className="flex-1 rounded-xl bg-[var(--site-accent)] py-3 text-center text-[11px] font-black uppercase tracking-widest text-[color:var(--site-on-accent)]">Request a tour</button>}
+            : <button type="button" onClick={() => requestTour()} className="flex-1 rounded-xl bg-[var(--site-accent)] py-3 text-center text-[11px] font-black uppercase tracking-widest text-[color:var(--site-on-accent)]">Request a tour</button>}
           {/* Call · Text · Email the agent (user, 10/18); the question box is in the page above. */}
           {agentTel && <a href={`tel:${agentTel}`} aria-label="Call" className="rounded-xl border border-white/20 px-3 py-3 text-white"><Phone className="h-4 w-4" /></a>}
           {agentTextTel && <a href={`sms:${agentTextTel}`} aria-label="Text" className="rounded-xl border border-white/20 px-3 py-3 text-white"><MessageSquare className="h-4 w-4" /></a>}
@@ -226,6 +227,7 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
             hubSlug={tourForm.hub}
             formSlug={tourForm.form}
             formId={showing?.formId}
+            initialDay={tourDay}
             accent={theme.secondary_color}
             agentName={agent?.name}
             home={{

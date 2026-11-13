@@ -11,7 +11,7 @@ import { OhpSpinner } from '@/components/brand/OhpLoader'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { buildBragSheetData, buildCheatSheetAgentData, planHasBragSheet } from '@/lib/bragSheetData'
-import { cheatSheetSqft } from '@/lib/cheatSheetContent'
+import { cheatSheetSqft, tidyAllCaps } from '@/lib/cheatSheetContent'
 import { hasAgentHubAccess, hasMlsAccess, hasShowcaseAccess } from '@/lib/navAccess'
 import { useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
 import { computeMatchScore, isSameSchoolDistrict } from '@/lib/matchScore'
@@ -915,7 +915,7 @@ export function CreateOpenHouseWizard({
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="truncate text-sm font-black text-gray-800 dark:text-gray-100">
-                                  {suggestion.address.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                                  {tidyAllCaps(suggestion.address)}
                                 </div>
                                 <div className="mt-1 flex items-center gap-2">
                                   <span className="inline-flex max-w-full items-center rounded-full border border-[#C9A24D]/30 bg-[#C9A24D]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#8b7355] dark:border-[#C9A24D]/40 dark:bg-[#C9A24D]/15 dark:text-[#C9A24D]">

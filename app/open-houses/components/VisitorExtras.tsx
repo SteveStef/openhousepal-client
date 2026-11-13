@@ -88,7 +88,7 @@ export function VisitorShowcaseSwitch({ visitor, busy, onToggle, layout = 'row' 
   const time = at ? at.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''
   // One short line, always (it truncates as the last resort).
   const hint = on
-    ? pending ? `Invite email goes out ${time}` : 'Showcase on'
+    ? pending ? `Invite at ${time}` : 'Showcase on'   // short: the old "Invite email goes out 1:…" cut the time off
     : wait == null ? 'Off - tap to turn on' : wait === 'right away' ? 'Off - tap to send now' : `Off - tap to send (${wait})`
   const title = on
     ? 'Showcase for this visitor is ON - switch off to cancel a waiting invite and turn their Showcase off.'

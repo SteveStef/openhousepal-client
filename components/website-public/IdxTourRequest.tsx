@@ -61,8 +61,10 @@ function loadConfig(hub: string, form: string) {
   return p
 }
 
-export default function IdxTourRequest({ open, onClose, hubSlug, formSlug, formId, home, accent, agentName }: {
+export default function IdxTourRequest({ open, onClose, hubSlug, formSlug, formId, home, accent, agentName, initialDay }: {
   open: boolean
+  /** The day they tapped on the page's "Book a showing" card (YYYY-MM-DD). */
+  initialDay?: string | null
   onClose: () => void
   hubSlug: string
   formSlug: string
@@ -178,6 +180,7 @@ export default function IdxTourRequest({ open, onClose, hubSlug, formSlug, formI
         onSubmit={submit}
         showContactFields
         contactStyle="full"
+        initialDay={initialDay}
         initialName={visitor?.name || ''}
         initialContact={visitor?.email || ''}
         // Only times the agent is free (their connected calendar).

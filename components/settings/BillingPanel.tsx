@@ -498,7 +498,7 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
             </h3>
             <p className="text-sm text-red-700/80 dark:text-red-300/80 leading-relaxed font-medium">
               {isSuspended
-                ? 'Your last payment could not be processed. Update the card on your PayPal account to restore full access.'
+                ? 'Your last payment didn’t go through. Tap Start Fresh below to pay with a different card. If you pay through a PayPal account, you can update your card there instead.'
                 : (isCancelled && daysRemaining !== null && daysRemaining < 0)
                   ? 'Your access period has ended. Please resubscribe to continue using our premium tools.'
                   : 'Your current subscription term has ended. Please reactivate your plan to continue using our premium tools.'}
@@ -508,7 +508,7 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
                 href="https://www.paypal.com/myaccount/autopay/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group mt-3 inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white transition hover:bg-red-700"
+                className="group mt-3 inline-flex items-center gap-1.5 text-xs font-black text-red-700 underline decoration-red-300 underline-offset-4 transition hover:text-red-800 dark:text-red-300 dark:decoration-red-500/50"
               >
                 Update payment method on PayPal <ExternalLink className="ohp-icon-draw w-3.5 h-3.5" />
               </a>

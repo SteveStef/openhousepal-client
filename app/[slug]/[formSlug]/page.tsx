@@ -162,7 +162,7 @@ export default function PublicFormPage() {
   if (canUseShowingFlow(form)) {
     return (
       <div className={`relative ${forceLightMode && !idxDark ? 'ohp-force-light' : ''} ${pageBg} min-h-screen`}>
-        {forceLightMode && <PublicFormBackButton fallbackHref={idxFallbackHref} />}
+        {forceLightMode && !embedded && <PublicFormBackButton fallbackHref={idxFallbackHref} />}
         <ShowingRequestFlow
           form={{ ...form, agentPhotoUrl: resolvePhotoUrl(form.agentPhotoUrl), showBranding: forceLightMode ? false : form.showBranding }}
           agentSlug={slug}
@@ -184,7 +184,7 @@ export default function PublicFormPage() {
 
   return (
     <div ref={pinnedRef} className={`fixed inset-x-0 top-0 ${forceLightMode && !idxDark ? 'ohp-force-light' : ''} ${pageBg} h-[100dvh]`}>
-      {forceLightMode && <PublicFormBackButton fallbackHref={idxFallbackHref} />}
+      {forceLightMode && !embedded && <PublicFormBackButton fallbackHref={idxFallbackHref} />}
       <FormRunner
         formId={form.formId}
         questions={form.questions}
@@ -216,7 +216,7 @@ export default function PublicFormPage() {
         onComplete={embedded ? () => { try { window.parent?.postMessage({ type: 'ohp-form-complete' }, '*') } catch { /* no host */ } } : undefined}
         redirectDelayMs={forceLightMode ? 3000 : undefined}
         redirectTarget={forceLightMode && idxReturn ? '_top' : '_self'}
-        forceLightMode={forceLightMode}
+        forceLightMode={forceLightMode && !idxDark}
         showcasePreview={form.formType === 'showcase_request'}
         exampleProperties={form.exampleProperties}
         look={shownLook}

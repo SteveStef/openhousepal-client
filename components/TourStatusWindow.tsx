@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { CalendarCheck, CalendarClock, CalendarPlus, Check, Hourglass, X } from 'lucide-react'
+import { CalendarCheck, CalendarClock, CalendarPlus, Check, Home, Hourglass, X } from 'lucide-react'
 import { backdropMotion, useIsPhone, useLastValue, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 
 // A showing request as the buyer sees it: waiting on the agent ("Pending approval") or confirmed,
@@ -104,8 +104,10 @@ export default function TourStatusWindow({ tour, address, agentName, onClose, on
             <div className="space-y-4 px-6 py-5" style={{ paddingBottom: 'max(1.25rem, var(--ohp-sab,env(safe-area-inset-bottom)))' }}>
               {home && (
                 <div className="flex items-center gap-3 rounded-2xl border border-gray-100 p-2 dark:border-white/[0.07]">
-                  <span className="h-14 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-white/[0.06]">
-                    {home.photo && <img src={home.photo} alt="" className="h-full w-full object-cover" />}
+                  <span className="grid h-14 w-20 shrink-0 place-items-center overflow-hidden rounded-xl bg-[#C9A24D]/10 dark:bg-white/[0.06]">
+                    {home.photo
+                      ? <img src={home.photo} alt="" className="h-full w-full object-cover" />
+                      : <Home className="h-6 w-6 text-[#C9A24D]" aria-hidden />}
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate font-serif text-base font-black text-[#111827] dark:text-white">{home.street}</span>

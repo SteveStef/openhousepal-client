@@ -18,6 +18,7 @@ import { fontClass } from '@/components/website-public/blocks/fontClass'
 import { resolveMediaUrl } from '@/lib/api-service'
 import { tidyAllCaps } from '@/lib/cheatSheetContent'
 import { IMG, sizedBg, sizedImage } from '@/lib/siteImage'
+import { parseYmd } from '@/lib/relativeDays'
 
 // The IDX town page - moved here unchanged from the public site route so the admin's town preview
 // can draw the very same page (see TownPageView below). Server-safe: no hooks, no browser APIs;
@@ -762,7 +763,7 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
             <TownSubheading count={area.open_houses.length}>Upcoming open houses</TownSubheading>
             <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {area.open_houses.map((item: any) => (
-                <ListingCard key={item.id} item={item} theme={theme} basePrefix={basePrefix} dateLabel={item.scheduled_date ? new Date(item.scheduled_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : undefined} />
+                <ListingCard key={item.id} item={item} theme={theme} basePrefix={basePrefix} dateLabel={item.scheduled_date ? parseYmd(item.scheduled_date)?.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : undefined} />
               ))}
             </div>
           </div>

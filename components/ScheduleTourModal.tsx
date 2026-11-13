@@ -33,6 +33,8 @@ interface ScheduleTourModalProps {
   contactStyle?: 'compact' | 'full'
   /** How many times they can offer (default 3). */
   maxPicks?: number
+  /** A day already tapped on the page (YYYY-MM-DD) - opens on it, morning/afternoon/evening next. */
+  initialDay?: string | null
 }
 
 // ---------------------------------------------------------------- dates & times
@@ -94,6 +96,7 @@ function ScheduleTourWindow({
   onDetailsStep,
   contactStyle = 'compact',
   maxPicks = 3,
+  initialDay = null,
 }: ScheduleTourModalProps & { property: NonNullable<ScheduleTourModalProps['property']> }) {
   // Autofill / Enter hop name -> email -> phone -> note; no form here, so Enter never sends.
   const smartFields = useSmartFields()
@@ -122,7 +125,7 @@ function ScheduleTourWindow({
   // One thing at a time (user, 10/22): nothing is picked when the window opens - (1) tap a day,
   // then (2) morning / afternoon / evening unlocks, then (3) its times appear. Tapping another day
   // starts again at (2), so adding a backup time reads the same way.
-  const [day, setDay] = useState<string | null>(null)
+  const [day, setDay] = useState<string | null>(() => (initialDay && openDays.includes(initialDay) ? initialDay : null))
   type PeriodId = (typeof PERIODS)[number]['id']
   const [period, setPeriod] = useState<PeriodId | null>(null)
   const pickDay = (d: string) => { setDay(d); setPeriod(null) }
@@ -237,7 +240,7 @@ function ScheduleTourWindow({
           ))}
           <div className="flex h-full flex-col p-5 sm:p-7">
             <div className="flex items-center justify-between">
-              <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-[#e8c97a]"><CalendarDays className="h-3.5 w-3.5" /> Private showing</p>
+              <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-[#e8c97a] [text-shadow:0_1px_8px_rgba(0,0,0,.85)]"><CalendarDays className="h-3.5 w-3.5" /> Private showing</p>
               <button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20 sm:hidden"><X className="h-4 w-4" /></button>
             </div>
             <div className="mt-3 sm:mt-auto">
@@ -296,7 +299,7 @@ function ScheduleTourWindow({
                       const count = picks.filter(p => p.date === d).length
                       return (
                         <motion.button key={d} type="button" whileTap={{ scale: 0.94 }} onClick={() => pickDay(d)}
-                          className={`relative isolate flex min-w-0 flex-col items-center rounded-2xl py-2 transition-colors ${on ? 'text-[#111827]' : `bg-gray-50 text-gray-600 hover:bg-[#C9A24D]/10 dark:bg-white/[0.04] dark:text-gray-300 dark:hover:bg-white/[0.08] ${stage === 1 ? 'ring-1 ring-[#C9A24D]/35' : ''}`}`}>
+                          className={`relative isolate flex min-w-0 flex-col items-center rounded-2xl py-2 transition-colors ${on ? 'text-[color:var(--ohp-on-accent,#111827)]' : `bg-gray-50 text-gray-600 hover:bg-[#C9A24D]/10 dark:bg-white/[0.04] dark:text-gray-300 dark:hover:bg-white/[0.08] ${stage === 1 ? 'ring-1 ring-[#C9A24D]/35' : ''}`}`}>
                           {on && <motion.span layoutId="tour-day" className="absolute inset-0 -z-10 rounded-2xl bg-gradient-to-b from-[#d9b864] to-[#C9A24D] shadow-[0_12px_22px_-8px_rgba(201,162,77,.75)]" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
                           <span className="relative text-[8px] font-black uppercase tracking-wider opacity-75 sm:text-[9px]">{d === ymd(new Date()) ? 'Today' : dt.toLocaleDateString('en-US', { weekday: 'short' })}</span>
                           <span className="relative text-lg font-black leading-tight sm:text-xl">{dt.getDate()}</span>
@@ -338,7 +341,7 @@ function ScheduleTourWindow({
                               whileTap={{ scale: 0.92 }}
                               className={`relative rounded-xl border py-2.5 text-[12px] font-black transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${at > -1 ? 'border-[#111827] bg-[#111827] text-white dark:border-white dark:bg-white dark:text-[#111827]' : 'border-gray-200 text-[#111827] hover:border-[#C9A24D] dark:border-white/10 dark:text-white'}`}>
                               <span className={taken ? 'line-through decoration-2 decoration-rose-400/70' : ''}>{timeLabel(t)}</span>
-                              {at > -1 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-[#C9A24D] text-[9px] font-black text-[#111827]">{at + 1}</motion.span>}
+                              {at > -1 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-[#C9A24D] text-[9px] font-black text-[color:var(--ohp-on-accent,#111827)]">{at + 1}</motion.span>}
                             </motion.button>
                           )
                         })}
@@ -372,7 +375,7 @@ function ScheduleTourWindow({
                           <motion.button layout key={`${p.date}-${p.time}`} type="button" onClick={() => setPicks(cur => cur.filter((_, j) => j !== i))}
                             initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
                             className="group inline-flex items-center gap-1.5 rounded-full bg-[#C9A24D]/15 py-1.5 pl-2 pr-2.5 text-[11px] font-black text-[#7a5f22] dark:text-[#e8c97a]">
-                            <span className="grid h-4 w-4 place-items-center rounded-full bg-[#C9A24D] text-[9px] text-[#111827]">{i + 1}</span>
+                            <span className="grid h-4 w-4 place-items-center rounded-full bg-[#C9A24D] text-[9px] text-[color:var(--ohp-on-accent,#111827)]">{i + 1}</span>
                             {dayLabel(p.date)} · {timeLabel(p.time)}
                             <X className="h-3 w-3 opacity-50 transition group-hover:opacity-100" />
                           </motion.button>
@@ -482,7 +485,7 @@ function ScheduleTourWindow({
 function StageLabel({ n, text, active, done, locked }: { n: number; text: string; active?: boolean; done?: boolean; locked?: boolean }) {
   return (
     <p className={`mb-1.5 mt-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] transition-colors duration-300 first:mt-0 ${active ? 'text-[#a8843a] dark:text-[#e8c97a]' : done ? 'text-gray-500 dark:text-gray-400' : 'text-gray-300 dark:text-gray-600'}`}>
-      <span className={`grid h-5 w-5 place-items-center rounded-full text-[9px] transition-all duration-300 ${done ? 'bg-[#C9A24D] text-[#111827]' : active ? 'bg-[#111827] text-white shadow-[0_0_0_3px_rgba(201,162,77,.3)] dark:bg-white dark:text-[#111827]' : 'bg-gray-100 text-gray-400 dark:bg-white/10'}`}>
+      <span className={`grid h-5 w-5 place-items-center rounded-full text-[9px] transition-all duration-300 ${done ? 'bg-[#C9A24D] text-[color:var(--ohp-on-accent,#111827)]' : active ? 'bg-[#111827] text-white shadow-[0_0_0_3px_rgba(201,162,77,.3)] dark:bg-white dark:text-[#111827]' : 'bg-gray-100 text-gray-400 dark:bg-white/10'}`}>
         {done ? '\u2713' : n}
       </span>
       {text}{locked && <span className="hidden sm:inline">&nbsp;- pick the step above first</span>}

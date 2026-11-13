@@ -201,7 +201,7 @@ export default function HeroFramer({ photo, frame, onChange, motion: mo, nudge =
 
           {/* set this screen's spot */}
           <div className={`mt-2.5 flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2.5 transition-colors ${isSet ? 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-500/25 dark:bg-emerald-500/10' : 'border-[#C9A24D]/40 bg-[#fffaf0] dark:bg-[#1a1712]'}`}>
-            <p className={`min-w-0 flex-1 text-[11.5px] font-bold ${isSet ? 'text-emerald-700 dark:text-emerald-300' : 'text-[#8b6a2b] dark:text-[#e8c97a]'}`}>
+            <p className={`min-w-0 flex-1 basis-full text-[11.5px] font-bold sm:basis-auto ${isSet ? 'text-emerald-700 dark:text-emerald-300' : 'text-[#8b6a2b] dark:text-[#e8c97a]'}`}>
               {isSet ? `${device === 'phone' ? 'Phone' : 'Computer'} center is set. Drag the box any time to change it.`
                 : `Drag the box so the cross sits on the home for a ${device === 'phone' ? 'phone' : 'computer'} - or keep it where it is.`}
             </p>

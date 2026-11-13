@@ -481,8 +481,10 @@ export default function SettingsPage() {
     setPhotoError('')
     // Same as the setup flow: any phone photo is made right-sized first, instead of being turned away.
     const jpg = await readyHeadshot(file)
-    const response = await save.track(async () => {
+    let response: Awaited<ReturnType<typeof api.agentHub.uploadPhoto>> = { success: false }
+    await save.track(async () => {
       const r = await api.agentHub.uploadPhoto(jpg)
+      response = r
       if (r.success && r.data) {
         const url = r.data.photo_url.startsWith('http') ? r.data.photo_url : `${API_BASE_URL}${r.data.photo_url}`
         // the profile autosave then stores the new photo on the hub
@@ -490,6 +492,10 @@ export default function SettingsPage() {
         setProfilePhotoPosition({ x: 50, y: 50 })
         setPhotoError('')
       }
+      // The server turned this file down (not a photo, too big): the message under the photo says so.
+      // That isn't a failed save - no red "Couldn't save / Try again" that would only re-send the same
+      // file (signup-settings audit 11/13). A lost connection still shows it.
+      if (!r.success && r.status && r.status >= 400 && r.status < 500 && r.status !== 401) return { success: true }
       return r
     }, { key: 'profile-photo' })
     if (!(response.success && response.data)) {

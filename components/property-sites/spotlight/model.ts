@@ -352,7 +352,10 @@ export function tidyCase(value?: string | null): string {
   return v.toLowerCase().replace(/[a-z0-9'#.-]+/g, (word) => {
     const up = word.toUpperCase().replace(/\.$/, '')
     if (KEEP_UPPER.has(up)) return word.toUpperCase()
-    if (/^\d/.test(word)) return word // 1st, 22nd, 12a
+    // Ordinals stay lower ("1st", "22nd"); lot / unit letters stay capital ("Lot 1C", "12A") - audit 11/13
+    // ("Lot 1c Dunn Ln" in the big headline).
+    if (/^\d+(st|nd|rd|th)$/.test(word)) return word
+    if (/^\d/.test(word)) return word.toUpperCase()
     return word.charAt(0).toUpperCase() + word.slice(1)
   })
 }
@@ -390,6 +393,10 @@ function calmDescription(text: string): string {
 export function buildSpotlight(data: PropertySiteResolveResponse) {
   const p: PropertySiteProperty = {
     ...data.property,
+    // Land and lots come through with 0 beds / 0 baths - that read "0 Baths" three times on the page.
+    // No number beats a zero (audit 11/13).
+    beds: data.property.beds ? data.property.beds : null,
+    baths: data.property.baths ? data.property.baths : null,
     address: tidyCase(data.property.address) || 'This home',
     city: tidyCase(data.property.city) || null,
     // Bright MLS suffixes counties with the state ("DELAWARE-PA").

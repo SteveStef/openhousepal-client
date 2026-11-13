@@ -7,7 +7,7 @@
 // site's colour (user, 10/18 - "the colors match whatever the agent customizes their site with").
 // Inline style colours aren't covered; Tailwind classes - nearly all of the gold - are.
 
-const GOLDS = ['#C9A24D', '#CAA65E', '#D2B16F', '#E8C97A', '#B08D42', '#A8843A', '#7A5F22', '#D7B974', '#DFC37F', '#B8923F', '#8B7355', '#D8C08A']
+const GOLDS = ['#C9A24D', '#D9B864', '#CAA65E', '#D2B16F', '#E8C97A', '#B08D42', '#A8843A', '#7A5F22', '#D7B974', '#DFC37F', '#B8923F', '#8B7355', '#D8C08A']
 
 type RGB = [number, number, number]
 const hexRgb = (h: string): RGB => { const n = parseInt(h.replace('#', ''), 16); return [n >> 16, (n >> 8) & 255, n & 255] }
@@ -35,7 +35,10 @@ function shadeMap(accent: string): Map<string, RGB> {
   for (const g of GOLDS) {
     const rgb = hexRgb(g)
     const hsl = rgbHsl(rgb)
-    const l = Math.min(0.96, Math.max(0.06, acc[2] + (hsl[2] - base[2])))
+    let l = Math.min(0.96, Math.max(0.06, acc[2] + (hsl[2] - base[2])))
+    // The light golds are the "light on a dark photo / dark panel" tones - a dark accent (navy,
+    // charcoal) shifted them to mid-dark, unreadable there. They never get darker than they were.
+    if (hsl[2] > base[2] + 0.08) l = Math.max(l, hsl[2])
     out.set(rgb.join(','), hslRgb([acc[0], acc[1], l]))
   }
   return out
@@ -105,5 +108,10 @@ export function applyAccentRecolor(accent: string): () => void {
   run()
   const mo = new MutationObserver(() => run())
   mo.observe(document.head, { childList: true })
-  return () => { mo.disconnect(); el.remove() }
+  // Text that sits ON the accent (a picked day, a step number): dark ink on gold, white on a dark accent.
+  // Pages opt in with text-[color:var(--ohp-on-accent,#111827)].
+  const root = document.documentElement
+  const hadInk = root.style.getPropertyValue('--ohp-on-accent')
+  root.style.setProperty('--ohp-on-accent', rgbHsl(hexRgb(accent))[2] < 0.5 ? '#ffffff' : '#111827')
+  return () => { mo.disconnect(); el.remove(); if (hadInk) root.style.setProperty('--ohp-on-accent', hadInk); else root.style.removeProperty('--ohp-on-accent') }
 }

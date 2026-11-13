@@ -338,6 +338,8 @@ function CmaWorkspacePageInner() {
   const { showToast } = useToast()
   const [report, setReport] = useState<CmaReport | null>(null)
   const [loading, setLoading] = useState(true)
+  // Launch audit 11/13: a deleted / wrong CMA link sat on the loader forever (only a toast said why).
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [savedFlash, setSavedFlash] = useState(false)
   const [step, setStep] = useState<StepId>('subject')
@@ -384,7 +386,7 @@ function CmaWorkspacePageInner() {
           else setStep('analysis')
         }
       } else {
-        showToast(response.error || 'Could not load this CMA.', 'error')
+        setLoadError(response.status === 404 ? 'missing' : (response.error || 'Could not load this CMA.'))
       }
       setLoading(false)
     })
@@ -434,6 +436,20 @@ function CmaWorkspacePageInner() {
   // For results the server already fully computed and persisted itself (AI generation) - just
   // syncs local state, no redundant PATCH back to the same data.
   const applyReport = useCallback((updated: CmaReport) => setReport(updated), [])
+
+  if (!report && !loading && loadError) {
+    const missing = loadError === 'missing'
+    return (
+      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-3 px-6 text-center">
+        <p className="font-serif text-2xl font-black text-[#111827] dark:text-white">{missing ? 'This CMA isn’t here' : 'Couldn’t open this CMA'}</p>
+        <p className="max-w-sm text-sm font-semibold text-gray-500 dark:text-gray-400">{missing ? 'It may have been deleted, or the link is wrong.' : loadError}</p>
+        <div className="mt-2 flex gap-2">
+          {!missing && <button type="button" onClick={() => { setLoadError(null); load() }} className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-black text-[#111827] dark:border-gray-700 dark:text-white">Try again</button>}
+          <Link href="/studio/cma" className="rounded-xl bg-[#111827] px-4 py-2.5 text-sm font-black text-white dark:bg-white dark:text-[#111827]">Back to your CMAs</Link>
+        </div>
+      </div>
+    )
+  }
 
   if (loading || !report) {
     return (
@@ -5227,13 +5243,15 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
   }, [user])
 
   useEffect(() => {
+    // Only IDX plans have a website - asking on other plans just 403s (console noise).
+    if (!user || user.plan_tier !== 'IDX') return
     Promise.all([api.sites.getMine(), api.sites.getDomains()])
       .then(([siteResponse, domainsResponse]) => {
         if (siteResponse.success && siteResponse.data) setIdxSite(siteResponse.data)
         if (domainsResponse.success && domainsResponse.data) setIdxDomains(domainsResponse.data)
       })
       .catch(() => {})
-  }, [])
+  }, [user?.plan_tier])
 
   const included = report.comparables.filter(c => c.is_included)
   const weighted = strongComps(report.comparables)

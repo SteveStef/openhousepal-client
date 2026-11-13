@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
+import { hasMlsAccess } from '@/lib/navAccess'
 import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import BrokerAuthorizationGuard from '@/components/BrokerAuthorizationGuard'
@@ -392,7 +393,7 @@ const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, open
             filledClickable={false}
             emptyCellTitle="Tap to ask to host this day"
             filledCellTitle="Already scheduled"
-            emptyCellLabel="Open"
+            emptyCellLabel="Needs Host"
             onCellClick={(cell, open) => { if (!open) onRequestToHost(property, cell.date) }}
             viewerId={user?.id}
             othersMuted
@@ -484,6 +485,9 @@ const DiscoveryPropertyRow = memo(function DiscoveryPropertyRow({ property, open
 export default function OpenHouseDiscovery() {
   const { showToast } = useToast()
   const { user } = useAuth()
+  // Plans without Bright MLS never load Discovery (the guard sends them to the plan page) - no
+  // calls, so no red "requires Bright MLS" error flashes over that page (launch audit 11/13).
+  const canUseDiscovery = !!user && (!!user.is_admin || hasMlsAccess(user.plan_tier))
   const searchParams = useSearchParams()
   const { hostCount } = useOpenHouseActionCounts()
   const [address, setAddress] = useState('')
@@ -507,6 +511,8 @@ export default function OpenHouseDiscovery() {
 
   // Open House Manager stats: my own outgoing requests + which browsed listings already have an open house
   const [myRequests, setMyRequests] = useState<any[]>([])
+  // Bumped after an action in My Requests so the weekend calendars update at once, not on the next 8s poll.
+  const [statusTick, setStatusTick] = useState(0)
   const [listingStatuses, setListingStatuses] = useState<Record<string, { status: string, scheduled_date?: string | null, scheduled_start_time?: string | null, scheduled_end_time?: string | null, scheduled_opens?: { scheduled_date: string | null, scheduled_start_time: string | null, scheduled_end_time: string | null }[] }>>({})
   // Open "my team needs a host" asks the current viewer is eligible to respond to - surfaced
   // inline on Request to Host for whichever listing they belong to instead of only in My Requests.
@@ -825,10 +831,11 @@ export default function OpenHouseDiscovery() {
 
   // Loaded once, not per-search - which teams you're on doesn't depend on the current search area.
   useEffect(() => {
+    if (!canUseDiscovery) return
     api.openHouseManager.getMyTeamMemberships().then(({ success, data }) => {
       if (success && data) setMyTeams(data)
     })
-  }, []);
+  }, [canUseDiscovery]);
 
   const toggleTeamOwner = (ownerId: string) => {
     setSelectedTeamOwnerIds(prev => prev.includes(ownerId) ? prev.filter(id => id !== ownerId) : [...prev, ownerId]);
@@ -1010,6 +1017,7 @@ export default function OpenHouseDiscovery() {
   }, [districtSearch])
 
   useEffect(() => {
+    if (!canUseDiscovery) return
     async function getDiscoveryProperties() {
       setIsLoading(true)
       const { success, data, error } = await api.discovery.get();
@@ -1021,7 +1029,7 @@ export default function OpenHouseDiscovery() {
       setIsLoading(false)
     }
     getDiscoveryProperties()
-  }, [showToast])
+  }, [showToast, canUseDiscovery])
 
   const refreshMyRequests = async () => {
     const { success, data } = await api.openHouseManager.getMyRequests()
@@ -1034,6 +1042,7 @@ export default function OpenHouseDiscovery() {
   }
 
   useEffect(() => {
+    if (!canUseDiscovery) return
     refreshMyRequests()
     refreshIncomingBroadcasts()
     // Keeps the "My Requests" badge live if a listing agent proposes/approves/declines a time
@@ -1045,7 +1054,7 @@ export default function OpenHouseDiscovery() {
       window.removeEventListener('focus', handleFocus)
       clearInterval(interval)
     }
-  }, [])
+  }, [canUseDiscovery])
 
   useEffect(() => {
     const listingKeys = (listings || []).map((p: any) => p.ListingKey).filter(Boolean)
@@ -1069,7 +1078,7 @@ export default function OpenHouseDiscovery() {
       window.removeEventListener('focus', handleFocus)
       clearInterval(interval)
     }
-  }, [listings])
+  }, [listings, statusTick])
 
   // Closest/Farthest only means anything while an address search is active - fall back to
   // Newest if the address gets cleared out from under an active distance sort.
@@ -2156,7 +2165,7 @@ export default function OpenHouseDiscovery() {
             onClose={() => setQuickViewListingKey(null)}
           />
 
-          <MyRequestsPanel isOpen={isMyRequestsOpen} onClose={() => setIsMyRequestsOpen(false)} onActionComplete={refreshMyRequests} focusRequestId={searchParams.get('request')} />
+          <MyRequestsPanel isOpen={isMyRequestsOpen} onClose={() => setIsMyRequestsOpen(false)} onActionComplete={() => { refreshMyRequests(); setStatusTick(t => t + 1) }} focusRequestId={searchParams.get('request')} />
         </BrokerAuthorizationGuard>
       </SubscriptionGuard>
     </AuthGuard>

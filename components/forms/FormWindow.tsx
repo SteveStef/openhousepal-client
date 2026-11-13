@@ -40,10 +40,14 @@ export default function FormWindow({ url, title, prefill, onClose }: {
   // The pull works on the bar above the form (touches inside the form's frame stay the form's).
   const { sheetRef, y } = useSwipeToClose(onClose, phone && !!url)
 
+  // On an agent's IDX website the window and the form wear the site's light/dark look (the site's
+  // own mode lives on its shell, not on <html>) - same ?idx_light/idx_mode the site's About page uses.
+  const siteMode = url && typeof document !== 'undefined' ? document.getElementById('ohp-site-shell')?.getAttribute('data-mode') : null
   const src = (() => {
     if (!url) return ''
     const params = new URLSearchParams()
     params.set('embed', '1')
+    if (siteMode === 'dark' || siteMode === 'light') { params.set('idx_light', '1'); params.set('idx_mode', siteMode) }
     // A visitor who signed in with Google on the agent's site (lib/visitor) gets their name + email filled in.
     for (const [k, v] of Object.entries({ ...visitorPrefill(readVisitor()), ...(prefill || {}) })) if (v) params.set(`prefill_${k}`, String(v))
     return `${url}${url.includes('?') ? '&' : '?'}${params.toString()}`
@@ -53,7 +57,7 @@ export default function FormWindow({ url, title, prefill, onClose }: {
   return createPortal(
     <AnimatePresence>
       {url && (
-        <motion.div key="fw" {...backdropMotion} className="fixed inset-0 z-[95] flex items-end justify-center bg-black/65 p-0 sm:items-center sm:p-6" onClick={onClose}>
+        <motion.div key="fw" {...backdropMotion} className={`${siteMode === 'dark' ? 'dark ' : ''}fixed inset-0 z-[95] flex items-end justify-center bg-black/65 p-0 sm:items-center sm:p-6`} onClick={onClose}>
           <motion.div ref={sheetRef} {...sheetMotion} style={phone ? { y } : undefined}
             role="dialog" aria-modal="true" aria-label={title || 'Form'}
             onClick={e => e.stopPropagation()}

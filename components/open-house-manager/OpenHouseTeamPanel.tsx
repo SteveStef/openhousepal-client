@@ -216,7 +216,7 @@ export default function OpenHouseTeamPanel({
                 </div>
 
                 <div className="space-y-2.5">
-                  {choice(<Send className="h-5 w-5" />, 'Ask my team to host', accepted.length ? `Pick a home, a day and a time - all ${accepted.length} get it` : 'Add someone to your team first', () => setAsking(true), true, accepted.length === 0 || listings.length === 0)}
+                  {choice(<Send className="h-5 w-5" />, 'Ask my team to host', accepted.length ? (accepted.length === 1 ? `Pick a home, a day and a time - ${accepted[0].name.split(" ")[0]} gets it` : `Pick a home, a day and a time - all ${accepted.length} get it`) : 'Add someone to your team first', () => setAsking(true), true, accepted.length === 0 || listings.length === 0)}
                   {choice(<UserPlus className="h-5 w-5" />, 'Add someone to my team', 'Search any agent by name, email or MLS ID', () => go('add'))}
                   {choice(<ShieldCheck className="h-5 w-5" />, 'Who can ask to host my listings', restricted ? 'Only my team' : 'My team and agents at my brokerage', () => go('who'))}
                 </div>

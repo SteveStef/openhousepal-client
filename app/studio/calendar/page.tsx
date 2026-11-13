@@ -2,14 +2,14 @@
 
 // Standalone Calendar page - extracted out of Settings (where it used to be a tab) so it gets a
 // full page's breathing room. Same real logic/API calls as before (Google two-way OAuth,
-// Microsoft/Outlook two-way OAuth - the read-only subscribe-by-link option was retired), laid out for
+// Microsoft/Outlook two-way OAuth, plus the private read-only calendar link for any other app), laid out for
 // someone who has never connected a calendar before: a plain-language "what is this" explainer up
 // top, bigger connect buttons, and a calmer one-thing-at-a-time layout instead of a dense
 // accordion tucked inside a Settings tab.
 
 import { useEffect, useState } from 'react'
 import {
-  AlertCircle, BellRing, CalendarClock, CalendarDays, Check, Home, Loader2, RefreshCw,
+  AlertCircle, BellRing, CalendarClock, CalendarDays, Check, Copy, Home, Link2, Loader2, RefreshCw,
 } from 'lucide-react'
 import { AnimatePresence, motion, type Variants } from 'framer-motion'
 import { LuxeSurface } from '@/components/ui/LuxeSurface'
@@ -61,7 +61,9 @@ function CalendarPageInner() {
         p.delete('calendar')
         const qs = p.toString()
         window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
-        setTimeout(() => setBanner(null), 6000)
+        // "Connected" fades; "Couldn't connect" stays until they try again (signup audit 11/13: it vanished
+        // after 6 seconds, often before the page had even finished loading).
+        if (c === 'connected') setTimeout(() => setBanner(null), 6000)
       }
     }
   }, [])
@@ -182,7 +184,7 @@ function CalendarPageInner() {
                     <span className="h-12 w-12 shrink-0 opacity-60"><OutlookLogo /></span>
                     <div className="min-w-0 flex-1">
                       <p className="text-base font-black text-gray-500 dark:text-gray-400">Outlook Calendar</p>
-                      <p className="text-sm font-medium text-gray-400">We&apos;re finishing this one. Use Google, or the calendar link above, for now.</p>
+                      <p className="text-sm font-medium text-gray-400">We&apos;re finishing this one. Use Google, or the calendar link below, for now.</p>
                     </div>
                     <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-gray-500 dark:bg-white/[0.06] dark:text-gray-400">Coming soon</span>
                   </div>
@@ -190,11 +192,61 @@ function CalendarPageInner() {
               </motion.div>
             )}
 
+            {/* Outlook / Apple / anything else: the private read-only link (same one the setup flow offers).
+                The Outlook card pointed at "the calendar link" but this page had none (signup audit 11/13). */}
+            <motion.div variants={rise}><CalendarLinkCard /></motion.div>
+
             {connectedSomewhere && (
               <p className="text-center text-xs font-semibold text-gray-400">All set - new tasks and open houses keep appearing on your calendar automatically.</p>
             )}
           </motion.div>
         )}
+      </div>
+    </div>
+  )
+}
+
+function CalendarLinkCard() {
+  const [feed, setFeed] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [err, setErr] = useState('')
+  const show = async () => {
+    setBusy(true); setErr('')
+    const r = await api.tasks.calendarFeed()
+    setBusy(false)
+    if (r.success && r.data?.url) setFeed(r.data.url)
+    else setErr('Couldn’t load your calendar link - please try again.')
+  }
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(feed); setCopied(true); setTimeout(() => setCopied(false), 2500) } catch { /* the link is on screen to copy by hand */ }
+  }
+  return (
+    <div className="rounded-3xl border border-gray-200 bg-white p-5 dark:border-white/[0.07] dark:bg-[#121214] sm:p-6">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8c97a]"><Link2 className="h-5 w-5" /></span>
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-2 text-base font-black text-[#111827] dark:text-white">
+            Use Outlook, Apple Calendar or something else?
+            <span className="rounded-full bg-[#C9A24D]/15 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#e8c97a]">For now</span>
+          </p>
+          {/* Owner 11/13: make it clear this is the stand-in until the full Outlook connection is ready. */}
+          <p className="mt-0.5 text-xs font-semibold leading-relaxed text-gray-500 dark:text-gray-400">Outlook isn&apos;t fully connected yet - that&apos;s why it says Coming soon. Until it is, copy your private calendar link and add it as a &quot;subscribed&quot; or &quot;internet&quot; calendar. You&apos;ll see your follow-ups and open houses there (view only - changes you make in Outlook don&apos;t come back here). It updates by itself. Keep the link private.</p>
+          {feed ? (
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input readOnly value={feed} onFocus={e => e.currentTarget.select()} aria-label="Your private calendar link"
+                className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs font-semibold text-gray-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-gray-200" />
+              <button type="button" onClick={copy} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#111827] px-4 py-2.5 text-xs font-black text-white dark:bg-white dark:text-[#111827]">
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copied ? 'Copied' : 'Copy my calendar link'}
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={show} disabled={busy} className="mt-3 inline-flex items-center gap-2 rounded-xl border-2 border-[#ece5d6] px-4 py-2.5 text-xs font-black text-[#111827] disabled:opacity-60 dark:border-white/10 dark:text-white">
+              {busy && <Loader2 className="h-4 w-4 animate-spin" />} Show my calendar link
+            </button>
+          )}
+          {err && <p className="mt-2 text-xs font-bold text-red-600 dark:text-red-400">{err}</p>}
+        </div>
       </div>
     </div>
   )

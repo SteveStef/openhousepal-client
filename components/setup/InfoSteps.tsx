@@ -318,7 +318,7 @@ function YouCard({ ctx, over = {} }: { ctx: StepCtx; over?: CardOver }) {
 
 function WithCard({ ctx, over, children }: { ctx: StepCtx; over?: CardOver; children: React.ReactNode }) {
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_260px]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_260px]">
       <div className="min-w-0">{children}</div>
       <aside className="order-first lg:order-none"><div className="lg:sticky lg:top-28"><YouCard ctx={ctx} over={over} /></div></aside>
     </div>

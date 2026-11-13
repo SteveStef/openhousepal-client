@@ -34,6 +34,7 @@ import OhpSwitch from '@/components/ui/OhpSwitch'
 import LeadRecentMatches from './LeadRecentMatches'
 import QuickEditShowcase from '@/components/showcases/QuickEditShowcase'
 import { InviteLine, SendInviteButton } from '@/components/showcases/ShowcaseInvite'
+import { tidyAllCaps } from '@/lib/cheatSheetContent'
 
 // Something in this person's alert settings is switched off (the Alert settings button says so).
 const alertsOff = (a?: { calendar: boolean; in_app: boolean; emails: boolean }) => !!a && (!a.calendar || !a.in_app || !a.emails)
@@ -980,10 +981,10 @@ function ShowcaseCard({ sc, who, onCopy, onEdit, top, leadId }: { leadId?: strin
       <SectionTitle>Their Showcase</SectionTitle>
       {top && <div className="mb-3">{top}</div>}
       <div className="flex min-w-0 items-center gap-2">
-        <p className="min-w-0 flex-1 truncate text-sm font-black text-[#111827] dark:text-white">{sc.name || 'Showcase'}</p>
+        <p className="min-w-0 flex-1 truncate text-sm font-black text-[#111827] dark:text-white">{tidyAllCaps(sc.name) || 'Showcase'}</p>
         <button type="button" onClick={() => setMailboxOpen(true)} data-testid="lead-showcase-matches" title="Their matches and activity, all in one"
           className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#C9A24D]/40 px-2.5 py-1 text-[11px] font-black text-[#8b7355] transition hover:border-[#C9A24D] active:scale-95 dark:text-[#e8c97a]">
-          <Inbox className="h-3 w-3" /> ({sc.home_count}) {sc.home_count === 1 ? 'Match' : 'Matches'}
+          <Inbox className="h-3 w-3" /> {sc.home_count} {sc.home_count === 1 ? 'Match' : 'Matches'}
         </button>
       </div>
       <ShowcaseMailbox open={mailboxOpen} onClose={() => setMailboxOpen(false)} collectionId={sc.id} who={who.name} />

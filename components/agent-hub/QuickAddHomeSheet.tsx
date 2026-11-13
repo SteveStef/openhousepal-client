@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, Home, ImagePlus, MapPin, Sparkles, X } from 'lucide-react'
 import OhSheet from '@/components/open-house-manager/OhSheet'
 import api, { resolveMediaUrl } from '@/lib/api-service'
+import { todayLocal } from '@/lib/relativeDays'
 
 // Quick-add for a home the agent types in themselves (No-MLS plans add every sale and listing this
 // way; Bright plans use it for anything the MLS doesn't have). One window, three short steps -
@@ -177,7 +178,7 @@ export default function QuickAddHomeSheet({ open, onClose, kind, initial, onSave
                   {isSale ? (
                     <div>
                       <label className={label} htmlFor="qa-date">Closed on</label>
-                      <input id="qa-date" type="date" value={h.date} max={new Date().toISOString().slice(0, 10)} onChange={e => set({ date: e.target.value })} className={input} />
+                      <input id="qa-date" type="date" value={h.date} max={todayLocal()} onChange={e => set({ date: e.target.value })} className={input} />
                     </div>
                   ) : (
                     <div>

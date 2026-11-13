@@ -30,6 +30,7 @@ export default function PublicCmaPage() {
 
   useEffect(() => {
     let cancelled = false
+    let dead = false
     const fetchReport = (showLoading = false) => {
       if (showLoading) setLoading(true)
       api.public.getCmaReport(slug).then(res => {
@@ -40,12 +41,14 @@ export default function PublicCmaPage() {
           setError(null)
         } else if (!hasLoadedRef.current) {
           setError(res.error || "This CMA link isn't active.")
+          // A link that doesn't exist (or was taken down) stays that way - stop re-checking it.
+          if (res.status === 404 || res.status === 410) dead = true
         }
         setLoading(false)
       })
     }
     const refreshIfVisible = () => {
-      if (document.visibilityState === 'visible') fetchReport(false)
+      if (!dead && document.visibilityState === 'visible') fetchReport(false)
     }
     fetchReport(true)
     window.addEventListener('focus', refreshIfVisible)
@@ -72,7 +75,7 @@ export default function PublicCmaPage() {
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[#faf9f7] px-6 text-center dark:bg-[#0B0B0B]">
         <Home className="h-10 w-10 text-gray-300" />
         <p className="text-lg font-black text-[#111827] dark:text-white">This link isn't active</p>
-        <p className="max-w-sm text-sm font-semibold text-gray-400">{error || 'Ask your agent for an updated link.'}</p>
+        <p className="max-w-sm text-sm font-semibold text-gray-400">{error && !/isn.t active/i.test(error) ? error : 'Ask your agent for an updated link.'}</p>
       </div>
     )
   }
@@ -1307,6 +1310,7 @@ function CmaInteractiveMap({ subject, comparables, fallbackUrl, activeComparable
 
   useEffect(() => {
     let cancelled = false
+    let dead = false
     googleMapsLoader.load().then(() => {
       if (cancelled || !mapRef.current) return
 

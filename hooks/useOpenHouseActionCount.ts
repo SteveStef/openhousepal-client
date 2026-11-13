@@ -59,7 +59,7 @@ export function useOpenHouseActionCounts() {
       setListingAgentUnseenUpdates(data.listing_agent_unseen_updates)
       setHostUnseenUpdates(data.host_unseen_updates)
       setCounteredAsHost(data.countered_as_host)
-      setIncomingAsks(data.pending_incoming_broadcasts)
+      setIncomingAsks(data.open_incoming_asks ?? data.pending_incoming_broadcasts)   // still waiting on an answer, seen or not
       lastFetchedRef.current = now
     }
   }

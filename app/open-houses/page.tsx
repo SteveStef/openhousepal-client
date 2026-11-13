@@ -37,6 +37,8 @@ import ShowcasesOffSheet from './components/ShowcasesOffSheet'
 import { similarHomesOn } from '@/lib/similarHomes'
 
 // --- HELPERS ---
+// The state after the town stays a code: "Berwyn, PA 19312", not "Berwyn, Pa 19312" (audit 11/13).
+const stateUpper = (a: string) => a.replace(/,\s*([A-Za-z]{2})(?=\s+\d{5}\b|\s*$)/, (_m, st: string) => `, ${st.toUpperCase()}`)
 const formatAddress = (address: string) => {
   if (!address) return "";
   const parts = address.split(',');
@@ -49,22 +51,22 @@ const formatAddress = (address: string) => {
     const cleanedStateZip = zipMatch ? zipMatch[1] : stateZip;
 
     const rawAddress = `${street}, ${city}, ${cleanedStateZip}`;
-    return rawAddress
+    return stateUpper(rawAddress
       .toLowerCase()
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+      .join(' '));
   }
 
   const rawAddress = parts.length > 1
     ? `${parts[0].trim()}, ${parts[1].trim()}`
     : parts[0].trim();
 
-  return rawAddress
+  return stateUpper(rawAddress
     .toLowerCase()
     .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+    .join(' '));
 };
 
 // The Brag Sheet's "What a Showcase looks like" example uses this open house's Similar Homes -

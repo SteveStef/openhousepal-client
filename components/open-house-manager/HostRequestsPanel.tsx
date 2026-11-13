@@ -133,7 +133,7 @@ export default function HostRequestsPanel({
   return (
     <OhSheet open={isOpen} onClose={onClose} variant="side" title="Host Requests" icon={<Inbox className="h-5 w-5" />}
       subtitle="Agents asking to host your listings"
-      badge={requests.length > 0 ? <span className="shrink-0 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black text-white">{requests.length}</span> : undefined}>
+      badge={asks.length > 0 ? <span className="shrink-0 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black text-white">{asks.length}</span> : undefined}>
         <div>
           {recentUpdates.length > 0 && (
             <div className="mb-5 space-y-2">

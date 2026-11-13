@@ -10,6 +10,7 @@ import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import PageHeader from '@/components/PageHeader'
 import { useAuth } from '@/contexts/AuthContext'
+import { hasEmailSignatureAccess } from '@/lib/navAccess'
 import api, { API_BASE_URL } from '@/lib/api-service'
 import { openHousePalPublicUrl } from '@/lib/publicResourceLinks'
 import { useOwnDomainBase, agentHubUrl as agentHubLink } from '@/lib/ownDomainLinks'
@@ -218,7 +219,11 @@ export default function EmailSignaturePage() {
     return () => window.removeEventListener('message', onMessage)
   }, [])
 
+  // Launch audit 11/13: plans without Signature are sent to the upgrade page - they never load it
+  // (it fired three 403s first).
+  const signatureAllowed = hasEmailSignatureAccess(user?.plan_tier)
   useEffect(() => {
+    if (!signatureAllowed) return
     Promise.all([api.emailSignature.getMine(), api.agentHub.getMine(), api.forms.getMine()]).then(([sigRes, hubRes, formsRes]) => {
       if (sigRes.success && sigRes.data) setConfig(mergeConfig(sigRes.data.config))
       if (hubRes.success && hubRes.data) {
@@ -228,7 +233,7 @@ export default function EmailSignaturePage() {
       if (formsRes.success && formsRes.data) setMyForms(formsRes.data)
       setLoaded(true)
     })
-  }, [])
+  }, [signatureAllowed])
 
   // Smart default: once the agent's premade forms are known and they haven't added any buttons
   // yet, seed the two most useful ones instead of leaving the block empty - same "reuse what we
@@ -622,7 +627,7 @@ export default function EmailSignaturePage() {
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-xs font-bold text-gray-700 dark:text-gray-200">Verified badge</p>
-                            <p className="text-[11px] font-semibold text-gray-400">Small blue checkmark next to your name - a design accent, not a real verification.</p>
+                            <p className="text-[11px] font-semibold text-gray-400">Small blue checkmark next to your name - shows clients you’re a licensed agent, checked with the license or MLS ID you gave us.</p>
                           </div>
                           <button
                             onClick={() => update(current => ({ ...current, showVerifiedBadge: !current.showVerifiedBadge }))}

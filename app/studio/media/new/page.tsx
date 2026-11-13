@@ -748,7 +748,7 @@ function CreateMediaPage() {
           source, then Photo / Video), so only step 3 has the main action - the same generate() and
           the same can't-press rules as the Create / Generate button on the page. Back = the
           StepBar's own jumps (change the photos, change what to make). */}
-      <FlowDock step={step} total={3}
+      <FlowDock step={step === 3 && busy ? 4 : step} total={STUDIO_MEDIA_STAGES.length}
         onBack={step === 2 ? changeSource : step === 3 ? startOver : undefined} backDisabled={busy}
         {...(step === 3 ? {
           onContinue: generate,

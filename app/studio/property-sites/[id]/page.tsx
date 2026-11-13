@@ -540,7 +540,7 @@ function PropertySiteEditorPage() {
     if (!opts?.quiet && needsFraming) {
       setStep('header')
       setFrameNudge(n => n + 1)
-      notify('One thing first: set the center of your header photo for both a computer and a phone.')
+      notify('One thing first: set the center of your header photo for both a computer and a phone.', 'info')
       window.setTimeout(() => document.getElementById('sp-hero-framer')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 250)
       return
     }
@@ -732,7 +732,7 @@ function PropertySiteEditorPage() {
     // The photo's center has to be picked for a computer AND a phone before moving on (user, 10/15).
     if (step === 'header' && key !== 'header' && needsFraming) {
       setFrameNudge(n => n + 1)
-      notify('Set the center of your photo for both a computer and a phone first - tap each tab under “Frame your photo”.')
+      notify('Set the center of your photo for both a computer and a phone first - tap each tab under “Frame your photo”.', 'info')
       document.getElementById('sp-hero-framer')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       return
     }
@@ -740,7 +740,7 @@ function PropertySiteEditorPage() {
     const forward = STEPS.findIndex(x => x.key === key) > stepIndex
     const unchecked = chapters.filter(c => c.enabled && c.photos.length && !c.confirmed).length
     if (step === 'rooms' && forward && unchecked > 0) {
-      notify(unchecked === 1 ? 'One room still needs its check - tap the check once it looks right.' : `${unchecked} rooms still need their check - tap each one's check once it looks right.`)
+      notify(unchecked === 1 ? 'One room still needs its check - tap the check once it looks right.' : `${unchecked} rooms still need their check - tap each one's check once it looks right.`, 'info')
       document.querySelector('[data-unconfirmed="1"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       return
     }

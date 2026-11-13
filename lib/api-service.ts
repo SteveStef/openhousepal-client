@@ -153,7 +153,7 @@ class ApiService {
 
         if (!isAuthPage) {
           this.handleUnauthorized();
-          return { success: false, error: 'Session expired. Please log in again.' };
+          return { success: false, error: 'Session expired. Please log in again.', status: 401 };
         }
       }
 
@@ -593,7 +593,7 @@ class ApiService {
 
     getMyRequests: () => this.request<HostRequest[]>('/api/open-house-manager/my-requests'),
 
-    getActionCounts: () => this.request<{ pending_as_listing_agent: number, countered_as_host: number, listing_agent_unseen_updates: number, host_unseen_updates: number, pending_incoming_broadcasts: number }>('/api/open-house-manager/action-counts'),
+    getActionCounts: () => this.request<{ pending_as_listing_agent: number, countered_as_host: number, listing_agent_unseen_updates: number, host_unseen_updates: number, pending_incoming_broadcasts: number, open_incoming_asks?: number }>('/api/open-house-manager/action-counts'),
 
     createRequest: (payload: CreateHostRequestPayload) => this.request<CreateHostRequestResult>('/api/open-house-manager/requests', {
       method: 'POST',

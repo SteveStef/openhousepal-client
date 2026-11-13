@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    qualities: [50, 70, 75, 80, 85, 90, 100],
+    // Every quality a page asks for must be listed or that photo 400s ("q of 88 is not allowed") - the
+    // kit wizard asks 88 / 92 (audit 11/13: its home, cover and Cheat Sheet photos never loaded on live).
+    qualities: [50, 70, 75, 80, 85, 88, 90, 92, 100],
     // Each resized photo is kept a day (our server's disk copy, Cloudflare's copy of /pimg/... and the
     // visitor's browser). MLS photo addresses change when the photo changes; 1 day keeps a replaced
     // agent headshot from lingering.

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Check, Globe, Loader2, PowerOff } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import api from '@/lib/api-service'
+import { hasValidSubscription } from '@/lib/auth-helpers'
 import type { LinkDomainState } from '@/types'
 
 // Shown right after someone buys / upgrades to IDX (idx_domain_migration_agreed_at is null - the
@@ -20,7 +21,10 @@ export default function IdxDomainMigrationModal() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  const shouldShow = isAuthenticated && !isLoading && user?.plan_tier === 'IDX' && !user?.idx_domain_migration_agreed_at
+  // Only while the plan is live: a failed payment / ended plan can't save the answer (the site switch
+  // needs an active plan), so the popup sat on top of Billing - the page they need to fix it
+  // (signup-settings audit 11/13). It shows again once the plan is back on.
+  const shouldShow = isAuthenticated && !isLoading && user?.plan_tier === 'IDX' && !user?.idx_domain_migration_agreed_at && hasValidSubscription(user)
 
   useEffect(() => {
     if (!shouldShow) return

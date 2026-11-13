@@ -325,14 +325,17 @@ export default function ManageHostsModal({
                                   )}
                                   <div className="min-w-0">
                                     <p className="truncate text-sm font-black text-[#111827] dark:text-white">{open.hosting_agent_name}</p>
-                                    <p className="truncate text-xs font-semibold text-gray-500 dark:text-gray-400">
-                                      {open.hosting_agent_brokerage ? `${open.hosting_agent_brokerage} · ` : ''}{formatEventDate(open.scheduled_date)}
-                                      {timeRange ? ` · ${timeRange}` : ''}
+                                    {/* The day + time on its own line so it's never the part cut off (launch audit 11/13). */}
+                                    <p className="text-xs font-bold text-[#111827]/80 dark:text-gray-200">
+                                      {formatEventDate(open.scheduled_date)}{timeRange ? ` · ${timeRange}` : ''}
                                     </p>
+                                    {open.hosting_agent_brokerage && <p className="truncate text-[11px] font-semibold text-gray-500 dark:text-gray-400">{open.hosting_agent_brokerage}</p>}
+                                    {/* Phones: the "kit not built" note sits under the text instead of squeezing it into a narrow column. */}
+                                    {!open.kit_built && <p className="mt-1 text-[9px] font-black uppercase tracking-widest text-blue-700 sm:hidden dark:text-blue-400">Kit not built yet</p>}
                                   </div>
                                 </div>
                                 {!open.kit_built && (
-                                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">
+                                  <span className="hidden shrink-0 items-center gap-1 rounded-full bg-blue-50 sm:flex dark:bg-blue-500/10 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">
                                     Kit Not Built Yet
                                     <InfoTooltip text="The hosting agent has been confirmed for this date but hasn't built an Open House Kit yet - the sign-in form, materials, etc. That's on them, not something you need to do." />
                                   </span>

@@ -361,7 +361,7 @@ export const DashboardView = memo(function DashboardView({
               </div>
               <input
                 type="text"
-                placeholder="Search visitor, property, location..."
+                placeholder="Search clients or homes"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-8 py-2.5 bg-white dark:bg-[#151517] border-2 border-gray-200 dark:border-gray-800 rounded-xl text-[#0B0B0B] dark:text-white placeholder-gray-400 dark:placeholder-gray-600 shadow-sm focus:outline-none focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/10 transition-all text-sm font-medium"
@@ -693,7 +693,7 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
 
   const priceText = (collection.preferences && 'priceRange' in collection.preferences && collection.preferences.priceRange !== 'Not specified')
     ? formatPriceRange(collection.preferences.priceRange)
-    : 'Not Specified'
+    : 'Any price'
   const needsYou = !!collection.refineRequestMessage || !!collection.stats.tourRequestedCount || activityBadges.length > 0 || collection.stats.newProperties > 0
   const stop = (fn: () => void) => (e: React.MouseEvent) => { e.stopPropagation(); fn() }
   // The "needs you" badges (NEW, tours, likes...) ride in the bottom bar between Delete and the

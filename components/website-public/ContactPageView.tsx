@@ -1,5 +1,6 @@
 'use client'
 
+import HubFrame from './HubFrame'
 import { useEffect, useState } from 'react'
 import { formatPhone } from '@/lib/leadEventDetails'
 import { ArrowUpRight, CalendarDays, ChevronRight, DollarSign, KeyRound, Mail, MapPin, MessageSquare, Phone, Sparkles, Star, TrendingUp, User } from 'lucide-react'
@@ -38,7 +39,9 @@ export default function ContactPageView({ profile, theme, basePrefix = '' }: { p
   const main = pickSiteForm(forms, 'how_can_i_help')
   const [src, setSrc] = useState<string | null>(null)
   useEffect(() => {
-    if (profile.agent_hub_slug && main) setSrc(`${openHousePalPublicUrl(`/${profile.agent_hub_slug}/${main.slug}`)}?embed=1`)
+    // idx_light/idx_mode: the form wears the site's light/dark look (HubFrame keeps it in step with the switch).
+    const mode = document.getElementById('ohp-site-shell')?.getAttribute('data-mode') === 'dark' ? 'dark' : 'light'
+    if (profile.agent_hub_slug && main) setSrc(`${openHousePalPublicUrl(`/${profile.agent_hub_slug}/${main.slug}`)}?embed=1&idx_light=1&idx_mode=${mode}`)
   }, [profile.agent_hub_slug, main])
   const rating = profile.rating && profile.rating.average != null && profile.rating.count > 0 ? profile.rating : null
   const help = HELP.filter(h => forms.some(f => f.form_type === h.form))
@@ -57,7 +60,7 @@ export default function ContactPageView({ profile, theme, basePrefix = '' }: { p
         <div id="site-hero-sentinel" className="pointer-events-none absolute inset-x-0 bottom-0 h-px" />
       </section>
 
-      <section className="relative mx-auto -mt-16 grid max-w-6xl gap-6 px-5 pb-20 sm:px-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+      <section className="relative mx-auto -mt-16 grid max-w-6xl grid-cols-1 gap-6 px-5 pb-20 sm:px-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
         <Reveal className="lg:sticky lg:top-24 lg:self-start">
           <div className={`overflow-hidden border ${luxe ? 'rounded-[28px]' : 'rounded-3xl'}`} style={card}>
             <div className="flex items-center gap-4 p-6">
@@ -106,12 +109,12 @@ export default function ContactPageView({ profile, theme, basePrefix = '' }: { p
 
         <Reveal delay={120}>
           <div className={`overflow-hidden border ${luxe ? 'rounded-[28px]' : 'rounded-3xl'}`} style={card}>
-            <div className="flex items-center justify-between border-b px-6 py-4" style={{ borderColor: 'var(--site-line)' }}>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b px-6 py-4" style={{ borderColor: 'var(--site-line)' }}>
               <p className={`text-lg ${luxe ? `font-black ${serif}` : 'font-extrabold'}`} style={{ color: 'var(--site-heading)' }}>Send {first} a note</p>
               <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Usually replies the same day</span>
             </div>
             {src
-              ? <iframe title="Contact form" src={src} className="block h-[680px] w-full border-0" />
+              ? <HubFrame title="Contact form" src={src} className="block h-[680px] w-full border-0" />
               : <div className="flex h-[680px] items-center justify-center p-8 text-center text-sm font-semibold" style={{ color: 'var(--site-faint)' }}>
                   {main ? 'Loading the form…' : <span>Reach me directly - {profile.phone ? <a href={`tel:${tel}`} className="underline">{formatPhone(profile.phone)}</a> : null}{profile.email ? <> or <a href={`mailto:${profile.email}`} className="underline">{profile.email}</a></> : null}</span>}
                 </div>}

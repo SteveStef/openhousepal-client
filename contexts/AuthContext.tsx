@@ -33,11 +33,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // Never wait forever on "who's signed in" (10/24 - a new tab on an iPhone sat on the loader
       // for good when this one request never came back): each try gives up after 12s, three tries.
+      // Launch audit 11/13: no answer at all, or the server restarting (a deploy: 502/503), is
+      // tried again for up to ~40s - it used to count as "signed out" and sent the agent to the
+      // sign-in page. A real answer (signed in, or not) ends it at once.
       let res: { success: boolean; data?: any } = { success: false }
-      for (let attempt = 0; attempt < 3; attempt++) {
+      const started = Date.now()
+      for (let attempt = 0; attempt < 8; attempt++) {
         const timedOut = new Promise<null>(r => setTimeout(() => r(null), 12000))
         const got = await Promise.race([api.auth.me(), timedOut])
-        if (got) { res = got; break }
+        if (got && (got.success || (got.status && got.status < 500))) { res = got; break }
+        if (Date.now() - started > 40000) break
+        await new Promise(r => setTimeout(r, Math.min(1500 * (attempt + 1), 6000)))
       }
       const { success, data } = res
       if (success && data) {

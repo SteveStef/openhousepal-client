@@ -356,7 +356,7 @@ export default function ListingPhotoSearch({
               <div className="p-1.5">
                 <p className="truncate text-[11px] font-black leading-tight text-[#111827] dark:text-white">{sale.address}</p>
                 <p className="mt-0.5 text-[10px] font-bold text-gray-500 dark:text-gray-400">
-                  {sale.price ? `$${Number(sale.price).toLocaleString()}` : '—'}{sale.sold_date ? ` · ${new Date(sale.sold_date).getFullYear()}` : ''}
+                  {sale.price ? `$${Number(sale.price).toLocaleString()}` : '—'}{sale.sold_date ? ` · ${String(sale.sold_date).slice(0, 4)}` : ''}
                 </p>
               </div>
             </button>

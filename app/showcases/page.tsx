@@ -152,7 +152,8 @@ function ShowcaseContent() {
   const urlPropertyRef = useRef<string | null | undefined>(undefined)   // the ?property= last acted on
 
   useEffect(() => {
-    if (!user) return
+    // Only IDX plans have a website - asking on other plans just 403s (console noise).
+    if (!user || user.plan_tier !== 'IDX') return
     Promise.all([api.sites.getMine(), api.sites.getDomains()])
       .then(([siteResponse, domainsResponse]) => {
         if (siteResponse.success && siteResponse.data) setIdxSite(siteResponse.data)

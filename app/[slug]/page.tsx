@@ -875,7 +875,10 @@ export default function PublicAgentHubPage() {
       )}
       {/* Back from Sales (or a blog) in the same visit: the hub glides in from the left instead of
           popping up (owner, 11/01 - on the website it "just quickly pops up"). */}
-      <section className={`relative mx-auto grid w-full max-w-6xl gap-4 px-5 pb-10 pt-3 lg:grid-cols-[360px_1fr] lg:gap-8 lg:px-8 lg:pt-6 ${returning ? 'hub-page-back' : ''}`}>
+      {/* Nothing to show beside the profile yet (new hub: no listings, sales, videos or blogs -
+          on computers reviews sit in the side card, not the main column) - one centered column
+          instead of a profile pushed left beside an empty half-page. */}
+      <section className={`relative mx-auto grid w-full gap-4 px-5 pb-10 pt-3 lg:gap-8 lg:px-8 lg:pt-6 ${visibleOrderedSections.some(section => section.id !== 'reviews') ? 'max-w-6xl lg:grid-cols-[360px_1fr]' : 'max-w-[460px] lg:pt-12'} ${returning ? 'hub-page-back' : ''}`}>
         <aside className="h-fit lg:sticky lg:top-6">
           {/* Side-by-side header (Agent Hub -> Layout) - phones AND desktop (it used to be phones only,
               so switching it changed nothing on a computer). */}

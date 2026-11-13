@@ -582,9 +582,10 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
 
   return (
     <MotionConfig reducedMotion="user">
-    // Opening (owner 10/24: not smooth on a phone): the backdrop fades while the flow springs up
-    // from the bottom edge like a sheet on phones, or rises into place on a computer; closing
-    // reverses it (the dashboard wraps this in AnimatePresence).
+    {/* Opening (owner 10/24: not smooth on a phone): the backdrop fades while the flow springs up
+        from the bottom edge like a sheet on phones, or rises into place on a computer; closing
+        reverses it (the dashboard wraps this in AnimatePresence). Launch audit 11/13: this note
+        was plain text here, so it showed on the page under the window. */}
     <motion.div {...backdropMotion} className="fixed inset-0 z-50 flex items-stretch justify-center bg-[#0b0b0d]/70 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Create a design">
       <motion.div
         {...openMotion}
@@ -637,6 +638,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
               design={created}
               ctx={{ ...currentCtx, campaignUrl: createdCampaign && agent.agentHubSlug ? `${agentFormUrl(ownBase, agent.agentHubSlug, createdCampaign.form_slug)}?c=${encodeURIComponent(createdCampaign.token)}` : null }}
               isPrint={format.isPrint}
+              unfinished={!leadGen && !property}
               portrait={format.orientation === 'portrait'}
               narrow={format.aspectRatio < 0.5}
               square={format.orientation === 'square'}
@@ -1069,7 +1071,7 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
             </button>
             <div className="flex items-center gap-4">
               <span className="hidden text-xs font-semibold text-gray-400 sm:inline">
-                {canContinue[step] ? <>Press <Kbd>Enter</Kbd></> : (step === 'layout' && luxeLayoutLocked) || (step === 'theme' && luxeThemeLocked) ? <span className="inline-flex items-center gap-1 font-black text-[#8b6a2b]"><Crown className="h-3.5 w-3.5" /> Luxe comes with {luxeUp.label}</span> : step === 'property' && !leadGen ? 'Choose a property, or skip' : step === 'situation' ? 'Pick one to continue' : step === 'format' ? 'Pick a placement' : ''}
+                {canContinue[step] ? <>Press <Kbd>Enter</Kbd></> : (step === 'layout' && luxeLayoutLocked) || (step === 'theme' && luxeThemeLocked) ? <span className="inline-flex items-center gap-1 font-black text-[#8b6a2b]"><Crown className="h-3.5 w-3.5" /> Luxe comes with {luxeUp.label}</span> : step === 'property' && !leadGen ? ((property || skipProperty) && needAttest && !attested ? 'Tick the box to confirm it’s your listing' : 'Choose a property, or skip') : step === 'situation' ? 'Pick one to continue' : step === 'format' ? 'Pick a placement' : ''}
               </span>
               <button
                 type="button"
@@ -1708,8 +1710,8 @@ function TrackingStep({ leadGen, situationId, forms, required, isPrint, qrOn, on
 }
 
 // After Create - happy with it? Download it now, or open the editor to change anything.
-function DoneView({ design, ctx, isPrint, portrait, narrow, square, campaign, formTitle, link, onEditor, onDone }: {
-  design: DesignProject; ctx: DesignCanvasContext; isPrint: boolean; portrait: boolean; narrow: boolean; square: boolean
+function DoneView({ design, ctx, isPrint, unfinished = false, portrait, narrow, square, campaign, formTitle, link, onEditor, onDone }: {
+  design: DesignProject; ctx: DesignCanvasContext; isPrint: boolean; unfinished?: boolean; portrait: boolean; narrow: boolean; square: boolean
   campaign: CampaignLookup | null; formTitle: string | null; link: string | null
   onEditor: () => void; onDone: (exported: boolean) => void
 }) {
@@ -1759,7 +1761,15 @@ function DoneView({ design, ctx, isPrint, portrait, narrow, square, campaign, fo
           transition={{ duration: 0.35, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
           className="min-w-0 space-y-3"
         >
-          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-gray-400">Looks good</p>
+          {/* Launch audit 11/13: a design made without a property still shows sample words
+              ("Property Address") and an empty photo - say so before it's downloaded. */}
+          {unfinished && (
+            <button type="button" onClick={onEditor} className="block w-full rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-left text-xs font-semibold leading-snug text-amber-900 transition hover:border-amber-400 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-100">
+              <span className="block text-sm font-black">Add the address and photo first</span>
+              This one still shows sample words and an empty photo frame. Open the editor to fill them in before you post it.
+            </button>
+          )}
+          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-gray-400">{unfinished ? 'Or download it as it is' : 'Looks good'}</p>
           {isPrint && (
             <p className="rounded-2xl bg-[#fffaf0] px-4 py-3 text-xs font-semibold leading-snug text-gray-600 dark:bg-white/5 dark:text-gray-300">
               Before it goes out: if your brokerage reviews marketing, get their OK first.{design.design_type === 'door_hanger' ? ' Door hangers go on doors only - never inside mailboxes (federal law).' : ''}

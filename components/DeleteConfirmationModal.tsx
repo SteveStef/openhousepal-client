@@ -43,6 +43,7 @@ export default function DeleteConfirmationModal({
           <button
             onClick={onClose}
             disabled={isDeleting}
+            aria-label="Close"
             className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors p-2 hover:bg-gray-100/50 dark:hover:bg-gray-800 rounded-lg disabled:opacity-50"
           >
             <X size={20} />
@@ -55,27 +56,27 @@ export default function DeleteConfirmationModal({
             {/* Collection Info */}
             <div className="bg-gray-50/60 dark:bg-[#0B0B0B] rounded-xl p-4 border border-gray-200/40 dark:border-gray-800">
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                <div className="w-8 h-8 shrink-0 bg-gradient-to-br from-[#C9A24D] to-[#e8c97a] rounded-full flex items-center justify-center text-[#111827] font-black text-xs">
                   {collection.customer.firstName.charAt(0)}{collection.customer.lastName.charAt(0)}
                 </div>
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-gray-900 dark:text-white">
                     {collection.customer.firstName} {collection.customer.lastName}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{collection.customer.email}</p>
+                  <p className="truncate text-sm text-gray-600 dark:text-gray-400">{collection.customer.email}</p>
                 </div>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-gray-600 dark:text-gray-400">Properties:</span>
+                  <span className="text-gray-600 dark:text-gray-400">Homes:</span>
                   <span className="text-gray-900 dark:text-white ml-2">{collection.stats.totalProperties}</span>
                 </div>
                 <div>
-                  <span className="text-gray-600 dark:text-gray-400">Status:</span>
+                  <span className="text-gray-600 dark:text-gray-400">Showcase:</span>
                   <span className={`ml-2 ${
-                    collection.status === 'ACTIVE' ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'
+                    collection.status === 'ACTIVE' ? 'font-semibold text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'
                   }`}>
-                    {collection.status}
+                    {collection.status === 'ACTIVE' ? 'On' : 'Asleep'}
                   </span>
                 </div>
               </div>

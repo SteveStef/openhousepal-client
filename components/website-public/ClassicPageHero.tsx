@@ -38,10 +38,10 @@ export default function ClassicPageHero({ eyebrow, title, titleTag, accent, subt
           </h1>
           {subtitle && <p className={`mt-4 text-base leading-relaxed sm:text-lg ${split ? 'max-w-xl' : 'mx-auto max-w-xl'}`} style={{ color: 'var(--site-muted)' }}>{subtitle}</p>}
           {stats && stats.length > 0 && (
-            <dl className={`mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:flex ${split ? '' : 'mx-auto max-w-3xl'}`} style={{ borderColor: 'var(--site-line)', backgroundColor: 'var(--site-line)' }}>
+            <dl className={`mt-8 grid ${stats.length === 3 ? 'grid-cols-3' : 'grid-cols-2'} gap-px overflow-hidden rounded-2xl border sm:flex ${split ? '' : 'mx-auto max-w-3xl'}`} style={{ borderColor: 'var(--site-line)', backgroundColor: 'var(--site-line)' }}>
               {stats.map(s => (
-                <div key={s.label} className="flex-1 px-4 py-4" style={{ backgroundColor: 'var(--site-surface)' }}>
-                  <dd className="text-2xl font-extrabold tracking-tight" style={{ color: 'var(--site-heading)' }}>{s.value}</dd>
+                <div key={s.label} className="min-w-0 flex-1 px-4 py-4" style={{ backgroundColor: 'var(--site-surface)' }}>
+                  <dd className={`${stats.length === 3 ? 'text-xl sm:text-2xl' : 'text-2xl'} font-extrabold tracking-tight`} style={{ color: 'var(--site-heading)' }}>{s.value}</dd>
                   <dt className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--site-faint)' }}>{s.label}</dt>
                 </div>
               ))}

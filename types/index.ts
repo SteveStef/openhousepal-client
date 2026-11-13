@@ -812,6 +812,9 @@ export interface Collection {
   agentEmail?: string | null;
   agentPhone?: string | null;
   agentPhotoUrl?: string | null;
+  /** The client's Showcase "your agent" card (11/13). */
+  agentBrokerage?: string | null;
+  agentTextPhone?: string | null;
   customer: Customer;
   propertyId: number;
   // Not every showcase has one (manually-created, no linked open house, no agent-chosen compare
@@ -2012,7 +2015,7 @@ export interface PropertyWebsiteOpenHouse {
 export interface PropertyWebsiteViewStats {
   unique_visitors: number;
   total_views: number;
-  // Totals only: distinct people who asked for a tour / sent a question from a Spotlight page.
+  // Distinct people who asked for a tour / sent a question from a Spotlight page (overall + per page).
   leads?: number;
 }
 

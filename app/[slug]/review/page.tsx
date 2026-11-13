@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Star, Check, Loader2, ExternalLink, Copy, Send, ChevronLeft, Home, KeyRound } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -81,17 +81,27 @@ export default function LeaveReviewPage() {
 
   // Save the review to OpenHousePal. `silent` = no inline validation errors (used when the save
   // is a side-effect of tapping Google/Zillow). Returns the review id or null.
-  const submit = async ({ silent = false } = {}): Promise<string | null> => {
-    if (submitted?.id) return submitted.id
+  // Launch audit 11/13: Google + Zillow (or Submit) tapped quickly saved the review twice - two
+  // alerts and emails for the agent. A save already on its way is shared, never repeated.
+  const saving = useRef<Promise<string | null> | null>(null)
+  const savedId = useRef<string | null>(null)
+  const submit = ({ silent = false } = {}): Promise<string | null> => {
+    if (submitted?.id || savedId.current) return Promise.resolve(submitted?.id || savedId.current)
+    if (saving.current) return saving.current
     if (!rating || !name.trim() || !body.trim()) {
       if (!silent) setErr(!rating ? 'Pick a star rating first.' : 'Add your name and a few words.')
-      return null
+      return Promise.resolve(null)
     }
+    saving.current = save(silent).finally(() => { saving.current = null })
+    return saving.current
+  }
+  const save = async (silent: boolean): Promise<string | null> => {
     setErr('')
     setSubmitting(true)
     const res = await api.reviews.submit(slug, { reviewer_name: name.trim(), reviewer_email: email.trim() || undefined, rating, body: body.trim() })
     setSubmitting(false)
     if (res.success && res.data) {
+      savedId.current = res.data.id
       copyBody()
       setSubmitted({ id: res.data.id, rating: res.data.rating, dests: res.data.destinations, isPublic: res.data.is_public })
       return res.data.id

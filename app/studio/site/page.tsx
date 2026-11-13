@@ -1612,6 +1612,27 @@ function AgentHubContent() {
 
   const saveStatusRef = useRef(saveStatus)
   saveStatusRef.current = saveStatus
+  // The text boxes as they are right now. A box left while an earlier save is still running
+  // can't start its own save (one at a time), so the running save compares this before and after:
+  // if anything changed meanwhile it saves again instead of showing "Saved" (that change used to
+  // be dropped - typing fast or pasting then clicking the next box lost it).
+  const editsNowRef = useRef('')
+  editsNowRef.current = JSON.stringify([profile, contact, socialLinks, contactCard, profilePhotoUrl, profilePhotoPosition])
+  // Closing or reloading the tab mid-save (or with a box not yet left) would drop that change -
+  // the browser asks first, only then.
+  const hubSavingRef = useRef(hubSaving)
+  hubSavingRef.current = hubSaving
+  useEffect(() => {
+    if (isFormsRoute) return
+    const onLeave = (event: BeforeUnloadEvent) => {
+      if (!agentHubDataReady) return
+      if (!hubSavingRef.current && saveStatusRef.current === 'Saved') return
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onLeave)
+    return () => window.removeEventListener('beforeunload', onLeave)
+  }, [agentHubDataReady, isFormsRoute])
   useEffect(() => {
     if (!agentHubDataReady) return
     const onFocus = async () => {
@@ -2558,6 +2579,7 @@ function AgentHubContent() {
     }
 
     setHubSaving(true)
+    const editsAtStart = editsNowRef.current
     api.agentHub.updateProfile({ title: profile.title, market: profile.market, name: profile.name, brokerage: profile.brokerage }).catch(() => {})
     // Merge onto the latest saved copy: Settings edits the same Agent Hub config, and keys this
     // editor doesn't manage (the hub's theme, video auto-update, ...) must never be wiped by a save here.
@@ -2611,6 +2633,12 @@ function AgentHubContent() {
     setEditorSectionStatus(nextEditorSectionStatus)
     const isAutoPublished = nextEditorSectionStatus.Profile === 'Complete' && nextEditorSectionStatus.Contact === 'Complete' && nextEditorSectionStatus['Social Links'] === 'Complete'
     setStatus(isAutoPublished ? 'Published' : 'Draft')
+    if (editsNowRef.current !== editsAtStart) {
+      // Something was typed while this save ran - save again (fresh state) rather than say "Saved".
+      setSaveStatus('Unsaved Changes')
+      requestSave()
+      return
+    }
     setSaveStatus('Saved')
   }
 

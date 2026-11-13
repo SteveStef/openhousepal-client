@@ -6,6 +6,7 @@
 // Mirrors backend site_service.OwnerLinks.
 import { useEffect, useState } from 'react'
 import api from '@/lib/api-service'
+import { useOptionalAuth } from '@/contexts/AuthContext'
 import { ohpHostUrl, openHousePalPublicUrl } from '@/lib/publicResourceLinks'
 
 let cached: Promise<string | null> | null = null
@@ -26,7 +27,10 @@ export function fetchOwnDomainBase(): Promise<string | null> {
 
 export function useOwnDomainBase(): string | null {
   const [base, setBase] = useState<string | null>(null)
-  useEffect(() => { let live = true; fetchOwnDomainBase().then(b => { if (live) setBase(b) }); return () => { live = false } }, [])
+  // Own domains come with the IDX website (IDX plan only): other plans never ask - the server says
+  // 403 to them, which showed as a console error on every Studio design (launch audit 11/13).
+  const isIdx = useOptionalAuth()?.user?.plan_tier === 'IDX'
+  useEffect(() => { if (!isIdx) return; let live = true; fetchOwnDomainBase().then(b => { if (live) setBase(b) }); return () => { live = false } }, [isIdx])
   return base
 }
 

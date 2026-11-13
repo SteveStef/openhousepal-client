@@ -584,7 +584,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
                   : 'bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8cf8a] hover:bg-[#C9A24D] hover:text-white hover:shadow-lg'
               }`}
             >
-              {tourButtonVariant === 'requests' ? <><span className={onCopyLink ? '' : 'sm:hidden'}>Tours</span>{!onCopyLink && <span className="hidden sm:inline">Tour Requests</span>}</> : property.tourStatus === 'confirmed' ? 'Confirmed' : property.tourStatus === 'done' ? 'Toured' : property.hasTourScheduled ? 'Pending' : 'Tour'}
+              {tourButtonVariant === 'requests' ? <><span className={onCopyLink ? '' : 'sm:hidden'}>Tours</span>{!onCopyLink && <span className="hidden sm:inline">Tour Requests</span>}</> : property.tourStatus === 'confirmed' ? 'Confirmed' : property.tourStatus === 'done' ? 'Toured' : property.hasTourScheduled ? 'Requested' : 'Tour'}
               {tourButtonVariant === 'requests' && !!property.tourCount && (
                 <span className="absolute -top-2 -right-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white border-2 border-white dark:border-[#151517]">
                   {property.tourCount > 9 ? '9+' : property.tourCount}

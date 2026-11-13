@@ -8,6 +8,7 @@ import { X, Calendar, Phone, Mail, User, MapPin, AlertTriangle, Check } from 'lu
 import { PropertyTour } from '@/types'
 import { useEscapeToClose } from '@/components/ui/windowMotion'
 import { CalendarConnectNote, useMyCalendar } from '@/components/ui/WhenPicker'
+import { tidyAllCaps } from '@/lib/cheatSheetContent'
 
 interface ViewToursModalProps {
   isOpen: boolean
@@ -45,13 +46,14 @@ export default function ViewToursModal({
   useEscapeToClose(onClose, isOpen)
 
 
-  // Format date from YYYY-MM-DD to MM/DD/YYYY
+  // "2026-11-14" -> "Sat, Nov 14". Read as a calendar day: new Date("2026-11-14") is UTC midnight,
+  // which is the evening BEFORE in Eastern time - the window showed every request a day early (audit 11/13).
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const year = date.getFullYear()
-    return `${month}/${day}/${year}`
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateString || '')
+    const date = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(dateString)
+    if (isNaN(date.getTime())) return dateString
+    const sameYear = date.getFullYear() === new Date().getFullYear()
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) })
   }
 
   // Convert military time (HH:MM) to AM/PM format
@@ -180,7 +182,7 @@ export default function ViewToursModal({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <h3 className="font-bold text-[#111827] dark:text-white text-sm truncate">
-                            {tour.property?.street_address || 'Property'}
+                            {tidyAllCaps(tour.property?.street_address) || 'Property'}
                           </h3>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             {tour.is_completed && (
@@ -201,7 +203,7 @@ export default function ViewToursModal({
                         {tour.property?.city && tour.property?.state && (
                           <p className="text-[11px] text-[#6B7280] dark:text-gray-400 flex items-center gap-1 mt-0.5">
                             <MapPin size={10} className="text-[#C9A24D] flex-shrink-0" />
-                            {tour.property.city}, {tour.property.state}
+                            {tidyAllCaps(tour.property.city)}, {tour.property.state}
                           </p>
                         )}
 

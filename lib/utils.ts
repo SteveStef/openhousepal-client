@@ -6,7 +6,15 @@ export const cleanAddress = (address: string, city?: string): string => {
   if (!address) return 'Address Not Available';
 
   const parts = address.split(',').map(p => p.trim());
-  
+  // One listing for several house numbers ("170, 200, 220 OLD STATE RD") showed as "170" or
+  // "170, 200" - keep the numbers with their street as "170/200/220 Old State Rd" (audit 11/13).
+  const onlyNumber = /^\d+[A-Za-z]?(-\d+[A-Za-z]?)?$/
+  for (let i = 0; i < parts.length - 1; i++) {
+    let j = i
+    while (j < parts.length && onlyNumber.test(parts[j])) j++
+    if (j > i && j < parts.length && /^\d+\S*\s+\S/.test(parts[j])) parts.splice(i, j - i + 1, parts.slice(i, j + 1).join('/'))
+  }
+
   if (parts.length === 0) return 'Address Not Available';
 
   // If the first part is a state abbreviation or full state name, it's likely a malformed string
@@ -21,7 +29,7 @@ export const cleanAddress = (address: string, city?: string): string => {
   }
 
   // Take the street and the next part (usually city) if available in the same string
-  const streetPart = parts[streetIndex];
+  const streetPart = parts[streetIndex].replace(/\s*#\s*$/, '');  // an empty unit: "1169 RADNOR RD #"
   const cityInAddress = parts.length > streetIndex + 1 ? parts[streetIndex + 1] : '';
 
   // Use the provided city if the address string didn't seem to contain one

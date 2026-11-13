@@ -1212,7 +1212,7 @@ function AgentCard({ agent, street }: { agent: GuestPassData['agent']; street: s
           <div className="grid shrink-0 gap-2" style={{ gridTemplateColumns: `repeat(${actions.length}, minmax(0, 1fr))` }}>
             {actions.map(a => (
               <a key={a.label} href={a.href} {...(a.external ? { target: '_blank', rel: 'noopener' } : {})}
-                className="flex aspect-square min-w-0 flex-col items-center justify-center gap-1.5 rounded-2xl border border-black/[0.08] text-[9px] font-black uppercase tracking-[0.12em] transition-colors hover:border-[var(--gp)] hover:text-[var(--gp)] dark:border-white/[0.1] md:h-[68px] md:w-[68px]">
+                className="flex h-[72px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-2xl border border-black/[0.08] text-[9px] font-black uppercase tracking-[0.12em] transition-colors hover:border-[var(--gp)] hover:text-[var(--gp)] dark:border-white/[0.1] md:h-[68px] md:w-[68px]">
                 <a.icon className="h-5 w-5 text-[var(--gp)]" />
                 <span className="truncate">{a.label}</span>
               </a>

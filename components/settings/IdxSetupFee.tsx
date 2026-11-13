@@ -58,7 +58,7 @@ export default function IdxSetupFee({ startsOn, onCode }: { startsOn?: string | 
             PayPal charges it once when you approve. {when ? `Your first IDX month starts ${when}, when your current period ends.` : 'Your monthly IDX price starts after that.'} You only ever pay it once.
           </p>
           <div className="mt-3 flex gap-2">
-            <div className="relative flex-1">
+            <div className="relative min-w-0 flex-1">
               <Gift className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
               <input
                 id="idx-fee-code"

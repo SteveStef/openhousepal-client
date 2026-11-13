@@ -23,7 +23,8 @@ function UpgradeRequiredContent() {
   const requestedTier = searchParams.get('tier') as PlanTierId | null
   const askedTier: PlanTierId = requestedTier && VALID_TIERS.includes(requestedTier) ? requestedTier : 'PREMIUM'
   // Accounts outside Bright MLS can't move onto a Bright plan - their way up is No-MLS Premium.
-  const targetTier: PlanTierId = user && !user.mls_id && !['NO_MLS', 'PRO_NO_MLS'].includes(askedTier) ? 'PRO_NO_MLS' : askedTier
+  // Never for the IDX website: it shows Bright MLS homes, so no No-MLS plan has it.
+  const targetTier: PlanTierId = user && !user.mls_id && !['NO_MLS', 'PRO_NO_MLS', 'IDX'].includes(askedTier) ? 'PRO_NO_MLS' : askedTier
   const featureLabel = searchParams.get('feature') || 'This feature'
   const targetPlan = PRICING_PLANS[targetTier]
 
@@ -42,6 +43,34 @@ function UpgradeRequiredContent() {
   const nothingToBuy = !!currentTier && !hasInactiveSubscription
     && (currentTier === 'IDX' || topNoMls || (onNoMls(currentTier) === onNoMls(targetTier) && TIER_RANK[currentTier] >= TIER_RANK[targetTier]))
   if (isLoading) return <div className="min-h-screen" />
+  // Discovery, the Open House Manager and CMAs run on live Bright MLS data - no No-MLS plan has
+  // them, so never pitch No-MLS Premium for them (launch audit 11/13: No-MLS Basic was told
+  // "Bright MLS tools is included on No-MLS Premium", which can't open them either).
+  // Same for the IDX website (launch audit 11/13: a No-MLS agent tapping IDX was told "IDX Website is
+  // included on No-MLS Premium").
+  const idxAsk = askedTier === 'IDX' && featureLabel !== 'Bright MLS tools'
+  // Showcases match clients to live Bright MLS homes too - No-MLS Premium doesn't have them (Showcases
+  // audit 11/13: a No-MLS agent opening /showcases was told to upgrade to No-MLS Premium).
+  const showcaseAsk = /showcase/i.test(featureLabel)
+  if ((featureLabel === 'Bright MLS tools' || idxAsk || showcaseAsk) && currentTier && onNoMls(currentTier) && !hasInactiveSubscription) {
+    return (
+      <div className="flex min-h-[70vh] flex-col items-center justify-center px-6 py-16 text-center">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#C9A24D]/20 bg-[#C9A24D]/10 text-[#C9A24D]"><Lock className="h-8 w-8" strokeWidth={1.75} /></div>
+        <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.3em] text-[#C9A24D]">Bright MLS</span>
+        <h1 className="mb-3 text-3xl font-black tracking-tight text-[#111827] dark:text-white sm:text-4xl">This needs Bright MLS</h1>
+        <p className="max-w-md text-base leading-relaxed text-[#6B7280] dark:text-gray-400">
+          {showcaseAsk ? <>Showcases match your clients to live Bright MLS homes for sale, so they come with our Bright plans.</> : idxAsk ? <>Your {featureLabel === 'This feature' ? 'IDX website' : featureLabel} shows live Bright MLS homes for sale, so it comes with our IDX plan for Bright MLS members.</> : <>Discovery, the Open House Manager and CMAs run on live Bright MLS listings, so they come with our Bright plans.</>} Your <span className="font-medium text-[#111827] dark:text-white">{currentPlan?.name}</span> plan is made for agents without Bright MLS.
+        </p>
+        {/* No MLS ID on the account = Billing only offers No-MLS plans, so the way onto a Bright plan is
+            support adding the MLS ID (signup-settings audit 11/13: "See Bright plans" was a dead end). */}
+        <p className="mt-3 max-w-md text-sm leading-relaxed text-[#6B7280] dark:text-gray-400">Joined Bright MLS? Send us your MLS ID and we&apos;ll move you to a Bright plan, then {idxAsk || showcaseAsk ? (showcaseAsk ? 'they open' : 'it opens') : 'these open'} right up.</p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <button onClick={() => smartBack(router, '/dash')} className="rounded-xl border border-gray-200 px-6 py-3 text-sm font-black text-[#111827] transition-colors hover:border-[#C9A24D] dark:border-white/15 dark:text-white">Go back</button>
+          <button onClick={() => router.push('/settings/help?compose=1&category=support')} className="rounded-xl bg-[#111827] px-6 py-3 text-sm font-black text-white transition-colors hover:bg-[#C9A24D] dark:bg-white dark:text-[#111827] dark:hover:bg-[#C9A24D]">Send us your MLS ID</button>
+        </div>
+      </div>
+    )
+  }
   if (nothingToBuy) {
     const notOnPlan = topNoMls && !onNoMls(askedTier)
     return (
@@ -117,7 +146,11 @@ function UpgradeRequiredContent() {
                 so what an agent sees here always matches what they saw when they signed up. No
                 lift/translate here (unlike the homepage grid) so its top edge lines up exactly
                 with the current-plan card beside it. */}
-            <PricingTierCard tier={targetTier} ctaHref="/settings/subscription" ctaLabel={`Unlock ${featureLabel} — Upgrade Now`} />
+            {/* Phones stack the cards: the plan that unlocks it comes first (audit 11/13 - the
+                agent's own plan used to fill the screen and the upgrade sat far below it). */}
+            <div className="order-first md:order-none">
+              <PricingTierCard tier={targetTier} ctaHref="/settings/subscription" ctaLabel={featureLabel === 'This feature' ? `Upgrade to ${targetPlan.name}` : `Unlock ${featureLabel} — Upgrade Now`} />
+            </div>
           </div>
 
           {targetTier === 'IDX' && (

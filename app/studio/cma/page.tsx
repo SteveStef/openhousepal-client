@@ -19,6 +19,7 @@ import { LuxeTabs } from '@/components/ui/LuxeHero'
 import { AlertTriangle, CheckCircle2, LayoutGrid, PenLine, Sparkles } from 'lucide-react'
 import { estimatedProgress, estimatedTimeLeft } from '@/lib/cmaProgress'
 import { isTouchPhone, saveFile } from '@/lib/mobileShare'
+import { tidyAllCaps } from '@/lib/cheatSheetContent'
 
 // Which finished AI runs the agent has already opened from this list (per browser): report id ->
 // the generation_started_at of the run they saw. A run that finished in the last few hours and
@@ -160,13 +161,15 @@ function CmaDashboardInner() {
   }, [user])
 
   useEffect(() => {
+    // Only IDX plans have a website - asking on other plans just 403s (console noise).
+    if (!user || user.plan_tier !== 'IDX') return
     Promise.all([api.sites.getMine(), api.sites.getDomains()])
       .then(([siteResponse, domainsResponse]) => {
         if (siteResponse.success && siteResponse.data) setIdxSite(siteResponse.data)
         if (domainsResponse.success && domainsResponse.data) setIdxDomains(domainsResponse.data)
       })
       .catch(() => {})
-  }, [])
+  }, [user?.plan_tier])
 
   useEffect(() => {
     if (searchParams.get('new') === '1') setShowCreate(true)
@@ -454,7 +457,7 @@ function CmaDashboardInner() {
                     </span>
                   </div>
                   <div className="absolute inset-x-0 bottom-0 p-3.5">
-                    <p className="truncate text-xs font-black text-white drop-shadow-sm">{report.subject_address ? report.subject_address.split(',')[0] : 'No address yet'}</p>
+                    <p className="truncate text-xs font-black text-white drop-shadow-sm">{report.subject_address ? tidyAllCaps(report.subject_address.split(',')[0]) : 'No address yet'}</p>
                     {report.client_name && (
                       <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] font-bold text-white/85">
                         <User className="h-3 w-3 shrink-0" /> {report.client_name}
@@ -586,6 +589,7 @@ function CreateCmaModal({ onClose, onCreated }: { onClose: () => void, onCreated
   const [clientName, setClientName] = useState('')
   const [mode, setMode] = useState<CmaMode>('listing')
   const [isCreating, setIsCreating] = useState(false)
+  const [createError, setCreateError] = useState('')
   const [open, setOpen] = useState(true)
   const phone = useIsPhone()
   const reduce = useReducedMotion()
@@ -597,9 +601,10 @@ function CreateCmaModal({ onClose, onCreated }: { onClose: () => void, onCreated
 
   const handleCreate = async () => {
     setIsCreating(true)
+    setCreateError('')
     const response = await api.cma.create({ client_name: clientName.trim() || undefined, mode })
     if (response.success && response.data) onCreated(response.data.id)
-    else setIsCreating(false)
+    else { setIsCreating(false); setCreateError(response.error || "We couldn't start your CMA just now. Try again in a moment.") }
   }
 
   const options: { value: CmaMode, title: string, sub: string, icon: React.ComponentType<{ className?: string }> }[] = [
@@ -716,6 +721,7 @@ function CreateCmaModal({ onClose, onCreated }: { onClose: () => void, onCreated
                     ? <><Loader2 className="h-4 w-4 animate-spin" /> Setting up your CMA…</>
                     : <>Continue to Subject Property <ArrowLeft className="h-4 w-4 rotate-180" /></>}
                 </button>
+                {createError && <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600 dark:bg-red-500/10 dark:text-red-400">{createError}</p>}
               </motion.div>
             </motion.div>
           </motion.div>

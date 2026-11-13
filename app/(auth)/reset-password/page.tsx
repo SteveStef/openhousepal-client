@@ -59,7 +59,7 @@ function ResetPasswordForm() {
     if (tokenParam) {
       setToken(tokenParam)
     } else {
-      showNotification('error', 'Invalid or missing reset token')
+      showNotification('error', 'This reset link isn’t complete. Ask for a new one on the Forgot password page.')
     }
   }, [searchParams])
 
@@ -126,7 +126,7 @@ function ResetPasswordForm() {
     setNotification({ type: null, message: '' })
 
     if (!token) {
-      showNotification('error', 'Invalid or missing reset token')
+      showNotification('error', 'This reset link isn’t complete. Ask for a new one on the Forgot password page.')
       return
     }
 

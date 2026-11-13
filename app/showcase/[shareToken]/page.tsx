@@ -4,7 +4,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, Suspense, useRef } f
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { homeSlug } from '@/lib/showcaseLink'
 import { applyAccentRecolor } from '@/lib/accentRecolor'
-import { ArrowUpDown, MapPin, Calendar, SlidersHorizontal, Tag, BedDouble, GraduationCap, Home as HomeIcon, X } from 'lucide-react'
+import { ArrowUpDown, MapPin, Calendar, SlidersHorizontal, Tag, BedDouble, GraduationCap, Home as HomeIcon, X, Phone, MessageSquare, Mail } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Collection, CollectionPreferences, Property, Comment, TourRequest, PropertyTour } from '@/types'
 import { getToken } from '@/lib/token'
@@ -16,6 +16,7 @@ import ScheduleTourModal from '@/components/ScheduleTourModal'
 import TourStatusWindow, { tourState } from '@/components/TourStatusWindow'
 import EditShowcaseCriteriaModal from '@/components/EditShowcaseCriteriaModal'
 import { notify, useToast } from '@/contexts/ToastContext'
+import { tidyAllCaps } from '@/lib/cheatSheetContent'
 import MLSComplianceFooter from '@/components/MLSComplianceFooter'
 import LiveIndicator from '@/components/LiveIndicator'
 import { isPropertyAvailableStatus, haversineMiles, normalizeImageUrl } from '@/lib/utils'
@@ -829,7 +830,7 @@ function ShowcaseContent() {
   const handleScheduleTourClick = (property: Property, fresh = false) => {
     // Bright MLS: a Coming Soon home can't be shown to anyone until it goes active.
     if (/coming\s*soon/i.test(String((property as any).MlsStatus || (property as any).status || ''))) {
-      notify(`${(property as any).FullStreetAddress || 'This home'} is coming soon - showings open the day it goes active. Leave a comment and your agent will line you up first.`, 'success')
+      notify(`${tidyAllCaps((property as any).FullStreetAddress) || 'This home'} is coming soon - showings open the day it goes active. Leave a comment and your agent will line you up first.`, 'info')
       return
     }
     const t = latestTourFor(property.id)
@@ -921,18 +922,19 @@ function ShowcaseContent() {
   // only way in (it used to be three: Refine, the home card and the distance line).
   const prefsNow = (showcase?.preferences || {}) as any
   const kShort = (n: number) => (n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M` : `$${Math.round(n / 1000)}k`)
+  // Town / district names arrive in MLS capitals ("BERWYN") - shown as "Berwyn" beside "3+ beds".
+  const nice = (t: string) => (t === t.toUpperCase() ? t.toLowerCase().replace(/(^|\s)([a-z])/g, (_: string, x: string, c: string) => x + c.toUpperCase()) : t)
   const searchLine = [
     prefsNow.has_drawn_area ? 'The area your agent drew' : prefsNow.address && prefsNow.diameter ? `Within ${prefsNow.diameter} mi` : '',
-    ...((prefsNow.cities || []) as string[]).slice(0, 2).map(c => c.split(',')[0]),
+    ...((prefsNow.cities || []) as string[]).slice(0, 2).map(c => nice(c.split(',')[0])),
     ((prefsNow.cities || []) as string[]).length > 2 ? `+${prefsNow.cities.length - 2} towns` : '',
-    ...((prefsNow.school_districts || []) as string[]).slice(0, 1),
+    ...((prefsNow.school_districts || []) as string[]).slice(0, 1).map(nice),
     prefsNow.min_price || prefsNow.max_price
       ? (prefsNow.min_price && prefsNow.max_price ? `${kShort(prefsNow.min_price)} – ${kShort(prefsNow.max_price)}` : prefsNow.max_price ? `Up to ${kShort(prefsNow.max_price)}` : `${kShort(prefsNow.min_price)}+`)
       : '',
     prefsNow.min_beds ? `${prefsNow.min_beds}+ beds` : '',
     prefsNow.min_baths ? `${prefsNow.min_baths}+ baths` : '',
   ].filter(Boolean).join(' · ')
-  const nice = (t: string) => (t === t.toUpperCase() ? t.toLowerCase().replace(/(^|\s)([a-z])/g, (_: string, x: string, c: string) => x + c.toUpperCase()) : t)
   const whereTile = prefsNow.has_drawn_area ? 'Area your agent drew'
     : prefsNow.address && prefsNow.diameter ? `Within ${prefsNow.diameter} mi`
     : ((prefsNow.cities || []) as string[]).length ? ((prefsNow.cities as string[]).slice(0, 2).map(c => c.split(',')[0]).join(', ') + ((prefsNow.cities as string[]).length > 2 ? ` +${prefsNow.cities.length - 2}` : ''))
@@ -1252,6 +1254,10 @@ function ShowcaseContent() {
               </div>
             </div>
 
+            {/* Who picked these homes - and one tap to reach them (owner yes 11/13: the page never
+                said who their agent was outside "Sam recommends"). */}
+            <ShowcaseAgentCard showcase={showcase} />
+
             {/* Their search + the one big "Change your search" button, built into this header (it
                 was its own card under it - three headers stacked looked busy). */}
             {searchBar}
@@ -1467,6 +1473,51 @@ function ShowcaseContent() {
       </AnimatePresence>
 
       <MLSComplianceFooter />
+    </div>
+  )
+}
+
+
+/** "Your agent" row inside the client's Showcase header: photo (or gold initials), name + brokerage,
+ *  and Call / Text / Email. Phones: round icon buttons; computers: labelled pills. Hidden when the
+ *  page has no agent name (old links). */
+function ShowcaseAgentCard({ showcase }: { showcase: Collection }) {
+  const name = (showcase.agentFullName || showcase.agentName || '').trim()
+  if (!name) return null
+  const digits = (v?: string | null) => String(v || '').replace(/[^\d+]/g, '')
+  const call = digits(showcase.agentPhone)
+  const text = digits(showcase.agentTextPhone || showcase.agentPhone)
+  const first = name.split(' ')[0]
+  const actions = [
+    call ? { icon: Phone, label: 'Call', href: `tel:${call}` } : null,
+    text ? { icon: MessageSquare, label: 'Text', href: `sms:${text}` } : null,
+    showcase.agentEmail ? { icon: Mail, label: 'Email', href: `mailto:${showcase.agentEmail}?subject=${encodeURIComponent('My Showcase')}` } : null,
+  ].filter(Boolean) as { icon: typeof Phone; label: string; href: string }[]
+  const initials = name.split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()
+  return (
+    <div className="mx-4 mb-3 flex items-center gap-2.5 rounded-2xl border border-[#C9A24D]/20 bg-[#FAF7F0] px-2.5 py-2.5 sm:gap-3 dark:border-white/[0.08] dark:bg-white/[0.03] sm:mx-6 sm:px-4" data-testid="showcase-agent-card">
+      {showcase.agentPhotoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={showcase.agentPhotoUrl} alt={name} className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-[#C9A24D]/40 sm:h-11 sm:w-11" />
+      ) : (
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br sm:h-11 sm:w-11 from-[#C9A24D] to-[#e8c97a] text-sm font-black text-[#111827]">{initials}</span>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7355] dark:text-[#e8c97a]/80">Your agent</p>
+        <p className="truncate text-sm font-black text-[#111827] dark:text-white">{name}</p>
+        {showcase.agentBrokerage && <p className="truncate text-xs font-medium text-[#6B7280] dark:text-gray-400">{showcase.agentBrokerage}</p>}
+      </div>
+      {actions.length > 0 && (
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          {actions.map(a => (
+            <a key={a.label} href={a.href} aria-label={`${a.label} ${first}`} title={`${a.label} ${first}`}
+              className="grid h-9 w-9 place-items-center rounded-full border border-[#C9A24D]/35 bg-white text-[#8b7355] shadow-sm transition hover:border-[#C9A24D] hover:text-[#111827] active:scale-95 dark:border-white/10 dark:bg-white/[0.06] dark:text-[#e8c97a] sm:h-9 sm:w-auto sm:gap-1.5 sm:rounded-xl sm:px-3 sm:text-xs sm:font-black sm:inline-flex">
+              <a.icon className="h-4 w-4" />
+              <span className="hidden sm:inline">{a.label}</span>
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

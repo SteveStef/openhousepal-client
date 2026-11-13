@@ -1847,9 +1847,12 @@ export default async function PublicSitePage({
   // Luxe's accent snapped to its metal, Classic's never a metal (lib/siteTheme).
   theme = normalizeSiteTheme(theme)
 
-  if (path?.[0] === 'communities') {
+  if (path?.[0] === 'communities' || (path?.[0] === 'neighborhoods' && path[1] && path[1] !== 'compare')) {
+    // /communities/<town> and /neighborhoods/<town> (old links, guessed addresses) open the town's own
+    // page (/<town>) - they used to show the Neighborhoods list under a second address (audit 11/13).
     const legacyParams = await searchParams
-    const redirectedPath = ['neighborhoods', ...path.slice(1)].join('/')
+    const town = path[1] && path[1] !== 'compare' ? path[1] : null
+    const redirectedPath = town ? town : ['neighborhoods', ...path.slice(1)].join('/')
     const qs = queryString(legacyParams)
     permanentRedirect(`${basePrefix}/${redirectedPath}${qs ? `?${qs}` : ''}`)
   }
