@@ -2731,9 +2731,13 @@ class ApiService {
         }),
       }, false),
 
-    getEmailFrequency: (shareToken: string) => this.request<{ frequency: 'daily' | 'weekly' | 'biweekly'; emails_on: boolean; blocked: boolean }>(`/collections/shared/${shareToken}/email-frequency`, {}, false),
+    getEmailFrequency: (shareToken: string) => this.request<ClientEmailState>(`/collections/shared/${shareToken}/email-frequency`, {}, false),
     setEmailFrequency: (shareToken: string, frequency: 'daily' | 'weekly' | 'biweekly') =>
-      this.request<{ frequency: 'daily' | 'weekly' | 'biweekly'; emails_on: boolean; blocked: boolean }>(`/collections/shared/${shareToken}/email-frequency`, { method: 'PUT', body: JSON.stringify({ frequency }) }, false),
+      this.request<ClientEmailState>(`/collections/shared/${shareToken}/email-frequency`, { method: 'PUT', body: JSON.stringify({ frequency }) }, false),
+    dismissEmailNotice: (shareToken: string) =>
+      this.request<ClientEmailState>(`/collections/shared/${shareToken}/email-notice/dismiss`, { method: 'POST' }, false),
+    setEmailTime: (shareToken: string, send_time: string) =>
+      this.request<ClientEmailState>(`/collections/shared/${shareToken}/email-time`, { method: 'PUT', body: JSON.stringify({ send_time }) }, false),
     // Sends the sign-in when there is one, so an agent's own look isn't counted as the client's.
     showcaseOpened: (shareToken: string) => this.request(`/collections/shared/${shareToken}/opened`, { method: 'POST' }),
 

@@ -29,6 +29,7 @@ import { Eye } from 'lucide-react'
 import { SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
 import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
 import ClientEmailFrequency from '@/components/showcases/ClientEmailFrequency'
+import ClientEmailNotice from '@/components/showcases/ClientEmailNotice'
 
 export default function CustomerShowcasePage() {
   return (
@@ -1186,6 +1187,11 @@ function ShowcaseContent() {
                 })}
               </div>
             </div>
+          )}
+
+          {/* Their emails slowed to weekly / stopped because they weren't opened (11/11). */}
+          {shareToken && !showcase.customer?.is_blacklisted && (
+            <ClientEmailNotice shareToken={shareToken} onTurnedOn={() => setShowcase(prev => prev ? { ...prev, notifyVisitor: true } : prev)} />
           )}
 
           {/* Customer Header */}
