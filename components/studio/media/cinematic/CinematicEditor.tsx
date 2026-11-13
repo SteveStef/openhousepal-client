@@ -396,14 +396,6 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   const hiddenPhotos = useMemo(() => (s ? s.photos.filter(p => p.hidden) : []), [s])
   const needsSharpen = useMemo(() => (s ? visible.filter(p => !p.sharp).length : 0), [s, visible])
 
-  // ---- AI usage estimate (sharpening the photos that aren't yet)
-  useEffect(() => {
-    if (!s) return
-    let alive = true
-    const n = Math.max(1, needsSharpen)
-    const t = setTimeout(() => api.mediaLab.motion.estimate(n, true).then(r => { if (alive && r.success && r.data) setEst(r.data) }), 300)
-    return () => { alive = false; clearTimeout(t) }
-  }, [needsSharpen, s?.sharpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (step !== S.make && view !== 'video') return
@@ -412,6 +404,16 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
 
   const timeline = useMemo(() => (s ? buildTimeline({ ...s, photos: s.photos.map(p => ({ ...p, src: '' })) } as never) : null), [s])
   const length = timeline?.duration ?? 0
+  // ---- AI usage estimate: sharpening the photos that aren't yet + making the video itself (AWS,
+  // owner 11/13 - its share depends on how long the video is)
+  const lengthBucket = Math.round(length / 5) * 5
+  useEffect(() => {
+    if (!s) return
+    let alive = true
+    const n = Math.max(1, needsSharpen)
+    const t = setTimeout(() => api.mediaLab.motion.estimate(n, true, lengthBucket || 30).then(r => { if (alive && r.success && r.data) setEst(r.data) }), 300)
+    return () => { alive = false; clearTimeout(t) }
+  }, [needsSharpen, s?.sharpen, lengthBucket]) // eslint-disable-line react-hooks/exhaustive-deps
   // "To make": the video maker's measured speed + the line ahead right now (QA 11/12 - was a fixed
   // guess); the old rule of thumb only if it hasn't answered.
   const makeSecs = speed?.sec_per_frame
@@ -544,7 +546,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
             </Pick>
           ))}
         </div>
-        <p className="mt-3 text-[11px] font-semibold text-gray-400">Every other shape is made fresh for its screen later (nothing gets cut off) - a few minutes each, no AI usage.</p>
+        <p className="mt-3 text-[11px] font-semibold text-gray-400">Every other shape is made fresh for its screen later (nothing gets cut off) - a few minutes each{est?.render_paid ? ', each a small share of your monthly AI' : ', no AI usage'}.</p>
       </Card>
     </div>
   )
@@ -964,10 +966,10 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
             {missingDepth ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#C9A24D]" /> : <Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} />}
             3D depth for each photo: {missingDepth ? 'getting ready (free)' : 'ready (free)'}
           </p>
-          <p className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} /> Making the video itself uses no AI - edits and remakes are free</p>
+          <p className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} /> {est?.render_paid ? `Making the video: ${aboutPct(est.render_percent)} of your monthly AI (each update or extra shape is made again)` : 'Making the video itself uses no AI - edits and remakes are free'}</p>
           {!!speed?.busy && (
             <p className="flex items-center gap-2"><Clapperboard className="h-3.5 w-3.5 text-[#C9A24D]" />
-              {`${(speed.queued || 0) + 1} ${(speed.queued || 0) + 1 === 1 ? 'video is' : 'videos are'} being made ahead of yours right now - that's included in the time`}</p>
+              {`${(speed.queued || 0) + 1} ${(speed.queued || 0) + 1 === 1 ? 'video' : 'videos'} ahead of yours in line right now - that's included in the time`}</p>
           )}
           <p className="flex items-center gap-2">
             <Sparkles className="h-3.5 w-3.5 text-[#C9A24D]" />
@@ -977,9 +979,10 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
         <MonthlyAiUsageMeter variant="inline" compact stretch className="mt-4" />
       </Card>
       {workerUp === false && <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">The video maker is restarting - give it a minute, then press the button.</p>}
-      {(est?.sharpen_paused || est?.soft_capped) && needsSharpen > 0 && <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">You&apos;ve reached your AI limit for now, so this video is made without the extra sharpening. It still looks great, and you can update it later to add it.</p>}
+      {est?.render_paid && est?.render_paused && <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">You&apos;ve reached your AI limit for now, so new videos can&apos;t be made until it resets. Your finished videos still play and save.</p>}
+      {!est?.render_paid && (est?.sharpen_paused || est?.soft_capped) && needsSharpen > 0 && <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">You&apos;ve reached your AI limit for now, so this video is made without the extra sharpening. It still looks great, and you can update it later to add it.</p>}
       <div className={embedded ? '' : 'hidden sm:block'}>
-        <button type="button" onClick={() => make()} disabled={!!busy || rendering || workerUp === false}
+        <button type="button" onClick={() => make()} disabled={!!busy || rendering || workerUp === false || !!(est?.render_paid && est?.render_paused)}
           className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#111827] to-[#2a2a2e] px-6 py-4 text-base font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl disabled:translate-y-0 disabled:opacity-50 dark:from-white dark:to-gray-200 dark:text-[#111827]">
           {busy === 'make' || rendering ? <Loader2 className="h-5 w-5 animate-spin" /> : <Clapperboard className="h-5 w-5 text-[#C9A24D]" />}
           {rendering ? 'Making your video…' : asset.result_url ? 'Update my video' : 'Make my video'}
@@ -1062,7 +1065,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
                     </button>
                   ) : (
                     <button type="button" onClick={() => make(f.id)} disabled={rendering || !!busy || changesPending}
-                      title={changesPending ? 'Update your video first' : 'Free - no AI'}
+                      title={changesPending ? 'Update your video first' : est?.render_paid ? 'Uses a small share of your monthly AI' : 'Free - no AI'}
                       className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[11px] font-black text-gray-700 hover:border-[#C9A24D] disabled:opacity-50 dark:border-gray-700 dark:text-gray-200">
                       {makingThis || busy === `fmt-${f.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Make it
                     </button>
@@ -1071,7 +1074,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
               )
             })}
           </div>
-          <p className="mt-2.5 text-[10.5px] font-semibold text-gray-400">Extra shapes take about a minute and use no AI.</p>
+          <p className="mt-2.5 text-[10.5px] font-semibold text-gray-400">{est?.render_paid ? `Extra shapes take a few minutes, ${aboutPct(est.render_percent)} of your monthly AI each.` : 'Extra shapes take about a minute and use no AI.'}</p>
         </Card>
         <Card>
           <CardTitle title="Sections" sub="Tap to take something out - or put it back" />
@@ -1100,8 +1103,8 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}>
               <Card className="border-[#C9A24D]/50">
                 <p className="font-serif text-base font-black text-[#111827] dark:text-white">You have changes</p>
-                <p className="mt-0.5 text-xs font-semibold text-gray-500">Preview them above, then update your video. No AI usage{needsSharpen > 0 && !est?.sharpen_paused ? ` (except sharpening ${needsSharpen} new photo${needsSharpen === 1 ? '' : 's'}, ${aboutPct(sharpenPct)})` : ''}.</p>
-                <button type="button" onClick={() => make()} disabled={!!busy || workerUp === false}
+                <p className="mt-0.5 text-xs font-semibold text-gray-500">Preview them above, then update your video. {est?.render_paid ? `Updating it uses ${aboutPct((est.render_percent || 0) + (needsSharpen > 0 && !est?.sharpen_paused ? (sharpenPct || 0) : 0))} of your monthly AI.` : <>No AI usage{needsSharpen > 0 && !est?.sharpen_paused ? ` (except sharpening ${needsSharpen} new photo${needsSharpen === 1 ? '' : 's'}, ${aboutPct(sharpenPct)})` : ''}.</>}</p>
+                <button type="button" onClick={() => make()} disabled={!!busy || workerUp === false || !!(est?.render_paid && est?.render_paused)}
                   className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#111827] to-[#2a2a2e] py-3 text-sm font-black text-white shadow-lg disabled:opacity-50 dark:from-white dark:to-gray-200 dark:text-[#111827]">
                   {busy === 'make' ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4 text-[#C9A24D]" />} Update my video
                 </button>
@@ -1228,7 +1231,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
         <FlowDock step={step + 1} total={STEPS.length}
           onBack={step > 0 ? () => goStep(step - 1) : undefined}
           onContinue={step < STEPS.length - 1 ? () => goStep(step + 1) : () => make()}
-          disabled={step < STEPS.length - 1 ? !canNext(step) : (rendering || workerUp === false)}
+          disabled={step < STEPS.length - 1 ? !canNext(step) : (rendering || workerUp === false || !!(est?.render_paid && est?.render_paused))}
           busy={busy === 'make' || (step === STEPS.length - 1 && rendering)}
           note={step < STEPS.length - 1 && !canNext(step) ? nextBlockedReason(step) : undefined}
           continueLabel={step < STEPS.length - 1 ? 'Next' : rendering ? 'Making…' : asset.result_url ? 'Update video' : 'Make video'}

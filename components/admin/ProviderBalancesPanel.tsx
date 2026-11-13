@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ExternalLink, AlertTriangle, Loader2, CircleDollarSign, Info } from 'lucide-react'
 import api from '@/lib/api-service'
+import ProviderLimitsCard from '@/components/admin/ProviderLimitsCard'
 import { AIAdminOverview } from '@/types'
 
 // Every third-party service OpenHousePal pays real money for. Deliberately static, not derived
@@ -137,6 +138,7 @@ export default function ProviderBalancesPanel() {
 
   return (
     <div>
+      <ProviderLimitsCard />
       <div className="mb-6 flex items-start gap-3 rounded-2xl border border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-[#151517]">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#6B7280] dark:text-gray-500" />
         <p className="text-xs font-semibold text-[#6B7280] dark:text-gray-400 leading-relaxed">

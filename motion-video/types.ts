@@ -114,7 +114,7 @@ export type MotionProps = {
   /** Test only (local example renders): override the no-warp limit. Never set by the app. */
   safeShift?: number
   /** Test only: drawing cost knobs for the final render (3D march steps, highlight-glow samples). */
-  perf?: { steps?: number; glow?: number }
+  perf?: { steps?: number; glow?: number; dil?: number }
   /** Where static files (fonts, music) live - '' in the app, the worker's own server otherwise. */
   assetBase?: string
 }

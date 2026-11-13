@@ -817,6 +817,8 @@ class ApiService {
         `/admin/users/${userId}/test-copy?source_user_id=${encodeURIComponent(sourceUserId)}`, { method: 'PATCH' }),
 
     getAIOverview: () => this.request<AIAdminOverview>('/admin/ai/overview'),
+    // every paid provider vs its free monthly allowance / our cap (owner 11/13)
+    getProviderLimits: () => this.request<{ month: string; updated_at: string; rows: { key: string; provider: string; label: string; used: number; limit: number | null; unit: string; percent: number | null; note: string; spend_usd: number | null; kind: string }[] }>('/admin/ai/provider-limits'),
     getAIHelperSwitch: () => this.request<{ open_to_all: boolean }>('/admin/ai/helper-switch'),
     setAIHelperSwitch: (on: boolean) =>
       this.request<{ open_to_all: boolean }>('/admin/ai/helper-switch', { method: 'PUT', body: JSON.stringify({ open_to_all: on }) }),
@@ -1761,9 +1763,9 @@ class ApiService {
         this.request<StudioMediaAsset>(`/studio/media-lab/motion/${assetId}/analyze`, { method: 'POST' }),
       render: (assetId: string, body: { sharpen?: boolean; format?: string }) =>
         this.request<StudioMediaAsset>(`/studio/media-lab/motion/${assetId}/render`, { method: 'POST', body: JSON.stringify(body) }),
-      estimate: (photos: number, sharpen: boolean) =>
-        this.request<{ photos: number; analyze_usd: number; sharpen_usd: number; analyze_percent: number | null; sharpen_percent: number | null; month_percent: number | null; soft_capped: boolean; sharpen_paused?: boolean }>(
-          `/studio/media-lab/motion/estimate?photos=${photos}&sharpen=${sharpen ? 'true' : 'false'}`),
+      estimate: (photos: number, sharpen: boolean, seconds = 30) =>
+        this.request<{ photos: number; analyze_usd: number; sharpen_usd: number; analyze_percent: number | null; sharpen_percent: number | null; month_percent: number | null; soft_capped: boolean; sharpen_paused?: boolean; render_usd?: number; render_percent?: number | null; render_paid?: boolean; render_paused?: boolean }>(
+          `/studio/media-lab/motion/estimate?photos=${photos}&sharpen=${sharpen ? 'true' : 'false'}&seconds=${Math.min(120, Math.max(5, Math.round(seconds || 30)))}`),
       health: () => this.request<{ worker: boolean; wait_seconds?: number; sec_per_frame?: number; start_seconds?: number; save_seconds?: number; queued?: number; busy?: boolean }>('/studio/media-lab/motion/health'),
     },
 

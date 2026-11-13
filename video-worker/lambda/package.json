@@ -1,0 +1,22 @@
+{
+  "name": "ohp-video-lambda",
+  "private": true,
+  "description": "Cinematic Video on AWS Lambda (Remotion Lambda) - setup, upload the video template, quota, cost check. Versions must match the frontend's remotion (4.0.529) and the backend's remotion-lambda.",
+  "type": "module",
+  "scripts": {
+    "setup": "node setup.mjs",
+    "deploy-site": "node deploy-site.mjs",
+    "quota": "node quota.mjs",
+    "cost": "node cost.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch-logs": "^3",
+    "@aws-sdk/client-iam": "^3",
+    "@aws-sdk/client-lambda": "^3",
+    "@aws-sdk/client-service-quotas": "^3",
+    "@remotion/lambda": "4.0.529"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

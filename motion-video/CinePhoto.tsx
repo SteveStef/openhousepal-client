@@ -66,6 +66,116 @@ const calmDepth = (r: number, ux: number) => {
   return r - Math.max(0, r - cap) * 0.85
 }
 
+/** How far close things are widened in the depth map, in px of a 1024-wide map. Depth models draw thin
+ *  close things (a newel post's ball, spindles, chair rails) a little THINNER than they are, so their
+ *  outer pixels count as "far" and the room behind slid over them - owner 11/13: the stair post's ball
+ *  looked bitten. Widening the near side (a max filter; bright = near) keeps every edge pixel with its
+ *  object. */
+const DEPTH_GROW = 6
+
+function dilateDepth(src: HTMLImageElement | HTMLCanvasElement, grow: number): HTMLImageElement | HTMLCanvasElement {
+  try {
+    const w = (src as HTMLImageElement).naturalWidth || src.width, h = (src as HTMLImageElement).naturalHeight || src.height
+    const r = Math.round(grow * (w / 1024))
+    if (r < 1 || w < 8 || h < 8) return src
+    const c = document.createElement('canvas'); c.width = w; c.height = h
+    const x = c.getContext('2d', { willReadFrequently: true })!; x.drawImage(src, 0, 0)
+    const img = x.getImageData(0, 0, w, h), d = img.data
+    const a = new Uint8Array(w * h), b = new Uint8Array(w * h)
+    for (let i = 0; i < w * h; i++) a[i] = d[i * 4]
+    for (let y = 0; y < h; y++) for (let xx = 0; xx < w; xx++) {
+      let m = 0
+      for (let k = Math.max(0, xx - r); k <= Math.min(w - 1, xx + r); k++) m = Math.max(m, a[y * w + k])
+      b[y * w + xx] = m
+    }
+    for (let y = 0; y < h; y++) for (let xx = 0; xx < w; xx++) {
+      let m = 0
+      for (let k = Math.max(0, y - r); k <= Math.min(h - 1, y + r); k++) m = Math.max(m, b[k * w + xx])
+      d[(y * w + xx) * 4] = d[(y * w + xx) * 4 + 1] = d[(y * w + xx) * 4 + 2] = m
+    }
+    x.putImageData(img, 0, 0)
+    return c
+  } catch {
+    return src
+  }
+}
+
+/** Where the breeze may move the photo (0..1 in red), made ONCE per photo. Owner 11/13: "only the
+ *  leaves, not grass" - green alone also caught lawns, far fields, hedges seen through porch screens.
+ *  Leaves = leaf colours + a BUSY light/dark pattern (leaf and gap), averaged over a wide area so a whole
+ *  treetop moves together (a patchy mask would shear clumps like jelly); not ground (depth keeps getting
+ *  nearer going down); upper part of the photo only. Tuned on real listing photos 11/13. */
+function swayMask(img: HTMLImageElement, dep: CanvasImageSource | null): HTMLCanvasElement | null {
+  try {
+    const w = 1024
+    const h = Math.max(4, Math.round(w * ((img.naturalHeight || img.height) / Math.max(1, img.naturalWidth || img.width))))
+    const read = (src: CanvasImageSource) => {
+      const c = document.createElement('canvas'); c.width = w; c.height = h
+      const x = c.getContext('2d', { willReadFrequently: true })!; x.drawImage(src, 0, 0, w, h)
+      return x.getImageData(0, 0, w, h).data
+    }
+    const P = read(img)
+    const D = dep ? read(dep) : null
+    const n = w * h
+    const ss = (e0: number, e1: number, v: number) => { const t = Math.min(1, Math.max(0, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t) }
+    const L = new Float32Array(n), base = new Float32Array(n)
+    for (let i = 0; i < n; i++) {
+      const r = P[i * 4] / 255, g = P[i * 4 + 1] / 255, b = P[i * 4 + 2] / 255
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), dl = mx - mn
+      let hue = 0
+      if (dl > 1e-6) hue = mx === r ? 60 * (((g - b) / dl) % 6) : mx === g ? 60 * ((b - r) / dl + 2) : 60 * ((r - g) / dl + 4)
+      if (hue < 0) hue += 360
+      const sat = mx > 0 ? dl / mx : 0
+      L[i] = 0.299 * r + 0.587 * g + 0.114 * b
+      const y = Math.floor(i / w) / h
+      base[i] = ss(54, 70, hue) * (1 - ss(157, 173, hue)) * ss(0.2, 0.32, sat) * ss(0.04, 0.1, mx) * Math.min(1, Math.max(0, (0.66 - y) / 0.2))
+    }
+    // local contrast vs 4 neighbours 2 px away, then a wide box blur (radius 14, two passes)
+    let con = new Float32Array(n)
+    for (let y = 2; y < h - 2; y++) for (let x = 2; x < w - 2; x++) {
+      const i = y * w + x, l = L[i]
+      con[i] = (Math.abs(l - L[i - 2]) + Math.abs(l - L[i + 2]) + Math.abs(l - L[i - 2 * w]) + Math.abs(l - L[i + 2 * w])) / 4
+    }
+    const R = 14
+    const blur = (src: Float32Array, horiz: boolean) => {
+      const out = new Float32Array(n)
+      const len = horiz ? w : h, lines = horiz ? h : w
+      for (let a = 0; a < lines; a++) {
+        let sum = 0
+        const at = (k: number) => src[horiz ? a * w + Math.min(len - 1, Math.max(0, k)) : Math.min(len - 1, Math.max(0, k)) * w + a]
+        for (let k = -R; k <= R; k++) sum += at(k)
+        for (let k = 0; k < len; k++) {
+          out[horiz ? a * w + k : k * w + a] = sum / (2 * R + 1)
+          sum += at(k + R + 1) - at(k - R)
+        }
+      }
+      return out
+    }
+    con = blur(blur(con, true), false)
+    const k = Math.max(1, Math.round(0.035 * h))
+    const dv = (x: number, y: number) => (D ? D[(Math.min(h - 1, Math.max(0, y)) * w + x) * 4] / 255 : 0.5)
+    const c = document.createElement('canvas'); c.width = w; c.height = h
+    const cx = c.getContext('2d')!
+    const out = cx.createImageData(w, h)
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x
+      let m = base[i]
+      if (m > 0.004) {
+        m *= ss(0.032, 0.065, con[i])
+        if (D && m > 0.004) {
+          const g0 = dv(x, y - 2 * k), g1 = dv(x, y - k), g2 = dv(x, y), g3 = dv(x, y + k), g4 = dv(x, y + 2 * k)
+          m *= 1 - ss(0.0015, 0.006, Math.min(g1 - g0, g2 - g1, g3 - g2, g4 - g3))
+        }
+      }
+      out.data[i * 4] = Math.round(Math.min(1, m) * 255); out.data[i * 4 + 3] = 255
+    }
+    cx.putImageData(out, 0, 0)
+    return c
+  } catch {
+    return null
+  }
+}
+
 /** The biggest near-vs-far jump in this depth map (0..1), ignoring the odd stray pixel. */
 function depthEdge(img: TexImageSource & { width: number; height: number }): number {
   try {
@@ -211,7 +321,7 @@ float band(float v, float a, float b, float s){ return smoothstep(a-s, a+s, v) *
 
 const FS_SCENE = `precision highp float;
 varying vec2 s;
-uniform sampler2D img; uniform sampler2D dep; uniform sampler2D bimg; uniform sampler2D bdep;
+uniform sampler2D img; uniform sampler2D dep; uniform sampler2D bimg; uniform sampler2D bdep; uniform sampler2D swm;
 uniform float imgAsp; uniform float frameAsp; uniform vec2 texel;
 uniform vec3 C; uniform vec3 rot; uniform float f; uniform float fOut;
 uniform float zN; uniform float zF; uniform float steps; uniform float gapMin;
@@ -305,25 +415,14 @@ void main(){
   vec2 uvF = clamp(proj(C + d * tFront), 0.001, 0.999);
   float D = behind ? mix(disp(uvF), dispB(uv), wB) : disp(uv);
   vec3 sc = hsv(soft(uv));
-  // trees and shrubs in a light breeze (higher up = more movement). Owner 11/13: lawns and fields
-  // stay put - a lawn waving looked like water. Ground is told apart by its depth: going down the
-  // photo it keeps getting nearer, step after step; trees and bushes stand up (depth ~flat going down).
-  // Leaf colours only (yellow-brown stone and dull window reflections stay still).
+  // treetops in a light breeze. WHERE comes from the leaf map made once per photo (swayMask: leaves
+  // only - not lawns, fields, hedges through screens). Owner 11/13: green "waving like water" - a fine
+  // fast jitter on top made every leaf shimmer; now only the slow, gentle sway.
   if (fx.w > 0.0) {
-    float tm = band(sc.x, 62.0, 165.0, 8.0) * smoothstep(0.2, 0.32, sc.y) * smoothstep(0.04, 0.1, sc.z)
-             * clamp((0.74 - uv.y) / 0.22, 0.0, 1.0);
-    if (tm > 0.01) {
-      float k = 0.035;
-      float g0 = texture2D(dep, clamp(uv - vec2(0.0, 2.0*k), 0.0, 1.0)).r, g1 = texture2D(dep, clamp(uv - vec2(0.0, k), 0.0, 1.0)).r;
-      float g2 = texture2D(dep, clamp(uv, 0.0, 1.0)).r;
-      float g3 = texture2D(dep, clamp(uv + vec2(0.0, k), 0.0, 1.0)).r, g4 = texture2D(dep, clamp(uv + vec2(0.0, 2.0*k), 0.0, 1.0)).r;
-      float slope = min(min(g1 - g0, g2 - g1), min(g3 - g2, g4 - g3));
-      tm *= 1.0 - smoothstep(0.0015, 0.006, slope);
-    }
+    float tm = texture2D(swm, uv).r;
     if (tm > 0.01) {
       vec2 w = vec2(fbm(uv*vec2(5.0,3.0) + vec2(t*0.32, t*0.11)) - 0.5, fbm(uv*vec2(3.0,5.0) + vec2(4.0 - t*0.21, t*0.17)) - 0.5);
-      vec2 r = vec2(n(uv*80.0 + t*2.2) - 0.5, n(uv*80.0 - t*1.9 + 9.0) - 0.5);
-      uv += (w * 0.0042 + r * 0.0007) * tm * fx.w * (1.15 - uv.y*0.6);
+      uv += w * 0.0032 * tm * fx.w * (1.15 - uv.y*0.6);
     }
   }
   // pool water: refraction ripple + moving caustic glints
@@ -494,7 +593,7 @@ const subscribePq = (cb: () => void) => { pq.subs.add(cb); return () => { pq.sub
 export const previewLevel = () => pq.level
 
 export const CinePhoto: React.FC<{
-  src: string; depth?: string | null; W: number; H: number; cam: CineCam; preview?: boolean; perf?: { steps?: number; glow?: number }
+  src: string; depth?: string | null; W: number; H: number; cam: CineCam; preview?: boolean; perf?: { steps?: number; glow?: number; dil?: number }
   style?: React.CSSProperties
 }> = ({ src, depth, W, H, cam, preview, perf, style }) => {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -562,9 +661,13 @@ export const CinePhoto: React.FC<{
         x.drawImage(a, 0, 0, c.width, c.height)
         photo = c; pw = c.width; ph = c.height
       }
-      tex(0, photo); tex(1, dsrc)
+      tex(0, photo); tex(1, depth ? dilateDepth(dsrc, perf?.dil ?? DEPTH_GROW) : dsrc)
       const plates = depth && BEHIND_FILL ? bgPlates(a, dsrc as CanvasImageSource) : null
       tex(2, plates ? plates.color : photo); tex(3, plates ? plates.depth : b)
+      // the leaf map (where the breeze may move) - only for photos with trees in the breeze
+      const none = document.createElement('canvas'); none.width = 2; none.height = 2
+      none.getContext('2d')!.fillRect(0, 0, 2, 2)
+      tex(5, (cam.sway > 0 ? swayMask(a, depth ? (dsrc as CanvasImageSource) : null) : null) || none)
       const sceneTex = tex(4, null, cw, ch)
       const fbo = gl.createFramebuffer()!
       gl.bindFramebuffer(gl.FRAMEBUFFER, fbo)
@@ -573,6 +676,7 @@ export const CinePhoto: React.FC<{
       gl.useProgram(scene)
       gl.uniform1i(gl.getUniformLocation(scene, 'img'), 0); gl.uniform1i(gl.getUniformLocation(scene, 'dep'), 1)
       gl.uniform1i(gl.getUniformLocation(scene, 'bimg'), 2); gl.uniform1i(gl.getUniformLocation(scene, 'bdep'), 3)
+      gl.uniform1i(gl.getUniformLocation(scene, 'swm'), 5)
       gl.useProgram(lens)
       gl.uniform1i(gl.getUniformLocation(lens, 'scene'), 4)
       glRef.current = { gl, scene, lens, fbo, buf, imgW: pw, imgH: ph, edge: depth ? depthEdge(dsrc) : 0 }
