@@ -11,6 +11,7 @@ import ExpandOnFocus from '@/components/ui/ExpandOnFocus'
 import { useImagesReady } from '@/hooks/useImagesReady'
 import { clockRange, dayShort } from '@/components/open-house-manager/HostFlowParts'
 import EmailHostFlow from '@/components/open-house-manager/EmailHostFlow'
+import HostAnyFlow, { offersHostAny } from '@/components/open-house-manager/HostAnyFlow'
 import {
   Search, Filter, ChevronDown, ChevronLeft, ChevronRight, Home, Bed, Bath,
   MapPin, Calendar, CalendarX, Inbox,
@@ -498,6 +499,7 @@ export default function OpenHouseDiscovery() {
   // click-to-prefill behavior Manager's own property cards already have.
   const [requestPrefillDate, setRequestPrefillDate] = useState<string | null>(null)
   const [emailFallbackProperty, setEmailFallbackProperty] = useState<any>(null)
+  const [hostAnyProperty, setHostAnyProperty] = useState<any>(null)
   // true = they already sent an in-app request and chose "Also text or email" (EmailHostFlow also mode)
   const [emailAlso, setEmailAlso] = useState(false)
   const [quickViewListingKey, setQuickViewListingKey] = useState<string | null>(null)
@@ -1138,7 +1140,8 @@ export default function OpenHouseDiscovery() {
                     stats={[
                       { label: 'Listings', value: listings.length, icon: Home, alert: true },
                       { label: 'No opens', value: listings.filter((p: any) => listingStatuses[p.ListingKey]?.status === 'needs_host').length, icon: CalendarX },
-                      { label: 'Pending', value: myRequests.filter(r => r.status === 'pending').length, icon: Inbox },
+                      // An "any of these" ask counts once, however many homes it covers (11/12).
+                      { label: 'Pending', value: new Set(myRequests.filter(r => r.status === 'pending').map((r: any) => r.group_id || r.id)).size, icon: Inbox },
                       { label: 'Accepted', value: myRequests.filter(r => r.status === 'approved').length, icon: CheckCircle2 },
                     ]}
                   />
@@ -1996,7 +1999,12 @@ export default function OpenHouseDiscovery() {
                             // Skip straight to the email template if we already know this listing
                             // agent has no OpenHousePal account - no point making the agent fill
                             // out a date/time form first just to get bounced to email after submit.
-                            if (p.AgentOnPlatform) {
+                            // The listing agent has more homes that could use a host (and no team
+                            // ask is waiting here): "I'd host any of these" (owner, 11/12).
+                            if (offersHostAny(p) && !incomingBroadcasts.some(b => b.listing_key === p.ListingKey)) {
+                              setHostAnyProperty(p)
+                              setRequestPrefillDate(prefillDate || null)
+                            } else if (p.AgentOnPlatform) {
                               setSelectedPropertyForRequest(p)
                               setRequestPrefillDate(prefillDate || null)
                             } else {
@@ -2117,6 +2125,17 @@ export default function OpenHouseDiscovery() {
                 setEmailFallbackProperty(selectedPropertyForRequest)
                 setSelectedPropertyForRequest(null)
               }}
+            />
+          )}
+
+          {hostAnyProperty && (
+            <HostAnyFlow
+              key={hostAnyProperty.ListingKey}
+              property={hostAnyProperty}
+              user={user}
+              initialDate={requestPrefillDate || undefined}
+              onClose={() => { setHostAnyProperty(null); setRequestPrefillDate(null) }}
+              onSent={refreshMyRequests}
             />
           )}
 

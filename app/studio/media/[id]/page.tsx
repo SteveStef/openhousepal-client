@@ -125,6 +125,8 @@ function MediaResultPage() {
     api.mediaLab.getAsset(id).then(({ success, data }) => {
       if (!alive) return
       if (!success || !data) { setNotFound(true); setLoading(false); return }
+      // Cinematic Videos have their own editor (projects list, Activity bell and emails link here).
+      if (data.action === 'motion') { router.replace(`/studio/media/motion/${data.id}`); return }
       setCurrent(data)
       setLoading(false)
       // A photo edit now runs in the background too (it used to hold the request open, and a

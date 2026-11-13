@@ -1,0 +1,19 @@
+{
+  "name": "ohp-video-worker",
+  "private": true,
+  "description": "Cinematic Video render server - only what video-worker/server.mjs + motion-video/ need (versions match the frontend's package.json).",
+  "type": "module",
+  "scripts": {
+    "start": "node video-worker/server.mjs"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.529",
+    "@remotion/renderer": "4.0.529",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "remotion": "4.0.529"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

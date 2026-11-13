@@ -7,6 +7,7 @@ import { ArrowRight, Bath, Bed, CalendarCheck, CalendarPlus, ChevronDown, Clock,
 import api from '@/lib/api-service'
 import RequestToHostModal from '@/components/open-house-manager/RequestToHostModal'
 import EmailHostFlow from '@/components/open-house-manager/EmailHostFlow'
+import HostAnyFlow, { offersHostAny } from '@/components/open-house-manager/HostAnyFlow'
 import MyRequestsPanel from '@/components/open-house-manager/MyRequestsPanel'
 import PropertyQuickViewModal from '@/components/PropertyQuickViewModal'
 import { refreshOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
@@ -70,6 +71,7 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
   // Everything else opens right here too (user, 10/29: "it shouldn't take you to the discovery page"):
   // the email window for a listing agent not on OpenHousePal, the home's quick view, and My Requests.
   const [emailing, setEmailing] = useState<DiscoveryListing | null>(null)
+  const [askingAny, setAskingAny] = useState<{ listing: DiscoveryListing; date?: string } | null>(null)
   const [viewing, setViewing] = useState<string | null>(null)
   const [requests, setRequests] = useState<{ focus: string | null } | null>(null)
   // In the chat (owner, 11/04: "so long"): every home folds to one line - photo, address, open dates -
@@ -87,6 +89,11 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
   }, [inChat])
   const wideChat = inChat && boxW >= 640
   const ask = (listing: DiscoveryListing, date?: string) => {
+    // More homes from this listing agent: "I'd host any of these" (owner, 11/12).
+    if (offersHostAny(listing)) {
+      setAskingAny({ listing, date })
+      return
+    }
     if ((listing as { AgentOnPlatform?: boolean }).AgentOnPlatform === false) {
       setEmailing(listing)
       return
@@ -102,6 +109,22 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
     .filter(r => String(r.counter_date || r.requested_date) >= today)
     .filter(r => r.status !== 'declined' || (r.responded_at || r.created_at) >= weekAgo)
     .sort((a, b) => (rank[a.status] - rank[b.status]) || String(a.requested_date).localeCompare(String(b.requested_date)))
+  // One line per ask: an "any of these" ask still waiting (or all turned down) is one line, and a
+  // home that closed because you got another one that day isn't a "Not this time" (11/12).
+  const shown: { r: HostRequest; homes: number; whens: string[] }[] = []
+  const seenAsk = new Set<string>()
+  for (const r of mine) {
+    if ((r.closed_note || '').startsWith('Closed - you')) continue
+    if (r.group_id && (r.status === 'pending' || r.status === 'declined')) {
+      const k = `${r.group_id}:${r.status}`
+      if (seenAsk.has(k)) continue
+      seenAsk.add(k)
+      const same = mine.filter(x => x.group_id === r.group_id && x.status === r.status)
+      shown.push({ r, homes: new Set(same.map(x => x.listing_key)).size, whens: Array.from(new Set(same.map(x => whenText(x.requested_date, x.requested_start_time, x.requested_end_time)))) })
+      continue
+    }
+    shown.push({ r, homes: 1, whens: [] })
+  }
 
   const [shownCount, setShownCount] = useState(3)
   const ordered = orderKeys
@@ -123,12 +146,13 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
     </button>
   )
 
-  const hostingList = mine.length > 0 && (
+  const hostingList = shown.length > 0 && (
     <div>
       <SectionLabel right={<button type="button" onClick={() => setRequests({ focus: null })} className="text-[10px] font-black text-[#8b7355] hover:underline dark:text-[#d7b974]">All my requests</button>}>Your hosting</SectionLabel>
       <div className="space-y-1.5">
-        {mine.slice(0, 3).map(r => {
+        {shown.slice(0, 3).map(({ r, homes, whens }) => {
           const st = requestState(r)
+          if (whens.length > 1) st.when = whens.slice(0, 2).join(' or ') + (whens.length > 2 ? ' …' : '')
           return (
             <Link key={r.id} href={st.href}
               // My Requests opens right here; "You're hosting" still goes to building the kit.
@@ -139,7 +163,7 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
                   : 'border-gray-200 hover:border-[#C9A24D]/50 dark:border-gray-800'}`}>
               <ListingCover src={r.property_image} className="h-10 w-12" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-black text-[#111827] dark:text-white">{niceAddress(r.property_address) || 'Listing'}</p>
+                <p className="truncate text-xs font-black text-[#111827] dark:text-white">{homes > 1 ? `Any of ${homes} homes · ${r.listing_agent_name || 'listing agent'}` : niceAddress(r.property_address) || 'Listing'}</p>
                 <p className="truncate text-[10.5px] font-bold text-gray-500 dark:text-gray-400">{st.when}</p>
                 {/* phones: the status goes under the address so the address never gets cut short */}
                 <span className="mt-1 flex sm:hidden"><Pill tone={st.tone} icon={st.icon}>{st.label}</Pill></span>
@@ -148,7 +172,7 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
             </Link>
           )
         })}
-        {mine.length > 3 && <p className="text-center text-[10px] font-bold text-gray-400">+{mine.length - 3} more in My Requests</p>}
+        {shown.length > 3 && <p className="text-center text-[10px] font-bold text-gray-400">+{shown.length - 3} more in My Requests</p>}
       </div>
     </div>
   )
@@ -321,6 +345,22 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
         />
       )}
       {emailing && <EmailHostFlow key={emailing.ListingKey} property={emailing} user={user} onClose={() => setEmailing(null)} />}
+      {askingAny && (
+        <HostAnyFlow key={askingAny.listing.ListingKey} property={askingAny.listing} user={user} initialDate={askingAny.date}
+          onClose={() => setAskingAny(null)}
+          onSent={() => {
+            refreshOpenHouseActionCounts()
+            api.openHouseManager.getMyRequests().then(({ success, data }) => {
+              if (!success || !data) return
+              const pending = data.filter(r => r.status === 'pending')
+              setJustAsked(cur => {
+                const next = { ...cur }
+                for (const r of pending) next[r.listing_key] = Array.from(new Set([...(next[r.listing_key] || []), String(r.requested_date)]))
+                return next
+              })
+            })
+          }} />
+      )}
       <PropertyQuickViewModal listingKey={viewing} agentId={user?.id || ''} onClose={() => setViewing(null)} />
       <MyRequestsPanel isOpen={!!requests} onClose={() => setRequests(null)} onActionComplete={refreshOpenHouseActionCounts} focusRequestId={requests?.focus} />
     </div>

@@ -28,6 +28,13 @@ import { LUXE_METALS, LUXE_METAL_ORDER, type LuxeMetal } from '@/lib/luxeMetals'
 import { SpotlightPick, spotlightStart, type SpotlightPicks } from './SpotlightPick'
 import { CmaPick, cmaStart, type CmaPicks } from './CmaPick'
 import { MediaPick, mediaStart, type MediaPicks } from './MediaPick'
+import dynamic from 'next/dynamic'
+
+// Cinematic Video's editor (and its video player) only loads when a chat actually starts one.
+const CinematicEditor = dynamic(() => import('@/components/studio/media/cinematic/CinematicEditor'), {
+  ssr: false,
+  loading: () => <div className="h-40 animate-pulse rounded-2xl bg-gray-100 dark:bg-zinc-800" />,
+})
 
 type Made = AIToolCallRef['made']
 
@@ -443,6 +450,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   }
 
   const pending = state.status === 'pending'
+  const cineId = state.status === 'done' && typeof state.link === 'string' ? (state.link.match(/^\/studio\/media\/motion\/([0-9a-f-]{8,})$/i)?.[1] ?? null) : null
   // Tapped the main button: the choices fold away and the card shows it working (owner, 11/01 - they
   // could keep tapping options already sent).
   const choosing = pending && busy !== 'confirm'
@@ -545,13 +553,16 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
               : <a href={resolveMediaUrl((state.made as any).url)} target="_blank" rel="noopener" className="mt-2 block" title="See it full size"><img src={resolveMediaUrl((state.made as any).url)} alt="Your finished photo" className="ohp-ai-reveal max-h-[260px] w-auto max-w-full rounded-lg shadow-sm" data-testid="ai-media-result" /></a>
           )}
           {state.status === 'done' && state.share?.url && <LinkPreviewCard url={state.share.url} preview={state.share.preview} />}
-          {(state.status === 'done' || state.status === 'working') && state.link && (
+          {(state.status === 'done' || state.status === 'working') && state.link && !cineId && (
             <Link href={state.link} className="group mt-1.5 flex items-center gap-1 font-bold text-[#8b7355] dark:text-[#C9A24D]">
               Open it <ArrowRight className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
             </Link>
           )}
         </div>
       )}
+      {/* Cinematic Video: its whole editor, right here in the chat (owner, 11/11). */}
+      {/* data-wide lets the chat give this message its full desktop width (ChatThread). */}
+      {cineId && <div className="mt-3" data-testid="ai-cinematic-editor" data-wide="yes"><CinematicEditor id={cineId} embedded /></div>}
     </div>
   )
 }

@@ -139,7 +139,7 @@ function MediaLabListPage() {
           kicker="Media Lab"
           icon={Clapperboard}
           title={<>Every photo, <em>at its best</em></>}
-          subtitle="Twilight, virtual staging, lights-on and video - from any listing photo or your own."
+          subtitle="Cinematic Video tours, twilight, virtual staging and lights-on - from any listing's photos or your own."
           aside={
             // AI usage lines up with the title, storage with the line under it - side by side on a
             // phone (user, 10/24)
@@ -245,9 +245,10 @@ function MediaLabListPage() {
             <div className="relative flex flex-col items-center gap-6 px-6 py-10 text-center sm:px-10 sm:py-14">
               <div className="flex items-center gap-2.5 sm:gap-3.5">
                 {[
-                  { icon: Moon, label: 'Twilight', rot: '-rotate-6' },
-                  { icon: Sofa, label: 'Staging', rot: 'rotate-3' },
-                  { icon: Lightbulb, label: 'Lights On', rot: '-rotate-3' },
+                  { icon: Clapperboard, label: 'Cinematic', rot: '-rotate-6' },
+                  { icon: Moon, label: 'Twilight', rot: 'rotate-3' },
+                  { icon: Sofa, label: 'Staging', rot: '-rotate-3' },
+                  { icon: Lightbulb, label: 'Lights On', rot: 'rotate-3' },
                   { icon: Video, label: 'AI Video', rot: 'rotate-6' },
                 ].map(({ icon: Icon, label, rot }, i) => (
                   <div
@@ -268,9 +269,8 @@ function MediaLabListPage() {
                   Your first project starts here
                 </h3>
                 <p className="mt-2 text-[13px] font-semibold leading-relaxed text-gray-500 dark:text-gray-400">
-                  Pick any photo from a listing — or upload your own — and turn it into a twilight
-                  exterior, a staged room, a lights-on shot, or a full walkthrough video. Everything
-                  you make gets saved right here.
+                  Turn a listing&apos;s photos - or your own - into a Cinematic Video tour, a twilight
+                  exterior, a staged room or a lights-on shot. Everything you make gets saved right here.
                 </p>
               </div>
 

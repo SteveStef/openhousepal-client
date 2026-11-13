@@ -64,6 +64,10 @@ const nextConfig = {
     return [
       { source: '/_next/image', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }] },
       { source: '/pimg/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }] },
+      // AI Media Cinematic Video's built-in files (example video, music, sample photos): let
+      // browsers keep them a day and Cloudflare a month, so every agent's preview is served from
+      // the edge, not our server. Rename a file when it changes.
+      { source: '/motion/:path*', headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, s-maxage=2592000, stale-while-revalidate=604800' }] },
     ]
   },
   // /pimg/<w>/<q>/p.webp?u=<photo> (lib/photoUrl.ts) is Next's own resizer under an address Cloudflare

@@ -76,6 +76,7 @@ export function EnhancementOptions({ value, onToggle }: { value: StudioEnhanceme
 
 export function actionLabel(action: string): string {
   if (action === 'animate') return 'AI Video'
+  if (action === 'motion') return 'Cinematic Video'
   return action.split('+').map(e => EFFECTS.find(x => x.id === e)?.label || e).join(' + ')
 }
 
@@ -675,7 +676,8 @@ export function ProjectCard({ asset, active, downloading, onOpen, onDownload, on
   const isVid = asset.kind === 'video'
   const done = asset.status === 'succeeded' && !!asset.result_url
   const created = asset.created_at ? new Date(asset.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''
-  const tag = GROUP_TAG[mediaGroup(asset)]
+  const motionVid = asset.action === 'motion'
+  const tag = motionVid ? { label: 'Cinematic', icon: Video } : GROUP_TAG[mediaGroup(asset)]
   const vid = useRef<HTMLVideoElement>(null)
   // The real length, read off the file itself (the stored figure is the nominal clip total).
   const [secs, setSecs] = useState<number>(Number(asset.options?.duration_seconds) || 0)
@@ -690,8 +692,19 @@ export function ProjectCard({ asset, active, downloading, onOpen, onDownload, on
       <button onClick={onOpen} className={`relative block w-full overflow-hidden bg-gray-100 dark:bg-gray-800 ${feature ? 'aspect-[4/3] lg:aspect-auto lg:min-h-0 lg:flex-1' : 'aspect-[4/3]'}`}>
         <div className="absolute inset-0">
           {done && !isVid && <img src={asset.result_url!} alt="" className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.06]" />}
-          {done && isVid && <video ref={vid} src={asset.result_url!} muted loop playsInline preload="metadata" onLoadedMetadata={e => { const d = e.currentTarget.duration; if (d && isFinite(d)) setSecs(d) }} className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.03]" />}
-          {!done && (
+          {done && isVid && <video ref={vid} src={asset.result_url!} poster={(asset.options?.preview_frame_url as string | undefined) || undefined} muted loop playsInline preload="metadata" onLoadedMetadata={e => { const d = e.currentTarget.duration; if (d && isFinite(d)) setSecs(d) }} className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.03]" />}
+          {!done && motionVid && (
+            // Cinematic Video draft / in progress: its first photo, with where it stands.
+            <div className="relative h-full w-full">
+              <img src={asset.source_photo_url.startsWith('http://') ? `/api/pdf-image?url=${encodeURIComponent(asset.source_photo_url)}` : asset.source_photo_url} alt="" className="h-full w-full object-cover brightness-[0.6]" draggable={false} />
+              <span className="absolute inset-0 flex items-center justify-center">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white">
+                  {asset.status === 'processing' ? <><Film className="h-3 w-3 animate-pulse text-[#e8c97a]" /> Making…</> : asset.status === 'failed' ? 'Needs another try' : 'Draft - tap to continue'}
+                </span>
+              </span>
+            </div>
+          )}
+          {!done && !motionVid && (
             asset.status === 'processing'
               ? <ProjectCardVideoProgress asset={asset} />
               : (
@@ -731,7 +744,10 @@ export function ProjectCard({ asset, active, downloading, onOpen, onDownload, on
       </button>
       <div className="flex items-center justify-between gap-1 px-3 py-2.5">
         <div className="min-w-0">
-          <p className={`truncate font-black text-[#111827] dark:text-white ${feature ? 'text-sm' : 'text-xs'}`}>{asset.options?.custom_name || actionLabel(asset.action)}</p>
+          <p className={`truncate font-black text-[#111827] dark:text-white ${feature ? 'text-sm' : 'text-xs'}`}>{asset.options?.custom_name || (motionVid
+            // QA 11/12: Cinematic projects showed "motion" - name them by the home instead
+            ? ((asset.options as any)?.motion?.facts?.address || (asset.linked_property as any)?.address || 'Cinematic Video')
+            : actionLabel(asset.action))}</p>
           <p className="truncate text-[9px] font-bold uppercase tracking-wide text-gray-400">{asset.kind}{length ? ` · ${length}` : ''}{created ? ` · ${created}` : ''}</p>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">

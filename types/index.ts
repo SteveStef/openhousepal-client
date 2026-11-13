@@ -367,6 +367,20 @@ export interface ManualListingPayload {
   image_url?: string;
 }
 
+/** A listing agent and their homes that could use a host (backend listing_agent_homes, 11/12). */
+export interface ListingAgentHome {
+  ListingKey: string; Street: string; City: string; State: string; Zipcode: string; Price: string; Image: string
+  Beds: number; Baths: number; SquareFeet: number; HostingBlocked: string | null; HostsFrom: string | null
+  /** Days someone is already hosting it. */
+  taken: string[]
+  /** Days you already asked about (waiting on an answer). */
+  asked: string[]
+}
+export interface ListingAgentHomes {
+  agent: { name: string; email: string; phone: string; office: string; on_platform: boolean; eligible: boolean; photo_url: string | null }
+  homes: ListingAgentHome[]
+}
+
 export interface HostRequest {
   id: string;
   listing_key: string;
@@ -394,6 +408,12 @@ export interface HostRequest {
   counter_end_time?: string | null;
   counter_message?: string | null;
   broadcast_id?: string | null;
+  /** Asked together with other homes / days ("I'd host any of these") - shown as one card. */
+  group_id?: string | null;
+  /** How many different homes that ask covered (0 = not asked together). */
+  group_homes?: number;
+  /** Why a declined one closed when it wasn't a plain "no". */
+  closed_note?: string | null;
   listing_host_notes?: string | null;
 }
 
@@ -1513,7 +1533,7 @@ export interface DesignProjectCreatePayload {
 export type StudioImageEffect = 'twilight' | 'lights_on' | 'virtual_staging' | 'enhance';
 export type StudioMediaAction = StudioImageEffect | 'stack' | 'animate';
 export type StudioMediaKind = 'image' | 'video' | 'upload';
-export type StudioMediaStatus = 'processing' | 'succeeded' | 'failed';
+export type StudioMediaStatus = 'draft' | 'processing' | 'succeeded' | 'failed';
 export type StudioMediaSourceKind = 'listing' | 'upload';
 export type StudioVideoVariantModelTier = 'fast_pro' | 'pro';
 export type StudioVideoVariantMotion = 'push_in' | 'slow_push_in' | 'pan_left' | 'pan_right';

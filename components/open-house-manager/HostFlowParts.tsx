@@ -255,7 +255,7 @@ export function DayStep({ picked, onToggle, max = 1, info, hostingWindow, hint }
           const blocked = !!st.taken || !!st.locked || !!st.requested
           const dt = parseDay(d)
           return (
-            <motion.button key={d} type="button" disabled={blocked} onClick={() => onToggle(d)}
+            <motion.button key={d} type="button" disabled={blocked} onClick={() => onToggle(d)} data-testid="hf-day" data-day={d}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.035, type: 'spring', stiffness: 380, damping: 28 }}
               whileTap={{ scale: 0.94 }}
               title={st.taken ? `Already hosted${st.taken !== 'yes' ? ` by ${st.taken}` : ''}` : st.requested ? 'Already asked - waiting for an answer' : st.locked ? 'This home can\'t be shown that day' : undefined}
@@ -373,7 +373,7 @@ export function TimeStep({ value, onChange, allowAnytime = false, days }: {
         {SUGGESTED_TIMES.map((t, i) => {
           const on = same(t)
           return (
-            <motion.button key={t.join()} type="button" onClick={() => { setOwn(false); onChange({ start: t[0], end: t[1] }) }}
+            <motion.button key={t.join()} type="button" onClick={() => { setOwn(false); onChange({ start: t[0], end: t[1] }) }} data-testid="hf-time"
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.035 }} whileTap={{ scale: 0.95 }}
               className={`relative flex items-center justify-center gap-2 rounded-2xl border px-3 py-4 text-[15px] font-black transition-colors ${on ? 'border-[#111827] bg-[#111827] text-white dark:border-white dark:bg-white dark:text-[#111827]' : 'border-gray-200 text-[#111827] hover:border-[#C9A24D] dark:border-white/10 dark:text-white'}`}>
               <Clock className={`h-4 w-4 ${on ? 'text-[#e8c97a] dark:text-[#a8843a]' : 'text-[#C9A24D]'}`} />{clockRange(t[0], t[1])}

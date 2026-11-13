@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft, Check, ChevronDown, ImagePlus, Loader2, Maximize2, Sparkles, Sunset, Trash2, Upload, Video, Wand2,
+  ArrowLeft, Check, ChevronDown, Clapperboard, ImagePlus, Loader2, Maximize2, Sparkles, Sunset, Trash2, Upload, Video, Wand2,
 } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
@@ -18,6 +18,7 @@ import FlowDock from '@/components/ui/FlowDock'
 import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import { hasMlsAccess } from '@/lib/navAccess'
+import { buildCheatSheetAgentData } from '@/lib/bragSheetData'
 import type {
   LinkedProperty, StudioEnhancement, StudioImageEffect, StudioMediaAsset, StudioMediaOptions,
 } from '@/types'
@@ -27,6 +28,9 @@ import {
 } from '@/components/studio/media/shared'
 
 const STUDIO_MEDIA_STAGES = ['Property', 'What to make', 'Pick photos', 'Generate']
+// Cinematic Video: real photo motion (no AI video model). A listing hands over ALL its photos (the
+// editor asks the length and the rooms, and picks the photos); uploads are picked here first.
+const MAX_MOTION_PHOTOS = 40
 
 // The create wizard, split out of the old single page into its own route (matching CMA's "New
 // CMA" -> its own page). Unlike CMA (which creates an empty draft row up front and routes there
@@ -37,10 +41,17 @@ function CreateMediaPage() {
   const router = useRouter()
   const { user } = useAuth()
   const canUseListings = hasMlsAccess(user?.plan_tier)
+  // Phone for a Cinematic Video's closing card - the same contact the agent's print pieces use.
+  const [agentPhone, setAgentPhone] = useState('')
+  const [agentEmail, setAgentEmail] = useState('')
+  useEffect(() => {
+    if (!user) return
+    buildCheatSheetAgentData(user).then(a => { setAgentPhone(a.phone || ''); setAgentEmail(a.email || '') }).catch(() => {})
+  }, [user])
 
   const [property, setProperty] = useState<LinkedProperty | null>(null)
   const [sourceTab, setSourceTab] = useState<PhotoSearchTab>('mine')
-  const [mode, setMode] = useState<'photo' | 'video' | null>(null)
+  const [mode, setMode] = useState<'photo' | 'video' | 'motion' | null>(null)
   const [photo, setPhoto] = useState<{ url: string; kind: 'listing' | 'upload' } | null>(null)
   const [videoPhotos, setVideoPhotos] = useState<string[]>([])
   const [pickerOpen, setPickerOpen] = useState(true)
@@ -71,7 +82,7 @@ function CreateMediaPage() {
       const hand = raw ? JSON.parse(raw) : null
       if (!hand?.property?.address || Date.now() - (hand.at || 0) > 10 * 60 * 1000) return
       setProperty(hand.property as LinkedProperty)
-      if (hand.mode === 'video' || hand.mode === 'photo') setMode(hand.mode)
+      if (hand.mode === 'video' || hand.mode === 'photo' || hand.mode === 'motion') setMode(hand.mode)
     } catch { /* storage unavailable - the agent just picks the property as usual */ }
   }, [canUseListings])
 
@@ -102,7 +113,7 @@ function CreateMediaPage() {
   const storageFull = !!usage && usage.storage_cap_bytes > 0 && usage.storage_used_bytes >= usage.storage_cap_bytes
 
   const videoRawEstUsd = useMemo(() => {
-    if (!usage?.video_clip_price_usd || videoPhotos.length === 0) return null
+    if (!usage?.video_clip_price_usd || videoPhotos.length === 0 || mode === 'motion') return null
     const secondsPerClip = usage.video_seconds_per_clip || 5
     const renderCost = videoPhotos.length * usage.video_clip_price_usd
     const enhanceCost = videoPhotos.length * (usage.video_photo_enhance_price_usd || 0)
@@ -125,15 +136,17 @@ function CreateMediaPage() {
     return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null } }
   }, [generating])
 
-  const isVideo = mode === 'video'
-  const isTimelapse = isVideo && options.video_style === 'day_to_twilight'
+  // Cinematic Video picks several photos exactly like AI Video, then opens its own editor.
+  const isMotion = mode === 'motion'
+  const isVideo = mode === 'video' || isMotion
+  const isTimelapse = mode === 'video' && options.video_style === 'day_to_twilight'
   // Day -> Twilight timelapse is one still-camera clip from one photo, not several stitched
   // together (see the backend's studio_media_video_timelapse_* override) - every other video
   // style keeps the normal up-to-MAX_VIDEO_PHOTOS multi-photo reel.
-  const maxVideoPhotos = isTimelapse ? 1 : MAX_VIDEO_PHOTOS
+  const maxVideoPhotos = isMotion ? MAX_MOTION_PHOTOS : isTimelapse ? 1 : MAX_VIDEO_PHOTOS
   const selectedUrls = isVideo ? videoPhotos : (photo ? [photo.url] : [])
   const selCount = selectedUrls.length
-  const videoReview = isVideo && videoPhotos.length >= maxVideoPhotos && !pickerOpen
+  const videoReview = isVideo && !isMotion && videoPhotos.length >= maxVideoPhotos && !pickerOpen
   // Photo edit with its photo picked and the grid folded away: the "what to do" half.
   const photoPicked = !isVideo && !!photo && !pickerOpen
 
@@ -151,7 +164,7 @@ function CreateMediaPage() {
   }, [isTimelapse])
 
   const estUsage = useMemo(() => {
-    if (!usage?.month_ai_budget_usd) return null
+    if (!usage?.month_ai_budget_usd || isMotion) return null
     const est = isVideo ? (videoRawEstUsd ?? usage.video_est_usd) : usage.image_est_usd
     if (est == null) return null
     const pct = Math.max(1, Math.round((est / usage.month_ai_budget_usd) * 100))
@@ -171,6 +184,7 @@ function CreateMediaPage() {
   const step = !hasSource ? 1 : !mode ? 2 : 3
 
   const optionsValid = useMemo(() => {
+    if (isMotion) return videoPhotos.length >= 2 && videoPhotos.length <= maxVideoPhotos
     if (isVideo) return videoPhotos.length >= 1 && videoPhotos.length <= maxVideoPhotos
     if (effects.length === 0) return false
     if (effects.includes('virtual_staging')) return !!options.room_type && !!options.style
@@ -178,7 +192,11 @@ function CreateMediaPage() {
   }, [isVideo, videoPhotos.length, maxVideoPhotos, effects, options])
 
   const resetSelection = () => { setError('') }
-  const pickMode = (m: 'photo' | 'video') => { setMode(m); setSourceOpen(false); setEffects([]); setOptions({}); setPhoto(null); setVideoPhotos([]); resetSelection() }
+  const pickMode = (m: 'photo' | 'video' | 'motion') => {
+    setMode(m); setSourceOpen(false); setEffects([]); setOptions({}); setPhoto(null); setVideoPhotos([]); resetSelection()
+    // A listing's Cinematic Video starts right away with every photo of the home - no picking here.
+    if (m === 'motion' && canUseListings && property && sourceTab !== 'upload' && listingPhotos.length >= 2) startMotion(listingPhotos.slice(0, MAX_MOTION_PHOTOS), false)
+  }
   const startOver = () => { setMode(null); setPhoto(null); setVideoPhotos([]); setEffects([]); setOptions({}); resetSelection() }
   const changeSource = () => { setProperty(null); setSourceTab('mine'); startOver() }
 
@@ -258,8 +276,25 @@ function CreateMediaPage() {
     ? crypto.randomUUID()
     : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`)
 
+  // Cinematic Video: the project (a draft) exists from here on and opens in its own editor.
+  const startMotion = async (urls: string[], uploads: boolean) => {
+    if (generating) return
+    setGenerating(true); setError('')
+    if (!requestIdRef.current) requestIdRef.current = newRequestId()
+    const linked = canUseListings && property ? property : null
+    const res = await api.mediaLab.motion.create({
+      photos: urls, source_kind: uploads ? 'upload' : 'listing', linked_property: uploads ? null : linked,
+      agent: { name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(), brokerage: user?.brokerage || '', phone: agentPhone, email: agentEmail, photo: user?.photo_url || null },
+      client_request_id: requestIdRef.current,
+    })
+    if (res.success && res.data) { router.replace(`/studio/media/motion/${res.data.id}`); return }
+    setGenerating(false)
+    setError(res.error || 'Could not start your video. Try again in a moment.')
+  }
+
   const generate = async () => {
     if (generating) return
+    if (isMotion) { await startMotion(videoPhotos, usingUploads); return }
     setGenerating(true); setError('')
     if (!requestIdRef.current) requestIdRef.current = newRequestId()
     const client_request_id = requestIdRef.current
@@ -401,7 +436,12 @@ function CreateMediaPage() {
 
         {hasSource && !mode && (
           <Section step={2} title="What do you want to make?" active={step === 2}>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <ModeCard
+                active={mode === 'motion'} onClick={() => pickMode('motion')}
+                icon={Clapperboard} title="Cinematic Video"
+                blurb="New - a film-style tour of the home: pick the length, tap the rooms to show, and real 3D camera moves, room captions, your branding and music do the rest. Uses well under 1% of your monthly AI."
+              />
               <ModeCard
                 active={mode === 'photo'} onClick={() => pickMode('photo')}
                 icon={Wand2} title="Photo edit"
@@ -616,7 +656,7 @@ function CreateMediaPage() {
               </div>
             )}
 
-            {isVideo && (
+            {isVideo && !isMotion && (
               <div className="mt-5 space-y-2">
                 <OptionRow label="Style">
                   <Chip active={(options.video_style || 'standard') === 'standard'} onClick={() => setOptions(o => ({ ...o, video_style: 'standard' }))}>
@@ -664,7 +704,7 @@ function CreateMediaPage() {
                   className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#111827] to-[#2a2a2e] px-5 py-2.5 text-sm font-black text-white shadow-lg hover:-translate-y-0.5 hover:shadow-xl disabled:translate-y-0 disabled:opacity-50 dark:from-white dark:to-gray-200 dark:text-[#111827]"
                 >
                   <Sparkles className="h-4 w-4 text-[#C9A24D]" />
-                  {isVideo ? 'Create video' : 'Generate'}
+                  {isMotion ? 'Continue' : isVideo ? 'Create video' : 'Generate'}
                 </button>
               </div>
             )}
@@ -678,7 +718,7 @@ function CreateMediaPage() {
             )}
             {busy && isVideo && (
               <p className="mt-4 flex items-center gap-2 text-xs font-black text-[#8b7355] dark:text-[#d7b974]">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Queuing your shots with OpenHousePal AI…
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> {isMotion ? 'Opening your project…' : 'Queuing your shots with OpenHousePal AI…'}
               </p>
             )}
             </div>
@@ -714,7 +754,7 @@ function CreateMediaPage() {
           onContinue: generate,
           busy,
           disabled: videoReview ? (softCapped || storageFull) : (!optionsValid || (!isVideo && !photo) || softCapped || storageFull),
-          continueLabel: busy ? 'Working…' : isVideo ? 'Create' : 'Generate',
+          continueLabel: busy ? 'Working…' : isMotion ? 'Continue' : isVideo ? 'Create' : 'Generate',
           icon: <Sparkles />,
         } : {})} />
     </div>

@@ -24,7 +24,7 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   chat: 'AI helper chat', tts: 'Read Aloud', realtime: 'Talk to OHP', cma_ai: 'CMA - comp analysis',
   cma_reasoning: 'CMA - final reasoning', area_narrative: 'Area narrative', area_research: 'Area research',
   copywrite: 'AI Copywriter', blog_writer: 'AI Blog Writer', external_api: 'Google look-ups (agents)',
-  studio_media_image: 'Studio Media - image', studio_media_video: 'Studio Media - video',
+  studio_media_image: 'Studio Media - image', studio_media_video: 'Studio Media - video', studio_motion: 'Studio Media - cinematic video',
   cma_ai_recompute: 'CMA - recompute', area_fair_housing: 'Town pages - fair housing check',
   school_lookup: 'Cheat sheet - schools', cheat_sheet_downtown: 'Cheat sheet - nearby places',
   cheat_sheet_proofread: 'Cheat sheet - proofread', explore_nearby: 'Explore Nearby (Google, visitors)',

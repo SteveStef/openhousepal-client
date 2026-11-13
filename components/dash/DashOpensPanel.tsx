@@ -7,6 +7,7 @@ import { ArrowRight, Bath, Bed, CalendarCheck, Hammer, Home, Inbox, Maximize, Se
 import { HostRequest, MyListingItem } from '@/types'
 import WeekendCalendarCards, { hostingNote } from '@/components/open-house-manager/WeekendCalendarCards'
 import ManageHostsModal from '@/components/open-house-manager/ManageHostsModal'
+import HostRequestsPanel from '@/components/open-house-manager/HostRequestsPanel'
 import ScrollableSection from './ScrollableSection'
 import { CoverageMeter, ListingCover, Pill, SectionLabel, compactPrice, niceAddress, whenText } from './openHouseBits'
 
@@ -30,16 +31,43 @@ export interface DiscoveryListing {
 // Pending requests need a response fast (the other agent is waiting), so this sits at the very
 // top of the panel and glows - the same "needs your attention right now" treatment the
 // page-level headliner uses. Each row says who wants which date, with a Review button.
-function RequestsSection({ hostRequests, onReview }: { hostRequests: HostRequest[]; onReview: (listingKey: string) => void }) {
+function RequestsSection({ hostRequests, onReview, onReviewAsk }: { hostRequests: HostRequest[]; onReview: (listingKey: string) => void; onReviewAsk: () => void }) {
   if (hostRequests.length === 0) return null
+  // One row per ask: homes / times asked together ("I'd host any of these", 11/12) are one row.
+  const asks: HostRequest[][] = []
+  const byGroup = new Map<string, HostRequest[]>()
+  for (const r of hostRequests) {
+    const g = r.group_id ? byGroup.get(r.group_id) : undefined
+    if (g) { g.push(r); continue }
+    const fresh = [r]
+    if (r.group_id) byGroup.set(r.group_id, fresh)
+    asks.push(fresh)
+  }
   return (
     <div className="animate-pulse-glow rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-amber-50/60 p-3 shadow-[0_0_22px_rgba(245,158,11,0.28)] dark:border-amber-500/50 dark:from-amber-500/10 dark:via-transparent dark:to-amber-500/5">
       <p className="mb-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">
         <span className="grid h-5 w-5 place-items-center rounded-md bg-amber-500 text-white"><Inbox className="h-3 w-3" /></span>
-        {hostRequests.length} agent{hostRequests.length === 1 ? '' : 's'} asked to host - waiting on you
+        {asks.length} host request{asks.length === 1 ? '' : 's'} - waiting on you
       </p>
       <ScrollableSection maxHeightClass="max-h-[210px]" viewHref="/open-houses/my-listings?panel=host-requests" viewLabel="View all requests">
-        {hostRequests.slice(0, 9).map(hr => (
+        {asks.slice(0, 9).map(ask => ask.length > 1 ? (
+          <button type="button" key={ask[0].group_id as string} onClick={onReviewAsk} data-testid="dash-host-ask"
+            className="group flex w-full min-w-0 items-center gap-2.5 rounded-xl border border-amber-200 bg-white p-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-400 dark:border-amber-500/25 dark:bg-[#151517]">
+            <span className="relative h-10 w-12 shrink-0">
+              <ListingCover src={ask[0].property_image} className="h-10 w-12" />
+              <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[#111827] px-1 text-[10px] font-black text-white ring-2 ring-white dark:bg-white dark:text-[#111827] dark:ring-[#151517]">{new Set(ask.map(r => r.listing_key)).size}</span>
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-black text-[#111827] dark:text-white">
+                {new Set(ask.map(r => r.listing_key)).size > 1 ? `Any of ${new Set(ask.map(r => r.listing_key)).size} homes` : niceAddress(ask[0].property_address)}
+              </p>
+              <p className="line-clamp-2 text-[10.5px] font-semibold text-gray-500 dark:text-gray-400">
+                <span className="font-black text-[#111827] dark:text-white">{ask[0].requesting_agent_name}</span> · {Array.from(new Set(ask.map(r => whenText(r.requested_date, r.requested_start_time, r.requested_end_time)))).slice(0, 2).join(' or ')}
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-black text-white shadow-sm transition group-hover:bg-amber-600">{new Set(ask.map(r => r.requested_date)).size === 1 ? 'Pick one' : 'Review'}</span>
+          </button>
+        ) : ask.map(hr => (
           <button
             type="button"
             key={hr.id}
@@ -55,7 +83,7 @@ function RequestsSection({ hostRequests, onReview }: { hostRequests: HostRequest
             </div>
             <span className="shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-black text-white shadow-sm transition group-hover:bg-amber-600">Review</span>
           </button>
-        ))}
+        )))}
       </ScrollableSection>
     </div>
   )
@@ -81,6 +109,8 @@ export default function DashOpensPanel({ listings, hostRequests, discoveryListin
   // opens only Find a Host for that day; a booked day opens Host Notes; the listing itself, all of it.
   const [hosts, setHosts] = useState<{ key: string; date: string | null; notes: boolean; findOnly: boolean } | null>(null)
   const openHosts = (key: string) => setHosts({ key, date: null, notes: false, findOnly: false })
+  // An "any of these" ask spans several listings - it opens Host Requests right here (11/12).
+  const [asksOpen, setAsksOpen] = useState(false)
 
   if (listings.length === 0) {
     const topMatches = [...discoveryListings]
@@ -141,7 +171,8 @@ export default function DashOpensPanel({ listings, hostRequests, discoveryListin
 
   return (
     <div className={`min-w-0 space-y-4 ${DASH_OPENS_MIN_HEIGHT_CLASS}`}>
-      <RequestsSection hostRequests={hostRequests} onReview={openHosts} />
+      <RequestsSection hostRequests={hostRequests} onReview={openHosts} onReviewAsk={() => setAsksOpen(true)} />
+      <HostRequestsPanel isOpen={asksOpen} onClose={() => setAsksOpen(false)} onActionComplete={() => onChanged?.()} />
 
       <div>
         <SectionLabel right={<span className="text-[10px] font-bold text-gray-400">Next 4 open-house days</span>}>Your listings</SectionLabel>

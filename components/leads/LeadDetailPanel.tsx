@@ -182,9 +182,22 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   // "Send them a new invitation?" after their email was changed.
-  const [invite, setInvite] = useState<{ openHouse: boolean; email: string } | null>(null)
-  const [inviteStep, setInviteStep] = useState<'ask' | 'pick'>('ask')
+  // Emails to the old address were off (bounced, unsubscribed, ignored, turned off): "Turn their
+  // emails back on?" comes first (user, 11/12); "blocked" = the new address can't get email at all.
+  const [invite, setInvite] = useState<{ openHouse: boolean; email: string; showcase: boolean; reason?: string | null; paused?: boolean } | null>(null)
+  const [inviteStep, setInviteStep] = useState<'emails' | 'blocked' | 'ask' | 'pick'>('ask')
   const [inviteBusy, setInviteBusy] = useState<string | null>(null)
+  const afterEmails = (paused: boolean) => {
+    if (invite?.showcase) { setInvite({ ...invite, paused }); setInviteStep('ask') } else setInvite(null)
+  }
+  const emailsBackOn = async () => {
+    if (!invite) return
+    setInviteBusy('emails')
+    const r = await api.clientEmails.setPerson(invite.email, true)
+    setInviteBusy(null)
+    if (r.success) { showToast(`Automatic emails are back on for ${invite.email}`, 'success'); reload(); afterEmails(false) }
+    else showToast(r.error || "Couldn't turn their emails back on - try again", 'error')
+  }
   const sendInvite = async (kind: 'open_house' | 'showcase') => {
     if (!lead) return
     setInviteBusy(kind)
@@ -376,10 +389,17 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
                     const next = editEmail.trim()
                     if (!(await applyUpdate({ name: editName.trim(), email: next, phone: editPhone.trim() }))) return
                     setEditing(false)
-                    // New email + a live Showcase: offer a fresh invitation to the new address (user, 10/24).
+                    // New email: were their emails off? (ask to turn them back on, 11/12) Then, with a
+                    // live Showcase, offer a fresh invitation to the new address (user, 10/24).
                     if (next && next.toLowerCase() !== before) {
-                      const o = await api.leads.inviteOptions(lead.id)
-                      if (o.success && o.data?.collection_id) { setInviteStep('ask'); setInvite({ openHouse: o.data.open_house, email: next.toLowerCase() }) }
+                      const email = next.toLowerCase()
+                      const [o, s] = await Promise.all([api.leads.inviteOptions(lead.id), api.clientEmails.status(email)])
+                      const showcase = !!(o.success && o.data?.collection_id)
+                      const base = { openHouse: !!o.data?.open_house, email, showcase, reason: s.data?.reason || null }
+                      const code = s.success ? s.data?.code : null
+                      if (code === 'email_changed') { setInviteStep('emails'); setInvite(base) }
+                      else if (code === 'unsubscribed' || code === 'bounced' || code === 'spam') { setInviteStep('blocked'); setInvite(base) }
+                      else if (showcase) { setInviteStep('ask'); setInvite(base) }
                     }
                   }} disabled={saving}
                     className="inline-flex items-center gap-1 rounded-lg bg-[#111827] px-3 py-1.5 text-xs font-black text-white disabled:opacity-50 dark:bg-white dark:text-[#111827]">
@@ -742,15 +762,39 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
       </OhSheet>
 
       <OhSheet open={!!invite} onClose={() => setInvite(null)} width="max-w-md"
-        icon={<span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8c97a]"><Send className="h-5 w-5" /></span>}
-        title="Send a new invite?"
+        icon={<span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8c97a]">{inviteStep === 'emails' ? <Mail className="h-5 w-5" /> : inviteStep === 'blocked' ? <MailX className="h-5 w-5" /> : <Send className="h-5 w-5" />}</span>}
+        title={inviteStep === 'emails' ? 'Emails back on?' : inviteStep === 'blocked' ? "Can't email them" : 'Send a new invite?'}
         subtitle="Their email changed">
-        <div className="px-5 pb-6 pt-2 sm:px-6">
+        <div className="px-5 pb-6 pt-2 sm:px-6" data-testid="email-change-sheet">
           <AnimatePresence mode="wait" initial={false}>
-            {inviteStep === 'ask' ? (
+            {inviteStep === 'emails' ? (
+              <motion.div key="emails" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.18 }} data-testid="emails-back-on">
+                <p className="break-words text-[13.5px] font-medium leading-relaxed text-gray-600 dark:text-gray-300">
+                  Automatic emails to their old address were off. {invite?.reason}
+                </p>
+                <p className="mt-2 break-words text-[13.5px] font-medium leading-relaxed text-gray-600 dark:text-gray-300">
+                  Turn them back on for <b className="text-[#111827] dark:text-white">{invite?.email}</b>? They start fresh: if this address stops opening them too, they slow down and stop again by themselves.
+                </p>
+                <div className="mt-5 grid grid-cols-2 gap-2">
+                  <button type="button" disabled={!!inviteBusy} onClick={() => afterEmails(true)} className="rounded-xl border border-gray-200 py-3 text-sm font-black text-gray-600 disabled:opacity-60 dark:border-white/10 dark:text-gray-300">Keep them off</button>
+                  <button type="button" disabled={!!inviteBusy} onClick={emailsBackOn} className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#111827] py-3 text-sm font-black text-white disabled:opacity-60 dark:bg-white dark:text-[#111827]">
+                    {inviteBusy === 'emails' && <Loader2 className="h-4 w-4 animate-spin" />} Yes, turn on
+                  </button>
+                </div>
+              </motion.div>
+            ) : inviteStep === 'blocked' ? (
+              <motion.div key="blocked" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.18 }} data-testid="emails-blocked">
+                <p className="break-words text-[13.5px] font-medium leading-relaxed text-gray-600 dark:text-gray-300">
+                  <b className="text-[#111827] dark:text-white">{invite?.email}</b> is on the do-not-email list{invite?.reason ? ` (${invite.reason.replace(/\.$/, '').replace(/^./, c => c.toLowerCase())})` : ''}. Nothing will be sent to it. Double-check the address with them.
+                </p>
+                <button type="button" onClick={() => setInvite(null)} className="mt-5 w-full rounded-xl bg-[#111827] py-3 text-sm font-black text-white dark:bg-white dark:text-[#111827]">OK</button>
+              </motion.div>
+            ) : inviteStep === 'ask' ? (
               <motion.div key="ask" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.18 }}>
                 <p className="break-words text-[13.5px] font-medium leading-relaxed text-gray-600 dark:text-gray-300">
-                  Their Showcase now goes to <b className="text-[#111827] dark:text-white">{invite?.email}</b>. Everything else is already updated - their email rules start over at the new address, as if they just came in.
+                  Their Showcase now goes to <b className="text-[#111827] dark:text-white">{invite?.email}</b>. {invite?.paused
+                    ? 'Automatic emails stay off - you can turn them on any time from their emails.'
+                    : 'Everything else is already updated - their email rules start over at the new address, as if they just came in.'}
                 </p>
                 <div className="mt-5 grid grid-cols-2 gap-2">
                   <button type="button" onClick={() => setInvite(null)} className="rounded-xl border border-gray-200 py-3 text-sm font-black text-gray-600 dark:border-white/10 dark:text-gray-300">No thanks</button>

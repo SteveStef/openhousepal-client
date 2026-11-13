@@ -8,6 +8,7 @@ import api from '@/lib/api-service'
 import { useToast } from '@/contexts/ToastContext'
 import { HostRequest, Notification } from '@/types'
 import HostRequestCard from './HostRequestCard'
+import HostRequestGroupCard from './HostRequestGroupCard'
 import EmptyState from './EmptyState'
 import { refreshOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
 
@@ -90,6 +91,31 @@ export default function HostRequestsPanel({
     }
   }
 
+  // "None of these" on an "any of these" ask - one answer for the whole thing (11/12).
+  const handleDeclineAll = async (groupId: string) => {
+    const { success, error } = await api.openHouseManager.declineRequestGroup(groupId)
+    if (success) {
+      setRequests(prev => prev.filter(r => r.group_id !== groupId))
+      showToast('Done - they’ll hear it once, not once per home.', 'success')
+      onActionComplete()
+    } else {
+      showToast(error || 'Couldn’t answer that request.', 'error')
+    }
+  }
+
+  // One card per ask: homes / times asked together ("any of these") stay together, oldest-first order kept.
+  const asks: HostRequest[][] = []
+  const byGroup = new Map<string, HostRequest[]>()
+  for (const r of requests) {
+    if (r.group_id) {
+      const g = byGroup.get(r.group_id)
+      if (g) { g.push(r); continue }
+      const fresh = [r]
+      byGroup.set(r.group_id, fresh)
+      asks.push(fresh)
+    } else asks.push([r])
+  }
+
   const handleCounter = async (id: string, counterDate: string, counterStart: string, counterEnd: string, counterMessage: string) => {
     const { success, error } = await api.openHouseManager.counterRequest(id, {
       counter_date: counterDate, counter_start_time: counterStart, counter_end_time: counterEnd, counter_message: counterMessage || undefined,
@@ -137,9 +163,11 @@ export default function HostRequestsPanel({
             )
           ) : (
             <div className="space-y-3">
-              {requests.map((request, i) => (
-                <motion.div key={request.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 6) * 0.05, type: 'spring', stiffness: 380, damping: 30 }}>
-                  <HostRequestCard request={request} showAddress showHistory onApprove={handleApprove} onDecline={handleDecline} onCounter={handleCounter} />
+              {asks.map((ask, i) => (
+                <motion.div key={ask[0].group_id && ask.length > 1 ? ask[0].group_id : ask[0].id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 6) * 0.05, type: 'spring', stiffness: 380, damping: 30 }}>
+                  {ask.length > 1
+                    ? <HostRequestGroupCard requests={ask} onApprove={handleApprove} onDeclineAll={handleDeclineAll} />
+                    : <HostRequestCard request={ask[0]} showAddress showHistory onApprove={handleApprove} onDecline={handleDecline} onCounter={handleCounter} />}
                 </motion.div>
               ))}
             </div>

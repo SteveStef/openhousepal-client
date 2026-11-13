@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { todayLocal } from '@/lib/relativeDays'
-import { Calendar, Clock, Check, X, Loader2, Home, CalendarClock, History, ChevronDown } from 'lucide-react'
+import { Calendar, Clock, Check, X, Loader2, Home, CalendarClock, History, ChevronDown, Layers } from 'lucide-react'
 import OfferTimeFlow from './OfferTimeFlow'
 import { HostRequest, HostRequestEvent } from '@/types'
 import api from '@/lib/api-service'
@@ -117,6 +117,8 @@ export default function HostRequestCard({
   const [isCounteringBack, setIsCounteringBack] = useState(false)
   const isPending = request.status === 'pending'
   const isCountered = request.status === 'countered'
+  // Closed because the host got another home that day - not the listing agent saying no.
+  const closedByOwnYes = (request.closed_note || '').startsWith('Closed - you')
 
   const handleApprove = async () => {
     if (!onApprove || busy) return
@@ -176,10 +178,20 @@ export default function HostRequestCard({
               : request.status === 'countered' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400'
               : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
           }`}>
-            {request.status === 'countered' ? 'New time proposed' : request.status}
+            {request.status === 'countered' ? 'New time proposed' : request.status === 'declined' && closedByOwnYes ? 'Closed' : request.status}
           </span>
         )}
       </div>
+
+      {/* Asked together with other homes ("I'd host any of these", 11/12). */}
+      {(request.group_homes || 0) > 1 && (isPending || isCountered) && (
+        <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#C9A24D]/12 px-2.5 py-1 text-[10.5px] font-black text-[#8b7355] dark:text-[#e8c97a]" data-testid="host-request-together">
+          <Layers size={11} />
+          {asHost
+            ? `Asked together with ${(request.group_homes || 0) - 1} other home${(request.group_homes || 0) > 2 ? 's' : ''}`
+            : `Also offered to host ${(request.group_homes || 0) - 1} other home${(request.group_homes || 0) > 2 ? 's' : ''} of yours - a yes closes their others that day`}
+        </p>
+      )}
 
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-gray-500 dark:text-gray-400">
         <span className="inline-flex items-center gap-1"><Calendar size={12} /> {formatDate(request.requested_date)}</span>
@@ -192,6 +204,12 @@ export default function HostRequestCard({
       {request.message && (
         <p className="mt-3 rounded-xl bg-gray-50 dark:bg-[#0F0F11] p-3 text-xs font-medium italic text-gray-600 dark:text-gray-300">
           "{request.message}"
+        </p>
+      )}
+
+      {request.status === 'declined' && request.closed_note && (
+        <p className="mt-3 rounded-xl bg-gray-50 p-3 text-xs font-bold text-gray-600 dark:bg-[#0F0F11] dark:text-gray-300" data-testid="host-request-closed-note">
+          {request.closed_note}
         </p>
       )}
 

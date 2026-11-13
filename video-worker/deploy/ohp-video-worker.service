@@ -1,0 +1,21 @@
+# Cinematic Video render server (systemd). Installed by setup-server.sh.
+[Unit]
+Description=OpenHousePal Cinematic Video worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ohpvideo
+WorkingDirectory=/opt/ohp-video
+# VIDEO_WORKER_TOKEN (shared secret with the main server), VIDEO_WORKER_GL=swangle (no GPU),
+# optional VIDEO_WORKER_CONCURRENCY - see /etc/ohp-video-worker.env
+EnvironmentFile=/etc/ohp-video-worker.env
+ExecStart=/usr/bin/node video-worker/server.mjs
+Restart=always
+RestartSec=5
+# finished videos wait in /tmp until the main server copies them to S3 (3 h max)
+PrivateTmp=true
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

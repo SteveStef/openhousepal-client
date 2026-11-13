@@ -600,6 +600,16 @@ class ApiService {
       body: JSON.stringify(payload),
     }),
 
+    // "I'd host any of these" (11/12): the listing agent's homes, then one ask covering several.
+    listingAgentHomes: (listingKey: string) => this.request<import('@/types').ListingAgentHomes>(
+      `/api/open-house-manager/listing-agent-homes?listing_key=${encodeURIComponent(listingKey)}`),
+    createRequestsBatch: (payload: { items: { listing_key: string; requested_date: string; requested_start_time: string; requested_end_time: string }[]; message?: string }) =>
+      this.request<{ on_platform: boolean; group_id: string | null; created: HostRequest[]; skipped: { listing_key: string; requested_date: string; reason: string }[] }>(
+        '/api/open-house-manager/requests/batch', { method: 'POST', body: JSON.stringify(payload) }),
+    declineRequestGroup: (groupId: string) => this.request<{ declined: number }>(`/api/open-house-manager/host-requests/group/${encodeURIComponent(groupId)}/decline`, {
+      method: 'POST',
+    }),
+
     approveRequest: (requestId: string) => this.request<HostRequest>(`/api/open-house-manager/host-requests/${requestId}/approve`, {
       method: 'POST',
     }),
@@ -1735,6 +1745,27 @@ class ApiService {
     },
 
     getAsset: (assetId: string) => this.request<StudioMediaAsset>(`/studio/media-lab/assets/${assetId}`),
+
+    // Cinematic Video (photo motion) - draft project, autosave, AI look, render. See
+    // backend app/services/studio_motion_service.py and lib/studio/cinematic.ts.
+    motion: {
+      create: (payload: { photos: string[]; source_kind: 'listing' | 'upload'; linked_property?: LinkedProperty | null; agent?: Record<string, unknown>; client_request_id?: string }) =>
+        this.request<StudioMediaAsset>('/studio/media-lab/motion', { method: 'POST', body: JSON.stringify(payload) }),
+      update: (assetId: string, settings: Record<string, unknown>) =>
+        this.request<StudioMediaAsset>(`/studio/media-lab/motion/${assetId}`, { method: 'PATCH', body: JSON.stringify({ settings }) }),
+      addPhotos: (assetId: string, photos: string[]) =>
+        this.request<StudioMediaAsset>(`/studio/media-lab/motion/${assetId}/photos`, { method: 'POST', body: JSON.stringify({ photos }) }),
+      removePhoto: (assetId: string, photoId: string) =>
+        this.request<StudioMediaAsset>(`/studio/media-lab/motion/${assetId}/photos/${photoId}`, { method: 'DELETE' }),
+      analyze: (assetId: string) =>
+        this.request<StudioMediaAsset>(`/studio/media-lab/motion/${assetId}/analyze`, { method: 'POST' }),
+      render: (assetId: string, body: { sharpen?: boolean; format?: string }) =>
+        this.request<StudioMediaAsset>(`/studio/media-lab/motion/${assetId}/render`, { method: 'POST', body: JSON.stringify(body) }),
+      estimate: (photos: number, sharpen: boolean) =>
+        this.request<{ photos: number; analyze_usd: number; sharpen_usd: number; analyze_percent: number | null; sharpen_percent: number | null; month_percent: number | null; soft_capped: boolean; sharpen_paused?: boolean }>(
+          `/studio/media-lab/motion/estimate?photos=${photos}&sharpen=${sharpen ? 'true' : 'false'}`),
+      health: () => this.request<{ worker: boolean; wait_seconds?: number; sec_per_frame?: number; start_seconds?: number; save_seconds?: number; queued?: number; busy?: boolean }>('/studio/media-lab/motion/health'),
+    },
 
     regenerate: (assetId: string, options?: StudioMediaGeneratePayload['options'], effects?: string[]) =>
       this.request<StudioMediaAsset>(`/studio/media-lab/assets/${assetId}/regenerate`, {

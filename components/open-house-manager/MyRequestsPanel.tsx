@@ -201,7 +201,8 @@ export default function MyRequestsPanel({ isOpen, onClose, onActionComplete, foc
   const deniedRequests = requests.filter(r => r.status === 'declined')
   // Not seen yet (see unseenDeclinedIds above) - shown once under Pending in addition to always
   // living in the Denied tab, not instead of it.
-  const newlyDeclinedRequests = deniedRequests.filter(r => unseenDeclinedIds.has(r.id))
+  // "None of these" answers a whole "any of these" ask with one alert, named by the ask (group) id.
+  const newlyDeclinedRequests = deniedRequests.filter(r => unseenDeclinedIds.has(r.id) || (!!r.group_id && unseenDeclinedIds.has(r.group_id)))
   const resolvedRequests = mainTab === 'approved' ? approvedRequests : deniedRequests
   const resolvedTotalPages = Math.max(1, Math.ceil(resolvedRequests.length / PAGE_SIZE))
   const pagedResolvedRequests = resolvedRequests.slice((resolvedPage - 1) * PAGE_SIZE, resolvedPage * PAGE_SIZE)
