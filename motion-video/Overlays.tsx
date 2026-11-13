@@ -103,9 +103,11 @@ const Reveal: React.FC<{ text: string; t: number; at: number; step?: number; dur
           <span key={w} style={{ display: 'inline-block', whiteSpace: 'pre' }}>
             {word.split('').map((ch) => {
               const e = easeOut(clamp01((t - at - i++ * step) / dur))
-              // whole pixels: a fractional offset makes each letter snap on its own frame (jitter)
+              // Owner 11/13: smooth, not steppy. A letter still moving gets its own layer (translate3d +
+              // will-change), so the browser moves it between pixels instead of snapping it to whole
+              // pixels (snapping read as jitter; rounding read as steps). Settled letters are plain text.
               const fs = typeof style.fontSize === 'number' ? style.fontSize : 40
-              return <span key={i} style={{ display: 'inline-block', opacity: e, transform: e < 1 ? `translateY(${Math.round((1 - e) * 0.32 * fs)}px)` : undefined, ...sheen }}>{ch}</span>
+              return <span key={i} style={{ display: 'inline-block', opacity: e, transform: e < 1 ? `translate3d(0, ${((1 - e) * 0.32 * fs).toFixed(2)}px, 0)` : undefined, willChange: e > 0 && e < 1 ? 'transform, opacity' : undefined, ...sheen }}>{ch}</span>
             })}
           </span>
         )

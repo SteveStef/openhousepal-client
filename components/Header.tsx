@@ -628,12 +628,12 @@ export default function Header({ mode = 'app' }: HeaderProps) {
                                   className={`group relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-bold transition-colors ${
                                     access.locked
                                       ? 'text-gray-400 dark:text-gray-600 opacity-70 hover:opacity-100'
-                                      : isActive(item.href)
+                                      : (pathname === item.href || pathname.startsWith(item.href + '/'))
                                         ? 'text-[#C9A24D] bg-[#C9A24D]/10'
                                         : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
                                   }`}
                                 >
-                                  <item.icon className={`ohp-icon-draw ${item.iconClass || ''} w-4 h-4 ${access.locked ? 'text-gray-300 dark:text-gray-700' : isActive(item.href) ? 'text-[#C9A24D]' : 'text-gray-400'}`} />
+                                  <item.icon className={`ohp-icon-draw ${item.iconClass || ''} w-4 h-4 ${access.locked ? 'text-gray-300 dark:text-gray-700' : (pathname === item.href || pathname.startsWith(item.href + '/')) ? 'text-[#C9A24D]' : 'text-gray-400'}`} />
                                   <span className="ohp-underline-text">{item.label}</span>
                                   {item.href === '/studio/forms' && formsActionCount > 0 && (
                                     <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">

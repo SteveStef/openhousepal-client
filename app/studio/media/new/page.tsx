@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft, Check, ChevronDown, Clapperboard, ImagePlus, Loader2, Maximize2, Sparkles, Sunset, Trash2, Upload, Video, Wand2,
+  ArrowLeft, Check, ChevronDown, Clapperboard, ImagePlus, Loader2, Maximize2, Sparkles, Sunset, Trash2, Upload, Wand2,
 } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
@@ -52,6 +52,15 @@ function CreateMediaPage() {
   const [property, setProperty] = useState<LinkedProperty | null>(null)
   const [sourceTab, setSourceTab] = useState<PhotoSearchTab>('mine')
   const [mode, setMode] = useState<'photo' | 'video' | 'motion' | null>(null)
+  // What a typical 30-second Cinematic Video uses of THIS agent's monthly AI (owner 11/13: "doesn't that
+  // depend on plan?") - room sorting + sharpening + making it, from their own allowance.
+  const [cineShare, setCineShare] = useState<number | null>(null)
+  useEffect(() => {
+    api.mediaLab.motion.estimate(5, true, 30).then(r => {
+      const d = r.success ? r.data : null
+      if (d && d.analyze_percent != null) setCineShare((d.analyze_percent || 0) + (d.sharpen_percent || 0) + (d.render_percent || 0))
+    }).catch(() => {})
+  }, [])
   const [photo, setPhoto] = useState<{ url: string; kind: 'listing' | 'upload' } | null>(null)
   const [videoPhotos, setVideoPhotos] = useState<string[]>([])
   const [pickerOpen, setPickerOpen] = useState(true)
@@ -436,21 +445,16 @@ function CreateMediaPage() {
 
         {hasSource && !mode && (
           <Section step={2} title="What do you want to make?" active={step === 2}>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <ModeCard
                 active={mode === 'motion'} onClick={() => pickMode('motion')}
                 icon={Clapperboard} title="Cinematic Video"
-                blurb="New - a film-style tour of the home: pick the length, tap the rooms to show, and real 3D camera moves, room captions, your branding and music do the rest. Uses well under 1% of your monthly AI."
+                blurb={`New - a film-style tour of the home: pick the length, tap the rooms to show, and real 3D camera moves, room captions, your branding and music do the rest. ${cineShare == null ? 'Uses a small share of your monthly AI.' : cineShare < 1 ? 'A 30-second video uses less than 1% of your monthly AI.' : `A 30-second video uses about ${Math.round(cineShare)}% of your monthly AI.`}`}
               />
               <ModeCard
                 active={mode === 'photo'} onClick={() => pickMode('photo')}
                 icon={Wand2} title="Photo edit"
                 blurb="Stack twilight, lights-on, virtual staging & enhancement onto one photo — all applied as a single combined edit."
-              />
-              <ModeCard
-                active={mode === 'video'} onClick={() => pickMode('video')}
-                icon={Video} title="AI Video"
-                blurb={`Up to ${MAX_VIDEO_PHOTOS} photos → a ~${MAX_VIDEO_PHOTOS * 5}s marketing video, ~5s per photo with a gentle camera move on each.`}
               />
             </div>
           </Section>

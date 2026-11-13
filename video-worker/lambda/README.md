@@ -13,8 +13,9 @@ node quota.mjs        # Lambda "Concurrent executions" (10 on a new account) - `
 
 Backend env (prod):
 - `REMOTION_FUNCTION_NAME`, `REMOTION_SERVE_URL`, `REMOTION_REGION` (us-east-1), `REMOTION_MEMORY_MB` (3008)
-- `REMOTION_MAX_LAMBDAS` - how many Lambdas one video is split across: 7 while the account allows 10 at
-  once (progress checks count too); ~40 once AWS raises the limit (faster, same cost)
+- `REMOTION_MAX_LAMBDAS` (7) - how many Lambdas one video is split across while the account allows only
+  10 at once. The backend reads the account's real limit from AWS hourly: at 100+ it uses 40 per video and
+  runs several videos at once by itself - no setting to change when AWS raises the limit.
 - the AWS key (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`) needs: lambda:InvokeFunction on the
   function, s3 Get/List/Delete on the `remotionlambda-*` bucket, cloudwatch:GetMetricStatistics
   (admin Provider billing page) - Remotion's `getUserPolicy()` covers the first two.

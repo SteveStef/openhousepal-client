@@ -122,10 +122,10 @@ function CardTitle({ title, sub, right }: { title: string; sub?: string; right?:
   )
 }
 
-function Pick({ active, onClick, children, className = '', badge }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string; badge?: string }) {
+function Pick({ active, onClick, children, className = '', badge, disabled }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string; badge?: string; disabled?: boolean }) {
   return (
-    <button type="button" onClick={onClick}
-      className={`group relative flex flex-col overflow-hidden rounded-2xl border-2 text-left transition hover:-translate-y-0.5 ${active ? 'border-[#C9A24D] shadow-[0_0_34px_-14px_rgba(201,162,77,0.8)]' : 'border-gray-200 hover:border-[#C9A24D]/50 dark:border-gray-800'} bg-white dark:bg-[#151517] ${className}`}>
+    <button type="button" onClick={disabled ? undefined : onClick} disabled={disabled}
+      className={`group relative flex flex-col overflow-hidden rounded-2xl border-2 text-left transition ${disabled ? 'cursor-not-allowed opacity-55' : 'hover:-translate-y-0.5'} ${active ? 'border-[#C9A24D] shadow-[0_0_34px_-14px_rgba(201,162,77,0.8)]' : `border-gray-200 dark:border-gray-800 ${disabled ? '' : 'hover:border-[#C9A24D]/50'}`} bg-white dark:bg-[#151517] ${className}`}>
       {children}
       {badge && <span className="absolute left-2 top-2 z-10 rounded-full bg-[#111827]/80 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#f1d58b]">{badge}</span>}
       <AnimatePresence>
@@ -147,6 +147,58 @@ function Field({ label, value, onChange, placeholder, maxLength = 60, hint }: { 
       <input className={inputCls} value={value || ''} placeholder={placeholder} maxLength={maxLength} onChange={e => onChange(e.target.value)} />
       {hint && <span className="mt-1 block text-[10.5px] font-semibold text-gray-400">{hint}</span>}
     </label>
+  )
+}
+
+/** A video being made (owner 11/13: the old bar was "very bland and boring") - in the AI photo tool's
+ *  style: the home's own photos drifting behind a sweeping gold light, a glowing spinner, a big
+ *  percent, a shimmering bar, the countdown and the line. Shaped like the video they chose. */
+function MakingCard({ photos, aspect, title, stage, pct, eta, ahead, elapsed, compact }: {
+  photos: string[]; aspect: number; title: string; stage: string; pct: number; eta: number | null; ahead: number; elapsed: number; compact?: boolean
+}) {
+  const [i, setI] = useState(0)
+  useEffect(() => {
+    if (photos.length < 2) return
+    const t = setInterval(() => setI(v => (v + 1) % photos.length), 3800)
+    return () => clearInterval(t)
+  }, [photos.length])
+  const tall = aspect < 1
+  const clock = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`
+  return (
+    <div className="ohp-reveal relative mx-auto w-full overflow-hidden rounded-2xl border-2 border-[#C9A24D]/50 bg-[#0b0b0d]"
+      style={{ aspectRatio: compact ? '16 / 10' : String(aspect), minHeight: compact ? 300 : 380, maxWidth: tall && !compact ? 'calc(72vh * ' + aspect + ')' : compact ? undefined : 820, boxShadow: '0 0 44px -10px rgba(201,162,77,0.5)' }}>
+      <AnimatePresence>
+        {photos[i] && (
+          <motion.img key={photos[i] + i} src={photos[i]} alt="" draggable={false}
+            initial={{ opacity: 0, scale: 1.06 }} animate={{ opacity: 1, scale: 1.18 }} exit={{ opacity: 0 }}
+            transition={{ opacity: { duration: 1.4 }, scale: { duration: 6, ease: 'linear' } }}
+            className="absolute inset-0 h-full w-full object-cover brightness-[0.4]" />
+        )}
+      </AnimatePresence>
+      <div className="pointer-events-none absolute inset-x-0 h-1/3"
+        style={{ animation: 'ohpScan 2.4s cubic-bezier(.4,0,.2,1) infinite', background: 'linear-gradient(180deg,transparent,rgba(230,199,122,0.42) 45%,rgba(255,255,255,0.7) 50%,rgba(230,199,122,0.42) 55%,transparent)' }} />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/30" />
+      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2.5 px-6 text-center">
+        <div className="relative flex h-14 w-14 items-center justify-center">
+          <span className="absolute inset-0 rounded-full bg-[#C9A24D]/45" style={{ animation: 'ohpGlow 1.6s ease-in-out infinite' }} />
+          <span className="absolute inset-0 rounded-full border-2 border-white/15 border-t-[#f1d58b] animate-spin" />
+          <Clapperboard className="relative h-6 w-6 text-white" />
+        </div>
+        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#f1d58b]">{title}</p>
+        <p className="text-sm font-black text-white drop-shadow">{stage}</p>
+        <p className="font-serif text-5xl font-black tabular-nums leading-none text-white drop-shadow">{Math.round(pct * 100)}%</p>
+        <div className="h-1.5 w-full max-w-[300px] overflow-hidden rounded-full bg-white/15">
+          <div className="h-full rounded-full transition-[width] duration-700 ease-out"
+            style={{ width: `${Math.max(4, Math.min(100, pct * 100))}%`, background: 'linear-gradient(90deg,#C9A24D,#f1d58b,#C9A24D)', backgroundSize: '200% 100%', animation: 'ohpShimmer 1.8s linear infinite' }} />
+        </div>
+        <p className="text-[11.5px] font-bold tabular-nums text-white/80">
+          {eta != null ? `Ready in about ${clock(eta)}` : 'Usually a few minutes'}{ahead > 0 ? ` · ${ahead} ${ahead === 1 ? 'video' : 'videos'} ahead of yours` : ''} · {clock(elapsed)} so far
+        </p>
+        <p className="max-w-[300px] rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-[10.5px] font-semibold leading-snug text-white/75">
+          You can close this page or log out - it keeps going. Your bell lets you know when it&apos;s ready.
+        </p>
+      </div>
+    </div>
   )
 }
 
@@ -528,6 +580,10 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   // ================================================================ step contents
   const want = s.want || []
   const poolCount = (s.pool ?? s.photos).length
+  // Each length's share of THIS agent's monthly AI (owner 11/13): making it (AWS, per second of video)
+  // + the photo prep still to do. From the agent's own allowance, so it differs by plan.
+  const perSecPct = est?.render_paid && est.render_percent != null ? est.render_percent / Math.max(5, lengthBucket || 30) : null
+  const prepPct = (needsSharpen > 0 && !est?.sharpen_paused && est?.sharpen_percent != null && est.photos ? (est.sharpen_percent * needsSharpen) / est.photos : 0)
   const setupStep = (
     <div className="space-y-4">
       <Card>
@@ -535,9 +591,10 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {LENGTH_OPTIONS.map(o => (
             <Pick key={o.seconds} active={(s.length || 30) === o.seconds} onClick={() => setLength(o.seconds)} className="items-center px-3 pb-3 pt-6 text-center"
-              badge={o.seconds === 30 ? 'Most popular' : undefined}>
+              badge={o.seconds === 30 ? 'Popular' : undefined}>
               <p className="font-serif text-3xl font-black leading-none text-[#111827] dark:text-white">{o.seconds}<span className="ml-0.5 text-sm font-black text-gray-400">sec</span></p>
               <p className="mt-1.5 text-[10.5px] font-semibold leading-tight text-gray-500">{o.hint}</p>
+              {perSecPct != null && <p className="mt-1.5 text-[10px] font-black leading-tight text-[#8b7355] dark:text-[#d7b974]">{aboutPct(perSecPct * o.seconds + prepPct)} of your monthly AI</p>}
             </Pick>
           ))}
         </div>
@@ -660,7 +717,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={cur.id} initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -18 }} transition={{ duration: 0.2 }}>
           <div className={`overflow-hidden rounded-2xl border bg-white shadow-sm dark:bg-[#151517] ${cur.confirmed ? 'border-emerald-300/70 dark:border-emerald-800/60' : !cur.sure ? 'border-amber-300 dark:border-amber-700/60' : 'border-gray-200 dark:border-gray-800'}`}>
-            <div className="relative w-full overflow-hidden bg-gray-100 dark:bg-gray-800" style={{ aspectRatio: '3 / 2' }}>
+            <div className="relative mx-auto w-full overflow-hidden bg-gray-100 dark:bg-gray-800" style={{ aspectRatio: '3 / 2', maxWidth: 'calc(50vh * 1.5)' }}>
               {/* Until its clean copy is made, hide the MLS badge strip the video crops off anyway. */}
               <img src={sized(cur.clean || cur.source, 1080, 80) || ''} alt="" className="w-full object-cover object-top" style={{ height: cur.clean || asset.source_kind === 'upload' ? '100%' : '108.2%' }} />
               <span className="absolute left-3 top-3 rounded-full bg-black/65 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white">Photo {ci + 1} of {visible.length}</span>
@@ -813,7 +870,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
           right={<button type="button" onClick={() => setExampleOpen(true)} className={`inline-flex shrink-0 items-center gap-1 text-[11px] font-black ${gold} hover:underline`}><Play className="h-3.5 w-3.5" /> See an example</button>} />
         <div className="grid gap-3 sm:grid-cols-3">
           {STYLE_PRESETS.map(st => (
-            <Pick key={st.id} active={s.style === st.id} badge={st.id === 'cinematic' ? 'Recommended' : undefined}
+            <Pick key={st.id} active={s.style === st.id} badge={st.id === 'cinematic' ? 'Recommended' : 'Coming soon'} disabled={st.id !== 'cinematic' && s.style !== st.id}
               onClick={() => up(d => ({ ...d, style: st.id, transition: transitionTouched.current ? d.transition : st.defaultTransition }))}>
               <StyleMini id={st.id} className="aspect-video w-full" />
               <div className="p-3">
@@ -921,7 +978,13 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
     </div>
   )
 
-  const makeStep = (
+  const making = (
+    <MakingCard photos={visible.map(ph => sized(ph.clean || ph.source, 720, 65) || '').filter(Boolean)}
+      aspect={FORMAT_SIZE[(render.target as MotionSettings['format']) || s.format].w / FORMAT_SIZE[(render.target as MotionSettings['format']) || s.format].h}
+      title={render.main === false ? `Making the ${FORMAT_SIZE[(render.target as MotionSettings['format']) || '16:9'].label.toLowerCase()} version` : asset.result_url ? 'Updating your video' : 'Making your video'}
+      stage={render.stage || 'Starting the cameras'} pct={p} eta={eta} ahead={ahead} elapsed={elapsed} />
+  )
+  const makeStep = rendering ? making : (
     <div className="space-y-4">
       {rendering || (render.state === 'failed' && asset.status !== 'succeeded') ? (
         <Card className="ohp-reveal">
@@ -1004,13 +1067,17 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   // Where the live preview sits: a tall video beside the options (left) on a wide space; a wide
   // video above them. Narrow spaces (phones, the chat panel) always stack it on top, kept short.
   const tall = TALL.includes(s.format)
-  const sidePreview = wide && tall
-  const previewMaxH = wide ? (tall ? '74vh' : '44vh') : tall ? '52vh' : '40vh'
-  // The check step shows each photo big - a wide preview above it would only push it down.
-  const showPreview = step !== S.check
+  // The check step shows each photo big, and while the video is being made the making screen
+  // takes over - no preview on either.
+  const showPreview = step !== S.check && !(step === S.make && rendering)
+  // Owner 11/13: on a computer the preview sits on the LEFT with the options on the right, for every
+  // shape (a wide one gets the bigger half). Inside the narrow chat panel a wide video stays on top.
+  const sidePreview = wide && showPreview && (tall || !embedded)
+  const previewMaxH = wide ? (tall ? '74vh' : '60vh') : tall ? '52vh' : '40vh'
   // The options' own width (beside a side preview, it's what's left) decides how many columns fit.
   const sideW = embedded ? 300 : 360
-  const optionsW = sidePreview ? width - sideW - 24 - (embedded ? 24 : 32) : width
+  const pad = 24 + (embedded ? 24 : 32)
+  const optionsW = sidePreview ? (tall ? width - sideW - pad : (width - pad) / 2.1) : width
 
   // ================================================================ the finished video
   const videoView = (
@@ -1042,15 +1109,10 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
             </div>
           )}
         {rendering && (
-          <Card>
-            <p className="text-sm font-black text-[#111827] dark:text-white">{render.main === false ? `Making the ${FORMAT_SIZE[render.target || '16:9'].label.toLowerCase()} version…` : 'Updating your video…'} {Math.round(p * 100)}%</p>
-            {eta != null && <WaitClock eta={eta} ahead={ahead} />}
-            <div className="mt-3"><ProgressBar value={p} /></div>
-            <p className="mt-2 text-[11px] font-semibold text-gray-500">{render.stage} · you can leave this page - it keeps going.</p>
-          </Card>
+          <MakingCard compact photos={visible.map(ph => sized(ph.clean || ph.source, 720, 65) || '').filter(Boolean)} aspect={16 / 10}
+            title={render.main === false ? `Making the ${FORMAT_SIZE[(render.target as MotionSettings['format']) || '16:9'].label.toLowerCase()} version` : 'Updating your video'}
+            stage={render.stage || 'Starting the cameras'} pct={p} eta={eta} ahead={ahead} elapsed={elapsed} />
         )}
-      </div>
-      <div className="space-y-4">
         <Card>
           <CardTitle title="Download" sub="Every shape is made for it - nothing gets cropped off" />
           {workerUp === false && <p className="mb-2.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">The video maker is restarting - new shapes and updates turn back on by themselves in a minute. Saving what's made still works.</p>}
@@ -1067,6 +1129,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-black text-[#111827] dark:text-white">{f.label}{isMain && <span className={`ml-1.5 text-[9px] uppercase tracking-wider ${gold}`}>Main</span>}</p>
                     <p className="truncate text-[10.5px] font-semibold text-gray-500">{f.where}</p>
+                    {!ready && est?.render_paid && <p className="text-[10px] font-black text-[#8b7355] dark:text-[#d7b974]">Uses {aboutPct(est.render_percent)} of your monthly AI</p>}
                   </div>
                   {ready ? (
                     <button type="button" onClick={() => download(f.id)} disabled={!!downloading}
@@ -1074,8 +1137,8 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
                       {downloading === f.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Save
                     </button>
                   ) : (
-                    <button type="button" onClick={() => make(f.id)} disabled={rendering || !!busy || changesPending || workerUp === false}
-                      title={changesPending ? 'Update your video first' : est?.render_paid ? 'Uses a small share of your monthly AI' : 'Free - no AI'}
+                    <button type="button" onClick={() => make(f.id)} disabled={rendering || !!busy || changesPending || workerUp === false || !!(est?.render_paid && est?.render_paused)}
+                      title={changesPending ? 'Update your video first' : est?.render_paid && est?.render_paused ? "You've reached your AI limit for now" : est?.render_paid ? `Uses ${aboutPct(est.render_percent)} of your monthly AI` : 'Free - no AI'}
                       className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[11px] font-black text-gray-700 hover:border-[#C9A24D] disabled:opacity-50 dark:border-gray-700 dark:text-gray-200">
                       {makingThis || busy === `fmt-${f.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Make it
                     </button>
@@ -1084,8 +1147,10 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
               )
             })}
           </div>
-          <p className="mt-2.5 text-[10.5px] font-semibold text-gray-400">{est?.render_paid ? `Extra shapes take a few minutes, ${aboutPct(est.render_percent)} of your monthly AI each.` : 'Extra shapes take about a minute and use no AI.'}</p>
+          <p className="mt-2.5 text-[10.5px] font-semibold text-gray-400">{est?.render_paid && est?.render_paused ? "You've reached your AI limit for now - new shapes and updates wait until it resets. Saving what's made still works." : est?.render_paid ? 'Each extra shape is made fresh for its screen - a few minutes each.' : 'Extra shapes take about a minute and use no AI.'}</p>
         </Card>
+      </div>
+      <div className="space-y-4">
         <Card>
           <CardTitle title="Sections" sub="Tap to take something out - or put it back" />
           <div className="space-y-1.5">
@@ -1173,18 +1238,25 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
             )}
           </div>
           {view === 'steps' && (
-            <div className="flex gap-1 overflow-x-auto px-3 pb-3 sm:px-4">
-              {STEPS.map((st, i) => {
-                const reachable = i <= step || STEPS.slice(0, i).every((_, k) => canNext(k))
-                const done = i < step
-                return (
-                  <button key={st.key} type="button" disabled={!reachable} onClick={() => goStep(i)}
-                    className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-black transition ${i === step ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : done ? 'bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#d7b974]' : 'text-gray-400'} disabled:cursor-not-allowed disabled:opacity-50`}>
-                    <span className={`flex h-4.5 w-4.5 items-center justify-center rounded-full text-[9px] ${i === step ? 'bg-[#C9A24D] text-[#111827]' : ''}`} style={{ width: 18, height: 18 }}>{done ? <Check className="h-3 w-3" strokeWidth={3.5} /> : i + 1}</span>
-                    <span className={i === step ? '' : 'hidden md:inline'}>{st.title}</span>
-                  </button>
-                )
-              })}
+            <div className="px-4 pb-3 sm:px-5">
+              <p className="mb-1.5 text-[11px] font-black text-gray-500 md:hidden">Step {step + 1} of {STEPS.length} · <span className="text-[#111827] dark:text-white">{STEPS[step].title}</span></p>
+              <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${STEPS.length}, minmax(0,1fr))` }}>
+                {STEPS.map((st, i) => {
+                  // while the first video is being made nothing can be changed (owner 11/13)
+                  const locked = rendering && !asset.result_url && i !== step
+                  const reachable = !locked && (i <= step || STEPS.slice(0, i).every((_, k) => canNext(k)))
+                  const done = i < step
+                  return (
+                    <button key={st.key} type="button" disabled={!reachable} onClick={() => goStep(i)} title={st.title} aria-label={`Step ${i + 1}: ${st.title}`}
+                      className="group min-w-0 py-1 text-left disabled:cursor-not-allowed">
+                      <span className={`block h-1.5 rounded-full transition-colors ${i === step ? 'bg-[#C9A24D]' : done ? 'bg-[#111827] dark:bg-white/80' : 'bg-gray-200 group-hover:bg-gray-300 dark:bg-white/10'}`} />
+                      <span className={`mt-1.5 hidden truncate text-[10.5px] font-black md:block ${i === step ? 'text-[#111827] dark:text-white' : done ? 'text-[#8b7355] dark:text-[#d7b974]' : 'text-gray-400'}`}>
+                        {done ? <Check className="mr-0.5 inline h-3 w-3 -translate-y-px" strokeWidth={3.5} /> : <span className="mr-0.5">{i + 1}.</span>}{st.title}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -1192,7 +1264,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
         {error && <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">{error}</p>}
 
         {view === 'video' ? videoView : (
-          <div className="grid gap-6" style={{ gridTemplateColumns: sidePreview ? `${sideW}px minmax(0,1fr)` : 'minmax(0,1fr)' }}>
+          <div className="grid gap-6" style={{ gridTemplateColumns: sidePreview ? (tall ? `${sideW}px minmax(0,1fr)` : 'minmax(0,1.1fr) minmax(0,1fr)') : 'minmax(0,1fr)' }}>
             {sidePreview && <div className="min-w-0"><div className={embedded ? '' : 'sticky top-36'}>{preview}</div></div>}
             <div className="min-w-0">
               <div className="mb-4">
@@ -1217,7 +1289,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
                 </motion.div>
               </AnimatePresence>
               <div className={`mt-6 items-center justify-between ${embedded ? 'flex' : 'hidden sm:flex'}`}>
-                <button type="button" onClick={() => goStep(step - 1)} disabled={step === 0}
+                <button type="button" onClick={() => goStep(step - 1)} disabled={step === 0 || (rendering && !asset.result_url)}
                   className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-black text-gray-500 transition hover:bg-gray-100 disabled:opacity-0 dark:hover:bg-white/10">
                   <ArrowLeft className="h-4 w-4" /> Back
                 </button>
@@ -1239,7 +1311,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
       {/* phones: the flow bar (inside the chat the buttons sit under the step instead) */}
       {view === 'steps' && !embedded && (
         <FlowDock step={step + 1} total={STEPS.length}
-          onBack={step > 0 ? () => goStep(step - 1) : undefined}
+          onBack={step > 0 && !(rendering && !asset.result_url) ? () => goStep(step - 1) : undefined}
           onContinue={step < STEPS.length - 1 ? () => goStep(step + 1) : () => make()}
           disabled={step < STEPS.length - 1 ? !canNext(step) : (rendering || workerUp === false || !!(est?.render_paid && est?.render_paused))}
           busy={busy === 'make' || (step === STEPS.length - 1 && rendering)}

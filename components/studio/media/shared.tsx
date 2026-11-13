@@ -693,6 +693,13 @@ export function ProjectCard({ asset, active, downloading, onOpen, onDownload, on
         <div className="absolute inset-0">
           {done && !isVid && <img src={asset.result_url!} alt="" className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.06]" />}
           {done && isVid && <video ref={vid} src={asset.result_url!} poster={(asset.options?.preview_frame_url as string | undefined) || undefined} muted loop playsInline preload="metadata" onLoadedMetadata={e => { const d = e.currentTarget.duration; if (d && isFinite(d)) setSecs(d) }} className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.03]" />}
+          {/* Owner 11/13: see the home at a glance, no hovering (a video's first frame is often black -
+              a Cinematic Video fades in). The photo sits on top and fades away while it plays on hover. */}
+          {done && isVid && (asset.options?.preview_frame_url || asset.source_photo_url) && (
+            <img src={(() => { const u = (asset.options?.preview_frame_url as string | undefined) || asset.source_photo_url; return u.startsWith('http://') ? `/api/pdf-image?url=${encodeURIComponent(u)}` : u })()}
+              alt="" draggable={false} loading="lazy"
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:opacity-0" />
+          )}
           {!done && motionVid && (
             // Cinematic Video draft / in progress: its first photo, with where it stands.
             <div className="relative h-full w-full">
