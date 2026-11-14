@@ -445,6 +445,43 @@ export function buildAdjustmentGrid(estimate?: CmaAiEstimate | null): CmaAdjustm
     steps, finalValue, uncertainties: anchor.main_uncertainties || [],
   }
 }
+// Baths the way the record has them (grader audit 11/14: "3 baths" for a home with 2 full and 2 half read as
+// three bathrooms). The total counts each half bath as half; when the record has both counts, show both.
+type BathHome = { baths?: number | null; full_baths?: number | null; half_baths?: number | null }
+export function bathsText(h: BathHome): string {
+  if (h.full_baths != null && h.half_baths) return `${h.full_baths} full, ${h.half_baths} half`
+  return h.baths != null ? String(h.baths) : '—'
+}
+export function bathsTile(h: BathHome): { label: string; value: string } | null {
+  if (h.baths == null && h.full_baths == null) return null
+  if (h.full_baths != null && h.half_baths) return { label: 'Full + Half Baths', value: `${h.full_baths} + ${h.half_baths}` }
+  return { label: 'Baths', value: String(h.baths ?? h.full_baths) }
+}
+
+// One line per sale for the client report (grader audit 11/14: "the PDFs do not expose the per-comparable
+// adjustments and weightings behind the adjusted-sales figure"): what it sold for, the net adjustment with its
+// biggest reasons, the adjusted price and its share. Share x adjusted price adds up to the adjusted-sales figure.
+// The full line-by-line worksheet stays in the agent's "How we got there".
+export interface CmaSaleSummaryRow { address: string; sale: number; net: number; reasons: string; adjusted: number; weightPct: number }
+export function buildSaleSummary(estimate?: CmaAiEstimate | null): { rows: CmaSaleSummaryRow[]; adjustedSales: number | null } | null {
+  const grid = buildAdjustmentGrid(estimate)
+  if (!grid || !grid.comps.length) return null
+  const rows = grid.comps.filter(c => c.weightPct > 0 && c.sale && c.adjusted).map(c => {
+    const parts: [string, number][] = [
+      ['size', c.size], ['lower level', c.lowerLevel], ['baths', c.baths], ['garage', c.garage], ['land', c.lot],
+      ['time since sale', c.time], ['age', c.age], ['condition', c.condition], ['location', c.location],
+      ['sewer', c.sewer], ['road', c.road],
+    ]
+    const reasons = parts.filter(([, v]) => Math.abs(v || 0) >= 500)
+      .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 3)
+      .map(([k, v]) => `${k} ${formatSignedMoney(Math.round(v / 1000) * 1000)}`).join(' · ')
+    const titled = (c.address || c.label).toLowerCase().replace(/\b[a-z]/g, m => m.toUpperCase())
+    return { address: titled, sale: c.sale, net: Math.round(c.adjusted - c.sale), reasons, adjusted: c.adjusted, weightPct: c.weightPct }
+  })
+  if (!rows.length) return null
+  return { rows, adjustedSales: estimate?.value_bridge?.adjusted_sales_value ?? estimate?.valuation_trace?.anchor?.anchor_value ?? null }
+}
+
 export function formatSignedMoney(v: number): string {
   if (!v) return '—'
   return `${v > 0 ? '+' : '−'}${formatMoney(Math.abs(v))}`
@@ -934,7 +971,11 @@ export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null
   const underContract = /under contract|pending|contingent/i.test(String(report.subject?.mls_status || ''))
   if (buyer && underContract) {
     const d = report.subject?.days_on_market
-    callouts.push(`This home is already under contract${d != null ? ` after ${d} days on the market` : ''} - buyers accepted its price quickly, so a backup offer needs to be close to it.`)
+    // "quickly" only when it was (grader audit 11/14: said of a home that took 42 days and price cuts to go under
+    // contract). What a buyer agreed to pay isn't public until it closes - say that instead of guessing.
+    callouts.push(d != null && d <= 14
+      ? `This home went under contract after ${d} days on the market - a buyer agreed to its price quickly, so a backup offer needs to be close to it.`
+      : `This home is already under contract${d != null ? ` after ${d} days on the market` : ''}. The price the buyer agreed to isn't public until it closes, so a backup offer only matters if that contract falls through.`)
   } else if (buyer && report.pricing?.ai_estimate?.auction_listing) {
     // An auction has no asking price to negotiate from - its list price is the opening bid (11/01)
     callouts.push('This home is being sold at auction - its list price is the opening bid, so compare these homes with your top bid, not with that number.')

@@ -1122,6 +1122,8 @@ function candidateToComparable(c: CmaCompCandidate): CmaComparable {
     lot_size: c.lot_size,
     beds: c.beds,
     baths: c.baths,
+    full_baths: c.full_baths ?? null,
+    half_baths: c.half_baths ?? null,
     year_built: c.year_built,
     architectural_style: c.architectural_style,
     levels: c.levels,
@@ -4936,6 +4938,7 @@ function AgentValueReviewBanner({ report }: { report: CmaReport }) {
     current_competition?: { review?: string | null }
     missed_sales?: { message?: string | null } | null
     data_freshness?: { message?: string | null } | null
+    subject_status_review?: { message?: string | null } | null
   }) | null | undefined
   const note = est?.agent_review
   // Every agent-only review note at once (10/25: a recent same-community sale left out of the report
@@ -4947,6 +4950,8 @@ function AgentValueReviewBanner({ report }: { report: CmaReport }) {
   if (est?.missed_sales?.message) notes.push({ text: est.missed_sales.message, values: null })
   // MLS data more than a day old when this report was made (grader audit 11/13)
   if (est?.data_freshness?.message) notes.unshift({ text: est.data_freshness.message, values: null })
+  // The subject's listing left the MLS only days ago - confirm with the owner before sending (grader audit 11/14)
+  if (est?.subject_status_review?.message) notes.unshift({ text: est.subject_status_review.message, values: null })
   if (!notes.length) return null
   return (
     <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-sm dark:border-amber-900/40 dark:bg-amber-900/10">

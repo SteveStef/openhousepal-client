@@ -13,6 +13,7 @@ import {
   CmaGuidanceSection, cmaGuidanceSections, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, COMP_STATUS_BADGE_STYLE,
   AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_STYLES, STRENGTH_LABEL, STRENGTH_SCALE_STYLES, STRENGTH_STYLES,
   buyerOfferFigures, buyerOfferLabels, basementDisplay, materialIssuesText, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft,
+  bathsText,
   cleanUtilityList,
 } from '@/lib/cma'
 import { CmaPresentationDocument } from '@/lib/pdfs'
@@ -351,7 +352,7 @@ function CmaPresentation({ data }: { data: CmaPublicResponse }) {
                   {[subject, ...comparables].some(p => p.below_grade_finished_area != null) && <OverviewRow index={2} label="Below-Grade Finished Area" subjectValue={belowGradeDisplay(subject)} comparables={comparables} get={c => belowGradeDisplay(c)} />}
                   <OverviewRow index={3} label="Lot Size" subjectValue={formatAcresFromSqft(subject.lot_size)} comparables={comparables} get={c => formatAcresFromSqft(c.lot_size)} />
                   <OverviewRow index={4} label="Beds" subjectValue={String(subject.beds ?? '—')} comparables={comparables} get={c => String(c.beds ?? '—')} />
-                  <OverviewRow index={5} label="Baths" subjectValue={String(subject.baths ?? '—')} comparables={comparables} get={c => String(c.baths ?? '—')} />
+                  <OverviewRow index={5} label="Baths" subjectValue={bathsText(subject)} comparables={comparables} get={c => bathsText(c)} />
                   <OverviewRow index={6} label="Year Built" subjectValue={String(subject.year_built ?? '—')} comparables={comparables} get={c => String(c.year_built ?? '—')} />
                   <OverviewRow index={7} label="Annual Taxes" subjectValue={subject.annual_taxes ? formatMoney(subject.annual_taxes) : '—'} comparables={comparables} get={c => c.annual_taxes ? formatMoney(c.annual_taxes) : '—'} />
                   <OverviewRow index={8} label="Distance" subjectValue="—" comparables={comparables} get={c => c.distance_miles != null ? `${c.distance_miles} miles` : '—'} />
@@ -613,7 +614,7 @@ function SubjectShowcaseCard({ subject }: { subject: CmaPublicResponse['subject'
   const subjectPsf = subjectPricePerSqft(subject)
   const stats = [
     subject.beds != null ? { icon: BedDouble, label: 'Beds', value: String(subject.beds) } : null,
-    subject.baths != null ? { icon: Bath, label: 'Baths', value: String(subject.baths) } : null,
+    subject.baths != null ? { icon: Bath, label: 'Baths', value: bathsText(subject) } : null,
     subject.sqft != null ? { icon: Ruler, label: 'Sq Ft', value: formatNumber(subject.sqft) } : null,
     subjectPsf != null ? { icon: DollarSign, label: '/ Sq Ft', value: `$${subjectPsf}` } : null,
     subject.year_built != null ? { icon: Calendar, label: 'Built', value: String(subject.year_built) } : null,
@@ -786,7 +787,7 @@ function SubjectPopupModal({ subject, onClose }: { subject: CmaPublicResponse['s
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
             <PopupFact icon={BedDouble} label="Beds" value={subject.beds ?? '-'} />
-            <PopupFact icon={Bath} label="Baths" value={subject.baths ?? '-'} />
+            <PopupFact icon={Bath} label="Baths" value={bathsText(subject)} />
             <PopupFact icon={Ruler} label="Sqft" value={subject.sqft ? formatNumber(subject.sqft) : '-'} />
             <PopupFact icon={LandPlot} label="Acres" value={formatAcresFromSqft(subject.lot_size)} />
             <PopupFact icon={Building2} label="Built" value={subject.year_built ?? '-'} />
@@ -961,7 +962,7 @@ function ComparableSection({ comp, index, onOpen, mapRef }: { comp: CmaComparabl
               column below the grid. */}
           <div className="mt-3 grid grid-cols-4 gap-1.5 sm:grid-cols-3 sm:gap-2">
             <MiniFact icon={BedDouble} label="Beds" value={comp.beds ?? '-'} />
-            <MiniFact icon={Bath} label="Baths" value={comp.baths ?? '-'} />
+            <MiniFact icon={Bath} label="Baths" value={bathsText(comp)} />
             <MiniFact icon={LandPlot} label="Acres" value={formatAcresFromSqft(comp.lot_size)} />
             <MiniFact icon={Building2} label="Built" value={comp.year_built ?? '-'} />
             <MiniFact icon={Gauge} label="$/Sqft" value={psf ? `$${psf}` : '-'} />
@@ -1196,7 +1197,7 @@ function ComparablePopupModal({ comp, subject, onClose, mapRef }: { comp: CmaCom
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
             <PopupFact icon={BedDouble} label="Beds" value={comp.beds ?? '-'} />
-            <PopupFact icon={Bath} label="Baths" value={comp.baths ?? '-'} />
+            <PopupFact icon={Bath} label="Baths" value={bathsText(comp)} />
             <PopupFact icon={Ruler} label="Sqft" value={comp.sqft ? formatNumber(comp.sqft) : '-'} />
             <PopupFact icon={LandPlot} label="Acres" value={formatAcresFromSqft(comp.lot_size)} />
             <PopupFact icon={Building2} label="Built" value={comp.year_built ?? '-'} />

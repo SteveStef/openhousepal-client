@@ -32,7 +32,7 @@ function pdfImageUrl(url?: string | null): string {
   if (typeof window === 'undefined') return normalized;
   return `${window.location.origin}/api/pdf-image?url=${encodeURIComponent(normalized)}`;
 }
-import { cleanUtilityList, cmaCompetitionView, formatSignedMoney } from '@/lib/cma';
+import { bathsText, bathsTile, buildSaleSummary, cleanUtilityList, cmaCompetitionView, formatSignedMoney } from '@/lib/cma';
 import { CmaGuidanceSection, buildCmaStaticMapUrl, clientCompStrength, cmaGuidanceSections, resolveCmaMarketMetrics, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, buyerOfferFigures, buyerOfferLabels, AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_HEX, STRENGTH_LABEL, STRENGTH_TIER_HEX, compDisplayPrice, effectiveCompPrice, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft, basementDisplay, materialIssuesText } from '@/lib/cma';
 import { qrPdfSrc } from '@/lib/qr';
 import { salesAreRecent, salesWords } from '@/lib/salesWording'
@@ -2226,7 +2226,7 @@ function getCmaSubjectStats(s: CmaSubjectProperty, authoritativeStatus?: CmaFina
   const activeMarketDays = authoritativeStatus?.active_market_days ?? s.days_on_market;
   return [
     s.beds != null ? { label: 'Beds', value: String(s.beds) } : null,
-    s.baths != null ? { label: 'Baths', value: String(s.baths) } : null,
+    bathsTile(s),
     s.sqft != null ? { label: 'Reported Finished Area', value: formatNumber(s.sqft) } : null,
     s.above_grade_finished_area != null ? { label: 'Above-Grade Finished Area', value: formatNumber(s.above_grade_finished_area) } : null,
     s.below_grade_finished_area != null ? { label: 'Below-Grade Finished Area', value: belowGradeDisplay(s) } : null,
@@ -2410,7 +2410,7 @@ function CmaSubjectPage({ report, agent }: { report: CmaReport; agent: CmaPdfAge
   const statusValue = report.pricing?.ai_estimate?.status?.label || (s.mls_status ? formatMlsStatusLabel(s.mls_status) : null);
   const subjectStats = [
     s.beds != null ? { label: 'Beds', value: String(s.beds) } : null,
-    s.baths != null ? { label: 'Baths', value: String(s.baths) } : null,
+    bathsTile(s),
     s.sqft != null ? { label: 'Reported Finished Area', value: formatNumber(s.sqft) } : null,
     s.above_grade_finished_area != null ? { label: 'Above-Grade Finished Area', value: formatNumber(s.above_grade_finished_area) } : null,
     s.below_grade_finished_area != null ? { label: 'Below-Grade Finished Area', value: belowGradeDisplay(s) } : null,
@@ -2584,7 +2584,7 @@ function CmaComparisonTablePage({ report, comparables, agent }: { report: CmaRep
     ...([s, ...comparables].some(p => p.below_grade_finished_area != null) ? [{ label: 'Below-Grade Finished Area', subject: belowGradeDisplay(s), comp: (c: CmaComparable) => belowGradeDisplay(c) }] : []),
     { label: 'Lot Size', subject: formatAcresFromSqft(s.lot_size), comp: c => formatAcresFromSqft(c.lot_size) },
     { label: 'Beds', subject: String(s.beds ?? '—'), comp: c => String(c.beds ?? '—') },
-    { label: 'Baths', subject: String(s.baths ?? '—'), comp: c => String(c.baths ?? '—') },
+    { label: 'Baths', subject: bathsText(s), comp: c => bathsText(c) },
     { label: 'Year Built', subject: String(s.year_built ?? '—'), comp: c => String(c.year_built ?? '—') },
     { label: 'Garage', subject: s.garage || '—', comp: c => c.garage || '—' },
     { label: 'Basement', subject: basementDisplay(s), comp: c => basementDisplay(c) },
@@ -2723,7 +2723,7 @@ function CmaComparablePage({ comp, index, agent }: { comp: CmaComparable; index:
   const hasQuality = !!(displayedStrength || q?.finish_quality || q?.interior || q?.exterior || q?.lot || q?.amenities || q?.layout || q?.area || q?.street_context);
   const compFacts = [
     { label: 'Beds', value: comp.beds },
-    { label: 'Baths', value: comp.baths },
+    bathsTile(comp) ?? { label: 'Baths', value: null },
     { label: 'Reported Finished Area', value: comp.sqft ? formatNumber(comp.sqft) : null },
     { label: 'Above-Grade Finished Area', value: comp.above_grade_finished_area ? formatNumber(comp.above_grade_finished_area) : null },
     { label: 'Below-Grade Finished Area', value: belowGradeDisplay(comp) !== '—' ? belowGradeDisplay(comp) : null },
@@ -2901,7 +2901,7 @@ function CmaChartsPageV2({ report, comparables, agent }: { report: CmaReport; co
   const valueNote = finalValue ? [
     'These are the prices the homes actually sold for, before adjusting for how each one differs from this home.',
     adjusted && Math.abs(adjusted - finalValue) >= 1000
-      ? `Adjusted for those differences they point to about ${formatMoney(adjusted)}, and each step from there to the ${formatMoney(finalValue)} value is listed under the value later in this report.`
+      ? `Adjusted for those differences they point to about ${formatMoney(adjusted)}, and each step from there to the ${formatMoney(finalValue)} value is on the "From the Sales to the Value" page.`
       : `Adjusted for those differences they point to the ${formatMoney(finalValue)} value.`,
   ].join(' ') : null;
   return (
@@ -2993,8 +2993,6 @@ function CmaPricingPage({ report, comparables, agent }: { report: CmaReport; com
         </View>
       )}
 
-      <CmaValueBridgeBlocks report={report} />
-
       <CmaPageFooter agent={agent} />
     </Page>
   );
@@ -3016,16 +3014,57 @@ export function stripBridgeSentences(text?: string | null): string | null | unde
   return out.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-// These blocks used to be a page of their own - a small table on an otherwise empty page (test round 11/13: a
-// 16-page PDF with several nearly blank pages). They now sit under the value they explain, on the value page,
-// and move to the next page together only when there is no room.
+// One page: how each sale was adjusted, each step from the sales to the value, and the home's record. (For a day
+// the steps sat under the value on the value page; with the per-sale table added - outside audit 11/14, "the
+// PDFs do not expose the per-comparable adjustments and weightings" - they are a full page of their own again,
+// with its own heading instead of spilling onto a page without one.)
+function CmaValueBridgePage({ report, agent }: { report: CmaReport; agent: CmaPdfAgent }) {
+  const est = report.pricing.ai_estimate;
+  if (!est?.value_bridge && !est?.property_record) return null;
+  return (
+    <Page size="LETTER" style={cma.page}>
+      <CmaPdfHeader label="How the Value Was Reached" title="From the Sales to the Value" subtitle="How each sale was adjusted, and each step from there to the final value" />
+      <CmaValueBridgeBlocks report={report} />
+      <CmaPageFooter agent={agent} />
+    </Page>
+  );
+}
+
 function CmaValueBridgeBlocks({ report }: { report: CmaReport }) {
   const est = report.pricing.ai_estimate;
   const bridge = est?.value_bridge;
   const record = est?.property_record;
+  const sales = buildSaleSummary(est);
   if (!bridge && !record) return null;
   return (
     <View wrap={false}>
+      {sales && (
+        <View style={{ backgroundColor: COLORS.white, borderRadius: 10, padding: 12, border: `1 solid ${COLORS.border}`, borderTop: '3 solid #C9A24D' }}>
+          <Text style={{ fontSize: 8.4, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1.1, color: COLORS.text, marginBottom: 5 }}>How each sale was adjusted to this home</Text>
+          <View style={{ flexDirection: 'row', paddingBottom: 3, borderBottom: `0.5 solid ${COLORS.line}` }}>
+            <Text style={{ flex: 2.6, fontSize: 6.6, fontWeight: 900, color: COLORS.subtext, textTransform: 'uppercase', letterSpacing: 0.6 }}>Sale</Text>
+            <Text style={{ flex: 1.1, fontSize: 6.6, fontWeight: 900, color: COLORS.subtext, textTransform: 'uppercase', letterSpacing: 0.6, textAlign: 'right' }}>Sold for</Text>
+            <Text style={{ flex: 1.1, fontSize: 6.6, fontWeight: 900, color: COLORS.subtext, textTransform: 'uppercase', letterSpacing: 0.6, textAlign: 'right' }}>Adjusted by</Text>
+            <Text style={{ flex: 1.1, fontSize: 6.6, fontWeight: 900, color: COLORS.subtext, textTransform: 'uppercase', letterSpacing: 0.6, textAlign: 'right' }}>Adjusted price</Text>
+            <Text style={{ flex: 0.7, fontSize: 6.6, fontWeight: 900, color: COLORS.subtext, textTransform: 'uppercase', letterSpacing: 0.6, textAlign: 'right' }}>Share</Text>
+          </View>
+          {sales.rows.map((r, i) => (
+            <View key={i} style={{ flexDirection: 'row', paddingVertical: 3, borderBottom: `0.5 solid ${COLORS.line}` }}>
+              <View style={{ flex: 2.6, paddingRight: 6 }}>
+                <Text style={{ fontSize: 7.8, fontWeight: 700, color: COLORS.text }}>{r.address}</Text>
+                {r.reasons ? <Text style={{ fontSize: 6.4, color: COLORS.subtext, marginTop: 1 }}>{r.reasons}</Text> : null}
+              </View>
+              <Text style={{ flex: 1.1, fontSize: 7.8, color: COLORS.text, textAlign: 'right' }}>{formatMoney(r.sale)}</Text>
+              <Text style={{ flex: 1.1, fontSize: 7.8, color: COLORS.text, textAlign: 'right' }}>{Math.abs(r.net) >= 500 ? formatSignedMoney(Math.round(r.net / 1000) * 1000) : '—'}</Text>
+              <Text style={{ flex: 1.1, fontSize: 7.8, fontWeight: 700, color: COLORS.text, textAlign: 'right' }}>{formatMoney(Math.round(r.adjusted / 1000) * 1000)}</Text>
+              <Text style={{ flex: 0.7, fontSize: 7.8, color: COLORS.text, textAlign: 'right' }}>{r.weightPct}%</Text>
+            </View>
+          ))}
+          <Text style={{ fontSize: 6.6, color: COLORS.subtext, marginTop: 4, lineHeight: 1.35 }}>
+            {`Each sale is moved toward this home for the ways it differs; its share is how much it counts (closer matches that needed less adjusting count more). Share times adjusted price, added up${sales.adjustedSales ? `, is the ${formatMoney(Math.round(sales.adjustedSales / 1000) * 1000)} the sales point to` : ''}.`}
+          </Text>
+        </View>
+      )}
       {bridge && (
         <View wrap={false} style={{ backgroundColor: COLORS.white, borderRadius: 10, padding: 12, border: `1 solid ${COLORS.border}`, borderTop: '3 solid #C9A24D', marginTop: 12, marginBottom: 10 }}>
           <Text style={{ fontSize: 8.4, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1.1, color: COLORS.text, marginBottom: 6 }}>From the sales to the value - each step</Text>
@@ -3208,8 +3247,8 @@ function CmaCompetitionPage({ report, agent }: { report: CmaReport; agent: CmaPd
         return (
           <View wrap={false} style={{ flexDirection: 'row', borderWidth: 1.2, borderColor: '#C9A24D', borderRadius: 6, marginBottom: 8, overflow: 'hidden', backgroundColor: '#FBFAF7' }}>
             {photo
-              ? <Image src={normalizeImageUrl(photo)} style={{ width: 120, height: 82, objectFit: 'cover' }} />
-              : <View style={{ width: 120, height: 82, backgroundColor: '#F3F4F6' }} />}
+              ? <Image src={normalizeImageUrl(photo)} style={{ width: 104, height: 70, objectFit: 'cover' }} />
+              : <View style={{ width: 104, height: 70, backgroundColor: '#F3F4F6' }} />}
             <View style={{ flex: 1, padding: 7 }}>
               <Text style={{ fontSize: 6.2, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.5, color: '#8b7355' }}>This home</Text>
               <Text style={{ fontSize: 12, fontWeight: 900, color: COLORS.text, marginTop: 2 }}>
@@ -3235,8 +3274,8 @@ function CmaCompetitionPage({ report, agent }: { report: CmaReport; agent: CmaPd
         {g.cards.map(h => (
           <View key={h.listing_key} wrap={false} style={{ flexDirection: 'row', borderWidth: 0.6, borderColor: COLORS.line, borderRadius: 6, marginBottom: 6, overflow: 'hidden' }}>
             {h.photo_url
-              ? <Image src={normalizeImageUrl(h.photo_url)} style={{ width: 120, height: 82, objectFit: 'cover' }} />
-              : <View style={{ width: 120, height: 82, backgroundColor: '#F3F4F6' }} />}
+              ? <Image src={normalizeImageUrl(h.photo_url)} style={{ width: 104, height: 70, objectFit: 'cover' }} />
+              : <View style={{ width: 104, height: 70, backgroundColor: '#F3F4F6' }} />}
             <View style={{ flex: 1, padding: 7 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={{ fontSize: 6.2, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.5, color: h.status === 'pending' ? '#B45309' : '#047857' }}>{h.statusLabel}</Text>
@@ -3280,6 +3319,7 @@ export const CmaPresentationDocument = ({ report, agent }: { report: CmaReport; 
       {!hidden.has('charts') && comparables.length > 0 && <CmaChartsPageV2 report={report} comparables={comparables} agent={agent} />}
       {!hidden.has('competition') && <CmaCompetitionPage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaPricingPage report={report} comparables={comparables} agent={agent} />}
+      {!hidden.has('pricing') && <CmaValueBridgePage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaInspectionConcernsPage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaOfferSuggestionPage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaPricingStrategyPage report={report} agent={agent} />}

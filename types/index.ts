@@ -3064,6 +3064,8 @@ export interface CmaComparable {
   lot_size?: number | null;
   beds?: number | null;
   baths?: number | null;
+  full_baths?: number | null;  // how baths is made up, when the MLS record has both
+  half_baths?: number | null;
   year_built?: number | null;
   architectural_style?: string[] | string | null;
   levels?: string[] | string | null;
@@ -3732,6 +3734,8 @@ export interface CmaCompCandidate {
   lot_size?: number | null;
   beds?: number | null;
   baths?: number | null;
+  full_baths?: number | null;
+  half_baths?: number | null;
   year_built?: number | null;
   architectural_style?: string[] | string | null;
   levels?: string[] | string | null;
