@@ -22,6 +22,7 @@ export type Visual =
   | { type: 'phoneFilm'; film: Clip }
   | { type: 'scan'; film: Clip }
   | { type: 'twoPhones'; a: Shot; b: Shot }
+  | { type: 'phoneSteps'; shots: { src: string; label: string }[] }
   | { type: 'laptop'; shot: Shot }
   | { type: 'laptopFilm'; film: Clip }
   | { type: 'screen'; film: Clip }
@@ -144,7 +145,7 @@ export const AI_FEATURE: Feature = {
   line: 'Ask how to do anything, or ask it to do it for you.',
   steps: [{ icon: MessagesSquare, label: 'Ask in plain words' }, { icon: Sparkles, label: 'It builds a card' }, { icon: CircleCheck, label: 'Tap to confirm' }],
   why: ['Makes designs, CMAs, Spotlights, Showcases and follow-ups', 'Knows every tool, so it doubles as live help', 'Nothing is saved or sent until the agent taps'],
-  visual: { type: 'twoPhones', a: { src: `${P}/chat-ask.jpg`, w: 780, h: 1688 }, b: { src: `${P}/chat-made.jpg`, w: 780, h: 1688 } },
+  visual: { type: 'phoneSteps', shots: [{ src: `${P}/chat-ask.jpg`, label: 'The agent asks' }, { src: `${P}/chat-card.jpg`, label: 'It builds a card to check' }, { src: `${P}/chat-made.jpg`, label: 'One tap, and it’s made' }] },
 }
 
 export const STACK = [
@@ -247,7 +248,8 @@ export const EXPAND: Record<string, ExpandTab[]> = {
     { label: 'Designs', kind: 'grid', items: [...DESIGNS.a, ...DESIGNS.b, ...DESIGNS.c].map(d => ({ thumb: `${P}/design-${d}.jpg`, full: `${P}/design-${d}-lg.jpg` })) },
   ],
   blogs: [
-    { label: 'Live blog', kind: 'live', device: 'desk', url: `${SITE}/peter-stefanatos/blogs` },
+    { label: 'Live article', kind: 'live', device: 'desk', url: `${SITE}/blog/main-line-home-prices-a-plain-language-guide-for-buyers` },
+    { label: 'Live media page', kind: 'live', device: 'desk', url: `${SITE}/blog` },
     { label: 'Saved picture', kind: 'page', device: 'desk', src: `${P}/blog.jpg` },
   ],
   forms: [
@@ -255,6 +257,7 @@ export const EXPAND: Record<string, ExpandTab[]> = {
   ],
   ai: [
     { label: 'Ask it anything', kind: 'page', device: 'phone', src: `${P}/chat-ask.jpg` },
+    { label: 'It builds a card', kind: 'page', device: 'phone', src: `${P}/chat-card.jpg` },
     { label: 'It made the post', kind: 'page', device: 'phone', src: `${P}/chat-made.jpg` },
   ],
 }

@@ -58,7 +58,10 @@ type SlideProps = { portrait: boolean; expand: (key: string, tab: number) => voi
 function FeatureSlide({ f, portrait, expand }: SlideProps & { f: Feature }) {
   const open: Open = tab => expand(f.key, tab)
   // 1-3 = the three steps (2.2 s each, long enough to read), 4 = the result shows, 5-7 = the three reasons.
-  const phase = usePhase([1100, 3300, 5500, 7700, 8200, 8600, 9000])
+  const timed = usePhase([1100, 3300, 5500, 7700, 8200, 8600, 9000])
+  // Clicking the step card jumps straight to the result (for when the room already gets it).
+  const [skip, setSkip] = useState(false)
+  const phase = skip ? 7 : timed
   const ctrl = useRef<Ctrl | null>(null)
   const Icon = f.icon
   const chipState = (k: number) => (phase > k + 1 ? 'done' : phase === k + 1 ? 'on' : 'idle')
@@ -107,7 +110,7 @@ function FeatureSlide({ f, portrait, expand }: SlideProps & { f: Feature }) {
   )
   const stage = (
     <>
-      <div className="pd-stepcard" data-off={phase >= 4 ? 1 : 0} style={{ width: 460, height: 440 }}>
+      <div data-nonav role="button" title="Click to skip to the result" onClick={() => setSkip(true)} className="pd-stepcard cursor-pointer" data-off={phase >= 4 ? 1 : 0} style={{ width: 460, height: 440 }}>
         <div className="pd-face" data-on={phase === 0 ? 1 : 0} data-past={phase > 0 ? 1 : 0}>
           <span className="pd-tile" style={{ width: 120, height: 120 }}><Icon className="h-14 w-14" strokeWidth={2.1} /></span>
           <p className="font-black uppercase text-[#e8c97a]" style={{ fontSize: 14, letterSpacing: '.28em', marginTop: 34 }}>How it&apos;s done</p>
@@ -410,7 +413,10 @@ export default function PitchDeck() {
 
   // Warm up the next slide's pictures so its result never pops in half-loaded.
   useEffect(() => {
-    for (const s of [SLIDES[i + 1], SLIDES[i + 2]]) for (const src of s?.preload || []) { const im = new window.Image(); im.src = src; im.decode?.().catch(() => {}) }
+    for (const s of [SLIDES[i + 1], SLIDES[i + 2]]) for (const src of s?.preload || []) {
+      if (src.endsWith('.mp4')) { const v = document.createElement('video'); v.muted = true; v.preload = 'auto'; v.src = src; v.load(); continue }
+      const im = new window.Image(); im.src = src; im.decode?.().catch(() => {})
+    }
   }, [i])
 
   // Leaving a slide: it lifts and fades out first, then the next one makes its entrance.

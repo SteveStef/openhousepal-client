@@ -77,7 +77,8 @@ export default function PitchExpand({ title, tabs, start, onClose }: { title: st
   const btn = 'grid h-10 w-10 place-items-center rounded-full border border-white/15 text-gray-300 transition-colors hover:border-[#C9A24D] hover:text-[#f3dfa8]'
 
   return (
-    <div data-nonav className="fixed inset-0 z-[300] flex flex-col bg-[#07080c]" onClick={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}>
+    <div data-nonav className="pe-root fixed inset-0 z-[300] flex flex-col bg-[#07080c]" onClick={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}>
+      <style dangerouslySetInnerHTML={{ __html: '.pe-root *{scrollbar-width:thin;scrollbar-color:#4a4f5c transparent}.pe-root ::-webkit-scrollbar{width:8px;height:8px}.pe-root ::-webkit-scrollbar-thumb{background:#4a4f5c;border-radius:9px}.pe-root ::-webkit-scrollbar-track{background:transparent}' }} />
       <div className="flex flex-none flex-wrap items-center gap-x-4 gap-y-2 border-b border-white/10 px-4 py-2.5 sm:px-6">
         <p className="mr-auto font-serif text-xl font-black text-white sm:text-2xl">{title}</p>
         {tabs.length > 1 && (

@@ -22,7 +22,7 @@ export type Open = (tab: number) => void
 
 /** Which results play, and so get the slider. */
 export function plays(v: Visual): boolean {
-  return ['phone', 'phoneFilm', 'scan', 'laptop', 'laptopFilm', 'screen', 'tablet'].includes(v.type)
+  return ['phone', 'phoneFilm', 'phoneSteps', 'scan', 'laptop', 'laptopFilm', 'screen', 'tablet'].includes(v.type)
 }
 
 /** A tall capture of a real page, gliding down and back. Driven by hand (not a CSS animation) so it can pause and be dragged. */
@@ -77,6 +77,43 @@ function FilmView({ film, active, ctrl, loop = true, onEnded }: { film: Clip; ac
   return (
     <video ref={ref} src={film.src} poster={film.poster} muted playsInline loop={loop} preload="auto" className="block h-full w-full object-cover"
       onLoadedMetadata={e => { e.currentTarget.playbackRate = film.rate || 1 }} onEnded={e => onEnded?.(e.currentTarget)} />
+  )
+}
+
+/** One phone stepping through a few real screens, each with a short label (the AI Assistant). */
+function PhoneSteps({ shots, active, ctrl }: { shots: { src: string; label: string }[]; active: boolean; ctrl: CtrlRef }) {
+  const HOLD = 3.6
+  const st = useRef({ t: 0, paused: false, hover: false })
+  const [i, setI] = useState(0)
+  useEffect(() => {
+    if (!active) return
+    let raf = 0
+    let last = 0
+    const total = HOLD * shots.length
+    const tick = (now: number) => {
+      const s = st.current
+      if (last && !s.paused && !s.hover) s.t = (s.t + Math.min(0.1, (now - last) / 1000)) % total
+      last = now
+      const k = Math.min(shots.length - 1, Math.floor(s.t / HOLD))
+      setI(was => (was === k ? was : k))
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    ctrl.current = { get: () => st.current.t / total, seek: v => { st.current.t = Math.min(total - 0.01, v * total) }, toggle: () => { st.current.paused = !st.current.paused }, paused: () => st.current.paused, hover: o => { st.current.hover = o } }
+    return () => { cancelAnimationFrame(raf); ctrl.current = null }
+  }, [active, shots.length, ctrl])
+  return (
+    <div className="relative" style={{ width: 322, height: 698 }}>
+      <Phone w={322} h={698}>
+        {shots.map((s, k) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={s.src} src={s.src} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover object-top" style={{ opacity: k === i ? 1 : 0, transition: 'opacity .5s ease' }} />
+        ))}
+      </Phone>
+      <div className="absolute left-1/2 flex -translate-x-1/2 items-center whitespace-nowrap rounded-full border border-[#C9A24D]/60 bg-[#0d111b] font-black text-[#f3dfa8]" style={{ top: -22, gap: 10, fontSize: 17, padding: '9px 20px', boxShadow: '0 12px 30px -10px rgba(0,0,0,.8)' }}>
+        <span className="grid place-items-center rounded-full bg-[#e8c97a] text-[#111827]" style={{ width: 24, height: 24, fontSize: 13 }}>{i + 1}</span>{shots[i].label}
+      </div>
+    </div>
   )
 }
 
@@ -234,6 +271,7 @@ export function VisualView({ v, open, active, ctrl }: { v: Visual; open: Open; a
     case 'phone': return <Zoom n={0} open={open} ctrl={ctrl}><Phone w={340} h={708}><ScrollShot shot={v.shot} w={340} h={708} active={active} ctrl={ctrl} /></Phone></Zoom>
     case 'phoneFilm': return <Zoom n={0} open={open} ctrl={ctrl}><Phone w={322} h={698}><FilmView film={v.film} active={active} ctrl={ctrl} /></Phone></Zoom>
     case 'scan': return <ScanFilm film={v.film} active={active} open={open} ctrl={ctrl} />
+    case 'phoneSteps': return <Zoom n={0} open={open} ctrl={ctrl}><PhoneSteps shots={v.shots} active={active} ctrl={ctrl} /></Zoom>
     case 'twoPhones':
       return (
         <div className="relative" style={{ width: 720, height: 700 }}>
@@ -261,8 +299,9 @@ export function VisualView({ v, open, active, ctrl }: { v: Visual; open: Open; a
 export function shotsOf(v: Visual): string[] {
   switch (v.type) {
     case 'phone': case 'tablet': case 'laptop': return [v.shot.src]
-    case 'phoneFilm': case 'laptopFilm': case 'screen': return [v.film.poster]
-    case 'scan': return [v.film.poster, '/pitch/kit-flyer.jpg', '/pitch/kit-flyer-lg.jpg']
+    case 'phoneFilm': case 'laptopFilm': case 'screen': return [v.film.poster, v.film.src]
+    case 'scan': return [v.film.poster, v.film.src, '/pitch/kit-flyer.jpg', '/pitch/kit-flyer-lg.jpg']
+    case 'phoneSteps': return v.shots.map(s => s.src)
     case 'twoPhones': return [v.a.src, v.b.src]
     case 'kit': return ['flyer', 'cheat', 'brag', 'similar'].map(k => `/pitch/kit-${k}.jpg`)
     case 'compare': return ['twilight-before', 'twilight-after', 'staging-before', 'staging-after'].map(k => `/demos/media-lab/${k}.jpg`)
