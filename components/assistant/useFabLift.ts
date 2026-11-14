@@ -32,8 +32,10 @@ function obstacleTop(fab: HTMLElement | null, left: number, top: number, h: numb
   let highest = Infinity
   let anyPinned = false
   const docEnd = (document.scrollingElement || document.documentElement).scrollHeight - window.scrollY
-  const xs = [left + 4, left + SIZE / 2, left + SIZE - 4]
-  const ys = [top + 4, top + SIZE / 2, top + SIZE - 4]
+  // Six spots (corners + middle of each side edge), not nine: each look-up is a full hit test of
+  // the page, and on a phone they added up (owner 11/13 - the blog writer felt laggy).
+  const xs = [left + 6, left + SIZE - 6]
+  const ys = [top + 6, top + SIZE / 2, top + SIZE - 6]
   for (const x of xs) for (const y of ys) {
     for (const el of document.elementsFromPoint(x, y)) {
       if (!(el instanceof HTMLElement) || el === document.body || el === document.documentElement) continue
@@ -66,9 +68,20 @@ export function useFabLift(fabRef: RefObject<HTMLElement | null>, deps: unknown[
     let frame = 0
     const measure = () => {
       frame = 0
+      if (document.hidden) return
       const fab = fabRef.current
       const w = window.innerWidth, h = window.innerHeight
       const left = w - EDGE - SIZE
+      // A full-screen pop-up (the AI Blog Writer, a CMA window...) covers the button: nothing to
+      // dodge, so one look instead of dozens every couple of seconds (owner 11/13, blog writer lag).
+      const top = document.elementFromPoint(left + SIZE / 2, h - EDGE - SIZE / 2)
+      if (top instanceof HTMLElement && !(fab && fab.contains(top))) {
+        const layer = pinned(top)
+        if (layer) {
+          const r = layer.getBoundingClientRect()
+          if (r.width >= w * 0.95 && r.height >= h * 0.9) return
+        }
+      }
       const cap = h * 0.55
       const doc = document.scrollingElement || document.documentElement
       const atEnd = doc.scrollTop + h >= doc.scrollHeight - 8

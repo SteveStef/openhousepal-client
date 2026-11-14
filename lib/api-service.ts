@@ -2059,6 +2059,9 @@ class ApiService {
     aiEstimate: (length: string = 'standard') => this.request<{ usd: number; percent: number | null }>(`/studio/blogs/ai/estimate?length=${encodeURIComponent(length)}`),
     aiGenerateJob: (brief: BlogAiBrief) =>
       this.request<{ blog_id: string; status: 'running'; stage: string; engine: string }>('/studio/blogs/ai/generate-job', { method: 'POST', body: JSON.stringify(brief) }),
+    // "Ready to write?" - allowance, towns and whether the servers are quick enough, before Write.
+    aiPreflight: (body: { areas: string[]; area_slugs: string[] }) =>
+      this.request<{ ready: boolean; seconds: number; checks: { key: string; level: 'ok' | 'warn' | 'block'; title: string; detail?: string }[] }>('/studio/blogs/ai/preflight', { method: 'POST', body: JSON.stringify(body) }),
     aiFinished: (blogId: string) => this.request<Blog>(`/studio/blogs/${blogId}/ai-finished`, { method: 'POST' }),
     aiJob: (blogId: string) =>
       this.request<{ status: 'interview' | 'running' | 'done' | 'failed'; stage?: string; error?: string; brief?: any; step?: number; result?: BlogAiGenerateResult }>(`/studio/blogs/ai/jobs/${blogId}`),

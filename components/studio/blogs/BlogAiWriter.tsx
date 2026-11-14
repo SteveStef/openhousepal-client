@@ -397,7 +397,39 @@ export default function BlogAiWriter({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saveKey, ctx, phase])
 
+  // "Ready to write?" (owner 11/13: "the flow catches possible issues before they send it and have
+  // to wait forever"): on the last step, and again on Write if it's old or said no - the AI allowance,
+  // towns we've never covered, and whether the servers answer fast enough for the run's first step.
+  // A check that can't be made (network) never blocks; the run itself also stops early and says so.
+  type Preflight = { ready: boolean; checks: { key: string; level: 'ok' | 'warn' | 'block'; title: string; detail?: string }[]; at: number }
+  const [preflight, setPreflight] = useState<Preflight | null>(null)
+  const [checking, setChecking] = useState(false)
+  const runPreflight = async (): Promise<Preflight | null> => {
+    setChecking(true)
+    const r = await api.blogs.aiPreflight({ areas, area_slugs: spotlightOn ? spotlightCards.map((c: any) => c.slug).filter(Boolean) : [] })
+    if (!alive.current) return null
+    setChecking(false)
+    if (!r.success || !r.data) return null
+    const v = { ...r.data, at: Date.now() }
+    setPreflight(v)
+    return v
+  }
+  useEffect(() => {
+    if (ctx && !blocked && phase === 'interview' && step === STEPS.length - 1) runPreflight()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, phase, ctx])
+  const notReady = !!preflight && !preflight.ready
+
   const generate = async () => {
+    let pf = preflight
+    if (!pf || !pf.ready || Date.now() - pf.at > 60_000) pf = (await runPreflight()) || pf
+    if (!alive.current) return
+    if (pf && !pf.ready) {
+      // Stay put - the card on the last step says why (from "Try again", say it here).
+      const stop = pf.checks.find(c => c.level === 'block')
+      if (phase === 'failed' && stop) setError(`${stop.title}. ${stop.detail || ''}`.trim())
+      return
+    }
     setError('')
     setPhase('writing')
     if (saving.current) await saving.current
@@ -490,6 +522,9 @@ export default function BlogAiWriter({
   const isPhone = useIsPhone()
   const sheetMotion = useSheetMotion()
   const { sheetRef, y: sheetY } = useSwipeToClose(onClose, isPhone && phase !== 'writing' && !finishing)
+  // A new step starts at its top (the window kept the last step's scroll spot).
+  const bodyRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { bodyRef.current?.scrollTo({ top: 0 }) }, [step, doneStep, phase])
   const phoneTitle = phase === 'done' ? 'Your draft is ready' : phase === 'writing' ? 'Writing your article…' : phase === 'failed' ? "This one didn't finish" : blogId ? 'Rewrite with AI' : resume ? 'Finish with AI' : 'Write with AI'
   return (
     <motion.div {...backdropMotion} className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:p-4" onClick={phase === 'writing' ? undefined : onClose}>
@@ -500,7 +535,7 @@ export default function BlogAiWriter({
           : { initial: { opacity: 0, scale: 0.96, y: 10 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.97, y: 8, transition: { duration: 0.16 } } })}
         style={isPhone ? { y: sheetY } : undefined}
         onClick={e => e.stopPropagation()}
-        className="flex h-[94dvh] w-full flex-col overflow-hidden rounded-t-[26px] border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-[#151517] sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl"
+        className="flex h-[94dvh] w-full flex-col overflow-hidden rounded-t-[26px] border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-[#151517] sm:h-[min(90vh,780px)] sm:max-w-2xl sm:rounded-2xl"
       >
         {/* Header */}
         <div className="relative shrink-0 overflow-hidden border-b border-gray-100 bg-gradient-to-r from-[#111827] via-[#172033] to-[#4a3820] px-5 pb-4 pt-6 dark:border-gray-800 sm:px-6 sm:py-4">
@@ -547,7 +582,7 @@ export default function BlogAiWriter({
         </div>
 
         {/* Body */}
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-5 sm:p-6 sm:[scrollbar-gutter:stable]">
+        <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-5 sm:p-6 sm:[scrollbar-gutter:stable]">
           {!ctx && !ctxError && <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>}
           {ctxError && <p className="py-10 text-center text-sm font-bold text-red-500">{ctxError}</p>}
 
@@ -570,7 +605,9 @@ export default function BlogAiWriter({
 
           {ctx && !blocked && phase === 'interview' && (
             <AnimatePresence mode="wait">
-              <motion.div key={step} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} className="space-y-6">
+              {/* Quick hand-off between steps (owner 11/13, "make it buttery"): the old slide-out ran
+                  on a slow default spring, so the next question waited ~0.5 s (over 1 s on a phone). */}
+              <motion.div key={step} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0, transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } }} exit={{ opacity: 0, transition: { duration: 0.08 } }} className="space-y-6">
                 {step === 0 && (
                   <>
                     <Question icon={PenLine} title={titleBased ? 'What angle should it take?' : "What's this article about?"} hint={titleBased ? 'Your title is below - sharpen it, or tap an angle built from it.' : 'A sentence is plenty. Pick an idea below to start faster.'}>
@@ -824,6 +861,36 @@ export default function BlogAiWriter({
                       </div>
                       <p className="mt-2 text-[11px] font-semibold text-gray-400">The button opens your {cta === 'question' ? 'question box' : `"${CTAS.find(c => c.id === cta)?.label}" form`} right on the article - readers never leave.</p>
                     </Question>
+                    {/* Ready to write? - what could stop the run, caught before Write. */}
+                    <div className={`rounded-2xl border p-3 ${notReady ? 'border-rose-200 bg-rose-50/60 dark:border-rose-500/30 dark:bg-rose-500/[0.06]' : 'border-gray-200 dark:border-gray-800'}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-black text-[#111827] dark:text-white">Ready to write?</p>
+                        {notReady && (
+                          <button type="button" onClick={() => runPreflight()} disabled={checking} className="inline-flex min-h-[36px] items-center gap-1 rounded-lg px-2 text-[11px] font-black text-[#8b7355] transition hover:bg-[#C9A24D]/10 disabled:opacity-50 dark:text-[#e8c97a]">
+                            {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Check again
+                          </button>
+                        )}
+                      </div>
+                      {!preflight ? (
+                        <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                          {checking ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking your towns and our servers…</> : 'Checked when you press Write.'}
+                        </p>
+                      ) : (
+                        <ul className="mt-1.5 space-y-1.5">
+                          {preflight.checks.map(c => (
+                            <li key={c.key} className="flex items-start gap-2">
+                              {c.level === 'ok'
+                                ? <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                : <AlertTriangle className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${c.level === 'block' ? 'text-rose-600 dark:text-rose-300' : 'text-amber-600 dark:text-amber-300'}`} />}
+                              <span className="min-w-0">
+                                <span className="block text-[12px] font-bold text-[#111827] dark:text-white">{c.title}</span>
+                                {c.detail && <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{c.detail}</span>}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                     {/* Before writing: where this month's AI allowance stands (after, the draft
                         shows what it used and how long it took). */}
                     <MonthlyAiUsageMeter variant="inline" compact stretch />
@@ -836,7 +903,7 @@ export default function BlogAiWriter({
 
           {phase === 'writing' && (
             <div className="py-2">
-              <style>{'@keyframes blogInk{from{width:0}to{width:var(--w)}}@keyframes blogPen{0%,100%{transform:translate(0,0) rotate(-8deg)}50%{transform:translate(6px,-3px) rotate(-14deg)}}'}</style>
+              <style>{'@keyframes blogInk{from{transform:scaleX(0)}to{transform:scaleX(1)}}@keyframes blogPen{0%,100%{transform:translate(0,0) rotate(-8deg)}50%{transform:translate(6px,-3px) rotate(-14deg)}}'}</style>
               {/* A page writing itself - lines ink in, one after another, as the stages tick by. */}
               <div className="relative mb-6 overflow-hidden rounded-2xl border border-[#C9A24D]/30 bg-gradient-to-br from-[#fffdf8] to-[#fbf3df] p-5 shadow-[0_20px_44px_-30px_rgba(201,162,77,.8)] dark:border-white/10 dark:from-[#151517] dark:to-[#1d1810]">
                 <div className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.25),transparent)]" />
@@ -845,7 +912,7 @@ export default function BlogAiWriter({
                 <div className="relative mt-4 space-y-2">
                   {[96, 88, 100, 72, 94, 84, 60].map((w, i) => (
                     <div key={i} className="h-2 rounded-full bg-[#C9A24D]/10 dark:bg-white/5">
-                      <div className="h-2 rounded-full bg-gradient-to-r from-[#111827]/25 to-[#C9A24D]/50 dark:from-white/20 dark:to-[#e8c97a]/50" style={{ ['--w' as any]: `${w}%`, width: 0, animation: `blogInk 2.6s ${i * 0.55 + stage * 0.15}s ease-out forwards` }} />
+                      <div className="h-2 rounded-full bg-gradient-to-r from-[#111827]/25 to-[#C9A24D]/50 dark:from-white/20 dark:to-[#e8c97a]/50" style={{ width: `${w}%`, transform: 'scaleX(0)', transformOrigin: 'left', animation: `blogInk 2.6s ${i * 0.55 + stage * 0.15}s ease-out forwards` }} />
                     </div>
                   ))}
                 </div>
@@ -1015,7 +1082,7 @@ export default function BlogAiWriter({
             extra={step > 0 && step < STEPS.length - 1 ? { label: 'Skip', icon: <SkipForward />, onClick: () => setStep(STEPS.length - 1) } : undefined}
             {...(step < STEPS.length - 1
               ? { onContinue: () => setStep(step + 1), disabled: !canNext }
-              : { onContinue: generate, disabled: !topic.trim(), continueLabel: blogId ? 'Rewrite' : 'Write it', icon: <Sparkles /> })} />
+              : { onContinue: generate, disabled: !topic.trim() || notReady, continueLabel: blogId ? 'Rewrite' : 'Write it', icon: <Sparkles /> })} />
         )}
         {phase === 'done' && result && (
           <FlowDock inline step={doneStep + 1} total={3}
@@ -1046,8 +1113,8 @@ export default function BlogAiWriter({
                   Continue <ArrowRight className="h-4 w-4" />
                 </button>
               ) : (
-                <button onClick={generate} disabled={!topic.trim()} className="inline-flex items-center gap-2 rounded-xl bg-[#C9A24D] px-5 py-2.5 text-sm font-black text-[#111827] shadow-md transition hover:brightness-105 disabled:opacity-40">
-                  <Sparkles className="h-4 w-4" /> {blogId ? 'Rewrite my article' : 'Write my article'}
+                <button onClick={generate} disabled={!topic.trim() || notReady || checking} className="inline-flex items-center gap-2 rounded-xl bg-[#C9A24D] px-5 py-2.5 text-sm font-black text-[#111827] shadow-md transition hover:brightness-105 disabled:opacity-40">
+                  {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} {blogId ? 'Rewrite my article' : 'Write my article'}
                 </button>
               )}
             </div>
@@ -1058,8 +1125,8 @@ export default function BlogAiWriter({
             <button onClick={() => { setError(''); setPhase('interview') }} className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-gray-200 px-3 py-2.5 dark:border-white/10 sm:border-transparent text-sm font-black text-gray-500 hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-white/10 dark:hover:text-white">
               <PenLine className="h-4 w-4" /> Edit answers
             </button>
-            <button onClick={generate} disabled={!topic.trim()} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-[#C9A24D] px-5 py-2.5 text-sm font-black text-[#111827] shadow-md transition hover:brightness-105 disabled:opacity-40">
-              <RotateCcw className="h-4 w-4" /> Try again
+            <button onClick={generate} disabled={!topic.trim() || checking} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-[#C9A24D] px-5 py-2.5 text-sm font-black text-[#111827] shadow-md transition hover:brightness-105 disabled:opacity-40">
+              {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />} Try again
             </button>
           </div>
         )}

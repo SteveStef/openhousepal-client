@@ -87,17 +87,70 @@ export default function ScrollLockWatcher() {
         }
       }
     }
+    // The page BEHIND a pop-up rests (owner 11/13, "the blog writer feels laggy"): its endless
+    // decorations - the Luxe header's drifting glows, sparkles, gold shimmer - kept redrawing every
+    // frame under the dimmed backdrop, which on a phone was most of the work while typing in the
+    // AI Blog Writer. Only loops outside every open pop-up pause (the pop-up's own spinners keep
+    // going), and exactly those play again when the last pop-up closes.
+    // Paused by a marker + one style rule (not Animation.pause()), so the page's own CSS keeps control
+    // of its loops once they wake (hover-only sparkles, off-screen pauses).
+    const REST = 'data-ohp-rest'
+    const restStyle = document.createElement('style')
+    restStyle.textContent = `[${REST}],[${REST}]::before,[${REST}]::after{animation-play-state:paused!important}`
+    document.head.appendChild(restStyle)
+    const rested = new Set<Element>()
+    let overlays: Element[] = []
+    const restBehind = () => {
+      if (typeof document.getAnimations !== 'function') return
+      for (const a of document.getAnimations()) {
+        if (a.playState !== 'running' || a.effect?.getComputedTiming().iterations !== Infinity) continue
+        const t = (a.effect as KeyframeEffect | null)?.target as Element | null
+        if (!t || rested.has(t) || overlays.some(o => o.contains(t))) continue
+        t.setAttribute(REST, '')
+        rested.add(t)
+      }
+    }
+    const wakeBehind = () => {
+      rested.forEach(t => t.removeAttribute(REST))
+      rested.clear()
+    }
+    let restTimer: number | undefined
     const check = () => {
       timer = undefined
       const open = Array.from(document.querySelectorAll(CANDIDATES)).filter(el => isOverlay(el as HTMLElement))
+      overlays = open
       apply(open.length > 0, open.some(el => (el as HTMLElement).getAttribute('data-scroll-lock') !== 'soft'))
+      if (open.length) {
+        restBehind()
+        // once more after the pop-up has settled in (the page behind may still be mounting loops)
+        if (restTimer) clearTimeout(restTimer)
+        restTimer = window.setTimeout(restBehind, 700)
+      } else if (rested.size) {
+        wakeBehind()
+      }
     }
     const schedule = () => { if (timer === undefined) timer = window.setTimeout(check, 60) }
-    const mo = new MutationObserver(schedule)
+    // Only changes that can open or close a pop-up count. Every animation frame rewrites some
+    // element's inline style and every keystroke re-renders a form; re-checking the whole page for
+    // each of those (styles + sizes of every fixed layer) cost frames while typing and between steps.
+    const relevant = (n: Node) => n.nodeType === 1 && ((n as Element).matches(CANDIDATES) || !!(n as Element).querySelector(CANDIDATES))
+    const mo = new MutationObserver(records => {
+      if (timer !== undefined) return
+      for (const r of records) {
+        if (r.type === 'childList') {
+          if (Array.prototype.some.call(r.addedNodes, relevant) || Array.prototype.some.call(r.removedNodes, relevant)) return schedule()
+        } else if (r.target.nodeType === 1) {
+          const el = r.target as Element
+          if (r.attributeName === 'class' || r.attributeName === 'style'
+            ? el.matches(CANDIDATES) || overlays.includes(el) || (r.attributeName === 'class' && overlays.length > 0)
+            : relevant(el)) return schedule()
+        }
+      }
+    })
     mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'open', 'aria-modal', 'hidden'] })
     window.addEventListener('resize', schedule)
     check()
-    return () => { mo.disconnect(); window.removeEventListener('resize', schedule); if (timer) clearTimeout(timer); apply(false, false) }
+    return () => { mo.disconnect(); window.removeEventListener('resize', schedule); if (timer) clearTimeout(timer); if (restTimer) clearTimeout(restTimer); wakeBehind(); restStyle.remove(); apply(false, false) }
   }, [])
   return null
 }
