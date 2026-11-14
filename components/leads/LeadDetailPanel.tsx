@@ -21,6 +21,7 @@ import { useToast } from '@/contexts/ToastContext'
 import TasksPanel from '@/components/tasks/TasksPanel'
 import LeadAlertSwitches from '@/components/leads/LeadAlertSwitches'
 import { LeadEmailCard } from '@/components/emails/EmailEngagement'
+import { LeadInterestNudges } from '@/components/leads/InterestNudge'
 import { useFollowupsEnabled } from '@/components/tasks/FollowupsSwitch'
 import Pager from '@/components/ui/Pager'
 import NotesThread from './NotesThread'
@@ -157,6 +158,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
   const { showToast } = useToast()
   const followupsOn = useFollowupsEnabled().enabled !== false
   // This person's alert switches (owner, 10/27) - a sheet from the Follow-ups section.
+  const [tasksBump, setTasksBump] = useState(0)
   const [alertsOpen, setAlertsOpen] = useState(false)
   // Just changed "has an agent": the Showcase question (11/01).
   const [askShowcase, setAskShowcase] = useState<'yes' | 'no' | null>(null)
@@ -567,7 +569,9 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
               </span>}>
                 Follow-ups
               </SectionTitle>
-              <TasksPanel key={`${lead.id}:${lead.represented}`} leadId={lead.id} leadName={lead.name} events={events} singleColumn onChanged={() => { reload(); onChanged?.() }} />
+              {/* A lead without an agent opening / clicking an email again - one tap adds the check-in (owner, 11/13) */}
+              <div className="mb-3 empty:hidden"><LeadInterestNudges leadId={lead.id} onAdded={() => window.setTimeout(() => setTasksBump(n => n + 1), 400)} /></div>
+              <TasksPanel key={`${lead.id}:${lead.represented}:${tasksBump}`} leadId={lead.id} leadName={lead.name} events={events} singleColumn onChanged={() => { reload(); onChanged?.() }} />
             </Card>
           )}
 

@@ -1,5 +1,6 @@
 import './site-theme.css'
 import { siteFontVariables } from '@/lib/site-fonts'
+import OwnerDeviceMark from '@/components/website-public/OwnerDeviceMark'
 
 // No imports from AuthContext/ToastContext/AppHeader/AssistantWidget - nothing under
 // (sitepublic) ships dashboard JS or makes dashboard-only network calls. Next.js still nests
@@ -11,5 +12,5 @@ import { siteFontVariables } from '@/lib/site-fonts'
 // preview in WebsiteEditorShell.tsx so what an agent sees while editing matches what visitors
 // see once published.
 export default function SitePublicLayout({ children }: { children: React.ReactNode }) {
-  return <div className={`${siteFontVariables} ohp-site min-h-screen`}>{children}</div>
+  return <div className={`${siteFontVariables} ohp-site min-h-screen`}><OwnerDeviceMark />{children}</div>
 }

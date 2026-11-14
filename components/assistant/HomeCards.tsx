@@ -57,7 +57,7 @@ export default function HomeCards({ homes, title }: { homes: ChatHome[]; title?:
         </p>
         {pages > 1 && <span className="shrink-0 text-[10.5px] font-bold text-gray-400" data-testid="ai-home-range">{from}-{to} of {homes.length}</span>}
       </div>
-      <div key={page} className="grid grid-cols-2 gap-2 sm:grid-cols-3" data-testid="ai-home-page" data-page={page + 1}>
+      <div key={page} className="grid grid-cols-2 gap-2 chatwide:grid-cols-3" data-testid="ai-home-page" data-page={page + 1}>
         {shown.map((h, i) => {
           const can = !!h.listing_key
           const facts = [
@@ -84,7 +84,7 @@ export default function HomeCards({ homes, title }: { homes: ChatHome[]; title?:
               <span className="block px-2 pb-2 pt-1.5">
                 <span className="block truncate text-[12.5px] font-black text-[#111827] dark:text-white" data-testid="ai-home-address">{h.address}</span>
                 <span className="mt-0.5 flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap text-[10.5px] font-bold text-gray-500 dark:text-zinc-400">
-                  {h.city && <span className="hidden min-w-0 truncate sm:inline">{h.city}</span>}
+                  {h.city && <span className="hidden min-w-0 truncate chatwide:inline">{h.city}</span>}
                   {facts}
                 </span>
               </span>

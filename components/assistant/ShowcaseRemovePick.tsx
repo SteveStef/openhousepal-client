@@ -64,8 +64,8 @@ function HomeRow({ r, on, onClick }: { r: Row; on: boolean; onClick: () => void 
         {on && <span className="absolute inset-0 grid place-items-center bg-rose-600/25"><Trash2 className="h-4 w-4 text-white drop-shadow" /></span>}
       </span>
       <span className="min-w-0 flex-1">
-        <span className={`block truncate text-[12.5px] font-bold leading-snug ${on ? 'text-rose-900 line-through decoration-rose-400/70 dark:text-rose-200' : 'text-[#111827] dark:text-white'}`}>{r.street || 'Home'}</span>
-        <span className="block truncate text-[10.5px] font-semibold text-gray-500 dark:text-zinc-400">{[r.city, facts].filter(Boolean).join(' · ')}</span>
+        <span className={`line-clamp-2 break-words text-[12.5px] font-bold leading-snug ${on ? 'text-rose-900 line-through decoration-rose-400/70 dark:text-rose-200' : 'text-[#111827] dark:text-white'}`}>{r.street || 'Home'}</span>
+        <span className="line-clamp-2 text-[10.5px] font-semibold leading-snug text-gray-500 dark:text-zinc-400">{[r.city, facts].filter(Boolean).join(' · ')}</span>
         {(!!r.tags?.length || r.status) && (
           <span className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
             {r.status && <span className="shrink-0 rounded-full bg-gray-200/80 px-1.5 py-px text-[9px] font-black uppercase tracking-wide text-gray-600 dark:bg-zinc-700 dark:text-zinc-300">{r.status}</span>}
@@ -137,7 +137,7 @@ export function ShowcaseRemovePick({ payload, picks, onPicks }: { payload: Recor
         </button>
         {n > 0 && <button type="button" onClick={() => set([])} className="ml-auto text-[11px] font-bold text-gray-500 underline-offset-2 hover:underline dark:text-zinc-400">Uncheck all</button>}
       </div>
-      <div className="grid max-h-[340px] gap-1.5 overflow-y-auto overscroll-contain pr-0.5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr))] sm:max-h-[440px]" data-testid="ai-remove-list">
+      <div className="grid max-h-[340px] gap-1.5 overflow-y-auto overscroll-contain pr-0.5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr))] chatwide:max-h-[440px]" data-testid="ai-remove-list">
         {match.slice(0, shown).map(r => <HomeRow key={r.id} r={r} on={picked.has(r.id)} onClick={() => toggle(r.id)} />)}
         {match.length > shown && (
           <button type="button" onClick={() => setShown(s => s + PAGE)}

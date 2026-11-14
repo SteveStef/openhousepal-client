@@ -19,6 +19,7 @@ import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import { useAuth } from '@/contexts/AuthContext'
 import { getNavFeatureAccess } from '@/lib/navAccess'
+import { markOwnerLink } from '@/lib/ownerDevice'
 
 const STATUS_TABS: (BlogStatus | 'ALL')[] = ['ALL', 'DRAFT', 'SCHEDULED', 'PUBLISHED', 'UNPUBLISHED', 'ARCHIVED']
 const STATUS_ICON: Record<BlogStatus | 'ALL', React.ComponentType<{ className?: string }>> = {
@@ -237,7 +238,7 @@ function BlogsDashboardInner() {
                     <Sparkles className="h-3.5 w-3.5" /> {blog.ai_state === 'failed' ? 'Try again' : 'Finish with AI'}
                   </Link>
                 ) : blog.status === 'PUBLISHED' ? (
-                  <a href={liveUrl(blog) || '#'} target="_blank" rel="noopener" onClick={e => { if (!liveUrl(blog)) e.preventDefault() }}
+                  <a href={markOwnerLink(liveUrl(blog)) || '#'} target="_blank" rel="noopener" onClick={e => { if (!liveUrl(blog)) e.preventDefault() }}
                     className="inline-flex min-h-[42px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#111827] px-3 py-2 text-[12.5px] font-black text-white transition hover:-translate-y-0.5 active:scale-95 dark:bg-white dark:text-[#111827] sm:min-h-0 sm:text-[11.5px]">
                     <ExternalLink className="h-3.5 w-3.5" /> View live
                   </a>

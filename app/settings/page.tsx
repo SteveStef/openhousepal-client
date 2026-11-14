@@ -594,7 +594,6 @@ export default function SettingsPage() {
           aside={
             <div className="w-full space-y-1.5 lg:mt-0.5">
               <MonthlyAiUsageMeter variant="inline" compact stretch />
-              <MonthlyAiUsageMeter kind="chat" variant="inline" compact stretch />
               <StorageMeter variant="inline" compact stretch />
             </div>
           }

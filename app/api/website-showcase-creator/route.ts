@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
   const trackView = request.nextUrl.searchParams.get('track_view')
   const url = new URL(`${INTERNAL_API_URL}/public/sites/${encodeURIComponent(siteId)}/showcase-creator`)
   if (trackView) url.searchParams.set('track_view', trackView)
+  // The site's own agent (lib/ownerDevice) - not counted as a visit.
+  if (request.nextUrl.searchParams.get('owner_ref') === '1') url.searchParams.set('owner_ref', '1')
 
   const res = await fetch(url, { cache: 'no-store' })
   const body = await res.json()
@@ -43,7 +45,8 @@ export async function POST(request: NextRequest) {
   if (!siteId) return NextResponse.json({ detail: 'site_id is required' }, { status: 400 })
 
   const payload = await request.json()
-  const res = await fetch(`${INTERNAL_API_URL}/public/sites/${encodeURIComponent(siteId)}/showcase-creator/submit`, {
+  const ownerRef = request.nextUrl.searchParams.get('owner_ref') === '1' ? '?owner_ref=1' : ''
+  const res = await fetch(`${INTERNAL_API_URL}/public/sites/${encodeURIComponent(siteId)}/showcase-creator/submit${ownerRef}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

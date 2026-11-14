@@ -9,6 +9,8 @@ import { useFormViewportLock } from '@/components/forms/FormRunnerParts'
 import { PublicFormConfig } from '@/types'
 import { API_BASE_URL } from '@/lib/api-service'
 import { useForcedLightMode } from '@/lib/useForcedLightMode'
+// The agent's own browser (marked from the app) - their views/fills aren't counted (owner, 11/13).
+import { withOwnerRef } from '@/lib/ownerDevice'
 
 function generateSessionKey() {
   return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -87,7 +89,7 @@ export default function WebsitePublicFormPage({
       if (initialForm) return
       if (!apiPath) { setNotFound(true); setIsLoading(false); return }
       setIsLoading(true)
-      const res = await fetch(apiPath, { cache: 'no-store' })
+      const res = await fetch(withOwnerRef(apiPath), { cache: 'no-store' })
       if (res.ok) {
         setForm(await res.json())
         setNotFound(false)
@@ -164,7 +166,7 @@ export default function WebsitePublicFormPage({
         onProgress={(stepIndex, questionId, completed, answers) => {
           if (!progressApiPath) return
           visitRef.current = visitRef.current || formVisitContext(true)
-          fetch(progressApiPath, {
+          fetch(withOwnerRef(progressApiPath), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             keepalive: true,
@@ -173,7 +175,7 @@ export default function WebsitePublicFormPage({
         }}
         onSubmit={async answers => {
           if (!apiPath) return { success: false, message: 'This form is not available right now.' }
-          const res = await fetch(apiPath, {
+          const res = await fetch(withOwnerRef(apiPath), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ answers, sessionKey: sessionKeyRef.current, campaignToken }),

@@ -139,7 +139,7 @@ export default function NewMatchesInbox({ isOpen, onClose, onChanged }: { isOpen
               <ul className="space-y-2">
                 <AnimatePresence initial={true}>
                   {shown.map((it, i) => (
-                    <motion.li key={`${it.collection_id}-${it.property_id}`} layout initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+                    <motion.li key={`${it.collection_id}-${it.property_id}`} layout="position" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: 48, height: 0, marginTop: 0, transition: { duration: 0.28, ease: [0.4, 0, 0.2, 1] } }}
                       transition={{ type: 'spring', stiffness: 300, damping: 28, delay: Math.min(i, 8) * 0.035 }}
                       className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_10px_24px_-22px_rgba(17,24,39,.6)] transition-[border-color,box-shadow] hover:border-[#C9A24D]/60 hover:shadow-[0_16px_32px_-22px_rgba(201,162,77,.8)] dark:border-gray-800 dark:bg-[#1a1a1d]">

@@ -14,6 +14,7 @@ import api from '@/lib/api-service'
 import ActionCard from './ActionCard'
 import { useSpeech } from './useSpeech'
 import { RECORD_LINKS, RECORD_LABELS } from './recordLinks'
+import { useChatWide } from './useChatWide'
 
 const SHOW_RECORD_CHIPS = false
 
@@ -92,6 +93,7 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
   // Making the big window small (or a phone sheet shorter) used to leave the chat scrolled up a bit
   // (owner, 10/31). If they were at the newest message, they stay there through any resize.
   const scrollRef = useRef<HTMLDivElement>(null)
+  const chatWide = useChatWide(scrollRef)
   const atBottom = useRef(true)
   const onScroll = () => {
     const el = scrollRef.current
@@ -115,8 +117,9 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
   }, [autoSpeak, isSending, messages, speak, conversationId])
 
   return (
-    <div ref={scrollRef} onScroll={onScroll} className="ohp-ai-thread flex-1 overflow-y-auto overscroll-contain px-3 sm:px-6 py-4 sm:py-6">
-      <div className="w-full space-y-5">
+    <div ref={scrollRef} onScroll={onScroll} className={`ohp-ai-thread flex-1 overflow-y-auto overscroll-contain ${chatWide ? 'px-6 py-6' : 'px-3 py-4'}`}>
+      {/* The chat's own width, for every card's `chatwide:` classes (useChatWide) */}
+      <div className="w-full space-y-5" data-chat-wide={chatWide ? 'yes' : 'no'}>
       {messages.map((msg, idx) => {
         const isUser = msg.role === 'user'
         // A photo they dropped in is kept as a note in the message; here it's the picture.
@@ -138,10 +141,10 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
             {/* Where a reply or card ENDS (owner, 11/08): in the full-screen window the helper's replies and
                 cards ran all the way to the right edge, under the agent's own messages - too wide to read.
                 They start where they always did and stop at a reading width; on a phone nothing changes. */}
-            <div className={`flex items-start gap-2.5 ${wide ? 'w-full sm:max-w-[760px] sm:has-[[data-wide=yes]]:max-w-[1120px]' : 'max-w-[85%] sm:max-w-[min(75%,680px)]'} ${isUser ? 'flex-row-reverse' : ''}`}>
+            <div className={`flex items-start gap-2.5 ${wide ? 'w-full chatwide:max-w-[760px] chatwide:has-[[data-wide=yes]]:max-w-[1120px]' : 'max-w-[85%] chatwide:max-w-[min(75%,680px)]'} ${isUser ? 'flex-row-reverse' : ''}`}>
               {/* Their own photo (or initials); the helper is the little OpenHousePal robot (owner, 11/01) */}
               {isUser ? <UserAvatar size={32} /> : (
-                <OhpBot size={32} className={`flex-shrink-0 drop-shadow-sm ${wide ? 'hidden sm:block' : ''}`} />
+                <OhpBot size={32} className={`flex-shrink-0 drop-shadow-sm ${wide ? 'hidden chatwide:block' : ''}`} />
               )}
               <div className={wide ? "min-w-0 flex-1" : "min-w-0"}>
                 {photos.length > 0 && (
@@ -159,19 +162,19 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
                 </div>
                 )}
                 {(msg.tool_calls || []).filter((r) => r.record_type === 'homes' && (r as any).homes?.length).map((r) => (
-                  <div key={r.record_id} className="sm:-ml-[42px]"><HomeCards homes={(r as any).homes} title={(r as any).title} /></div>
+                  <div key={r.record_id} className="chatwide:-ml-[42px]"><HomeCards homes={(r as any).homes} title={(r as any).title} /></div>
                 ))}
                 {(msg.tool_calls || []).filter((r) => r.record_type === 'showcase_homes' && (r as any).collection?.id).map((r) => (
-                  <div key={r.record_id} className="sm:-ml-[42px]"><ShowcaseHomesCard card={r as unknown as ShowcaseCardRef} /></div>
+                  <div key={r.record_id} className="chatwide:-ml-[42px]"><ShowcaseHomesCard card={r as unknown as ShowcaseCardRef} /></div>
                 ))}
                 {(msg.tool_calls || []).filter((r) => r.record_type === 'home_search').map((r) => (
-                  <div key={r.record_id} className="sm:-ml-[42px]"><HomeSearchCard card={r as unknown as HomeSearchRef} messageId={msg.id} /></div>
+                  <div key={r.record_id} className="chatwide:-ml-[42px]"><HomeSearchCard card={r as unknown as HomeSearchRef} messageId={msg.id} /></div>
                 ))}
                 {(msg.tool_calls || []).filter((r) => r.record_type === 'hosting' && (r as any).listing_keys?.length).map((r) => (
-                  <div key={r.record_id} className="sm:-ml-[42px]"><HostingCards listingKeys={(r as any).listing_keys} /></div>
+                  <div key={r.record_id} className="chatwide:-ml-[42px]"><HostingCards listingKeys={(r as any).listing_keys} /></div>
                 ))}
                 {actions.map((a) => (a as any).picker === 'discovery'
-                  ? <div key={a.record_id} className="sm:-ml-[42px]"><ActionCard messageId={msg.id} action={a} /></div>
+                  ? <div key={a.record_id} className="chatwide:-ml-[42px]"><ActionCard messageId={msg.id} action={a} /></div>
                   : <ActionCard key={a.record_id} messageId={msg.id} action={a} />)}
                 {goLinks.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">

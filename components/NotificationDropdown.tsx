@@ -3,7 +3,8 @@
 import LeadStar from '@/components/leads/LeadStar'
 import Link from 'next/link'
 import { Notification } from '@/types'
-import { Calendar, X } from 'lucide-react'
+import { Calendar, Layers, X } from 'lucide-react'
+import { stackNotifications, type BellItem } from '@/lib/bellStack'
 import { getNotificationMeta } from '@/lib/notificationDisplay'
 
 // Helper function to format timestamps
@@ -28,6 +29,8 @@ interface NotificationDropdownProps {
   onMarkAsRead: (id: string) => void
   onMarkAllAsRead: () => void
   onNotificationClick: (notification: Notification) => void
+  /** A combined row - opens the Activity page (every one of them, one by one). */
+  onStackClick?: (items: Notification[]) => void
 }
 
 export default function NotificationDropdown({
@@ -35,15 +38,19 @@ export default function NotificationDropdown({
   onClose,
   onMarkAsRead,
   onMarkAllAsRead,
-  onNotificationClick
+  onNotificationClick,
+  onStackClick,
 }: NotificationDropdownProps) {
   // History mailbox - every notification stays visible after being clicked/dismissed, newest
   // first (already sorted server-side); unread ones are just highlighted until read.
-  const unreadCount = notifications.filter(n => !n.isRead).length
-  // The dropdown itself only ever shows the 10 most recent - the full history (up to 30 days,
+  // Same-day small things of one kind combine into one row (lib/bellStack.ts, owner 11/13) - the
+  // Activity page still lists every one. Unread counts rows, not each email open.
+  const items: BellItem[] = stackNotifications(notifications)
+  const unreadCount = items.filter(i => (i.kind === 'one' ? !i.n.isRead : !i.isRead)).length
+  // The dropdown itself only ever shows the 10 most recent rows - the full history (up to 30 days,
   // and everything older than that) lives on the /activity page via the link at the bottom.
-  const visibleNotifications = notifications.slice(0, 10)
-  const hasMore = notifications.length > visibleNotifications.length
+  const visibleItems = items.slice(0, 10)
+  const hasMore = items.length > visibleItems.length
 
   const getTypeBadge = (type: string, message?: string, title?: string) => {
     const { icon: Icon, label, className } = getNotificationMeta(type, message, title)
@@ -63,7 +70,7 @@ export default function NotificationDropdown({
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</h3>
           {unreadCount > 0 && (
             <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-              {unreadCount} unread notification{unreadCount > 1 ? 's' : ''}
+              {unreadCount} unread
             </p>
           )}
         </div>
@@ -100,7 +107,37 @@ export default function NotificationDropdown({
           </div>
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
-            {visibleNotifications.map((notification) => (
+            {visibleItems.map((item) => item.kind === 'stack' ? (
+              <div
+                key={item.key}
+                data-testid="bell-stack"
+                onClick={() => onStackClick?.(item.items)}
+                className={`p-4 hover:bg-gray-50 dark:hover:bg-[#2c241b] cursor-pointer transition-colors ${
+                  !item.isRead ? 'bg-blue-50/30 dark:bg-blue-900/10' : 'bg-white dark:bg-[#151517] opacity-70'
+                }`}
+              >
+                <div className="flex items-start space-x-3">
+                  {!item.isRead && (
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-2">{item.title}</p>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      {getTypeBadge(item.type, item.items[0].message, item.items[0].title)}
+                      <span className="inline-flex items-center gap-1 rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:bg-white/5 dark:text-gray-300">
+                        <Layers className="h-3 w-3" /> {item.items.length}
+                      </span>
+                    </div>
+                    {item.message && <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 truncate">{item.message}</p>}
+                    <p className="text-xs text-gray-400 dark:text-gray-600 mt-1.5">
+                      {formatTimestamp(item.timestamp)} · <span className="font-semibold text-[#C9A24D]">See each in Activity</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : ((notification: Notification) => (
               <div
                 key={notification.id}
                 onClick={() => {
@@ -153,7 +190,7 @@ export default function NotificationDropdown({
                   </div>
                 </div>
               </div>
-            ))}
+            ))(item.n))}
           </div>
         )}
       </div>

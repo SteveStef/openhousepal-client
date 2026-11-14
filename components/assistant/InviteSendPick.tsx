@@ -150,7 +150,7 @@ export function InviteSendPick({ payload, picks, onPicks }: { payload: Record<st
             <button type="button" onClick={() => set([])} className="ml-auto text-[11px] font-bold text-gray-500 underline-offset-2 hover:underline dark:text-zinc-400">Clear</button>
           )}
         </div>
-        <div className={`mt-1.5 max-h-[320px] overflow-y-auto overscroll-contain pr-0.5 sm:max-h-[420px] ${OPTION_GRID}`} data-testid="ai-invite-send-list">
+        <div className={`mt-1.5 max-h-[320px] overflow-y-auto overscroll-contain pr-0.5 chatwide:max-h-[420px] ${OPTION_GRID}`} data-testid="ai-invite-send-list">
           {match.slice(0, shown).map(r => <Person key={r.id} r={r} on={picked.has(r.id)} onClick={() => toggle(r.id)} />)}
           {match.length > shown && (
             <button type="button" onClick={() => setShown(s => s + PAGE)}

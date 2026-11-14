@@ -120,7 +120,8 @@ export default function MonthlyAiUsageMeter({
   pill = false,
   className = '',
 }: {
-  /** 'chat' = the AI helper chat's own "Chat usage" bar (its own allowance, owner 11/01). */
+  /** 'chat' = the same one AI Usage bar, read from /ai/usage/chat (percent to one decimal so it moves
+   *  after each reply). Since 11/13 the chat has no allowance of its own - every AI tool shares one. */
   kind?: 'ai' | 'chat'
   refreshKey?: number | string
   variant?: 'card' | 'inline' | 'chip'
@@ -135,7 +136,7 @@ export default function MonthlyAiUsageMeter({
   slimBelowLimit?: boolean
   /** Only the slim line - nothing at 80%+ (the full bar shows elsewhere then), e.g. the phone chat's swipe tab. */
   slimOnly?: boolean
-  /** Slim line labelled just "Chat" (a tight spot - the phone chat's swipe tab). */
+  /** Slim line labelled just "AI" (a tight spot - the phone chat's swipe tab). */
   shortLabel?: boolean
   /** Slim line in its own little pill, like the site's AI Usage pill (the chat's top bar, owner 11/01). */
   pill?: boolean
@@ -168,17 +169,17 @@ export default function MonthlyAiUsageMeter({
   const exhausted = data.exhausted || pct >= 100
   const warning = !exhausted && (data.near_limit || pct >= 80)
   const chat = kind === 'chat'
-  const title = chat ? 'Chat Usage' : 'Monthly AI Usage'
-  const what = chat ? 'chat' : 'AI'
+  const title = chat ? 'AI Usage' : 'Monthly AI Usage'
+  const what = 'AI'
   // Both bars reset on the agent's billing day (11/01), not the 1st.
   const resetsOn = data.resets_at
     ? new Date(data.resets_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
     : null
   const resetsText = resetsOn ? `resets ${resetsOn}` : 'resets next month'
-  // Near or at the chat limit: the plan with double the chat (owner, 11/01).
-  const upgrade = chat && (exhausted || warning) && 'upgrade' in data ? data.upgrade : null
-  const upgradeHref = upgrade ? `/upgrade-required?tier=${upgrade.tier}&feature=${encodeURIComponent(upgrade.times === 2 ? '2x AI chat' : 'More AI chat')}` : ''
-  const upgradeLabel = upgrade ? `Upgrade to ${upgrade.name} for ${upgrade.times === 2 ? '2x' : 'more'} the chat` : ''
+  // Near or at the limit: the next plan up and how much more AI usage it has (one bar since 11/13).
+  const upgrade = (exhausted || warning) && 'upgrade' in data ? data.upgrade : null
+  const upgradeHref = upgrade ? `/upgrade-required?tier=${upgrade.tier}&feature=${encodeURIComponent(upgrade.times === 2 ? '2x AI usage' : 'More AI usage')}` : ''
+  const upgradeLabel = upgrade ? `Upgrade to ${upgrade.name} for ${upgrade.times === 2 ? '2x' : 'more'} AI usage` : ''
   if (onlyNearLimit && !exhausted && !warning) return null
   if (slimOnly && (exhausted || warning)) return null
   const slim = (slimBelowLimit || slimOnly) && !exhausted && !warning
@@ -262,10 +263,10 @@ export default function MonthlyAiUsageMeter({
         {pill ? (
           // a phone's top bar is tight next to "AI Assistant" and its buttons - just "Chat" there
           <span className={`shrink-0 text-[10px] font-black uppercase tracking-wide ${labelColor}`}>
-            <span className="sm:hidden">{chat ? 'Chat' : 'AI'}</span><span className="hidden sm:inline">{chat ? 'Chat Usage' : 'AI Usage'}</span>
+            <span className="sm:hidden">AI</span><span className="hidden sm:inline">AI Usage</span>
           </span>
         ) : (
-          <span className={`shrink-0 text-[9px] font-black uppercase tracking-[0.14em] ${labelColor}`}>{shortLabel && chat ? 'Chat' : title}</span>
+          <span className={`shrink-0 text-[9px] font-black uppercase tracking-[0.14em] ${labelColor}`}>{shortLabel ? 'AI' : title}</span>
         )}
         <div className={`flex ${pill ? 'h-1.5' : 'h-1'} min-w-0 flex-1 overflow-hidden rounded-full ${trackColor}`}>{fill}</div>
         <span className={`shrink-0 ${pill ? 'text-xs' : 'text-[10px]'} font-black tabular-nums ${pctColor}`}>{pctText}%</span>
@@ -294,7 +295,7 @@ export default function MonthlyAiUsageMeter({
       <div className={`${stretch ? 'flex w-full py-1.5' : 'inline-flex py-2'} flex-col gap-1 rounded-xl border ${cardTone} px-3 ${className}`}>
         <div className="flex items-center gap-2">
           <AiGaugeIcon className={`h-3.5 w-3.5 shrink-0 ${pctColor} ${pulseCls}`} active={aiActive} />
-          <span className={`shrink-0 text-[10px] font-black uppercase tracking-wide ${labelColor}`}>{chat ? 'Chat Usage' : 'AI Usage'}</span>
+          <span className={`shrink-0 text-[10px] font-black uppercase tracking-wide ${labelColor}`}>AI Usage</span>
           <div className={`flex h-1.5 ${stretch ? 'min-w-0 flex-1' : 'w-14 shrink-0 sm:w-28'} overflow-hidden rounded-full ${trackColor}`}>
             {fill}
           </div>

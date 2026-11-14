@@ -88,7 +88,7 @@ export default function BrandPick({ picks, onPicks, luxeOk, upgradeLabel, notUsi
         </CardStep>
       )}
       <CardStep id="logos" n={n('logos')} title="Logos" summary={logoCount ? `${logoCount} added` : 'None yet'} steps={steps}>
-        <div className="grid gap-2 sm:grid-cols-3" data-testid="ai-brand-logos">
+        <div className="grid gap-2 chatwide:grid-cols-3" data-testid="ai-brand-logos">
           {LOGOS.map(([id, label]) => (
             <div key={id} className="min-w-0">
               <p className="mb-1 text-[10.5px] font-bold text-gray-500 dark:text-zinc-400">{label}</p>

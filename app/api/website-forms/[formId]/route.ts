@@ -16,7 +16,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const siteId = request.nextUrl.searchParams.get('site_id')
   if (!siteId) return NextResponse.json({ detail: 'site_id is required' }, { status: 400 })
 
-  const res = await fetch(`${INTERNAL_API_URL}/public/sites/${encodeURIComponent(siteId)}/forms/${encodeURIComponent(formId)}`, {
+  // owner_ref=1: the site's own agent (lib/ownerDevice) - not counted as a visit.
+  const ownerRef = request.nextUrl.searchParams.get('owner_ref') === '1' ? '?owner_ref=1' : ''
+  const res = await fetch(`${INTERNAL_API_URL}/public/sites/${encodeURIComponent(siteId)}/forms/${encodeURIComponent(formId)}${ownerRef}`, {
     cache: 'no-store',
   })
   const body = await res.json()
@@ -29,7 +31,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!siteId) return NextResponse.json({ detail: 'site_id is required' }, { status: 400 })
 
   const payload = await request.json()
-  const res = await fetch(`${INTERNAL_API_URL}/public/sites/${encodeURIComponent(siteId)}/forms/${encodeURIComponent(formId)}/submit`, {
+  const ownerRef = request.nextUrl.searchParams.get('owner_ref') === '1' ? '?owner_ref=1' : ''
+  const res = await fetch(`${INTERNAL_API_URL}/public/sites/${encodeURIComponent(siteId)}/forms/${encodeURIComponent(formId)}/submit${ownerRef}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

@@ -457,7 +457,7 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   const working = !!busy || state.status === 'running' || state.status === 'working'
   const iconState = working ? 'live' : state.status === 'done' ? 'done' : state.status === 'cancelled' || state.status === 'expired' || state.status === 'failed' || state.status === 'replaced' || state.status === 'stale' ? 'off' : 'idle'
   return (
-    <div className={`ohp-ai-card-in mt-2 w-full rounded-2xl border bg-white p-2.5 sm:p-3.5 text-left shadow-sm transition-colors duration-300 dark:bg-zinc-900 ${
+    <div className={`ohp-ai-card-in mt-2 w-full rounded-2xl border bg-white p-2.5 chatwide:p-3.5 text-left shadow-sm transition-colors duration-300 dark:bg-zinc-900 ${
       state.status === 'done' ? 'border-emerald-200 dark:border-emerald-900/50' : working ? 'border-[#C9A24D] shadow-[0_8px_26px_-14px_rgba(201,162,77,.7)]' : 'border-[#C9A24D]/40 dark:border-[#C9A24D]/30'}`} data-testid="ai-action-card">
       <div className="flex items-center gap-3">
         <CardIcon tool={action.tool} state={iconState} />
@@ -492,10 +492,12 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
       {isCma && choosing && <CmaPick payload={action.payload as Record<string, any>} ai={cmaAi} onAi={setCmaAi} mode={cmaMode} onMode={setCmaMode} picks={cma} onPicks={setCma} />}
       {isMedia && choosing && <MediaPick payload={action.payload as Record<string, any>} picks={media} onPicks={setMedia} />}
       {editor && choosing && !isForm && (
-        <div className="mt-2.5 flex items-center gap-2 rounded-xl bg-[#faf7f0] px-2.5 py-2 ring-1 ring-black/5 dark:bg-zinc-800/50 dark:ring-white/10" data-testid="ai-open-editor-bar">
-          <p className="min-w-0 flex-1 text-[11.5px] font-semibold leading-snug text-gray-600 dark:text-zinc-300">{editor.ask}</p>
+        // The button drops under the question when the two don't fit side by side (a narrow chat) -
+        // never squeezing the question to a word a line (owner, 11/13).
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl bg-[#faf7f0] px-2.5 py-2 ring-1 ring-black/5 dark:bg-zinc-800/50 dark:ring-white/10" data-testid="ai-open-editor-bar">
+          <p className="min-w-[11rem] flex-1 text-[11.5px] font-semibold leading-snug text-gray-600 dark:text-zinc-300">{editor.ask}</p>
           <button type="button" onClick={openInEditor} disabled={!!busy || (isDesign && !!designMissing)} data-testid="ai-open-editor"
-            className="ohp-ai-press inline-flex shrink-0 items-center gap-1 rounded-full bg-[#111827] px-3 py-1.5 text-[11px] font-black text-white disabled:opacity-50 dark:bg-[#C9A24D] dark:text-[#111827]">
+            className="ohp-ai-press ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-[#111827] px-3 py-1.5 text-[11px] font-black text-white disabled:opacity-50 dark:bg-[#C9A24D] dark:text-[#111827]">
             {editor.button} <ChevronRight className="h-3.5 w-3.5" strokeWidth={3} />
           </button>
         </div>

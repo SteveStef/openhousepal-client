@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
-  ArrowRight, BedDouble, Bath, Building2, CalendarClock, CheckCheck, CheckCircle2, ChevronDown, ChevronRight, Inbox, Ruler,
+  ArrowRight, BedDouble, Bath, Building2, CalendarClock, CheckCheck, CheckCircle2, ChevronDown, ChevronRight, Inbox, MousePointerClick, Ruler,
   Sparkles, TrendingDown, X,
 } from 'lucide-react'
 import api from '@/lib/api-service'
@@ -13,6 +13,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import AnimatedNumber from '@/components/ui/AnimatedNumber'
 import OhpLoader from '@/components/brand/OhpLoader'
 import { getNotificationMeta } from '@/lib/notificationDisplay'
+import { InterestCard } from '@/components/leads/InterestNudge'
+import type { InterestSignal } from '@/types'
 import OpenShowcaseButton from '@/components/OpenShowcaseButton'
 import { backdropMotion, useEscapeToClose, useIsPhone, usePagePin, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
 
@@ -50,6 +52,8 @@ export type Rundown = {
   briefing: { time_label: string; sent: boolean; sent_at: string | null; ran_today: boolean; upcoming: boolean; notification_id: string | null }
   stats: Stat[]; to_do_count: number; followups: FollowUp[]; followups_label: string; followup_overdue: number
   actions: Action[]; client_activity: Action[]
+  /** Leads without an agent opening / clicking the same email again - "Worth a check-in" (owner, 11/13). */
+  interest?: InterestSignal[]
   showcase: { new: number; drops: number; clients: number; homes: Home[] } | null
   happened: { key: string; label: string; items: Happening[] }[]; happened_count: number; unread_today: number
   // Looked at today (opened here, or the briefing email opened / clicked) - the Dash card steps aside
@@ -210,7 +214,14 @@ function RundownWindow({ onClose, leave }: { onClose: () => void; leave: () => v
     const t = window.setTimeout(() => setSettled(true), 650)   // backstop if the animation event is missed
     return () => window.clearTimeout(t)
   }, [])
-  useEffect(() => { if (settled) markRundownSeen() }, [settled])
+  // When they last looked (before this open): anything newer glows where it is, and its group moves
+  // to the top (owner, 11/13 - "I couldn't tell what the latest thing was"). Only after a look
+  // earlier today - the first look of the day has nothing to compare with.
+  const [since, setSince] = useState<string | null | undefined>(() => (cached ? (cached.seen?.seen ? cached.seen.seen_at : null) : undefined))
+  useEffect(() => {
+    if (since === undefined && data) setSince(data.seen?.seen ? data.seen.seen_at : null)
+  }, [data, since])
+  useEffect(() => { if (settled && since !== undefined) markRundownSeen() }, [settled, since])
   useEffect(() => {
     const mq = window.matchMedia('(max-height: 519px)')
     const on = () => setShort(mq.matches)
@@ -229,10 +240,17 @@ function RundownWindow({ onClose, leave }: { onClose: () => void; leave: () => v
     if (!data || marking) return
     setMarking(true)
     setData(markedRead(data))
+    // It shows "All caught up" and closes right away - the server catches up behind it (a slow
+    // connection never holds the window open). If marking fails, the next refresh shows them unread.
+    setJustMarked(true)
+    window.setTimeout(() => onClose(), 550)
     const ok = await markRundownRead()
     setMarking(false)
-    if (ok) { setJustMarked(true); window.setTimeout(() => setJustMarked(false), 2200) } else reload()
+    if (!ok) reload()
   }
+  // The big bottom button always ends the briefing (owner, 11/13): marks today read and closes, or
+  // just closes once everything is read.
+  const bottomButton = () => { if (data && data.unread_today > 0) markAll(); else onClose() }
 
   return (
     <motion.div {...backdropMotion} data-scroll-lock="off" onClick={e => { if (e.target === e.currentTarget) onClose() }}
@@ -270,14 +288,14 @@ function RundownWindow({ onClose, leave }: { onClose: () => void; leave: () => v
                 : <OhpLoader fullScreen={false} label="Gathering your day…" />}
             </div>
           ) : (
-            <RundownBody data={data} phone={phone} short={short} go={go} settled={settled} />
+            <RundownBody data={data} setData={setData} phone={phone} short={short} go={go} settled={settled} since={since || null} />
           )}
         </div>
 
         {data && (
           <div className={`relative z-20 flex items-center gap-2 border-t border-black/[0.06] bg-white/95 px-4 ${short ? 'py-2' : 'py-3'} dark:border-white/[0.07] dark:bg-[#141416]/95 sm:px-6`}
             style={{ paddingBottom: phone ? 'max(0.75rem, env(safe-area-inset-bottom))' : undefined }}>
-            <motion.button type="button" whileTap={{ scale: 0.96 }} onClick={markAll} disabled={marking || data.unread_today === 0} data-testid="rundown-mark-all"
+            <motion.button type="button" whileTap={{ scale: 0.96 }} onClick={bottomButton} disabled={marking} data-testid="rundown-mark-all"
               className={`relative flex ${short ? 'h-10' : 'h-12'} min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-2xl px-4 text-sm font-black transition ${
                 data.unread_today > 0
                   ? 'bg-gradient-to-r from-[#111827] to-[#2a2218] text-white shadow-lg shadow-black/15 dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827]'
@@ -287,7 +305,7 @@ function RundownWindow({ onClose, leave }: { onClose: () => void; leave: () => v
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}>
                   {data.unread_today > 0
                     ? <><CheckCheck className="h-4 w-4" /> Mark all as read <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] tabular-nums dark:bg-black/10">{data.unread_today}</span></>
-                    : <><motion.span initial={justMarked ? { scale: 0.4, rotate: -30 } : false} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 14 }}><CheckCircle2 className="h-4 w-4" /></motion.span> All caught up</>}
+                    : <><motion.span initial={justMarked ? { scale: 0.4, rotate: -30 } : false} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 14 }}><CheckCircle2 className="h-4 w-4" /></motion.span> {justMarked ? 'All caught up' : 'All caught up · Close'}</>}
                 </motion.span>
               </AnimatePresence>
             </motion.button>
@@ -313,8 +331,24 @@ const rise = (i: number, reduce: boolean | null) => reduce ? {} : {
   animate: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 260, damping: 28, delay: 0.08 + i * 0.07 } },
 }
 
-function RundownBody({ data, phone, short = false, go, settled = true }: { data: Rundown; phone: boolean; short?: boolean; go: (link: string) => void; settled?: boolean }) {
+function RundownBody({ data, setData, phone, short = false, go, settled = true, since = null }: {
+  data: Rundown; setData?: (fn: (d: Rundown | null) => Rundown | null) => void; phone: boolean; short?: boolean; go: (link: string) => void; settled?: boolean
+  /** Their last look today - newer items glow. */
+  since?: string | null
+}) {
   const reduce = useReducedMotion()
+  const sinceMs = since ? new Date(since).getTime() : 0
+  const isNew = (at?: string | null) => !!sinceMs && !!at && new Date(at).getTime() > sinceMs
+  // Groups with something new in them come first.
+  const happened = useMemo(() => {
+    if (!sinceMs) return data.happened
+    const fresh = (g: Rundown['happened'][number]) => g.items.some(i => isNew(i.at))
+    return [...data.happened.filter(fresh), ...data.happened.filter(g => !fresh(g))]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.happened, sinceMs])
+  const newCount = sinceMs ? data.happened.reduce((n, g) => n + g.items.filter(i => isNew(i.at)).length, 0) : 0
+  const interest = data.interest || []
+  const dropInterest = (id: string) => setData?.(d => d && ({ ...d, interest: (d.interest || []).filter(x => x.email_id !== id) }))
   const status = briefingStatus(data)
   // Busy numbers first, then quiet ones (as dimmed zeros) just to fill the last row - never a gap,
   // and on a quiet day the grid still shows.
@@ -429,6 +463,18 @@ function RundownBody({ data, phone, short = false, go, settled = true }: { data:
           )}
         </Section>
 
+        {/* Worth a check-in - leads without an agent opening / clicking the same email again (owner, 11/13) */}
+        {interest.length > 0 && (
+          <Section i={5} icon={<MousePointerClick className="h-4 w-4" />} title="Worth a check-in" count={interest.length}
+            note="No agent, and opening your emails again - a good moment to reach out">
+            <div className="space-y-2" data-testid="rundown-interest">
+              <AnimatePresence initial={false}>
+                {interest.map(s => <InterestCard key={s.email_id} s={s} go={go} onDone={dropInterest} />)}
+              </AnimatePresence>
+            </div>
+          </Section>
+        )}
+
         {/* Showcase news - the briefing's home cards */}
         {data.showcase && data.showcase.homes.length > 0 && (
           <Section i={5} icon={<Building2 className="h-4 w-4" />} title="Showcase news" count={data.showcase.homes.length}
@@ -456,28 +502,37 @@ function RundownBody({ data, phone, short = false, go, settled = true }: { data:
         )}
 
         {/* What happened today */}
-        <Section i={6} icon={<Sparkles className="h-4 w-4" />} title="What happened today" count={data.happened_count}>
+        <Section i={6} icon={<Sparkles className="h-4 w-4" />} title="What happened today" count={data.happened_count}
+          note={newCount ? `${newCount} new since you last looked - glowing below` : undefined}>
           {data.happened.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-gray-300 p-5 text-center text-sm font-bold text-gray-400 dark:border-white/10">
               Quiet so far. Sign-ins, likes, comments, form answers and email opens land here the moment they happen.
             </p>
           ) : (
             <div className="space-y-4">
-              {data.happened.map(g => (
+              {happened.map(g => {
+                const fresh = g.items.filter(i => isNew(i.at)).length
+                const lastNew = g.items.reduce((k, i, idx) => (isNew(i.at) ? idx : k), -1)
+                return (
+
                 <div key={g.key}>
                   <p className="mb-1.5 flex items-center gap-2 px-1 text-[10.5px] font-black uppercase tracking-[0.16em] text-gray-400 dark:text-white/40">
                     {g.label} <span className="rounded-full bg-gray-100 px-1.5 py-px text-[10px] tracking-normal text-gray-500 dark:bg-white/10 dark:text-white/60">{g.items.length}</span>
+                    {fresh > 0 && <span className="rounded-full bg-[#C9A24D] px-1.5 py-px text-[9.5px] tracking-[0.08em] text-white">{fresh} new</span>}
                   </p>
                   <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white dark:border-white/[0.07] dark:bg-[#141416]">
-                    <ShowMore initial={3} divided items={g.items.map(n => {
+                    <ShowMore initial={Math.max(3, lastNew + 1)} divided items={g.items.map(n => {
                       const { icon: Icon, className } = getNotificationMeta(n.type, n.message, n.title)
+                      const glow = isNew(n.at)
                       return (
                         <div key={n.id} role="button" tabIndex={0} onClick={() => go(n.link)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(n.link) } }} data-testid="rundown-happening"
-                          className="flex w-full min-w-0 cursor-pointer items-start gap-3 px-3.5 py-3 text-left transition hover:bg-[#faf9f7] active:bg-[#f4efe4] dark:hover:bg-white/[0.03] dark:active:bg-white/[0.05]">
+                          data-new={glow ? '' : undefined}
+                          className={`flex w-full min-w-0 cursor-pointer items-start gap-3 px-3.5 py-3 text-left transition hover:bg-[#faf9f7] active:bg-[#f4efe4] dark:hover:bg-white/[0.03] dark:active:bg-white/[0.05] ${glow ? 'ohp-new-glow bg-[#fdf6e4] dark:bg-[#C9A24D]/[0.08]' : ''}`}>
                           <span className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full border ${className}`}><Icon className="h-4 w-4" /></span>
                           <span className="min-w-0 flex-1">
                             <span className="flex items-start gap-2">
                               <span className={`min-w-0 flex-1 text-[13.5px] leading-snug text-[#111827] dark:text-white ${n.is_read ? 'font-bold' : 'font-black'}`}>{n.title}</span>
+                              {glow && <span className="shrink-0 rounded-full bg-[#C9A24D] px-1.5 py-px text-[9px] font-black uppercase tracking-[0.08em] text-white">New</span>}
                               <span className="shrink-0 pt-0.5 text-[10.5px] font-bold tabular-nums text-gray-400">{clock(n.at)}</span>
                             </span>
                             {(n.message || n.address) && <span className="mt-0.5 line-clamp-2 block text-xs leading-relaxed text-gray-500 dark:text-gray-400">{n.message || n.address}</span>}
@@ -497,7 +552,8 @@ function RundownBody({ data, phone, short = false, go, settled = true }: { data:
                     })} />
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </Section>

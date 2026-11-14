@@ -20,7 +20,6 @@ import api from '@/lib/api-service'
 import { Lead, LeadOpenHouse, LeadOriginGroup, LeadStatus, LeadTodo } from '@/types'
 import { useToast } from '@/contexts/ToastContext'
 import LeadDetailModal from '@/components/leads/LeadDetailModal'
-import CheckinsStrip from '@/components/leads/CheckinsStrip'
 import { normalizedStatus, STATUS_LABEL, STATUS_PILL } from '@/components/leads/LeadDetailPanel'
 import LuxeHero, { LuxeTabs } from '@/components/ui/LuxeHero'
 import { CrmChip } from '@/components/tasks/TasksPanel'
@@ -324,7 +323,9 @@ function LeadsPageInner() {
                     ? 'border-amber-300 bg-amber-50 text-amber-800 shadow-amber-500/10 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200'
                     : 'border-[#C9A24D]/35 bg-white text-[#111827] shadow-[#C9A24D]/10 hover:border-[#C9A24D] dark:border-white/15 dark:bg-white/[0.07] dark:text-white'}`}>
                   <Mail className={`ohp-icon-draw ohp-icon-assemble-mail h-3.5 w-3.5 ${emailsSlowed > 0 ? 'text-amber-600 dark:text-amber-300' : 'text-[#8b7355] dark:text-[#e8c97a]'}`} /> Email Tracker
-                  {emailsSlowed > 0 && <span data-testid="emails-slowed" title="These people stopped opening your emails, so they now get fewer. Tap to see who." className="rounded-full bg-amber-500 px-1.5 text-[10px] font-black leading-4 text-white">{emailsSlowed} slowed</span>}
+                  {/* A corner tag (like "Soon" beside it), so it never pushes out of the pill on a narrow
+                      desktop cell (owner, 11/13 - "2 slowed popping out of its pill shape"). */}
+                  {emailsSlowed > 0 && <span data-testid="emails-slowed" title="These people stopped opening your emails, so they now get fewer. Tap to see who." className="absolute -right-1 -top-2 whitespace-nowrap rounded-full bg-amber-500 px-1.5 text-[8.5px] font-black uppercase leading-4 tracking-wide text-white shadow-sm">{emailsSlowed} slowed</span>}
                 </Link>
                 {/* Coming soon (Future Feature Ideas on the launch checklist): a series of follow-ups over
                     weeks - day 1, 3, 7, 30 - instead of one at a time. Not a link yet. */}
@@ -474,7 +475,6 @@ function LeadsPageInner() {
         {sort === 'warmth' && <WarmthExplainer />}
 
         {/* Leads with nothing suggested and no word from you in two weeks: a check-in, written on the tap (owner, 11/09). */}
-        {(activeView === 'no_agent' || activeView === 'needs' || activeView === 'all') && <CheckinsStrip onAdded={refresh} />}
 
         {/* ── the list */}
         <div ref={listTopRef} className="mt-4 scroll-mt-24 space-y-2.5">

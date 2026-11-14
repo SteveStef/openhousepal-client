@@ -1443,7 +1443,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
           })}
 
           {/* Last on purpose (owner, 11/09): the AI reads the homes the search above finds, so it's the
-              final thing set - with the chat's own limits (300 homes, room in the chat usage) and its cost. */}
+              final thing set - with the chat's own limits (300 homes, room in the AI usage) and its cost. */}
           {card({
             i: 6, icon: <Sparkles className="h-4 w-4" />, title: 'Must-haves (AI)', hint: 'optional · set last', set: wants.length > 0,
             children: <SmartWantsInput wants={wants} onChange={setWants} atLimit={atLimit}

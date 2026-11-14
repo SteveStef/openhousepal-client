@@ -3,9 +3,9 @@
 // The chat's Home search card (owner, 11/08): "find homes for sale in Exton with a first-floor primary
 // bedroom" never reads a whole town on its own. The chat fills the boxes it can from the question; the
 // agent finishes the required ones - a town / zip or school district, the least bedrooms, the least
-// size - and watches how many homes fit and how much of their chat usage reading them takes, as they
+// size - and watches how many homes fit and how much of their AI usage reading them takes, as they
 // type (that count is a plain database count: free). Search opens at 300 homes or fewer and only when
-// their chat usage has room; then the AI reads every listing and the matches show here with the words
+// their AI usage has room; then the AI reads every listing and the matches show here with the words
 // that show it, "maybe" ones greyed after. The results stay on the card when the chat is opened again.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Home, Loader2, MapPin, Pencil, Search, Sparkles, X } from 'lucide-react'
@@ -132,14 +132,14 @@ export default function HomeSearchCard({ card, messageId }: { card: HomeSearchRe
   if (cnt && !missing.has('place')) {
     if (!n) status = { tone: 'warn', text: 'No homes for sale fit these boxes - widen them a little.' }
     else if (n > cnt.cap) status = { tone: 'warn', text: `Too many to read - narrow it to ${cnt.cap} or fewer: more bedrooms, a bigger size or a price range.` }
-    else if (!cnt.enough) status = { tone: 'bad', text: `Not enough chat usage left: reading them takes ${pct(cnt.usage_percent)} and ${pct(cnt.left_percent)} is left this month. It resets on your billing day, or a bigger plan has more.` }
+    else if (!cnt.enough) status = { tone: 'bad', text: `Not enough AI usage left: reading them takes ${pct(cnt.usage_percent)} and ${pct(cnt.left_percent)} is left this month. It resets on your billing day, or a bigger plan has more.` }
     // One line, even on a small phone (owner, 11/08)
-    else status = { tone: 'ok', text: `Uses ${pct(cnt.usage_percent).replace('about ', '~')} of chat usage${cnt.left_percent != null ? ` · ${cnt.left_percent}% left` : ''}` }
+    else status = { tone: 'ok', text: `Uses ${pct(cnt.usage_percent).replace('about ', '~')} of AI usage${cnt.left_percent != null ? ` · ${cnt.left_percent}% left` : ''}` }
   }
   const canRun = !!cnt?.ready && !counting && !running
 
   return (
-    <div className="ohp-ai-card-in mt-2 w-full rounded-2xl border border-[#C9A24D]/40 bg-white p-2.5 text-left shadow-sm dark:border-[#C9A24D]/30 dark:bg-zinc-900 sm:p-3" data-testid="ai-hs-card">
+    <div className="ohp-ai-card-in mt-2 w-full rounded-2xl border border-[#C9A24D]/40 bg-white p-2.5 text-left shadow-sm dark:border-[#C9A24D]/30 dark:bg-zinc-900 chatwide:p-3" data-testid="ai-hs-card">
       <div className="flex items-center gap-2.5 rounded-xl bg-gradient-to-br from-[#1b1a17] via-[#2a2218] to-[#111827] px-3 py-2.5 ring-1 ring-[#C9A24D]/40">
         <Search className="h-4 w-4 shrink-0 text-[#e8c97a]" strokeWidth={2.4} />
         <span className="min-w-0 flex-1">
@@ -201,7 +201,7 @@ export default function HomeSearchCard({ card, messageId }: { card: HomeSearchRe
 
           <div>
             <p className={label}>House size, at least {missing.has('min_sqft') && need}</p>
-            <div className="-mx-0.5 flex gap-1.5 overflow-x-auto px-0.5 pb-0.5 [scrollbar-width:none] sm:flex-wrap">
+            <div className="-mx-0.5 flex gap-1.5 overflow-x-auto px-0.5 pb-0.5 [scrollbar-width:none] chatwide:flex-wrap">
               {SIZES.map(s => <button key={s} type="button" onClick={() => set({ min_sqft: f.min_sqft === s ? null : s })} className={chip(f.min_sqft === s)} data-testid={`ai-hs-size-${s}`}>{s.toLocaleString()} sqft</button>)}
             </div>
           </div>
@@ -230,7 +230,7 @@ export default function HomeSearchCard({ card, messageId }: { card: HomeSearchRe
               {counting && <Loader2 className="ml-auto h-3.5 w-3.5 animate-spin text-gray-400" />}
             </div>
             <p className={`mt-1 text-[11px] font-semibold leading-snug ${status.tone === 'ok' ? 'truncate whitespace-nowrap' : ''} ${status.tone === 'bad' ? 'text-rose-800 dark:text-rose-200' : status.tone === 'warn' ? 'text-amber-800 dark:text-amber-200' : 'text-gray-500 dark:text-zinc-400'}`} data-testid="ai-hs-status">{status.text}</p>
-            {status.tone !== 'bad' && <p className="mt-1 text-[10px] font-semibold text-gray-400 dark:text-zinc-500">Counting is free - only Search uses chat usage. Homes with no size listed are left out.</p>}
+            {status.tone !== 'bad' && <p className="mt-1 text-[10px] font-semibold text-gray-400 dark:text-zinc-500">Counting is free - only Search uses AI usage. Homes with no size listed are left out.</p>}
           </div>
 
           {err && <p className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11.5px] font-bold text-amber-800 dark:bg-amber-900/20 dark:text-amber-300" data-testid="ai-hs-error">{err}</p>}

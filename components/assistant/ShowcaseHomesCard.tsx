@@ -36,7 +36,7 @@ type Info = { id: string; name: string; client?: string; first?: string; last?: 
 export type ShowcaseCardRef = { record_id: string; collection: Info; homes: Row[]; matched?: Record<string, string[]>; looked_for?: string[]; searched?: boolean
   /** Matches the chat says aren't real ("a pool table") - shown last in Matches, greyed, with why. */
   doubtful?: Record<string, string>
-  /** Not enough chat usage was left for AI to read the listings - these are simple word matches. */
+  /** Not enough AI usage was left for AI to read the listings - these are simple word matches. */
   words_only?: boolean }
 type View = 'matches' | 'all' | 'recommended' | 'touched' | 'off'
 
@@ -87,8 +87,8 @@ function Tile({ r, why, doubt, sent, selecting, picked, onPick, onOpen, onRecomm
         {r.recommended && <span className="absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-[#C9A24D] text-[#111827] shadow"><Star className="h-3 w-3" fill="currentColor" /></span>}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[12.5px] font-bold leading-snug text-[#111827] dark:text-white">{r.street || 'Home'}</span>
-        <span className="block truncate text-[10.5px] font-semibold text-gray-500 dark:text-zinc-400">{[r.city, facts].filter(Boolean).join(' · ')}</span>
+        <span className="line-clamp-2 break-words text-[12.5px] font-bold leading-snug text-[#111827] dark:text-white">{r.street || 'Home'}</span>
+        <span className="line-clamp-2 text-[10.5px] font-semibold leading-snug text-gray-500 dark:text-zinc-400">{[r.city, facts].filter(Boolean).join(' · ')}</span>
         {(!!r.tags?.length || r.status || sent) && (
           <span className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
             {r.status && <span className="shrink-0 rounded-full bg-gray-200/80 px-1.5 py-px text-[9px] font-black uppercase tracking-wide text-gray-600 dark:bg-zinc-700 dark:text-zinc-300">{r.status}</span>}
@@ -261,7 +261,7 @@ export default function ShowcaseHomesCard({ card }: { card: ShowcaseCardRef }) {
   const views: [View, string][] = [['matches', 'Matches'], ['all', 'All'], ['recommended', 'Recommended'], ['touched', 'Loved / commented'], ['off', 'Off the market']]
 
   return (
-    <div className="ohp-ai-card-in mt-2 w-full rounded-2xl border border-[#C9A24D]/40 bg-white p-2.5 text-left shadow-sm dark:border-[#C9A24D]/30 dark:bg-zinc-900 sm:p-3" data-testid="ai-sc-card">
+    <div className="ohp-ai-card-in mt-2 w-full rounded-2xl border border-[#C9A24D]/40 bg-white p-2.5 text-left shadow-sm dark:border-[#C9A24D]/30 dark:bg-zinc-900 chatwide:p-3" data-testid="ai-sc-card">
       <div className="flex items-center gap-2.5 rounded-xl bg-gradient-to-br from-[#1b1a17] via-[#2a2218] to-[#111827] px-3 py-2.5 ring-1 ring-[#C9A24D]/40">
         <Home className="h-4 w-4 shrink-0 text-[#e8c97a]" strokeWidth={2.2} />
         <span className="min-w-0 flex-1">
@@ -276,7 +276,7 @@ export default function ShowcaseHomesCard({ card }: { card: ShowcaseCardRef }) {
 
       {card.words_only && (
         <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] font-bold leading-snug text-amber-800 dark:bg-amber-900/20 dark:text-amber-300" data-testid="ai-sc-words-only">
-          Quick word matches only - there isn&apos;t enough chat usage left this month for AI to read every listing, so some homes may be missed.
+          Quick word matches only - there isn&apos;t enough AI usage left this month for AI to read every listing, so some homes may be missed.
         </p>
       )}
       <div className="-mx-0.5 mt-2 flex gap-1.5 overflow-x-auto px-0.5 pb-0.5 [scrollbar-width:none]">

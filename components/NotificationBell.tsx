@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Bell } from 'lucide-react'
 import NotificationDropdown from './NotificationDropdown'
@@ -8,6 +9,7 @@ import { Notification } from '@/types'
 import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import { AUTO_HIDE_WHEN_READ_TYPES, visibleNotifications } from '@/lib/notificationDisplay'
+import { stackNotifications } from '@/lib/bellStack'
 import { isRundownNotification, openTodaysRundown } from '@/components/rundown/TodaysRundown'
 
 // Matches the poll interval used across the app's other "live" badges (leads/open-house action
@@ -18,6 +20,7 @@ const LEADS_REFRESH_EVENT = 'leads-notification-count:refresh'
 const OPEN_HOUSE_REFRESH_EVENT = 'openhouse-action-counts:refresh'
 
 export default function NotificationBell() {
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -113,7 +116,8 @@ export default function NotificationBell() {
   // the other two triggers in app/activity/page.tsx and app/studio/media/page.tsx) rather than
   // just grayed out like every other notification type - see lib/notificationDisplay.tsx.
   const visible = visibleNotifications(notifications)
-  const unreadCount = visible.filter(n => !n.isRead).length
+  // Combined rows count once (lib/bellStack.ts) - three email opens are one thing to look at.
+  const unreadCount = stackNotifications(visible).filter(i => (i.kind === 'one' ? !i.n.isRead : !i.isRead)).length
 
   // Opening the dropdown is itself a "seen it" moment for these types - mark them read in the
   // background so the next time the bell opens (or the Activity page loads) they're gone,
@@ -187,6 +191,19 @@ export default function NotificationBell() {
     setIsOpen(false)
   }
 
+  // A combined row: mark them read and open the Activity page, where each is listed on its own.
+  const handleStackClick = (items: Notification[]) => {
+    const unread = items.filter(n => !n.isRead).map(n => n.id)
+    if (unread.length) {
+      setNotifications(prev => prev.map(n => (unread.includes(n.id) ? { ...n, isRead: true } : n)))
+      Promise.all(unread.map(id => api.notifications.markAsRead(id)))
+        .then(() => window.dispatchEvent(new Event(LEADS_REFRESH_EVENT)))
+        .catch(() => fetchNotifications())
+    }
+    setIsOpen(false)
+    router.push('/activity')
+  }
+
   const toggleDropdown = () => {
     setIsOpen(!isOpen)
   }
@@ -234,6 +251,7 @@ export default function NotificationBell() {
             onMarkAsRead={handleMarkAsRead}
             onMarkAllAsRead={handleMarkAllAsRead}
             onNotificationClick={handleNotificationClick}
+            onStackClick={handleStackClick}
           />
         </div>
       )}

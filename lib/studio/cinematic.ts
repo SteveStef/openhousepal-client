@@ -221,53 +221,136 @@ function fromPool(it: MotionPoolPhoto, keep?: MotionPhotoSetting): MotionPhotoSe
   }
 }
 
-/** The video's photos for these rooms and this length: the best photo of each room, then (when a room
- *  has more good ones and the length has time) a second, all in walk-through order. Photos the agent
- *  already checked or edited are kept as they are. */
+/** The video's photos for these rooms and this length (our suggestion, and "Our pick"): the best photo
+ *  of each room first, then (when a room has more good ones and the length has time) a second, all in
+ *  walk-through order. Photos the agent already checked or edited are kept as they are.
+ *  11/13 fix: every wanted room's first photo is placed BEFORE any second photo is - the cut to the
+ *  length used to happen before sorting, so a newly tapped room (the patio) fell off the end while a
+ *  second photo of another room filled its place. */
 export function photosForRooms(s: MotionSettings, want: RoomKey[], length?: number | null): MotionPhotoSetting[] {
   const pool = s.pool || []
   const max = maxPhotosFor(length)
   const target = Math.min(max, targetPhotosFor(length))
   const rooms = roomsInPool(pool).filter(r => want.includes(r.id))
   const existing = new Map(s.photos.map(p => [p.source, p]))
-  const chosen: { it: MotionPoolPhoto; room: RoomKey }[] = []
+  const firsts: { it: MotionPoolPhoto; room: RoomKey }[] = []
+  const seconds: { it: MotionPoolPhoto; room: RoomKey }[] = []
   const used = new Set<string>()
-  // Keep the agent's own picks for rooms that are still wanted.
-  for (const p of s.photos) {
-    if (p.room && p.room !== 'skip' && want.includes(p.room as RoomKey) && !p.hidden) {
-      const it = pool.find(x => x.source === p.source)
-      if (it && !used.has(it.source) && chosen.filter(c => c.room === p.room).length < 2) { chosen.push({ it, room: p.room as RoomKey }); used.add(it.source) }
-    }
-  }
   for (const r of rooms) {
-    if (chosen.some(c => c.room === r.id)) continue
-    const it = r.photos.find(x => !used.has(x.source))
-    if (it) { chosen.push({ it, room: r.id }); used.add(it.source) }
+    // the agent's own (visible) picks in this room come first, then our best
+    const mine = s.photos.filter(p => !p.hidden && r.photos.some(x => x.source === p.source))
+      .map(p => r.photos.find(x => x.source === p.source)!)
+    const order = [...mine, ...r.photos.filter(x => !mine.includes(x))]
+    const one = order.find(x => !used.has(x.source))
+    if (!one) continue
+    firsts.push({ it: one, room: r.id }); used.add(one.source)
+    const two = order.find(x => !used.has(x.source) && (mine.includes(x) || x.score >= 3))
+    if (two) seconds.push({ it: two, room: r.id })
   }
-  // Time to spare: a second photo of the rooms with the best extra shots.
-  const extras = rooms.flatMap(r => r.photos.filter(x => !used.has(x.source) && x.score >= 3).slice(0, 1).map(it => ({ it, room: r.id })))
-    .sort((a, b) => b.it.score - a.it.score)
-  for (const e of extras) {
+  seconds.sort((a, b) => b.it.score - a.it.score)
+  const chosen = firsts.slice(0, max)
+  for (const e of seconds) {
     if (chosen.length >= target) break
-    chosen.push(e); used.add(e.it.source)
+    chosen.push(e) // each photo belongs to one room, so a second never repeats another room's photo
   }
-  const out = chosen.slice(0, max)
+  return chosen
     .sort((a, b) => (ROOM_RANK.get(a.room) ?? 99) - (ROOM_RANK.get(b.room) ?? 99) || b.it.score - a.it.score)
     .map(c => fromPool(c.it, existing.get(c.it.source)))
-  return out
 }
 
-/** "Show another": the next photo of the same room (then any photo) not already in the video. */
-export function nextChoice(s: MotionSettings, photo: MotionPhotoSetting): MotionPoolPhoto[] {
-  const pool = (s.pool || []).filter(it => it.analyzed && it.room !== 'skip')
-  const inVideo = new Set(s.photos.map(p => p.source))
-  const same = pool.filter(it => it.room === photo.room && !inVideo.has(it.source)).sort((a, b) => b.score - a.score)
-  const rest = pool.filter(it => it.room !== photo.room && !inVideo.has(it.source))
-  return [...same, ...rest]
+// ---------------------------------------------------------------- sections + picking single photos
+
+/** One group of photos on "What to show": a room the AI found, or "Other photos" (floor plans,
+ *  garages, closets and anything it couldn't place - still offered, owner 11/13: every photo must be
+ *  reachable). Best photo first. */
+export type PhotoSection = { id: RoomKey | 'other'; label: string; photos: MotionPoolPhoto[] }
+export function sectionsOf(pool: MotionPoolPhoto[] = []): PhotoSection[] {
+  const rooms: PhotoSection[] = roomsInPool(pool).map(r => ({ id: r.id, label: ROOM_OPTIONS.find(o => o.id === r.id)?.label || r.id, photos: r.photos }))
+  const known = new Set(rooms.flatMap(r => r.photos.map(p => p.source)))
+  const other = pool.filter(it => it.analyzed && !known.has(it.source)).sort((a, b) => b.score - a.score)
+  return other.length ? [...rooms, { id: 'other', label: 'Other photos', photos: other }] : rooms
 }
 
+/** The video's photos (shown ones only) that come from this section. */
+export const pickedIn = (s: MotionSettings, sec: PhotoSection) => {
+  const srcs = new Set(sec.photos.map(p => p.source))
+  return s.photos.filter(p => !p.hidden && srcs.has(p.source))
+}
+
+/** The rooms that have a photo in the video, in walk-through order (kept as `want` for the server). */
+export const wantOf = (photos: MotionPhotoSetting[], pool: MotionPoolPhoto[] = []): RoomKey[] => {
+  const room = new Map(pool.map(it => [it.source, it.room]))
+  const out = new Set<RoomKey>()
+  for (const p of photos) {
+    const r = (room.get(p.source) ?? p.room) as string | null | undefined
+    if (!p.hidden && r && r !== 'skip' && ROOM_RANK.has(r as RoomKey)) out.add(r as RoomKey)
+  }
+  return Array.from(out).sort((a, b) => (ROOM_RANK.get(a) ?? 99) - (ROOM_RANK.get(b) ?? 99))
+}
+
+const rankOf = (room?: string | null) => (room && ROOM_RANK.has(room as RoomKey) ? ROOM_RANK.get(room as RoomKey)! : 98)
+
+/** Ticks one photo in (or back in, keeping its checked caption when it was only taken out). It goes
+ *  after the last photo of its room - or where its room sits in the walk-through. */
+export function addPhoto(s: MotionSettings, it: MotionPoolPhoto): MotionPhotoSetting[] {
+  const had = s.photos.find(p => p.source === it.source)
+  if (had) return s.photos.map(p => (p.id === had.id ? { ...p, hidden: false } : p))
+  const add = fromPool(it)
+  const r = rankOf(it.room)
+  const photos = [...s.photos]
+  let at = -1
+  photos.forEach((p, i) => { if (rankOf(p.room) <= r) at = i })
+  photos.splice(at + 1, 0, add)
+  return photos
+}
+
+/** Unticks one photo: it leaves the video (its files stay with the project, so it can come back). */
+export const removePhoto = (s: MotionSettings, source: string): MotionPhotoSetting[] => s.photos.filter(p => p.source !== source)
+
+/** A shorter length holds fewer photos: drop the weakest extras first (a room's second photo), then
+ *  the weakest photo overall. Taken-out photos don't count. */
+export function trimToCap(s: MotionSettings, cap: number): MotionPhotoSetting[] {
+  let photos = [...s.photos]
+  const score = new Map((s.pool || []).map(it => [it.source, it.score]))
+  const roomOf = (p: MotionPhotoSetting) => (s.pool || []).find(it => it.source === p.source)?.room ?? p.room
+  while (photos.filter(p => !p.hidden).length > cap) {
+    const vis = photos.filter(p => !p.hidden)
+    const count = new Map<string, number>()
+    vis.forEach(p => count.set(String(roomOf(p)), (count.get(String(roomOf(p))) || 0) + 1))
+    const extras = vis.filter(p => (count.get(String(roomOf(p))) || 0) > 1)
+    const from = extras.length ? extras : vis.filter(p => roomOf(p) !== 'front').length ? vis.filter(p => roomOf(p) !== 'front') : vis
+    const drop = from.reduce((a, b) => ((score.get(b.source) ?? 3) < (score.get(a.source) ?? 3) ? b : a))
+    photos = photos.filter(p => p !== drop)
+  }
+  return photos
+}
+
+/** "Try another" on the check step: walks through EVERY photo of this photo's room, one after another,
+ *  and round again (11/13 fix: it swapped between the same two - the photo it had just replaced went
+ *  back to the top of the list each time). A room with only this photo offers the other unused ones. */
+export function cycleChoice(s: MotionSettings, photo: MotionPhotoSetting): { next: MotionPoolPhoto | null; at: number; total: number } {
+  const pool = (s.pool || []).filter(it => it.analyzed)
+  const room = pool.find(it => it.source === photo.source)?.room ?? photo.room ?? null
+  const others = new Set(s.photos.filter(p => !p.hidden && p.id !== photo.id).map(p => p.source))
+  const sameRoom = (r: MotionPoolPhoto['room']) => (room && room !== 'skip' ? r === room : !r || r === 'skip')
+  const list = pool.filter(it => sameRoom(it.room) && (it.source === photo.source || !others.has(it.source))).sort((a, b) => b.score - a.score)
+  if (!list.some(it => it.source === photo.source)) {
+    return { next: list[0] ?? pool.find(it => !others.has(it.source) && it.source !== photo.source) ?? null, at: 0, total: list.length }
+  }
+  if (list.length > 1) {
+    const i = list.findIndex(it => it.source === photo.source)
+    return { next: list[(i + 1) % list.length], at: i + 1, total: list.length }
+  }
+  const rest = pool.filter(it => it.room !== 'skip' && !others.has(it.source) && it.source !== photo.source).sort((a, b) => b.score - a.score)
+  return { next: rest[0] ?? null, at: 1, total: 1 }
+}
+
+/** Puts a pool photo in place of one in the video (same spot, same transition). Any taken-out copy of
+ *  the new photo goes, so a photo is never in the list twice. */
 export function swapPhoto(s: MotionSettings, photoId: string, it: MotionPoolPhoto): MotionPhotoSetting[] {
-  return s.photos.map(p => (p.id === photoId ? { ...fromPool(it), room: p.room === it.room ? p.room : it.room, showLabel: p.showLabel, move: 'auto', transitionIn: p.transitionIn ?? null } : p))
+  return s.photos
+    .filter(p => p.id === photoId || p.source !== it.source)
+    .map(p => (p.id === photoId ? { ...fromPool(it), showLabel: p.showLabel, move: 'auto' as const, transitionIn: p.transitionIn ?? null } : p))
 }
 
 export const pct = (v?: number | null) => (v == null ? null : v < 1 ? '<1%' : `${Math.round(v)}%`)

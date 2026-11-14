@@ -165,10 +165,10 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-black text-[#111827] dark:text-white">{homes > 1 ? `Any of ${homes} homes · ${r.listing_agent_name || 'listing agent'}` : niceAddress(r.property_address) || 'Listing'}</p>
                 <p className="truncate text-[10.5px] font-bold text-gray-500 dark:text-gray-400">{st.when}</p>
-                {/* phones: the status goes under the address so the address never gets cut short */}
-                <span className="mt-1 flex sm:hidden"><Pill tone={st.tone} icon={st.icon}>{st.label}</Pill></span>
+                {/* phones (and a narrow chat - the chat's own width, owner 11/13): the status goes under the address so the address never gets cut short */}
+                <span className={inChat ? (wideChat ? 'hidden' : 'mt-1 flex') : 'mt-1 flex sm:hidden'}><Pill tone={st.tone} icon={st.icon}>{st.label}</Pill></span>
               </div>
-              <span className="hidden sm:flex"><Pill tone={st.tone} icon={st.icon}>{st.label}</Pill></span>
+              <span className={inChat ? (wideChat ? 'flex' : 'hidden') : 'hidden sm:flex'}><Pill tone={st.tone} icon={st.icon}>{st.label}</Pill></span>
             </Link>
           )
         })}

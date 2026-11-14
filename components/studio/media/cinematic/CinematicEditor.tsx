@@ -13,7 +13,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  ArrowDown, ArrowLeft, ArrowUp, Check, ChevronLeft, ChevronRight, Clapperboard, Download, Expand, Film, ImagePlus, Loader2,
+  ArrowDown, ArrowLeft, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, Clapperboard, Download, Expand, Film, ImagePlus, Loader2,
   Music2, Pause, Play, Plus, RefreshCw, Shuffle, Sparkles, Wand2, X,
 } from 'lucide-react'
 import FlowDock from '@/components/ui/FlowDock'
@@ -25,8 +25,8 @@ import { saveFile } from '@/lib/mobileShare'
 import { SIGNATURE_COLORS } from '@/lib/studio/videoMotion'
 import { LUXE_METALS, LUXE_METAL_ORDER } from '@/lib/luxeMetals'
 import {
-  RENDER_ACTIVE, analysisOf, clock, formatsOf, nextChoice, pct, photosForRooms, proxied, renderOf, roomsInPool, settingsOf, sized, suggestRooms,
-  swapPhoto, thumbOf, type MotionPhotoSetting, type MotionPoolPhoto, type MotionSettings,
+  RENDER_ACTIVE, addPhoto, analysisOf, clock, cycleChoice, formatsOf, pct, photosForRooms, pickedIn, proxied, removePhoto, renderOf, sectionsOf, settingsOf, sized, suggestRooms,
+  swapPhoto, thumbOf, trimToCap, wantOf, type MotionPhotoSetting, type MotionPoolPhoto, type MotionSettings, type PhotoSection,
 } from '@/lib/studio/cinematic'
 import {
   KIND_LABELS, MOVE_LABELS, SITUATION_PRESETS, STYLE_PRESETS, TRANSITION_PRESETS, kindLabel, roomOption, situationPreset, stylePreset,
@@ -38,12 +38,13 @@ import type { StudioMediaAsset } from '@/types'
 
 const LivePreview = dynamic(() => import('@/components/studio/media/cinematic/LivePreview'), {
   ssr: false,
-  loading: () => <div className="aspect-video w-full rounded-2xl bg-[#111827]" />,
+  // kept short while it loads (in the wide chat a full-width 16:9 box filled the screen - owner 11/13)
+  loading: () => <div className="aspect-video max-h-[40vh] w-full rounded-2xl bg-[#111827]" />,
 })
 
 const STEPS = [
   { key: 'setup', title: 'Length & shape', short: 'Length' },
-  { key: 'rooms', title: 'What to show', short: 'Rooms' },
+  { key: 'rooms', title: 'What to show', short: 'Photos' },
   { key: 'check', title: 'Check each photo', short: 'Check' },
   { key: 'situation', title: "What's it for?", short: 'For' },
   { key: 'look', title: 'Look & motion', short: 'Look' },
@@ -75,6 +76,10 @@ const NARROW_CSS = `
 .ohp-cine-narrow .sm\\:grid-cols-2,.ohp-cine-narrow .sm\\:grid-cols-\\[minmax\\(0\\,1fr\\)_minmax\\(0\\,0\\.6fr\\)\\]{grid-template-columns:minmax(0,1fr)!important}
 .ohp-cine-narrow .sm\\:text-3xl{font-size:1.5rem!important;line-height:2rem!important}
 .ohp-cine-narrow .sm\\:flex-none{flex:1 1 0%!important}
+.ohp-cine-narrow .ohp-dl-row{flex-wrap:wrap;row-gap:.5rem}
+.ohp-cine-narrow .ohp-dl-text{flex-basis:calc(100% - 3rem)}
+.ohp-cine-narrow .ohp-dl-where{white-space:normal;overflow:visible}
+.ohp-cine-narrow .ohp-dl-btn{margin-left:3rem}
 `
 
 const gold = 'text-[#8b7355] dark:text-[#d7b974]'
@@ -122,9 +127,9 @@ function CardTitle({ title, sub, right }: { title: string; sub?: string; right?:
   )
 }
 
-function Pick({ active, onClick, children, className = '', badge, disabled }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string; badge?: string; disabled?: boolean }) {
+function Pick({ active, onClick, children, className = '', badge, disabled, expanded, testId }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string; badge?: string; disabled?: boolean; expanded?: boolean; testId?: string }) {
   return (
-    <button type="button" onClick={disabled ? undefined : onClick} disabled={disabled}
+    <button type="button" onClick={disabled ? undefined : onClick} disabled={disabled} aria-expanded={expanded} aria-pressed={active} data-testid={testId}
       className={`group relative flex flex-col overflow-hidden rounded-2xl border-2 text-left transition ${disabled ? 'cursor-not-allowed opacity-55' : 'hover:-translate-y-0.5'} ${active ? 'border-[#C9A24D] shadow-[0_0_34px_-14px_rgba(201,162,77,0.8)]' : `border-gray-200 dark:border-gray-800 ${disabled ? '' : 'hover:border-[#C9A24D]/50'}`} bg-white dark:bg-[#151517] ${className}`}>
       {children}
       {badge && <span className="absolute left-2 top-2 z-10 rounded-full bg-[#111827]/80 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-[#f1d58b]">{badge}</span>}
@@ -150,51 +155,114 @@ function Field({ label, value, onChange, placeholder, maxLength = 60, hint }: { 
   )
 }
 
+// The "Making your video" screen's moving parts, kept to transform + opacity only so the browser's
+// compositor runs them without repainting (owner 11/13: the old scanning screen lagged - a JS-driven
+// zoom on a brightness-filtered photo plus a background-position shimmer repainted every frame). The
+// photo is darkened by a plain black layer instead of a filter. Everything stops while the card is off
+// screen or the tab is hidden (data-paused), and with reduced motion.
+const MAKING_CSS = `
+@keyframes ohpMkScan{0%{transform:translate3d(0,-120%,0)}100%{transform:translate3d(0,320%,0)}}
+@keyframes ohpMkDrift{0%{transform:scale(1.06)}100%{transform:scale(1.18)}}
+@keyframes ohpMkSheen{0%{transform:translate3d(-100%,0,0)}100%{transform:translate3d(100%,0,0)}}
+@keyframes ohpMkGlow{0%,100%{opacity:.35}50%{opacity:.8}}
+@keyframes ohpMkSpin{to{transform:rotate(360deg)}}
+.ohp-mk-scan{animation:ohpMkScan 2.4s cubic-bezier(.4,0,.2,1) infinite;will-change:transform}
+.ohp-mk-photo{opacity:0;transform:scale(1.18);transition:opacity 1.4s ease}
+.ohp-mk-photo.on{opacity:1;animation:ohpMkDrift 4.6s linear both;will-change:transform,opacity}
+.ohp-mk-glow{animation:ohpMkGlow 1.6s ease-in-out infinite}
+.ohp-mk-spin{animation:ohpMkSpin 1s linear infinite}
+.ohp-mk-sheen{position:relative;overflow:hidden}
+.ohp-mk-sheen::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:ohpMkSheen 1.8s linear infinite;will-change:transform}
+.ohp-mk[data-paused] *,.ohp-mk[data-paused] *::after{animation-play-state:paused!important}
+@media (prefers-reduced-motion:reduce){.ohp-mk *,.ohp-mk *::after,.ohp-mk-sheen::after{animation:none!important}}
+`
+
+/** True while this element is on screen and the tab is showing - loops pause otherwise. */
+function useShowing(ref: React.RefObject<HTMLElement | null>) {
+  const [inView, setInView] = useState(true)
+  const [tabShown, setTabShown] = useState(true)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting))
+    io.observe(el)
+    return () => io.disconnect()
+  }, [ref])
+  useEffect(() => {
+    const v = () => setTabShown(!document.hidden)
+    v(); document.addEventListener('visibilitychange', v)
+    return () => document.removeEventListener('visibilitychange', v)
+  }, [])
+  return inView && tabShown
+}
+
 /** A video being made (owner 11/13: the old bar was "very bland and boring") - in the AI photo tool's
  *  style: the home's own photos drifting behind a sweeping gold light, a glowing spinner, a big
- *  percent, a shimmering bar, the countdown and the line. Shaped like the video they chose. */
-function MakingCard({ photos, aspect, title, stage, pct, eta, ahead, elapsed, compact }: {
-  photos: string[]; aspect: number; title: string; stage: string; pct: number; eta: number | null; ahead: number; elapsed: number; compact?: boolean
+ *  percent, a shimmering bar, the countdown and the line. Shaped like the video they chose; smaller
+ *  inside the chat. It runs its own one-second clock (the editor around it no longer re-draws every
+ *  second while a video is being made). */
+function MakingCard({ photos, aspect, title, stage, pct, etaAt, startedAt, ahead, compact, embedded }: {
+  photos: string[]; aspect: number; title: string; stage: string; pct: number; etaAt?: string | null; startedAt?: string | null; ahead: number; compact?: boolean; embedded?: boolean
 }) {
-  const [i, setI] = useState(0)
+  const ref = useRef<HTMLDivElement>(null)
+  const showing = useShowing(ref)
+  const [{ i, prev }, setPair] = useState({ i: 0, prev: -1 })
+  const [now, setNow] = useState(() => Date.now())
+  const [broken, setBroken] = useState<Record<string, true>>({})
+  const list = photos.filter(u => !broken[u])
   useEffect(() => {
-    if (photos.length < 2) return
-    const t = setInterval(() => setI(v => (v + 1) % photos.length), 3800)
+    if (!showing || list.length < 2) return
+    const n = list.length
+    const t = setInterval(() => setPair(p => ({ prev: p.i % n, i: (p.i + 1) % n })), 4600)
     return () => clearInterval(t)
-  }, [photos.length])
+  }, [showing, list.length])
+  useEffect(() => {
+    if (!showing) return
+    setNow(Date.now())
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [showing])
+  const elapsed = startedAt ? Math.max(0, (now - new Date(startedAt).getTime()) / 1000) : 0
+  // Time left: the video maker's own estimate (its measured speed + the videos ahead in line); the
+  // progress-bar guess only before it has answered.
+  const etaLeft = etaAt ? Math.max(0, (new Date(etaAt).getTime() - now) / 1000) : null
+  const eta = etaLeft != null ? etaLeft : pct > 0.15 && elapsed > 5 ? Math.max(5, (elapsed / pct) * (1 - pct)) : null
   const tall = aspect < 1
-  const clock = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`
+  const maxH = embedded ? '58vh' : '72vh'
+  const cur = list.length ? i % list.length : -1
   return (
-    <div className="ohp-reveal relative mx-auto w-full overflow-hidden rounded-2xl border-2 border-[#C9A24D]/50 bg-[#0b0b0d]"
-      style={{ aspectRatio: compact ? '16 / 10' : String(aspect), minHeight: compact ? 300 : 380, maxWidth: tall && !compact ? 'calc(72vh * ' + aspect + ')' : compact ? undefined : 820, boxShadow: '0 0 44px -10px rgba(201,162,77,0.5)' }}>
-      <AnimatePresence>
-        {photos[i] && (
-          <motion.img key={photos[i] + i} src={photos[i]} alt="" draggable={false}
-            initial={{ opacity: 0, scale: 1.06 }} animate={{ opacity: 1, scale: 1.18 }} exit={{ opacity: 0 }}
-            transition={{ opacity: { duration: 1.4 }, scale: { duration: 6, ease: 'linear' } }}
-            className="absolute inset-0 h-full w-full object-cover brightness-[0.4]" />
-        )}
-      </AnimatePresence>
-      <div className="pointer-events-none absolute inset-x-0 h-1/3"
-        style={{ animation: 'ohpScan 2.4s cubic-bezier(.4,0,.2,1) infinite', background: 'linear-gradient(180deg,transparent,rgba(230,199,122,0.42) 45%,rgba(255,255,255,0.7) 50%,rgba(230,199,122,0.42) 55%,transparent)' }} />
+    <div ref={ref} data-paused={showing ? undefined : ''} data-testid="cine-making"
+      className="ohp-mk ohp-reveal relative mx-auto w-full overflow-hidden rounded-2xl border-2 border-[#C9A24D]/50 bg-[#0b0b0d]"
+      style={{
+        aspectRatio: compact ? '16 / 10' : String(aspect), minHeight: compact || embedded ? 300 : 360,
+        maxWidth: compact ? undefined : tall ? `min(${embedded ? 420 : 820}px, calc(${maxH} * ${aspect.toFixed(4)}))` : embedded ? 600 : 820,
+        boxShadow: '0 0 44px -10px rgba(201,162,77,0.5)',
+      }}>
+      {list.map((src, k) => (k === cur || k === prev) && (
+        <img key={src} src={src} alt="" draggable={false} decoding="async" onError={() => setBroken(b => ({ ...b, [src]: true }))}
+          className={`ohp-mk-photo absolute inset-0 h-full w-full object-cover ${k === cur ? 'on' : ''}`} />
+      ))}
+      <div className="absolute inset-0 bg-black/60" />
+      <div className="ohp-mk-scan pointer-events-none absolute inset-x-0 top-0 h-1/3"
+        style={{ background: 'linear-gradient(180deg,transparent,rgba(230,199,122,0.42) 45%,rgba(255,255,255,0.7) 50%,rgba(230,199,122,0.42) 55%,transparent)' }} />
       <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/30" />
-      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2.5 px-6 text-center">
+      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2.5 px-6 text-center [text-shadow:0_1px_10px_rgba(0,0,0,0.55)]">
         <div className="relative flex h-14 w-14 items-center justify-center">
-          <span className="absolute inset-0 rounded-full bg-[#C9A24D]/45" style={{ animation: 'ohpGlow 1.6s ease-in-out infinite' }} />
-          <span className="absolute inset-0 rounded-full border-2 border-white/15 border-t-[#f1d58b] animate-spin" />
+          <span className="ohp-mk-glow absolute inset-0 rounded-full bg-[#C9A24D]/45" />
+          <span className="ohp-mk-spin absolute inset-0 rounded-full border-2 border-white/15 border-t-[#f1d58b]" />
           <Clapperboard className="relative h-6 w-6 text-white" />
         </div>
         <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#f1d58b]">{title}</p>
-        <p className="text-sm font-black text-white drop-shadow">{stage}</p>
-        <p className="font-serif text-5xl font-black tabular-nums leading-none text-white drop-shadow">{Math.round(pct * 100)}%</p>
+        <p className="text-sm font-black text-white">{stage}</p>
+        <p className={`font-serif font-black tabular-nums leading-none text-white ${embedded || compact ? 'text-4xl' : 'text-5xl'}`}>{Math.round(pct * 100)}%</p>
         <div className="h-1.5 w-full max-w-[300px] overflow-hidden rounded-full bg-white/15">
-          <div className="h-full rounded-full transition-[width] duration-700 ease-out"
-            style={{ width: `${Math.max(4, Math.min(100, pct * 100))}%`, background: 'linear-gradient(90deg,#C9A24D,#f1d58b,#C9A24D)', backgroundSize: '200% 100%', animation: 'ohpShimmer 1.8s linear infinite' }} />
+          <div className="ohp-mk-sheen h-full rounded-full bg-gradient-to-r from-[#C9A24D] via-[#f1d58b] to-[#C9A24D] transition-[width] duration-700 ease-out"
+            style={{ width: `${Math.max(4, Math.min(100, pct * 100))}%` }} />
         </div>
         <p className="text-[11.5px] font-bold tabular-nums text-white/80">
           {eta != null ? `Ready in about ${clock(eta)}` : 'Usually a few minutes'}{ahead > 0 ? ` · ${ahead} ${ahead === 1 ? 'video' : 'videos'} ahead of yours` : ''} · {clock(elapsed)} so far
         </p>
-        <p className="max-w-[300px] rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-[10.5px] font-semibold leading-snug text-white/75">
+        <p className="max-w-[300px] rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-[10.5px] font-semibold leading-snug text-white/75 [text-shadow:none]">
           You can close this page or log out - it keeps going. Your bell lets you know when it&apos;s ready.
         </p>
       </div>
@@ -205,33 +273,95 @@ function MakingCard({ photos, aspect, title, stage, pct, eta, ahead, elapsed, co
 function ProgressBar({ value }: { value: number }) {
   return (
     <div className="h-2.5 overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
-      <div className="h-full rounded-full transition-[width] duration-700 ease-out"
-        style={{ width: `${Math.max(4, Math.min(100, value * 100))}%`, background: 'linear-gradient(90deg,#C9A24D,#f1d58b,#C9A24D)', backgroundSize: '200% 100%', animation: 'ohpShimmer 1.8s linear infinite' }} />
+      <div className="ohp-mk-sheen h-full rounded-full bg-gradient-to-r from-[#C9A24D] via-[#f1d58b] to-[#C9A24D] transition-[width] duration-700 ease-out"
+        style={{ width: `${Math.max(4, Math.min(100, value * 100))}%` }} />
     </div>
   )
 }
 
 const aboutPct = (v?: number | null) => { const p = pct(v); return !p || p === '<1%' ? 'less than 1%' : `about ${p}` }
-/** The wait an agent sees once they press Make: a countdown clock, and their place in line when
- *  other agents' videos are being made first (owner, 11/12). */
-function WaitClock({ eta, ahead }: { eta: number; ahead: number }) {
+const visibleCount = (d: MotionSettings) => d.photos.filter(p => !p.hidden).length
+
+/** One room's photos with tick boxes, opened under its card on "What to show" (owner 11/13: "pick
+ *  WHICH photos - e.g. 3 of 5 bedroom photos"). Our pick is pre-ticked; the length's limit applies. */
+// Rooms a photo is easily filed under instead (a basement bedroom may sit under Basement, the primary
+// suite under Primary bedroom) - each strip links to these when the home has them.
+const RELATED: Partial<Record<string, string[]>> = {
+  bedroom: ['primary', 'basement', 'bonus'], primary: ['bedroom'], bath: ['primary_bath', 'basement'], primary_bath: ['bath'],
+  living: ['family', 'entry'], family: ['living', 'basement'], basement: ['bedroom', 'bath', 'bonus'], bonus: ['basement', 'office'], office: ['bonus'],
+  kitchen: ['dining'], dining: ['kitchen'], entry: ['living'], front: ['back', 'aerial'], back: ['yard', 'front'], yard: ['back', 'view', 'pool'],
+  pool: ['yard'], view: ['yard', 'aerial'], aerial: ['front', 'view'], detail: ['other'],
+}
+
+function SectionPanel({ sec, s, cols, full, maxShown, related, onToggle, onDone, onRemove, onAdd, onOpen }: {
+  sec: PhotoSection; s: MotionSettings; cols: number; full: boolean; maxShown: number; related: PhotoSection[]
+  onToggle: (it: MotionPoolPhoto) => void; onDone: () => void; onRemove: () => void; onAdd: () => void; onOpen: (id: string) => void
+}) {
+  const picked = new Set(pickedIn(s, sec).map(p => p.source))
+  const other = sec.id === 'other'
   return (
-    <div className="mt-4 flex items-end justify-between gap-3 rounded-2xl bg-gray-50 px-4 py-3 dark:bg-white/[0.04]">
-      <div>
-        <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">{eta > 0 ? 'Ready in about' : 'Almost ready'}</p>
-        <p className="font-serif text-3xl font-black tabular-nums text-[#111827] dark:text-white">{eta > 0 ? clock(eta) : '…'}</p>
+    <div style={{ gridColumn: '1 / -1' }} data-testid="cine-section-panel"
+      className="ohp-reveal rounded-2xl border-2 border-[#C9A24D]/55 bg-white p-3 shadow-[0_10px_34px_-18px_rgba(201,162,77,0.7)] dark:bg-[#151517] sm:p-4">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-serif text-base font-black text-[#111827] dark:text-white">{other ? 'Other photos' : `${sec.label} photos`}</p>
+          <p className="mt-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+            {other
+              ? 'Ones we\'d usually leave out (floor plans, garages, closets) or couldn\'t place - tick any you want.'
+              : `Tick the ones you want in the video${sec.photos.length > 1 ? ' - "Our pick" is the one we think shows it best' : ''}.`}
+          </p>
+        </div>
+        <button type="button" onClick={onDone} className="shrink-0 rounded-full bg-[#111827] px-4 py-1.5 text-[11px] font-black text-white dark:bg-white dark:text-[#111827]">Done</button>
       </div>
-      {ahead > 0 && (
-        <p className="pb-1 text-right text-xs font-bold text-gray-500">
-          {ahead} {ahead === 1 ? 'video' : 'videos'} ahead of yours
-          <span className="block text-[11px] font-semibold text-gray-400">Yours starts right after</span>
+      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+        {sec.photos.map((it, k) => {
+          const on = picked.has(it.source)
+          const blocked = !on && full
+          return (
+            <button key={it.source} type="button" role="checkbox" aria-checked={on} onClick={() => onToggle(it)}
+              aria-label={`${it.label || sec.label} - ${on ? 'in the video' : 'not in the video'}`} title={blocked ? `Your video holds ${maxShown} photos - untick one first` : undefined}
+              className={`relative overflow-hidden rounded-xl border-2 bg-gray-50 text-left transition dark:bg-white/[0.03] ${on ? 'border-[#C9A24D]' : 'border-transparent hover:border-[#C9A24D]/50'} ${blocked ? 'opacity-55' : ''}`}>
+              <span className="relative block aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-800">
+                <img src={thumbOf(it.clean || it.source) || ''} alt="" loading="lazy" draggable={false} className="h-full w-full object-cover" />
+                <span className={`absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md border-2 shadow ${on ? 'border-[#C9A24D] bg-[#C9A24D] text-[#111827]' : 'border-white/90 bg-black/30 text-transparent'}`}>
+                  <Check className="h-3.5 w-3.5" strokeWidth={3.5} />
+                </span>
+                {k === 0 && !other && sec.photos.length > 1 && (
+                  <span className="absolute left-1.5 top-1.5 rounded-full bg-[#111827]/85 px-1.5 py-0.5 text-[8.5px] font-black uppercase tracking-wider text-[#f1d58b]">Our pick</span>
+                )}
+              </span>
+              <span className="block truncate px-1.5 py-1 text-[10.5px] font-bold text-gray-600 dark:text-gray-300">{it.label || roomOption(it.room)?.label || 'Photo'}</span>
+            </button>
+          )
+        })}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <p className={`text-[11px] font-bold ${full ? 'text-amber-700 dark:text-amber-300' : 'text-gray-500'}`}>
+          {picked.size} of {sec.photos.length} ticked · {full ? `your video is full (${maxShown} photos) - untick one to swap, or pick a longer video` : `${visibleCount(s)} of ${maxShown} in your video`}
         </p>
-      )}
+        {related.length > 0 && (
+          <p className="flex w-full flex-wrap items-center gap-1.5 text-[11px] font-bold text-gray-400 order-last">
+            Not here? Also see
+            {related.map(r => (
+              <button key={r.id} type="button" onClick={() => onOpen(r.id)}
+                className="rounded-full border border-gray-200 px-2.5 py-1 text-[11px] font-black text-gray-600 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-300">
+                {r.label} · {r.photos.length}
+              </button>
+            ))}
+          </p>
+        )}
+        <div className="flex items-center gap-1">
+          {other && <button type="button" onClick={onAdd} className="rounded-full px-3 py-1.5 text-[11px] font-black text-gray-500 hover:bg-gray-100 hover:text-[#8b7355] dark:hover:bg-white/10">Add more photos</button>}
+          {picked.size > 0 && (
+            <button type="button" onClick={onRemove} className="rounded-full px-3 py-1.5 text-[11px] font-black text-gray-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20">
+              {other ? 'Untick all' : 'Take this room out'}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
-
-const fmtSecs = (s: number) => (s < 60 ? `${Math.max(1, Math.round(s))} sec` : `${Math.floor(s / 60)} min ${Math.round(s % 60)} sec`)
 
 // ---------------------------------------------------------------- page
 
@@ -254,11 +384,12 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   const [workerUp, setWorkerUp] = useState<boolean | null>(null)
   const [speed, setSpeed] = useState<{ wait_seconds?: number; sec_per_frame?: number; start_seconds?: number; save_seconds?: number; queued?: number; busy?: boolean } | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
-  const [now, setNow] = useState(Date.now())
   // Laid out by the space it actually has (the full page, or a message in the chat) - not the window.
   const [width, setWidth] = useState(0)
   const [checkAt, setCheckAt] = useState(0)
   const [roomNote, setRoomNote] = useState('')
+  // The room whose photo strip is open on "What to show" (owner 11/13: pick WHICH photos of a room)
+  const [openSec, setOpenSec] = useState<string | null>(null)
   const transitionTouched = useRef(false)
   const dirty = useRef(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -386,12 +517,6 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
     return () => clearInterval(t)
   }, [polling, id])
 
-  useEffect(() => {
-    if (!rendering) return
-    const t = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(t)
-  }, [rendering])
-
   // ---- the AI sorts the photos into rooms once, by itself (a few cents at most)
   const startAnalysis = useCallback(async () => {
     setError('')
@@ -413,35 +538,51 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   }, [asset, s, analysis.status, startAnalysis])
 
   // ---- rooms -> photos. The first time the sorting is done, start from our suggestion.
-  const rooms = useMemo(() => roomsInPool(s?.pool || []), [s?.pool])
+  const sections = useMemo(() => sectionsOf(s?.pool || []), [s?.pool])
   const sorted = !!s && (s.pool ?? []).length > 0 && (s.pool ?? []).every(it => it.analyzed)
   useEffect(() => {
     if (!s || !sorted || (s.want && s.want.length) || s.photos.length) return
     const want = suggestRooms(s.pool, s.length)
-    up(d => ({ ...d, want, photos: photosForRooms(d, want, d.length) }))
+    up(d => { const photos = photosForRooms(d, want, d.length); return { ...d, want: wantOf(photos, d.pool), photos } })
   }, [sorted]) // eslint-disable-line react-hooks/exhaustive-deps
-  const maxRooms = maxPhotosFor(s?.length)
-  const toggleRoom = (r: RoomKey) => {
+  const maxShown = maxPhotosFor(s?.length)
+  // Picking single photos (owner 11/13). Every change works on the latest settings (d), never on a
+  // copy from an earlier render, and keeps `want` (the rooms in the video) in step for the server.
+  const fullNote = () => setRoomNote(`That's the most for a ${s?.length || 30}-second video - untick a photo first, or pick a longer video.`)
+  const withPhotos = (d: MotionSettings, photos: MotionPhotoSetting[]): MotionSettings => ({ ...d, photos, want: wantOf(photos, d.pool) })
+  const togglePoolPhoto = (it: MotionPoolPhoto) => {
     if (!s) return
-    const want = s.want || []
-    if (want.includes(r)) {
-      setRoomNote('')
-      const next = want.filter(x => x !== r)
-      up(d => ({ ...d, want: next, photos: photosForRooms(d, next, d.length) }))
-      return
-    }
-    if (want.length >= maxRooms) {
-      setRoomNote(`That's the most for ${s.length || 30} seconds - take one out, or pick a longer video.`)
-      return
-    }
+    const on = s.photos.some(p => p.source === it.source && !p.hidden)
+    if (!on && visibleCount(s) >= maxShown) { fullNote(); return }
     setRoomNote('')
-    const next = [...want, r]
-    up(d => ({ ...d, want: next, photos: photosForRooms(d, next, d.length) }))
+    up(d => {
+      const isOn = d.photos.some(p => p.source === it.source && !p.hidden)
+      if (!isOn && visibleCount(d) >= maxPhotosFor(d.length)) return d
+      return withPhotos(d, isOn ? removePhoto(d, it.source) : addPhoto(d, it))
+    })
+  }
+  const tapSection = (sec: PhotoSection) => {
+    if (!s) return
+    const n = pickedIn(s, sec).length
+    if (openSec === sec.id) { setOpenSec(null); return }
+    setOpenSec(sec.id)
+    // A room not in the video yet starts with our pick of its photos (its best one); "Other photos"
+    // just opens - those are the ones we'd leave out.
+    if (n || sec.id === 'other') { setRoomNote(''); return }
+    if (visibleCount(s) >= maxShown) { fullNote(); return }
+    setRoomNote('')
+    const best = sec.photos[0]
+    up(d => (visibleCount(d) >= maxPhotosFor(d.length) || d.photos.some(p => p.source === best.source && !p.hidden) ? d : withPhotos(d, addPhoto(d, best))))
+  }
+  const removeSection = (sec: PhotoSection) => {
+    setRoomNote('')
+    const srcs = new Set(sec.photos.map(p => p.source))
+    up(d => withPhotos(d, d.photos.filter(p => !srcs.has(p.source))))
+    setOpenSec(null)
   }
   const setLength = (len: number) => up(d => {
-    const cap = maxPhotosFor(len)
-    const want = (d.want || []).slice(0, cap)
-    return { ...d, length: len, want, photos: d.pool?.length ? photosForRooms(d, want, len) : d.photos }
+    const photos = trimToCap(d, maxPhotosFor(len))
+    return { ...withPhotos(d, photos), length: len }
   })
 
   const visible = useMemo(() => (s ? s.photos.filter(p => !p.hidden) : []), [s])
@@ -508,7 +649,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
     if (!s) return ''
     if (k === S.rooms) {
       if (!analysisDone) return 'Sorting your photos into rooms…'
-      if (visible.length < 2) return 'Pick at least 2 things to show'
+      if (visible.length < 2) return 'Pick at least 2 photos'
     }
     if (k === S.check) {
       if (visible.length < 2) return 'Keep at least 2 photos'
@@ -556,29 +697,48 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
 
   if (loadError) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-6 text-center">
+      <div className={`flex ${embedded ? 'min-h-[10rem]' : 'min-h-[60vh]'} flex-col items-center justify-center gap-3 p-6 text-center`}>
         <p className="font-serif text-xl font-black text-[#111827] dark:text-white">{loadError}</p>
         <Link href="/studio/media" className={`text-sm font-black ${gold}`}>Back to your projects</Link>
       </div>
     )
   }
   if (!asset || !s) {
-    return <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
+    // Inside the chat: a small placeholder, not most of the screen (owner 11/13)
+    return embedded
+      ? <div className="flex h-40 items-center justify-center rounded-2xl bg-[#faf9f7] dark:bg-[#0B0B0B]"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
+      : <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
   }
 
   const title = s.facts.address || 'Cinematic Video'
-  const elapsed = render.started_at ? Math.max(0, (now - new Date(render.started_at).getTime()) / 1000) : 0
   const p = render.progress || 0
-  // Time left: the video maker's own estimate (its measured speed + the videos ahead in line),
-  // counted down here every second; the old progress-bar guess only before it has answered.
-  const etaLeft = render.eta_at ? Math.max(0, (new Date(render.eta_at).getTime() - now) / 1000) : null
-  const eta = etaLeft != null ? etaLeft : p > 0.15 && elapsed > 5 ? Math.max(5, (elapsed / p) * (1 - p)) : null
   const ahead = render.state === 'queued' ? render.ahead || 0 : 0
   const usedPct = budget && asset.cost_usd ? (asset.cost_usd / budget) * 100 : null
   const sharpenPct = est?.sharpen_percent != null && est.photos ? (est.sharpen_percent * needsSharpen) / est.photos : null
 
+  // Where the live preview sits: beside the options (left) on a wide space - the full page AND a wide
+  // chat (owner 11/13: in the chat on a big screen the preview was huge and on top). Narrow spaces
+  // (phones, the narrow chat panel) stack it on top, kept short.
+  const tall = TALL.includes(s.format)
+  // The check step shows each photo big, and while the video is being made the making screen
+  // takes over - no preview on either.
+  const showPreview = step !== S.check && !(step === S.make && rendering)
+  const sidePreview = wide && showPreview
+  const previewMaxH = wide ? (tall ? (embedded ? '62vh' : '74vh') : '60vh') : tall ? '52vh' : '40vh'
+  // The options' own width (beside a side preview, it's what's left) decides how many columns fit.
+  const sideW = embedded ? 300 : 360
+  const pad = 24 + (embedded ? 24 : 32)
+  const optionsW = sidePreview ? (tall ? width - sideW - pad : (width - pad) / 2.1) : width
+
   // ================================================================ step contents
   const want = s.want || []
+  const shownCount = visible.length
+  // "What to show": room cards in rows; the open room's photo strip goes right under its row.
+  const secCols = optionsW >= 520 ? 3 : 2
+  const thumbCols = optionsW >= 520 ? 4 : 3
+  const openIdx = sections.findIndex(x => x.id === openSec)
+  const openSection = openIdx >= 0 ? sections[openIdx] : null
+  const panelAfter = openIdx >= 0 ? Math.min(sections.length - 1, Math.floor(openIdx / secCols) * secCols + secCols - 1) : -1
   const poolCount = (s.pool ?? s.photos).length
   // Each length's share of THIS agent's monthly AI (owner 11/13): making it (AWS, per second of video)
   // + the photo prep still to do. From the agent's own allowance, so it differs by plan.
@@ -587,7 +747,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   const setupStep = (
     <div className="space-y-4">
       <Card>
-        <CardTitle title="How long?" sub="The length decides how many rooms fit - shorter is punchier" />
+        <CardTitle title="How long?" sub="The length decides how many photos fit - shorter is punchier" />
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {LENGTH_OPTIONS.map(o => (
             <Pick key={o.seconds} active={(s.length || 30) === o.seconds} onClick={() => setLength(o.seconds)} className="items-center px-3 pb-3 pt-6 text-center"
@@ -646,10 +806,13 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
       {analysisDone && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#C9A24D]/30 bg-[#C9A24D]/[0.07] px-4 py-3">
-            <p className="text-xs font-bold text-[#6b5a3f] dark:text-[#e8d5a8]">
-              <span className="font-black">{want.length} of {maxRooms}</span> picked for a {s.length || 30}-second video · {visible.length} photo{visible.length === 1 ? '' : 's'}
+            <p className="text-xs font-bold text-[#6b5a3f] dark:text-[#e8d5a8]" data-testid="cine-picked-count">
+              <span className="font-black">{shownCount} of {maxShown} photos</span> picked for a {s.length || 30}-second video{want.length ? ` · ${want.length} room${want.length === 1 ? '' : 's'}` : ''}
             </p>
-            <button type="button" onClick={() => { setRoomNote(''); const w = suggestRooms(s.pool, s.length); up(d => ({ ...d, want: w, photos: photosForRooms({ ...d, photos: [] }, w, d.length) })) }}
+            <button type="button" onClick={() => {
+              setRoomNote(''); setOpenSec(null)
+              up(d => withPhotos(d, photosForRooms({ ...d, photos: [] }, suggestRooms(d.pool, d.length), d.length)))
+            }}
               className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] font-black text-[#111827] shadow-sm hover:-translate-y-0.5 dark:bg-white/10 dark:text-white">
               <Shuffle className="h-3.5 w-3.5 text-[#C9A24D]" /> Our pick
             </button>
@@ -659,22 +822,36 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
               <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">{roomNote}</motion.p>
             )}
           </AnimatePresence>
-          {rooms.length === 0 ? (
+          {sections.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-xs font-bold text-gray-400 dark:border-gray-700">We couldn&apos;t sort these photos into rooms. Add photos below to keep going.</p>
           ) : (
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-              {rooms.map((r, i) => {
-                const on = want.includes(r.id)
-                const best = r.photos[0]
-                return (
-                  <Pick key={r.id} active={on} onClick={() => toggleRoom(r.id)} className="ohp-reveal" >
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(${secCols}, minmax(0, 1fr))` }}>
+              {sections.map((sec, i) => {
+                const picked = pickedIn(s, sec)
+                const n = picked.length
+                const coverPh = picked[0] || sec.photos[0]
+                const isOpen = openSec === sec.id
+                return [
+                  <Pick key={sec.id} active={n > 0} onClick={() => tapSection(sec)} expanded={isOpen} testId={`cine-sec-${sec.id}`}
+                    className={`ohp-reveal ${isOpen ? 'ring-4 ring-[#C9A24D]/25' : ''}`}>
                     <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100 dark:bg-gray-800" style={{ animationDelay: `${Math.min(i, 10) * 35}ms` }}>
-                      <img src={thumbOf(best.clean || best.source) || ''} alt="" loading="lazy" className={`h-full w-full object-cover transition duration-300 ${on ? '' : 'saturate-[0.85]'}`} />
-                      <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[9.5px] font-black text-white">{r.photos.length} photo{r.photos.length === 1 ? '' : 's'}</span>
+                      <img src={thumbOf(coverPh.clean || coverPh.source) || ''} alt="" loading="lazy" className="h-full w-full object-cover" />
+                      <span className={`absolute bottom-1.5 left-1.5 rounded-full px-2 py-0.5 text-[9.5px] font-black ${n ? 'bg-[#C9A24D] text-[#111827]' : 'bg-black/60 text-white'}`}>
+                        {n ? `${n} of ${sec.photos.length} picked` : `${sec.photos.length} photo${sec.photos.length === 1 ? '' : 's'}`}
+                      </span>
                     </div>
-                    <p className="px-3 py-2.5 text-xs font-black text-[#111827] dark:text-white">{roomOption(r.id)?.label}</p>
-                  </Pick>
-                )
+                    <span className="flex items-center justify-between gap-1 px-3 py-2.5">
+                      <span className="min-w-0 truncate text-xs font-black text-[#111827] dark:text-white">{sec.label}</span>
+                      <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-[#C9A24D]' : ''}`} />
+                    </span>
+                  </Pick>,
+                  i === panelAfter && openSection && (
+                    <SectionPanel key={`panel-${openSection.id}`} sec={openSection} s={s} cols={thumbCols} full={shownCount >= maxShown} maxShown={maxShown}
+                      related={(RELATED[openSection.id] || []).map(id => sections.find(x => x.id === id)).filter((x): x is PhotoSection => !!x)}
+                      onToggle={togglePoolPhoto} onDone={() => setOpenSec(null)} onRemove={() => removeSection(openSection)} onAdd={() => setAddOpen(true)}
+                      onOpen={id => { setRoomNote(''); setOpenSec(id); requestAnimationFrame(() => document.querySelector(`[data-testid="cine-sec-${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })) }} />
+                  ),
+                ]
               })}
             </div>
           )}
@@ -682,7 +859,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
             className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-300 py-3.5 text-xs font-black text-gray-500 transition hover:border-[#C9A24D] hover:bg-[#C9A24D]/5 hover:text-[#8b7355] dark:border-gray-700">
             <ImagePlus className="h-4 w-4" /> Don&apos;t see something? Add photos
           </button>
-          <p className="text-[11px] font-semibold text-gray-400">We pick the best photo of each room (and a second of the strongest rooms when there&apos;s time). You&apos;ll check every one next.</p>
+          <p className="text-[11px] font-semibold text-gray-400">We tick the best photo of each room to start. Tap a room to see all its photos and tick the ones you want - up to {maxShown} for {s.length || 30} seconds. You&apos;ll check each caption next.</p>
         </>
       )}
     </div>
@@ -690,7 +867,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
 
   const ci = Math.min(checkAt, Math.max(0, visible.length - 1))
   const cur = visible[ci]
-  const others = cur ? nextChoice(s, cur) : []
+  const choice = cur ? cycleChoice(s, cur) : { next: null, at: 0, total: 0 }
   const confirmCur = () => {
     if (!cur) return
     upPhoto(cur.id, { confirmed: true })
@@ -717,7 +894,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={cur.id} initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -18 }} transition={{ duration: 0.2 }}>
           <div className={`overflow-hidden rounded-2xl border bg-white shadow-sm dark:bg-[#151517] ${cur.confirmed ? 'border-emerald-300/70 dark:border-emerald-800/60' : !cur.sure ? 'border-amber-300 dark:border-amber-700/60' : 'border-gray-200 dark:border-gray-800'}`}>
-            <div className="relative mx-auto w-full overflow-hidden bg-gray-100 dark:bg-gray-800" style={{ aspectRatio: '3 / 2', maxWidth: 'calc(50vh * 1.5)' }}>
+            <div className="relative mx-auto w-full overflow-hidden bg-gray-100 dark:bg-gray-800" style={{ aspectRatio: '3 / 2', maxWidth: embedded ? 'calc(40vh * 1.5)' : 'calc(50vh * 1.5)' /* smaller inside the chat */ }}>
               {/* Until its clean copy is made, hide the MLS badge strip the video crops off anyway. */}
               <img src={sized(cur.clean || cur.source, 1080, 80) || ''} alt="" className="w-full object-cover object-top" style={{ height: cur.clean || asset.source_kind === 'upload' ? '100%' : '108.2%' }} />
               <span className="absolute left-3 top-3 rounded-full bg-black/65 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white">Photo {ci + 1} of {visible.length}</span>
@@ -738,9 +915,16 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
                   className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-[#111827] px-4 py-3 text-sm font-black text-white shadow transition hover:-translate-y-0.5 dark:bg-white dark:text-[#111827] sm:flex-none">
                   <Check className="h-4 w-4 text-[#C9A24D]" strokeWidth={3} /> {cur.confirmed ? 'Looks right' : 'Yes, looks right'}
                 </button>
-                <button type="button" disabled={!others.length} onClick={() => up(d => ({ ...d, photos: swapPhoto(d, cur.id, others[0]) }))}
+                <button type="button" disabled={!choice.next} data-testid="cine-try-another"
+                  onClick={() => up(d => {
+                    // from the latest settings, so quick taps keep walking forward through the room
+                    const now = d.photos.find(p => p.id === cur.id)
+                    const c = now ? cycleChoice(d, now) : null
+                    return now && c?.next ? withPhotos(d, swapPhoto(d, now.id, c.next)) : d
+                  })}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 px-3.5 py-3 text-xs font-black text-gray-700 transition hover:border-[#C9A24D] disabled:opacity-40 dark:border-gray-700 dark:text-gray-200">
-                  <Shuffle className="h-3.5 w-3.5" /> Show another
+                  <Shuffle className="h-3.5 w-3.5" /> Try another
+                  {choice.total > 1 && choice.at > 0 && <span className="font-bold tabular-nums text-gray-400">{choice.at} of {choice.total}</span>}
                 </button>
                 <button type="button" disabled={visible.length <= 2} onClick={() => { upPhoto(cur.id, { hidden: true }); setCheckAt(Math.max(0, Math.min(ci, visible.length - 2))) }}
                   title={visible.length <= 2 ? 'A video needs at least 2 photos' : undefined}
@@ -942,7 +1126,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
         )}
       </Card>
       <Card>
-        <CardTitle title="Room captions" sub="The label on each room (you checked them in step 1)" right={<Switch on={s.sections.labels} label="Room captions" onChange={v => up(d => ({ ...d, sections: { ...d.sections, labels: v } }))} />} />
+        <CardTitle title="Room captions" sub="The label on each photo (you checked them in Check each photo)" right={<Switch on={s.sections.labels} label="Room captions" onChange={v => up(d => ({ ...d, sections: { ...d.sections, labels: v } }))} />} />
       </Card>
       <Card>
         <CardTitle title="Closing card" sub={`${sit.endKicker} · ${sit.endBig(s.facts)}`} right={<Switch on={s.sections.endCard} label="Closing card" onChange={v => up(d => ({ ...d, sections: { ...d.sections, endCard: v } }))} />} />
@@ -978,39 +1162,23 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
     </div>
   )
 
+  // The home's own photos behind the making screen. 11/13 fix: they asked /pimg for width 720 at
+  // quality 65 - neither is a size next.config.js allows, so every photo came back an error (the
+  // broken-image icon top-left). 750 / 70 are allowed sizes.
+  const makingPhotos = visible.map(ph => sized(ph.clean || ph.source, 750, 70) || '').filter(Boolean)
+  const target = (render.target as MotionSettings['format']) || s.format
   const making = (
-    <MakingCard photos={visible.map(ph => sized(ph.clean || ph.source, 720, 65) || '').filter(Boolean)}
-      aspect={FORMAT_SIZE[(render.target as MotionSettings['format']) || s.format].w / FORMAT_SIZE[(render.target as MotionSettings['format']) || s.format].h}
-      title={render.main === false ? `Making the ${FORMAT_SIZE[(render.target as MotionSettings['format']) || '16:9'].label.toLowerCase()} version` : asset.result_url ? 'Updating your video' : 'Making your video'}
-      stage={render.stage || 'Starting the cameras'} pct={p} eta={eta} ahead={ahead} elapsed={elapsed} />
+    <MakingCard photos={makingPhotos} embedded={embedded}
+      aspect={FORMAT_SIZE[target].w / FORMAT_SIZE[target].h}
+      title={render.main === false ? `Making the ${FORMAT_SIZE[target].label.toLowerCase()} version` : asset.result_url ? 'Updating your video' : 'Making your video'}
+      stage={render.stage || 'Starting the cameras'} pct={p} etaAt={render.eta_at} startedAt={render.started_at} ahead={ahead} />
   )
   const makeStep = rendering ? making : (
     <div className="space-y-4">
-      {rendering || (render.state === 'failed' && asset.status !== 'succeeded') ? (
+      {render.state === 'failed' && asset.status !== 'succeeded' ? (
         <Card className="ohp-reveal">
-          {rendering ? (
-            <>
-              <div className="flex items-center gap-3">
-                <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#111827] text-[#f1d58b]"><Clapperboard className="h-5 w-5" /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-serif text-lg font-black text-[#111827] dark:text-white">{render.main === false ? `Making the ${FORMAT_SIZE[render.target || '16:9'].label.toLowerCase()} version` : 'Making your video'}</p>
-                  <p className="text-xs font-semibold text-gray-500">{render.stage || 'Starting'} · {Math.round(p * 100)}%</p>
-                </div>
-              </div>
-              {eta != null && <WaitClock eta={eta} ahead={ahead} />}
-              <div className="mt-4"><ProgressBar value={p} /></div>
-              <div className="mt-2.5 flex flex-wrap justify-between gap-2 text-[11px] font-bold text-gray-400">
-                <span>{fmtSecs(elapsed)} so far</span>
-                <span>{eta != null ? (render.eta_learned === false ? 'Rough estimate' : 'Based on recent videos') : 'Usually a few minutes'}</span>
-              </div>
-              <p className="mt-3 text-[11px] font-semibold text-gray-500">You can close this page, log out or turn off your computer - your video keeps being made. Your Activity bell lets you know the moment it's ready, and it's in your next daily briefing.</p>
-            </>
-          ) : (
-            <>
-              <p className="text-sm font-black text-red-700 dark:text-red-300">{render.error || 'The video couldn\'t be finished.'}</p>
-              <p className="mt-1 text-xs font-semibold text-gray-500">Nothing was charged for the failed part. Your settings are saved.</p>
-            </>
-          )}
+          <p className="text-sm font-black text-red-700 dark:text-red-300">{render.error || 'The video couldn\'t be finished.'}</p>
+          <p className="mt-1 text-xs font-semibold text-gray-500">Nothing was charged for the failed part. Your settings are saved.</p>
         </Card>
       ) : null}
       <Card className="flex flex-wrap items-center justify-between gap-3">
@@ -1028,7 +1196,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
       {/* Owner 11/12: photos are always sharpened (no switch) - a fraction of a cent each, once. */}
       <Card className="bg-gradient-to-br from-[#C9A24D]/[0.08] via-white to-white dark:via-[#151517] dark:to-[#151517]">
         <div className="grid grid-cols-3 gap-3 text-center">
-          <div><p className="font-serif text-2xl font-black text-[#111827] dark:text-white">{visible.length}</p><p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Rooms</p></div>
+          <div><p className="font-serif text-2xl font-black text-[#111827] dark:text-white">{visible.length}</p><p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Photos</p></div>
           <div><p className="font-serif text-2xl font-black text-[#111827] dark:text-white">{Math.round(length)}s</p><p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Long</p></div>
           <div><p className="font-serif text-2xl font-black text-[#111827] dark:text-white">{makeMinutes}</p><p className="text-[10px] font-black uppercase tracking-wider text-gray-400">To make</p></div>
         </div>
@@ -1064,20 +1232,6 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   )
 
   const stepBodies = [setupStep, roomsStep, checkStep, situationStep, lookStep, flowStep, detailsStep, makeStep]
-  // Where the live preview sits: a tall video beside the options (left) on a wide space; a wide
-  // video above them. Narrow spaces (phones, the chat panel) always stack it on top, kept short.
-  const tall = TALL.includes(s.format)
-  // The check step shows each photo big, and while the video is being made the making screen
-  // takes over - no preview on either.
-  const showPreview = step !== S.check && !(step === S.make && rendering)
-  // Owner 11/13: on a computer the preview sits on the LEFT with the options on the right, for every
-  // shape (a wide one gets the bigger half). Inside the narrow chat panel a wide video stays on top.
-  const sidePreview = wide && showPreview && (tall || !embedded)
-  const previewMaxH = wide ? (tall ? '74vh' : '60vh') : tall ? '52vh' : '40vh'
-  // The options' own width (beside a side preview, it's what's left) decides how many columns fit.
-  const sideW = embedded ? 300 : 360
-  const pad = 24 + (embedded ? 24 : 32)
-  const optionsW = sidePreview ? (tall ? width - sideW - pad : (width - pad) / 2.1) : width
 
   // ================================================================ the finished video
   const videoView = (
@@ -1087,7 +1241,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
           <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${gold}`}>{rendering ? 'Updating' : 'Your video is ready'}</p>
           <h1 className="font-serif text-2xl font-black text-[#111827] dark:text-white sm:text-3xl">{sit.label} · {s.facts.address || 'Cinematic Video'}</h1>
           <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
-            {Math.round(Number(opts.duration_seconds) || length)} sec · {visible.length} rooms · {s.theme === 'luxe' ? `Luxe ${s.metal}` : 'Default'} · {stylePreset(s.style).label} · {transitionPreset(s.transition).label}
+            {Math.round(Number(opts.duration_seconds) || length)} sec · {visible.length} photos · {s.theme === 'luxe' ? `Luxe ${s.metal}` : 'Default'} · {stylePreset(s.style).label} · {transitionPreset(s.transition).label}
           </p>
         </div>
         {changesPending && (
@@ -1109,9 +1263,9 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
             </div>
           )}
         {rendering && (
-          <MakingCard compact photos={visible.map(ph => sized(ph.clean || ph.source, 720, 65) || '').filter(Boolean)} aspect={16 / 10}
-            title={render.main === false ? `Making the ${FORMAT_SIZE[(render.target as MotionSettings['format']) || '16:9'].label.toLowerCase()} version` : 'Updating your video'}
-            stage={render.stage || 'Starting the cameras'} pct={p} eta={eta} ahead={ahead} elapsed={elapsed} />
+          <MakingCard compact embedded={embedded} photos={makingPhotos} aspect={16 / 10}
+            title={render.main === false ? `Making the ${FORMAT_SIZE[target].label.toLowerCase()} version` : 'Updating your video'}
+            stage={render.stage || 'Starting the cameras'} pct={p} etaAt={render.eta_at} startedAt={render.started_at} ahead={ahead} />
         )}
         <Card>
           <CardTitle title="Download" sub="Every shape is made for it - nothing gets cropped off" />
@@ -1122,24 +1276,26 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
               const ready = isMain ? !!asset.result_url : !!formats[f.id]?.url
               const makingThis = rendering && render.target === f.id
               return (
-                <div key={f.id} className="flex items-center gap-3 rounded-xl border border-gray-200 px-3 py-2.5 dark:border-gray-800">
+                // In the narrow chat panel the button drops under the words (owner, 11/13 - "Uses less than 1%"
+                // was wrapping one word per line beside it); see NARROW_CSS.
+                <div key={f.id} className="ohp-dl-row flex items-center gap-3 rounded-xl border border-gray-200 px-3 py-2.5 dark:border-gray-800">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center">
                     <span className="rounded-[4px] border-2 border-[#111827]/70 dark:border-white/70" style={{ width: 9 * Math.sqrt(FORMAT_SIZE[f.id].w / FORMAT_SIZE[f.id].h) * 2.4, height: 9 * Math.sqrt(FORMAT_SIZE[f.id].h / FORMAT_SIZE[f.id].w) * 2.4 }} />
                   </span>
-                  <div className="min-w-0 flex-1">
+                  <div className="ohp-dl-text min-w-0 flex-1">
                     <p className="text-xs font-black text-[#111827] dark:text-white">{f.label}{isMain && <span className={`ml-1.5 text-[9px] uppercase tracking-wider ${gold}`}>Main</span>}</p>
-                    <p className="truncate text-[10.5px] font-semibold text-gray-500">{f.where}</p>
+                    <p className="ohp-dl-where truncate text-[10.5px] font-semibold text-gray-500">{f.where}</p>
                     {!ready && est?.render_paid && <p className="text-[10px] font-black text-[#8b7355] dark:text-[#d7b974]">Uses {aboutPct(est.render_percent)} of your monthly AI</p>}
                   </div>
                   {ready ? (
                     <button type="button" onClick={() => download(f.id)} disabled={!!downloading}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#111827] px-3 py-1.5 text-[11px] font-black text-white disabled:opacity-60 dark:bg-white dark:text-[#111827]">
+                      className="ohp-dl-btn inline-flex items-center gap-1.5 rounded-full bg-[#111827] px-3 py-1.5 text-[11px] font-black text-white disabled:opacity-60 dark:bg-white dark:text-[#111827]">
                       {downloading === f.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Save
                     </button>
                   ) : (
                     <button type="button" onClick={() => make(f.id)} disabled={rendering || !!busy || changesPending || workerUp === false || !!(est?.render_paid && est?.render_paused)}
                       title={changesPending ? 'Update your video first' : est?.render_paid && est?.render_paused ? "You've reached your AI limit for now" : est?.render_paid ? `Uses ${aboutPct(est.render_percent)} of your monthly AI` : 'Free - no AI'}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[11px] font-black text-gray-700 hover:border-[#C9A24D] disabled:opacity-50 dark:border-gray-700 dark:text-gray-200">
+                      className="ohp-dl-btn inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[11px] font-black text-gray-700 hover:border-[#C9A24D] disabled:opacity-50 dark:border-gray-700 dark:text-gray-200">
                       {makingThis || busy === `fmt-${f.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Make it
                     </button>
                   )}
@@ -1205,7 +1361,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
 
   return (
     <div ref={wrapRef} className={`ohp-media-lab relative ${embedded ? 'rounded-2xl' : 'min-h-screen'} bg-[#faf9f7] dark:bg-[#0B0B0B] ${width && optionsW < 600 ? 'ohp-cine-narrow' : ''}`}>
-      <style>{OHP_MEDIA_STYLE + MINI_CSS + MOTION_FONT_CSS + NARROW_CSS}</style>
+      <style>{OHP_MEDIA_STYLE + MINI_CSS + MOTION_FONT_CSS + NARROW_CSS + MAKING_CSS}</style>
       <div ref={topRef} className={`mx-auto scroll-mt-4 ${embedded ? 'px-3 pb-4 pt-3' : 'max-w-6xl px-4 pb-32 pt-4 sm:pb-16 sm:pt-6'}`}>
         {/* top bar */}
         <div className={`${embedded ? 'relative mb-4 rounded-2xl border' : 'sticky top-0 -mx-4 mb-5 border-b sm:-mx-0 sm:rounded-2xl sm:border'} z-20 overflow-hidden border-gray-200 bg-white dark:border-gray-800 dark:bg-[#151517]`}>
@@ -1265,14 +1421,14 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
 
         {view === 'video' ? videoView : (
           <div className="grid gap-6" style={{ gridTemplateColumns: sidePreview ? (tall ? `${sideW}px minmax(0,1fr)` : 'minmax(0,1.1fr) minmax(0,1fr)') : 'minmax(0,1fr)' }}>
-            {sidePreview && <div className="min-w-0"><div className={embedded ? '' : 'sticky top-36'}>{preview}</div></div>}
+            {sidePreview && <div className="min-w-0"><div className={embedded ? 'sticky top-3' : 'sticky top-36'}>{preview}</div></div>}
             <div className="min-w-0">
               <div className="mb-4">
                 <h1 className="font-serif text-2xl font-black text-[#111827] dark:text-white sm:text-3xl">{STEPS[step].title}</h1>
                 <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">
                   {[
                     'How long it runs and where you\'ll post it first.',
-                    'Tap what you want in the video - we found these rooms in your photos.',
+                    'Tap a room to see all of its photos, then tick the ones you want - we\'ve ticked our picks.',
                     'One photo at a time: is it the right room, and are the words right?',
                     'Pick the moment - it sets the opening words and the closing card.',
                     'Choose a theme, your color, and how the camera moves.',
@@ -1323,7 +1479,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
       <AnimatePresence>
         {exampleOpen && <ExampleModal onClose={() => setExampleOpen(false)} />}
         {addOpen && (
-          <AddPhotosModal asset={asset} used={s.photos.map(p => p.source)} onClose={() => setAddOpen(false)}
+          <AddPhotosModal asset={asset} used={[...s.photos.map(p => p.source), ...(s.pool || []).map(it => it.source)]} onClose={() => setAddOpen(false)}
             onAdd={async (urls) => {
               setAddOpen(false)
               if (!urls.length) return

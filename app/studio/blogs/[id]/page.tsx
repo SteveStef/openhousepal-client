@@ -49,6 +49,7 @@ import AuthGuard from '@/components/AuthGuard'
 import { POPUP_Z, PopupPortal, PopupSheet, useAnchoredStyle, usePhoneWidth } from '@/components/ui/AnchoredPopup'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import { copyText } from '@/lib/copyText'
+import { markOwnerLink } from '@/lib/ownerDevice'
 
 function newBlock(type: BlogBlock['type']): BlogBlock {
   return { id: `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, type, data: {} }
@@ -691,7 +692,7 @@ function BlogEditorPageInner() {
             <Sparkles className="h-4 w-4" /> <span className="hidden sm:inline">Draft with AI</span>
           </button>
           {blog.status === 'PUBLISHED' && liveLink ? (
-            <a href={liveLink} target="_blank" rel="noopener" aria-label="View live" title="Open the live article" className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 sm:px-4 text-sm font-black text-[#111827] hover:border-[#C9A24D] dark:border-gray-700 dark:text-white transition hover:-translate-y-0.5 active:scale-95">
+            <a href={markOwnerLink(liveLink)} target="_blank" rel="noopener" aria-label="View live" title="Open the live article" className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 sm:px-4 text-sm font-black text-[#111827] hover:border-[#C9A24D] dark:border-gray-700 dark:text-white transition hover:-translate-y-0.5 active:scale-95">
               <ExternalLink className="h-4 w-4" /> <span className="hidden sm:inline">View live</span>
             </a>
           ) : (
@@ -1352,7 +1353,7 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
           </motion.button>
           <p className="hidden font-serif text-lg font-black text-[#111827] dark:text-white sm:block">Review <em className="font-light text-[#a8803a] dark:text-[#e8c97a]">&amp; Publish</em></p>
           {blog.status === 'PUBLISHED' && liveLink ? (
-            <a href={liveLink} target="_blank" rel="noopener" className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#111827] px-3.5 py-2 text-xs font-black sm:min-h-0 text-white transition hover:-translate-y-0.5 dark:bg-white dark:text-[#111827]">
+            <a href={markOwnerLink(liveLink)} target="_blank" rel="noopener" className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#111827] px-3.5 py-2 text-xs font-black sm:min-h-0 text-white transition hover:-translate-y-0.5 dark:bg-white dark:text-[#111827]">
               <ExternalLink className="h-3.5 w-3.5" /> View live
             </a>
           ) : (

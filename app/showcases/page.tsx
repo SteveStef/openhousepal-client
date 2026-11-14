@@ -824,7 +824,7 @@ function ShowcaseContent() {
   const handleSavePreferences = async (collectionId: string, preferences: any) => {
     const { ai_wants: wants, ...search } = preferences || {}
     const { success, error } = await api.collections.updatePreferencesAndRefresh(collectionId, search)
-    // The smart filter saves on its own (agent only - it reads with the agent's chat usage)
+    // The smart filter saves on its own (agent only - it reads with the agent's AI usage)
     const smart = success && Array.isArray(wants) ? await api.collections.saveSmartFilter(collectionId, wants) : null
     if (success && smart && !smart.success) {
       // The search saved; the must-haves didn't (over 300 homes) - say why, and let the list refresh.

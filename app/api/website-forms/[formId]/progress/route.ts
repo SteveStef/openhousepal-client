@@ -31,7 +31,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!siteId) return NextResponse.json({ success: true })
 
   const payload = await request.json()
-  const res = await fetch(`${INTERNAL_API_URL}/public/sites/${encodeURIComponent(siteId)}/forms/${encodeURIComponent(formId)}/progress`, {
+  // owner_ref=1: the site's own agent (lib/ownerDevice) - not counted.
+  const ownerRef = request.nextUrl.searchParams.get('owner_ref') === '1' ? '?owner_ref=1' : ''
+  const res = await fetch(`${INTERNAL_API_URL}/public/sites/${encodeURIComponent(siteId)}/forms/${encodeURIComponent(formId)}/progress${ownerRef}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

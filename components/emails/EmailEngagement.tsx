@@ -4,7 +4,7 @@
 // three places: the Emails page (/leads/emails), each lead's card, and the Leads list.
 import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { CalendarClock, Check, Loader2, Mail, MailCheck, MailOpen, MailX, MousePointerClick, Send } from 'lucide-react'
+import { CalendarClock, Check, ChevronDown, Loader2, Mail, MailCheck, MailOpen, MailX, MousePointerClick, Send } from 'lucide-react'
 import api from '@/lib/api-service'
 import { OhpSpinner } from '@/components/brand/OhpLoader'
 import OhSheet from '@/components/open-house-manager/OhSheet'
@@ -12,7 +12,8 @@ import LuxeSelect from '@/components/ui/LuxeSelect'
 import Pager from '@/components/ui/Pager'
 import { useToast } from '@/contexts/ToastContext'
 import { timeAgo } from '@/lib/leadActivity'
-import type { ClientEmailRow, EmailMode, EmailPerson } from '@/types'
+import type { ClientEmailRow, EmailAboutHome, EmailMode, EmailPerson } from '@/types'
+import { HomeChip } from '@/components/leads/InterestNudge'
 
 export const MODE_META: Record<EmailMode, { label: string; short: string; icon: typeof Mail; pill: string }> = {
   daily: { label: 'Emails on', short: 'On', icon: MailCheck, pill: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300' },
@@ -93,10 +94,63 @@ export function deliveryState(e: ClientEmailRow): { tone: 'rose' | 'amber' | 'em
   return { tone: 'gray', text: e.delivery === 'delivered' ? 'Delivered - not opened yet' : 'Not opened yet' }
 }
 
-/** One sent email: what, when, opened / clicked. */
-export function EmailRowLine({ e, showTo = false }: { e: ClientEmailRow; showTo?: boolean }) {
+/** "3 times" / "twice" / "once". */
+const times = (n: number) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`)
+
+/** Opened up: the homes the email showed (or, for older emails, the homes they looked at after it),
+ *  and how many times they opened / clicked it (owner, 11/13). */
+function EmailWhatItShowed({ e }: { e: ClientEmailRow }) {
+  const [d, setD] = useState<(ClientEmailRow & { viewed_after: EmailAboutHome[] }) | null>(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    let live = true
+    api.clientEmails.detail(e.id).then(r => { if (!live) return; if (r.success && r.data) setD(r.data); else setFailed(true) })
+    return () => { live = false }
+  }, [e.id])
+  const about = d?.about?.length ? d.about : (e.about || [])
+  const viewed = !about.length ? (d?.viewed_after || []) : []
+  const homes = about.length ? about : viewed
   return (
-    <div className="flex min-w-0 items-start gap-3">
+    <div className="mt-2 rounded-xl border border-gray-100 bg-[#faf9f7] p-2.5 dark:border-white/[0.06] dark:bg-white/[0.03]" data-testid="email-what-it-showed">
+      {(e.open_count > 0 || e.click_count > 0) && (
+        <p className="mb-2 text-[11.5px] font-bold text-[#5c4a2e] dark:text-[#e8c97a]/90">
+          {e.open_count > 0 && <>Opened {times(e.open_count)}</>}
+          {e.open_count > 0 && e.click_count > 0 && ' · '}
+          {e.click_count > 0 && <>clicked {times(e.click_count)}</>}
+          {e.last_engaged_at && <span className="font-semibold text-gray-500 dark:text-gray-400"> · last {timeAgo(e.last_engaged_at)}</span>}
+        </p>
+      )}
+      {!d && !failed && !about.length ? (
+        <div className="flex items-center gap-2 py-2 text-[11px] font-bold text-gray-400"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Looking it up…</div>
+      ) : homes.length > 0 ? (
+        <>
+          <p className="mb-1.5 text-[9.5px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#e8c97a]">
+            {about.length ? 'Homes in this email' : 'Homes they looked at after it'}
+          </p>
+          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            {homes.slice(0, 6).map((h, k) => <HomeChip key={k} h={h} viewed={!about.length} />)}
+          </div>
+          {homes.length > 6 && <p className="mt-1 text-[10.5px] font-bold text-gray-400">+ {homes.length - 6} more</p>}
+        </>
+      ) : (
+        <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+          {e.opened_at ? 'This email didn’t list homes, and they haven’t looked at any homes since it went out.' : 'Not opened yet.'}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** One sent email: what, when, opened / clicked - tap it to see what it showed. */
+export function EmailRowLine({ e, showTo = false }: { e: ClientEmailRow; showTo?: boolean }) {
+  const [open, setOpen] = useState(false)
+  const canOpen = e.status !== 'failed'
+  return (
+    <div className="min-w-0">
+    <div role={canOpen ? 'button' : undefined} tabIndex={canOpen ? 0 : undefined} aria-expanded={canOpen ? open : undefined}
+      onClick={canOpen ? () => setOpen(v => !v) : undefined}
+      onKeyDown={canOpen ? ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setOpen(v => !v) } } : undefined}
+      data-testid="email-row" className={`flex min-w-0 items-start gap-3 ${canOpen ? 'cursor-pointer' : ''}`}>
       <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${e.clicked_at ? 'bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300'
         : e.opened_at ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300'
           : (e.status === 'failed' || e.delivery === 'spam') ? 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300' : 'bg-gray-100 text-gray-400 dark:bg-white/[0.06]'}`}>
@@ -120,6 +174,16 @@ export function EmailRowLine({ e, showTo = false }: { e: ClientEmailRow; showTo?
           {e.clicked_at && <span className="text-sky-600 dark:text-sky-300">Clicked {timeAgo(e.clicked_at)}{e.click_count > 1 ? ` · ${e.click_count}×` : ''}</span>}
         </p>
       </div>
+      {canOpen && <ChevronDown aria-hidden className={`mt-1 h-4 w-4 shrink-0 text-gray-300 transition-transform duration-200 dark:text-white/30 ${open ? 'rotate-180 text-[#C9A24D]' : ''}`} />}
+    </div>
+    <AnimatePresence initial={false}>
+      {open && (
+        <motion.div key="what" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 380, damping: 34 }} className="overflow-hidden pl-11">
+          <EmailWhatItShowed e={e} />
+        </motion.div>
+      )}
+    </AnimatePresence>
     </div>
   )
 }

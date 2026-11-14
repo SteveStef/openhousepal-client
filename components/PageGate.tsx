@@ -59,10 +59,13 @@ function countApiCalls() {
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)) }
 
-// The page itself hasn't arrived yet: Next is still fetching it, or its stand-in (a route's
-// loading.tsx - a full-screen house loader) is what's showing. A link that wasn't preloaded (the
+// The page itself hasn't arrived yet: Next is still fetching it, or a full-screen house loader
+// (the page's own "still loading" state) is what's showing. A link that wasn't preloaded (the
 // bell's "View All Activity" - it only exists while the menu is open) used to count as ready on
 // the stand-in, so the real page then popped in with no animation (owner, 10/27).
+// (11/14: the app routes no longer have loading.tsx files. They were never on screen - this gate
+// hides the page area while it loads - but showing one made React hold the real page back ~300ms
+// on every click, its throttle for content replacing a loading fallback.)
 const pageNotHereYet = (root: HTMLElement | null) => pageFetches > 0 || !!root?.querySelector('.ohp-ld.min-h-screen')
 
 async function untilQuiet(alive: () => boolean, started: number, root: HTMLElement | null) {

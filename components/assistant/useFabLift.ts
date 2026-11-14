@@ -96,11 +96,15 @@ export function useFabLift(fabRef: RefObject<HTMLElement | null>, deps: unknown[
       setLift(l => (Math.abs(l - next) > 2 ? Math.round(next) : l))
     }
     const soon = () => { if (!frame) frame = requestAnimationFrame(measure) }
+    // Scrolling re-checks only while the button is on screen: signed-out visitors (the homepage, the
+    // public pages) never see it, and each check is a full hit test of the page on every scrolled
+    // frame (11/14). The 1.8s check below still runs, so it's placed right when it appears.
+    const onScroll = () => { if (fabRef.current) soon() }
     soon()
     const t = setInterval(soon, 1800)
-    window.addEventListener('scroll', soon, { passive: true })
+    window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('resize', soon)
-    return () => { clearInterval(t); window.removeEventListener('scroll', soon); window.removeEventListener('resize', soon); if (frame) cancelAnimationFrame(frame) }
+    return () => { clearInterval(t); window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', soon); if (frame) cancelAnimationFrame(frame) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps)
   return lift

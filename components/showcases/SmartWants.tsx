@@ -17,7 +17,7 @@ export const SMART_READ_CAP = 300
 const pct = (p?: number | null) => (p == null ? '' : p < 0.1 ? 'under 0.1%' : `about ${p}%`)
 type Estimate = { count: number; cap: number; usage_percent: number; left_percent: number | null; enough: boolean; ready: boolean }
 
-/** How many homes the AI would read and what that takes of the chat usage - the chat card's own line. */
+/** How many homes the AI would read and what that takes of the AI usage - the chat card's own line. */
 function useReadEstimate(count: number | null | undefined, wants: number) {
   const [est, setEst] = useState<Estimate | null>(null)
   useEffect(() => {
@@ -53,8 +53,8 @@ export function SmartWantsInput({ wants, onChange, state, count, atLimit = false
     : tooMany ? { tone: 'bad', text: `Your search finds ${count} homes - too many for the AI to read. Narrow it to ${SMART_READ_CAP} or fewer first${wants.length ? ', or take these off' : ''}.` }
     : count === 0 ? { tone: 'warn', text: 'Your search finds no homes yet - new listings are read as they come in.' }
     : !est ? null
-    : !est.enough ? { tone: 'bad', text: `Not enough chat usage left: reading ${count} home${count === 1 ? '' : 's'} takes ${pct(est.usage_percent)} and ${pct(est.left_percent)} is left this month. It resets on your billing day.` }
-    : { tone: 'ok', text: `${wants.length ? 'Reads' : 'Would read'} ${atLimit ? `the ${count} homes it keeps` : `${count} home${count === 1 ? '' : 's'}`}${wants.length > 1 ? ` for ${wants.length} must-haves` : ''} · uses ${pct(est.usage_percent).replace('about ', '~')} of chat usage${est.left_percent != null ? ` · ${est.left_percent}% left` : ''}` }
+    : !est.enough ? { tone: 'bad', text: `Not enough AI usage left: reading ${count} home${count === 1 ? '' : 's'} takes ${pct(est.usage_percent)} and ${pct(est.left_percent)} is left this month. It resets on your billing day.` }
+    : { tone: 'ok', text: `${wants.length ? 'Reads' : 'Would read'} ${atLimit ? `the ${count} homes it keeps` : `${count} home${count === 1 ? '' : 's'}`}${wants.length > 1 ? ` for ${wants.length} must-haves` : ''} · uses ${pct(est.usage_percent).replace('about ', '~')} of AI usage${est.left_percent != null ? ` · ${est.left_percent}% left` : ''}` }
   return (
     <div className="space-y-2.5" data-testid="smart-wants">
       <p className="text-[11.5px] font-semibold leading-snug text-gray-500 dark:text-gray-400">
@@ -98,17 +98,17 @@ export function SmartWantsInput({ wants, onChange, state, count, atLimit = false
         </>
       )}
       {state && <SmartStatus state={state} />}
-      <p className="text-[10.5px] font-semibold text-gray-400 dark:text-gray-500">Each home is read once - new listings as they come in. It uses a little of your chat usage.</p>
+      <p className="text-[10.5px] font-semibold text-gray-400 dark:text-gray-500">Each home is read once - new listings as they come in. It uses a little of your AI usage.</p>
     </div>
   )
 }
 
-/** Where the reading is: reading / how many have them all / no chat usage left. */
+/** Where the reading is: reading / how many have them all / no AI usage left. */
 export function SmartStatus({ state, className = '' }: { state: SmartState; className?: string }) {
   if (!state.wants?.length || state.state === 'off') return null
-  const used = state.used_total_percent != null ? ` · used ${pct(state.used_total_percent).replace('about ', '~')} of chat usage` : ''
+  const used = state.used_total_percent != null ? ` · used ${pct(state.used_total_percent).replace('about ', '~')} of AI usage` : ''
   const text = state.state === 'reading' ? `Reading ${state.left ? `${state.left} ` : ''}home${state.left === 1 ? '' : 's'} for these…`
-    : state.state === 'no_room' ? `Paused - not enough chat usage left this month to read ${state.left || 'the'} home${state.left === 1 ? '' : 's'}. It picks up on your billing day.`
+    : state.state === 'no_room' ? `Paused - not enough AI usage left this month to read ${state.left || 'the'} home${state.left === 1 ? '' : 's'}. It picks up on your billing day.`
     : state.state === 'too_many' ? `Paused - ${state.left || 'too many'} homes to read, more than the AI reads at once (${state.cap || SMART_READ_CAP}). Narrow the search and save.`
     : state.state === 'error' ? "Couldn't read the homes just now - it tries again with the next new listing or when you save."
     : `${state.matched ?? 0} home${state.matched === 1 ? ' has' : 's have'} all of them - starred for you${used}`

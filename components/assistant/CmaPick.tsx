@@ -99,7 +99,7 @@ export function CmaPick({ payload, ai, onAi, mode, onMode, picks, onPicks }: {
           <div className="flex flex-wrap gap-1.5">
             {TYPES.map(([id, name]) => <button key={id} type="button" onClick={() => setSub({ property_type: id })} aria-pressed={sub.property_type === id} className={chip(sub.property_type === id)}>{name}</button>)}
           </div>
-          <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+          <div className="mt-2 grid grid-cols-2 gap-1.5 chatwide:grid-cols-3">
             {([['beds', 'Bedrooms'], ['full_baths', 'Full baths'], ['half_baths', 'Half baths'], ['above_grade_finished_area', 'Finished sq ft'], ['year_built', 'Year built']] as const).map(([k, name]) => (
               <label key={k} className="min-w-0 text-[10.5px] font-bold text-gray-500 dark:text-zinc-400">{name}
                 <input type="number" min={0} inputMode="numeric" value={sub[k] ?? ''} onChange={e => setSub({ [k]: num(e.target.value) })} className={`${inputCls} mt-0.5`} />

@@ -1,3 +1,5 @@
+const plugin = require('tailwindcss/plugin')
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -111,5 +113,10 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // `chatwide:` - the AI chat's OWN width, not the screen's (owner, 11/13: the small chat window on a
+    // computer got the computer layout and squeezed every card). ChatThread / AssistantHome set
+    // data-chat-wide="yes" once the chat itself is 600px+ (the big window, the /assistant page).
+    plugin(({ addVariant }) => { addVariant('chatwide', ':where([data-chat-wide=yes]) &') }),
+  ],
 }

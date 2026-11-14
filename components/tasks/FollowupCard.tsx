@@ -36,6 +36,17 @@ const TONE: Record<Tone, { dot: string; chip: string }> = {
   slate: { dot: 'bg-gray-400', chip: 'bg-gray-100 text-gray-600 ring-gray-200 dark:bg-white/5 dark:text-gray-300 dark:ring-white/10' },
 }
 
+/** When a follow-up was made: "today at 3:40 PM" / "yesterday at 9:05 AM" / "Wed, Nov 12 at 3:40 PM". */
+function madeWhen(iso: string): string {
+  const d = new Date(iso)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const days = Math.round((today.getTime() - new Date(d).setHours(0, 0, 0, 0)) / 864e5)
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  const day = days <= 0 ? 'today' : days === 1 ? 'yesterday'
+    : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) })
+  return `${day} at ${time}`
+}
+
 // tasks_service auto_source -> the tag in the card's corner.
 const SITUATION: Record<string, { label: string; tone: Tone }> = {
   open_house_signin: { label: 'Open house', tone: 'sky' },
@@ -240,7 +251,7 @@ function WriteBetter({ t, first, onWritten }: { t: AgentTask; first: string; onW
         {busy ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Sparkles className="h-3.5 w-3.5" />}
         {busy ? `Writing it for ${first}…` : 'Write a better message'}
       </button>
-      <span className="ml-2 text-[10.5px] font-semibold text-gray-400">under 0.1% of chat usage</span>
+      <span className="ml-2 text-[10.5px] font-semibold text-gray-400">under 0.1% of AI usage</span>
       {err && <p className="mt-1.5 text-[11px] font-bold text-rose-600 dark:text-rose-400">{err}</p>}
     </div>
   )
@@ -458,6 +469,12 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
             {t.title}
           </h3>
           {t.context && !(journey && !done) && <p className="mt-0.5 break-words text-[12px] leading-snug text-gray-500 dark:text-gray-400">{contextLine(t)}</p>}
+          {/* When it was made - and whether automatically or by the agent (owner, 11/13). */}
+          {!compact && t.created_at && (
+            <p className="mt-0.5 text-[10.5px] font-semibold text-gray-400 dark:text-gray-500" data-testid="followup-made">
+              {t.auto_source ? 'Made for you' : 'Added'} {madeWhen(t.created_at)}
+            </p>
+          )}
         </div>
       </div>
 

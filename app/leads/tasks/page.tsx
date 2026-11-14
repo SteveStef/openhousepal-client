@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
 import { CalendarClock, CheckCircle2, Plus } from 'lucide-react'
@@ -11,6 +11,7 @@ import LeadDetailModal from '@/components/leads/LeadDetailModal'
 import PageHeader from '@/components/PageHeader'
 import TasksPanel, { CalendarChip } from '@/components/tasks/TasksPanel'
 import AutoFollowupSettings from '@/components/tasks/AutoFollowupSettings'
+import CheckinsSection from '@/components/tasks/CheckinsSection'
 import { FollowupsHeaderSwitch, useFollowupsEnabled } from '@/components/tasks/FollowupsSwitch'
 
 export default function FollowUpsPage() {
@@ -18,6 +19,9 @@ export default function FollowUpsPage() {
   const focusTaskId = useSearchParams().get('task')
   const [openCount, setOpenCount] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
+  // A check-in added below -> the list reloads; a follow-up checked off / changed above -> check-ins reload.
+  const [tasksKey, setTasksKey] = useState(0)
+  const [checkinsKey, setCheckinsKey] = useState(0)
   const { enabled } = useFollowupsEnabled()
   const off = enabled === false
 
@@ -37,7 +41,14 @@ export default function FollowUpsPage() {
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
     })
   }, [])
-  useEffect(() => { loadRecent() }, [loadRecent, openCount])
+  // Again whenever the open count changes (one checked off / added) - but not for the list's first
+  // count: that's the same list this first load already has, and asking twice made the page wait on
+  // the slow follow-up list a second time (11/14: ~1s on every open).
+  const countSeen = useRef(false)
+  useEffect(() => {
+    if (openCount != null && !countSeen.current) { countSeen.current = true; return }
+    loadRecent()
+  }, [loadRecent, openCount])
   const unseen = useMemo(() => recent.filter(t => new Date(t.created_at).getTime() > seenAt && !t.completed_at).length, [recent, seenAt])
   const [snapshotSeenAt, setSnapshotSeenAt] = useState(0)
   const openInbox = () => {
@@ -99,8 +110,12 @@ export default function FollowUpsPage() {
         ) : (
           <>
             <div className="mt-4">
-              <TasksPanel onCountChange={setOpenCount} composerOpen={adding} onComposerClose={() => setAdding(false)} focusTaskId={focusTaskId} />
+              <TasksPanel onCountChange={setOpenCount} composerOpen={adding} onComposerClose={() => setAdding(false)} focusTaskId={focusTaskId}
+                refreshKey={tasksKey} onChanged={() => setCheckinsKey(k => k + 1)} />
             </div>
+
+            {/* Who to reach back out to - under the Completed bar (owner, 11/13). */}
+            <CheckinsSection refreshKey={checkinsKey} onAdded={() => setTasksKey(k => k + 1)} />
 
             <AutoFollowupSettings />
           </>

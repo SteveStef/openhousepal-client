@@ -138,6 +138,19 @@ export function CalendarStatusLine({ className = '' }: { className?: string }) {
   )
 }
 
+// The Dash asks for the follow-up list at the same moment as its other feeds (warmTaskList), so its
+// Follow-ups panel - mounted only once those are in - starts with the list instead of a fresh, slow
+// request (11/14: it added ~1s after the Dash opened). Used once, and only while it's a few seconds old.
+let warmList: { at: number; res: ReturnType<typeof api.tasks.list> } | null = null
+export function warmTaskList() {
+  warmList = { at: Date.now(), res: api.tasks.list({ includeDone: true }) }
+}
+function takeWarmList() {
+  const w = warmList
+  warmList = null
+  return w && Date.now() - w.at < 15000 ? w.res : null
+}
+
 export default function TasksPanel({
   leadId,
   leadName,
@@ -151,6 +164,7 @@ export default function TasksPanel({
   className = '',
   focusTaskId,
   events,
+  refreshKey = 0,
 }: {
   /** Scope to a single lead + prefill new tasks with it. */
   leadId?: string
@@ -174,6 +188,8 @@ export default function TasksPanel({
   focusTaskId?: string | null
   /** The lead's activity (their own page) - suggests a follow-up from the latest thing they did. */
   events?: LeadEvent[]
+  /** Bumped by the page when a follow-up was added elsewhere (a check-in below the list) - reloads. */
+  refreshKey?: number
 }) {
   const { user } = useAuth()
   const changedRef = useRef(onChanged)
@@ -202,7 +218,7 @@ export default function TasksPanel({
   // moved to the bottom) so an accidental click is easy to see and undo; older ones sit behind
   // "Show older completed" on the full page.
   const load = useCallback(async () => {
-    const res = await api.tasks.list({ leadId, includeDone: true })
+    const res = await ((!leadId && takeWarmList()) || api.tasks.list({ leadId, includeDone: true }))
     if (res.success && res.data) {
       setTasks(res.data)
       onCountChange?.(res.data.filter(t => !t.completed_at).length)
@@ -211,6 +227,11 @@ export default function TasksPanel({
   }, [leadId, onCountChange])
 
   useEffect(() => { load() }, [load])
+  const firstRefresh = useRef(true)
+  useEffect(() => {
+    if (firstRefresh.current) { firstRefresh.current = false; return }
+    load()
+  }, [refreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const patch = async (id: string, body: Parameters<typeof api.tasks.update>[1]) => {
     setBusyId(id)

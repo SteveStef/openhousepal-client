@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import api from '@/lib/api-service'
 import { OhpBot } from './OhpBot'
+import { useChatWide } from './useChatWide'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
 
 // Shown until their own ideas load (GET /ai/suggestions, 11/04), or if those can't.
@@ -24,24 +25,27 @@ export default function AssistantHome({ onPrompt }: AssistantHomeProps) {
   // Picked from their own account - a new listing with no Spotlight, form answers to recap,
   // follow-ups waiting (owner, 11/04). The list above shows until they arrive, or if they can't.
   const [prompts, setPrompts] = useState(SUGGESTED_PROMPTS)
+  // Laid out by the chat's own width (11/13): two columns only in the big window, not the corner one.
+  const boxRef = useRef<HTMLDivElement>(null)
+  const wide = useChatWide(boxRef)
   useEffect(() => {
     let live = true
     api.ai.getSuggestions().then(r => { if (live && r.success && r.data?.suggestions?.length) setPrompts(r.data.suggestions) }).catch(() => {})
     return () => { live = false }
   }, [])
   return (
-    <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-8 sm:py-12">
-      <div className="max-w-2xl mx-auto">
+    <div ref={boxRef} className={`flex-1 overflow-y-auto ${wide ? 'px-8 py-12' : 'px-4 py-8'}`}>
+      <div className="max-w-2xl mx-auto" data-chat-wide={wide ? 'yes' : 'no'}>
         <div className="flex items-center gap-3 mb-2">
           <OhpBot size={48} className="flex-shrink-0 drop-shadow" />
-          <h1 className="text-xl sm:text-2xl font-black text-[#111827] dark:text-white">Good to see you</h1>
+          <h1 className="text-xl chatwide:text-2xl font-black text-[#111827] dark:text-white">Good to see you</h1>
         </div>
         <p className="text-sm text-gray-500 dark:text-zinc-400 mb-6">
           Ask me how to do anything in OpenHousePal, or ask me to do it for you - designs, Spotlights, Showcases, follow-ups and more.
         </p>
 
         <p className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-zinc-500 mb-3">Try asking</p>
-        <div className="grid sm:grid-cols-2 gap-2">
+        <div className="grid chatwide:grid-cols-2 gap-2">
           {prompts.map((prompt, i) => (
             <button
               key={prompt}
@@ -54,7 +58,7 @@ export default function AssistantHome({ onPrompt }: AssistantHomeProps) {
             </button>
           ))}
         </div>
-        {/* The chat's own allowance this billing period (owner, 11/01) */}
+        {/* The one AI Usage allowance the chat draws from (since 11/13) */}
         <MonthlyAiUsageMeter kind="chat" variant="inline" className="mt-6" />
       </div>
     </div>

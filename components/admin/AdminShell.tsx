@@ -33,6 +33,7 @@ import PromoCodesPanel from '@/components/admin/PromoCodesPanel'
 import NeighborhoodsPanel from '@/components/admin/NeighborhoodsPanel'
 import InsightsPanel from '@/components/admin/insights/InsightsPanel'
 import EmailHealthPanel from '@/components/admin/insights/EmailHealthPanel'
+import ChatUsagePanel from '@/components/admin/insights/ChatUsagePanel'
 import AdminMobileStyles from '@/components/admin/AdminMobileStyles'
 
 // One admin page: its section's header + tabs, and the open tab's panel. The sections are the
@@ -136,8 +137,9 @@ export default function AdminShell({ sectionKey, tabKey }: { sectionKey: string;
             {k === 'offers' && <OffersPanel onToast={showToast} />}
             {k === 'codes' && <PromoCodesPanel groups={groups} onToast={showToast} onAgentsChanged={fetchUsers} />}
             {k === 'activity' && <AgentActivityPanel groups={groups} />}
-            {section.key === 'insights' && k !== 'emailhealth' && <InsightsPanel page={k} blurb={tab.blurb} title={tab.label} onGo={go} />}
+            {section.key === 'insights' && k !== 'emailhealth' && k !== 'chat' && <InsightsPanel page={k} blurb={tab.blurb} title={tab.label} onGo={go} />}
             {k === 'emailhealth' && <EmailHealthPanel title={tab.label} blurb={tab.blurb} />}
+            {k === 'chat' && <ChatUsagePanel title={tab.label} blurb={tab.blurb} />}
             {k === 'support' && <SupportInboxPanel onRead={unreadChanged} />}
             {k === 'questions' && <PublicQuestionsPanel onRead={unreadChanged} />}
             {k === 'failures' && <RecentFailuresPanel />}

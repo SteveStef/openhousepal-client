@@ -970,7 +970,7 @@ export async function renderFormCard(agentSlug: string, formSlug: string, fonts:
   try {
     // Fresh within a minute of an edit to the form or the hub's look.
     const [data, hub] = await Promise.all([
-      ogFetch<any>(`/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}`, 60),
+      ogFetch<any>(`/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}?preview=1`, 60),
       ogFetch<any>(`/agent-hub/public/${encodeURIComponent(agentSlug)}`, 60),
     ])
     const cfg = hub?.config || {}

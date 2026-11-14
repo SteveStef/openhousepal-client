@@ -5,6 +5,13 @@ import { MyListingItem, ScheduledOpen } from '@/types'
 import WeekendCalendarCards, { WeekendCell, WeekendCalendarOpen, hostingNote } from './WeekendCalendarCards'
 import { formatShortDateWithDay, formatTimeRangeCompact } from './formatters'
 
+/** Bright's "Active Under Contract" / "Pending" - the listing has a buyer (owner, 11/13). */
+export function isUnderContract(status?: string | null, blocked?: string | null) {
+  if (blocked === 'pending') return true
+  const s = (status || '').toUpperCase()
+  return s.includes('UNDER CONTRACT') || s.startsWith('PENDING')
+}
+
 function formatPrice(price?: number | null) {
   if (!price) return 'Price unavailable'
   return `$${Number(price).toLocaleString()}`
@@ -56,6 +63,11 @@ export default function ListingCard({
           )}
           {listing.is_manual && (
             <span className="inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-[9px] font-black text-white">Manual</span>
+          )}
+          {isUnderContract(listing.status, listing.hosting_blocked) && (
+            <span data-testid="under-contract-badge" className="inline-flex items-center gap-1 rounded-full bg-violet-600 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white shadow-md">
+              {(listing.status || '').toUpperCase().startsWith('PENDING') ? 'Pending' : 'Under contract'}
+            </span>
           )}
         </div>
         {listing.is_manual && onRequestRemove && (

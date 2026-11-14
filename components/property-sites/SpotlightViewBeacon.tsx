@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { isOwnerDevice } from '@/lib/ownerDevice'
 
 // Fires once per mount to record a public visit for the Listing Spotlight visitor stats.
 //
@@ -27,6 +28,8 @@ export default function SpotlightViewBeacon({ siteId }: { siteId: string }) {
     } catch {
       // Private mode / storage blocked - fall through and beacon as a normal visitor.
     }
+    // The agent's own browser marked from any app link to their site (lib/ownerDevice).
+    if (!isOwner && isOwnerDevice()) isOwner = true
 
     fetch(`/api/website-property-sites/${encodeURIComponent(siteId)}/view${isOwner ? '?owner_ref=1' : ''}`, {
       method: 'POST',

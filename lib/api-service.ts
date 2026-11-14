@@ -17,13 +17,14 @@ import { ApiResponse, User, OpenHouse, OpenHouseFormRequest, SearchPreferences, 
   AIRealtimeSessionOut, AIRealtimeToolCallResult, AgentMarketArea, CollectionPreferences,
   SupportTicketDetail, SupportTicketListItem, AdminSupportTicketListItem, SupportTicketCategory, SupportTicketDetails, SavedManualProperty, PublicQuestion,
   StudioMediaAsset, StudioMediaGeneratePayload, StudioVideoTestGridPayload, StudioVideoTestGridResponse, MonthlyAiUsage, ChatUsage,
-  AgentTask, CheckinItem, WrittenMessage, TaskCounts, TaskCreateInput, TaskUpdateInput, CalendarFeedInfo, AutoFollowupRule, FollowupSettings, FollowupAlerts, PublicFollowup, PublicFollowupText,
+  AgentTask, CheckinItem, CheckinGroup, WrittenMessage, TaskCounts, TaskCreateInput, TaskUpdateInput, CalendarFeedInfo, AutoFollowupRule, FollowupSettings, FollowupAlerts, PublicFollowup, PublicFollowupText,
   IntegrationsInfo, CrmTestResult,
   TitleCardOptions, BrandingOptions, BlogAiContext, BlogAiBrief, BlogAiGenerateResult, BlogAiRefineAction, LinkDomainState } from '@/types';
 import { getToken, removeToken } from './token';
 import { loginUrlForHere } from './loginRedirect';
 import { tidyAllCaps } from './cheatSheetContent';
 import { passSessionId } from './passSession';
+import { withOwnerRef } from './ownerDevice';
 import type { PassView } from '@/components/guest-pass/usePassTracking';
 
 /** One thing a guest did on their Guest Pass. `text` is the plain line the agent reads. */
@@ -845,6 +846,9 @@ class ApiService {
 
     // Site-wide Insights pages (summary | signins | showcases | emails | tools | guests); days 0 = all time.
     getInsights: <T = any>(page: string, days: number) => this.request<T>(`/admin/insights/${page === 'summary' ? 'overview' : page}?days=${days}`),
+    /** Insights -> AI chat: who uses the AI helper (counts, time, features - never message text); days 0 = all time. */
+    getChatUsage: <T = any>(days: number) => this.request<T>(`/admin/ai/chat-usage?days=${days}`),
+    getAgentChatUsage: <T = any>(agentId: string, days: number) => this.request<T>(`/admin/ai/chat-usage/agents/${encodeURIComponent(agentId)}?days=${days}`),
     /** Agents whose own domain isn't working right now. */
     getDomainIssues: () => this.request<{ issues: AdminDomainIssue[] }>('/admin/domain-issues'),
     dismissDomainIssue: (key: string) => this.request<{ ok: boolean }>('/admin/domain-issues/dismiss', { method: 'POST', body: JSON.stringify({ key }) }),
@@ -2227,6 +2231,15 @@ class ApiService {
     },
     setPerson: (email: string, on: boolean) =>
       this.request<EmailPerson>('/client-emails/people', { method: 'PUT', body: JSON.stringify({ email, on }) }),
+    // "Worth a check-in" - a lead without an agent opening / clicking the same email again (owner, 11/13).
+    interest: (leadId?: string) =>
+      this.request<{ signals: import('@/types').InterestSignal[] }>(`/client-emails/interest${leadId ? `?lead_id=${encodeURIComponent(leadId)}` : ''}`),
+    interestFollowup: (emailId: string, dueAt?: string) =>
+      this.request<{ id: string; title: string; due_at: string | null }>(`/client-emails/${emailId}/interest/follow-up`, { method: 'POST', body: JSON.stringify(dueAt ? { due_at: dueAt } : {}) }),
+    detail: (emailId: string) =>
+      this.request<import('@/types').ClientEmailRow & { viewed_after: import('@/types').EmailAboutHome[] }>(`/client-emails/${emailId}/detail`),
+    interestClear: (emailId: string) =>
+      this.request<{ ok: boolean }>(`/client-emails/${emailId}/interest/clear`, { method: 'POST' }),
   };
 
   // Is the agent opening OpenHousePal's own emails? (backend agent_email_health_service)
@@ -2587,7 +2600,9 @@ class ApiService {
     }) => this.request('/open-house/submit', {
       method: 'POST',
       body: JSON.stringify(data),
-    }, false),
+      // The sign-in goes along when there is one: the host testing their own sign-in on their phone
+      // is kept but left out of their stats (backend utils/own_traffic). Never a 401 - optional.
+    }, true),
 
     // Fire-and-forget: records that the sign-in form was actually shown to someone, so the
     // "Completion %" stat has a denominator (started) to compare completed submissions against.
@@ -2595,7 +2610,8 @@ class ApiService {
     trackSignInView: (openHouseEventId: string, mode?: 'phone' | 'kiosk', device?: string) =>
       this.request<{ success: boolean; view_id?: string }>(
         `/open-house/${openHouseEventId}/track-view?${new URLSearchParams({ ...(mode ? { mode } : {}), ...(device ? { device } : {}) })}`,
-        { method: 'POST' }, false),
+        // With the sign-in (when there is one): the host opening their own page isn't a view.
+        { method: 'POST' }, true),
 
     submitOpenHouseFormRequest: (openHouseEventId: string, data: {
       form_type: 'disclosure' | 'second_visit',
@@ -2632,20 +2648,21 @@ class ApiService {
         method: 'POST',
         keepalive: true,
         body: JSON.stringify({ view, key: key || null, session: passSessionId(token), ...(seconds ? { seconds } : {}) }),
-      }, false),
+      }, true),   // the host opening a guest's pass themselves isn't the guest's activity
     // Heartbeat while the pass is on screen - time spent + return visits for the agent's log.
     guestPassPing: (token: string) =>
       this.request<{ ok: boolean }>(`/guest-pass/${encodeURIComponent(token)}/ping`, {
         method: 'POST',
         keepalive: true,
         body: JSON.stringify({ session: passSessionId(token) }),
-      }, false),
+      }, true),
 
     setActingAsOwner: (v: boolean) => { this.publicAsOwner = v },
 
     /** A personal email's Showcase link was opened (?ce=<id>) - one click on that email. */
     trackEmailVisit: (trackId: string) =>
-      this.request<any>(`/e/v/${encodeURIComponent(trackId)}`, { method: 'POST' }, false),
+      // The token goes along (when they have one) so the agent opening their own email link is not counted (11/13).
+      this.request<any>(`/e/v/${encodeURIComponent(trackId)}`, { method: 'POST' }),
 
     getSharedShowcase: (shareToken: string) =>
       this.request<any>(`/collections/shared/${shareToken}`, {}, false),
@@ -2690,10 +2707,12 @@ class ApiService {
     getTours: (collectionId: string) =>
       this.request<any[]>(`/collections/${collectionId}/tours/shared`, {}, false),
 
+    // With the sign-in: the Showcase's own agent looking isn't the client's view (the server files it
+    // as the agent's own look instead).
     trackPropertyView: (collectionId: string, propertyId: string) =>
       this.request<any>(`/collections/${collectionId}/properties/${propertyId}/view`, {
         method: 'POST',
-      }, false),
+      }, true),
 
     submitRefineRequest: (collectionId: string, message: string) =>
       this.request<any>(`/collections/${collectionId}/refine-request`, {
@@ -2763,7 +2782,7 @@ class ApiService {
     // the viewer is logged in (e.g. the owner previewing their own page) - only anonymous
     // traffic counts as a real guest.
     trackAgentHubEvent: (agentSlug: string, eventType: 'visit' | 'qr_scan' | 'interaction', visitorId?: string) =>
-      this.request<null>(`/agent-hub/public/${encodeURIComponent(agentSlug)}/track`, {
+      this.request<null>(withOwnerRef(`/agent-hub/public/${encodeURIComponent(agentSlug)}/track`), {
         method: 'POST',
         body: JSON.stringify({ event_type: eventType, visitor_id: visitorId }),
         // Most hub clicks leave the page (a form, a listing, YouTube) - keepalive lets the ping
@@ -2780,7 +2799,8 @@ class ApiService {
       // an editor's live preview - not counted as a visit
       if (preview) q.set('preview', '1')
       const qs = q.toString()
-      return this.request<PublicFormConfig>(`/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}${qs ? `?${qs}` : ''}`, {}, false)
+      // With the sign-in: the form's own agent opening it isn't a view (backend utils/own_traffic).
+      return this.request<PublicFormConfig>(`/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}${qs ? `?${qs}` : ''}`, {}, true)
     },
 
     submitPublicForm: (
@@ -2795,7 +2815,7 @@ class ApiService {
       this.request<{ success: boolean; message: string; submissionId?: string; redirectUrl?: string }>(
         `/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}/submit`,
         { method: 'POST', body: JSON.stringify({ answers, sessionKey: opts?.sessionKey, campaignToken: opts?.campaignToken }) },
-        false,
+        true,   // the agent's own test fill is kept but left out of stats
       ),
 
     // A visitor's own showing request (remembered on their device) - Pending or Confirmed.
@@ -2810,7 +2830,7 @@ class ApiService {
         `/agent-hub/forms/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(formSlug)}/progress`,
         // keepalive: the last ping is often sent as the page is closing
         { method: 'POST', body: JSON.stringify(data), keepalive: true },
-        false,
+        true,   // the agent trying their own form isn't a visit (the server checks; it used to never see it)
       ),
 
     getPublicBlogs: (agentSlug: string, category?: string) =>
@@ -2830,10 +2850,11 @@ class ApiService {
 
     trackBlogEvent: (agentSlug: string, blogSlug: string, eventType: 'view' | 'link_click' | 'property_click' | 'contact_click' | 'video_play' | 'qr_scan' | 'lead_submit', meta?: Record<string, unknown>) =>
       this.request<null>(
-        `/studio/blogs/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(blogSlug)}/event`,
+        // owner_ref on the agent's own site (another domain, no sign-in there - lib/ownerDevice).
+        withOwnerRef(`/studio/blogs/public/${encodeURIComponent(agentSlug)}/${encodeURIComponent(blogSlug)}/event`),
         { method: 'POST', body: JSON.stringify({ event_type: eventType, meta }), keepalive: true },
-        // Reads send the token (when there is one) so the agent opening their own article isn't counted.
-        eventType === 'view',
+        // The token (when there is one) so the agent's own reads and clicks on their article aren't counted.
+        true,
       ),
   };
 
@@ -2849,9 +2870,16 @@ class ApiService {
     },
     counts: () => this.request<TaskCounts>('/tasks/counts'),
     // Write it for me (owner, 11/09) - backend services/followup_writer.py
+    // Check-ins (owner, 11/13) - backend services/checkins_service.py: who to reach back out to, grouped, best first.
     checkins: (leadId?: string) =>
-      this.request<{ items: CheckinItem[]; estimate: { usage_percent: number; left_percent: number | null; enough: boolean } }>(
+      this.request<{ items: CheckinItem[]; groups?: CheckinGroup[]; estimate: { usage_percent: number; left_percent: number | null; enough: boolean } }>(
         `/tasks/checkins${leadId ? `?lead_id=${encodeURIComponent(leadId)}` : ''}`),
+    // One tap, no AI: a plain check-in for tomorrow.
+    checkinAdd: (leadId: string, reason?: string) =>
+      this.request<AgentTask>(`/tasks/checkins/${encodeURIComponent(leadId)}/add`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    // "Not now" - away for 30 days (days 0 = back).
+    checkinSkip: (leadId: string, days = 30) =>
+      this.request<{ ok: boolean; days: number }>(`/tasks/checkins/${encodeURIComponent(leadId)}/skip?days=${days}`, { method: 'POST' }),
     write: (body: { lead_id: string; goal?: string; task_id?: string }) =>
       this.request<WrittenMessage>('/tasks/write', { method: 'POST', body: JSON.stringify(body) }),
     create: (data: TaskCreateInput) =>

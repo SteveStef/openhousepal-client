@@ -1,4 +1,4 @@
-import { SlidersHorizontal,
+import { SlidersHorizontal, MousePointerClick,
   Calendar, CalendarClock, Eye, Home, FileText, FileCheck, Inbox, CheckCircle2, XCircle, MessageSquareText,
   MessageCircle, Megaphone, UserCheck, Mail, TrendingUp, ThumbsUp, ThumbsDown, Send, UserPlus, HelpCircle, Film,
   MailOpen, MailX, Star, Newspaper, Bell, CreditCard, ClipboardList, AlertTriangle, Sparkles, Ticket,
@@ -69,6 +69,8 @@ export const NOTIFICATION_META: Record<string, { icon: React.ComponentType<{ cla
   BLOG_AI_FAILED: { icon: XCircle, label: 'Article Not Finished', className: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/30' },
   // A client opened / clicked one of your emails (one row per person per day - client_email_service).
   EMAIL_ACTIVITY: { icon: MailOpen, label: 'Email Opened', className: 'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30' },
+  // A lead without an agent opened / clicked the same email again - worth a check-in (lead_interest_service, 11/13).
+  LEAD_INTEREST: { icon: MousePointerClick, label: 'Worth a Check-in', className: 'bg-[#fdf6e4] dark:bg-[#C9A24D]/10 text-[#8b6a2b] dark:text-[#e8c97a] border-[#C9A24D]/40 dark:border-[#C9A24D]/30' },
   // Automatic emails to a client went weekly / stopped / came back on (the inbox-protection rules).
   EMAIL_STATUS: { icon: MailX, label: 'Email Sending', className: 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-800' },
   // OpenHousePal's own emails to the agent go unopened (junk?) / switched to weekly / back on - agent_email_health_service.

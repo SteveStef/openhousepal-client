@@ -37,6 +37,7 @@ import { copyText } from '@/lib/copyText'
 import { hubMissing } from '@/components/agent-hub/HubReadinessNotice'
 import { ohpHostUrl } from '@/lib/publicResourceLinks'
 import { siteProfileFromHub, type SiteChromeProfile } from '@/lib/siteProfileFromHub'
+import { markOwnerLink } from '@/lib/ownerDevice'
 
 const OHP_BASE_DOMAIN = process.env.NEXT_PUBLIC_OHP_BASE_DOMAIN || 'openhousepal.com'
 
@@ -798,11 +799,11 @@ Your website is built from your Agent Hub, so these parts will show up blank. Pu
               <span className={`h-1.5 w-1.5 rounded-full ${site.is_enabled === false ? 'bg-amber-500' : site.status === 'PUBLISHED' ? 'animate-pulse bg-emerald-500' : 'bg-gray-400'}`} />
               {site.is_enabled === false ? 'Turned off' : site.status === 'PUBLISHED' ? 'Live' : 'Draft'}
             </span>
-            <a href={siteUrl} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate font-mono text-[11px] font-semibold text-[#8b7355] hover:underline dark:text-[#e8c97a]">{siteUrl.replace(/^https?:\/\//, '')}</a>
+            <a href={markOwnerLink(siteUrl)} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate font-mono text-[11px] font-semibold text-[#8b7355] hover:underline dark:text-[#e8c97a]">{siteUrl.replace(/^https?:\/\//, '')}</a>
             <button onClick={copyUrl} title="Copy link" className="shrink-0 rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-white/10 dark:hover:text-white">
               {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
             </button>
-            <a href={siteUrl} target="_blank" rel="noreferrer" title="Open in new window" className="shrink-0 rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-white/10 dark:hover:text-white">
+            <a href={markOwnerLink(siteUrl)} target="_blank" rel="noreferrer" title="Open in new window" className="shrink-0 rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-[#111827] dark:hover:bg-white/10 dark:hover:text-white">
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </div>
@@ -852,7 +853,7 @@ Your website is built from your Agent Hub, so these parts will show up blank. Pu
               : publishState === 'changes' ? <><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#C9A24D]" /> Saved - not published yet</>
                 : publishState === 'published' ? <><Check className="h-3 w-3" /> Published</> : <><Check className="h-3 w-3" /> All changes saved</>}
         </span>
-        <a href={siteUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-[#111827] transition hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.06] dark:text-white">
+        <a href={markOwnerLink(siteUrl)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-[#111827] transition hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.06] dark:text-white">
           View site <ExternalLink className="h-3 w-3" />
         </a>
       </>

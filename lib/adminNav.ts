@@ -1,5 +1,5 @@
 import {
-  Activity, AlertOctagon, BarChart3, Building2, ClipboardCheck, ClipboardSignature, Cpu, FileSearch, FlaskConical, HardDrive, HelpCircle, Inbox,
+  Activity, AlertOctagon, BarChart3, Bot, Building2, ClipboardCheck, ClipboardSignature, Cpu, FileSearch, FlaskConical, HardDrive, HelpCircle, Inbox,
   LayoutDashboard, LifeBuoy, Mail, MapPin, MailWarning, MousePointerClick, Layout, Receipt, Sparkles, Ticket, Users, Wallet, Workflow, Wrench, Gauge,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -37,6 +37,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
       { key: 'emails', label: 'Emails', icon: Mail, blurb: 'Every email sent - opened, clicked, bounced.' },
       { key: 'emailhealth', label: 'Email health', icon: MailWarning, blurb: 'Pick a day or a range - who got what, what gets opened, what is repetitive, agent by agent.' },
       { key: 'tools', label: 'Agent tools', icon: Wrench, blurb: 'Which tools agents use, and how much - agent by agent.' },
+      { key: 'chat', label: 'AI chat', icon: Bot, blurb: 'Who uses the AI helper - how much, for how long, and what they get done with it.' },
       { key: 'guests', label: 'Guests', icon: MousePointerClick, blurb: 'What agents\' guests and clients do - visits, likes, tours, leads.' },
     ],
   },

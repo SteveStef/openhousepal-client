@@ -1750,11 +1750,13 @@ export interface MonthlyAiUsage {
   studio_media_cap_usd: number | null;
   /** End of this billing period - the bar resets then (the day they're charged). */
   resets_at?: string | null;
+  /** The next plan up and how many times the AI usage it has - offered near the limit. */
+  upgrade?: { tier: string; name: string; times: number | null } | null;
 }
 
-/** GET /ai/usage/chat - the AI helper chat's own "Chat usage" bar (owner, 11/01). */
+/** GET /ai/usage/chat - since 11/13 the same one AI Usage bar (the chat shares the allowance), percent to one decimal. */
 export interface ChatUsage extends Omit<MonthlyAiUsage, 'studio_media_used_usd' | 'studio_media_cap_usd'> {
-  /** The plan with more chat (double), when there is one - the bar offers it near the limit. */
+  /** The next plan up (more AI usage), when there is one - the bar offers it near the limit. */
   upgrade?: { tier: string; name: string; times: number | null } | null;
 }
 
@@ -2508,6 +2510,29 @@ export interface ClientEmailRow {
   open_count: number;
   clicked_at?: string | null;
   click_count: number;
+  /** Latest open or click. */
+  last_engaged_at?: string | null;
+  /** The homes this email was about (emails sent after 11/13). */
+  about?: EmailAboutHome[];
+}
+
+/** A home an email was about (or one the person looked at after it) - backend client_email_service.about_from. */
+export interface EmailAboutHome {
+  street_address: string; city?: string; state?: string; image?: string; price?: string
+  beds?: string | number | null; baths?: string | number | null; sqft?: string | number | null
+  is_price_drop?: boolean; old_price?: string; new_price?: string
+  liked?: boolean; views?: number; property_id?: string
+}
+
+/** "Worth a check-in": a lead without an agent opening / clicking the same email again (backend lead_interest_service). */
+export interface InterestSignal {
+  email_id: string; lead_id: string; name: string; first_name: string
+  represented: string; agent_words: string
+  label: string; subject: string; template: string
+  opens: number; clicks: number; sent_at?: string | null; last_at?: string | null
+  about: EmailAboutHome[]; viewed_after: EmailAboutHome[]; homes_line: string
+  headline: string; why: string
+  suggestion: { title: string; due_at: string; when_label: string; notes: string; message: string; kind: string }
 }
 
 /** The agent's alert switches for one person (calendar / in OpenHousePal / activity emails). */
@@ -2675,13 +2700,30 @@ export interface TaskCounts {
   open_total: number;
 }
 
-/** A lead with a check-in waiting (backend followup_writer.checkins - no AI, just who and why). */
+/** A lead worth a check-in (backend checkins_service - no AI): who, why (strongest reason first), how likely. */
 export interface CheckinItem {
   lead_id: string;
   name: string;
   first: string;
+  /** The strongest reason, then up to 3 more, then how long since the agent reached out. */
+  headline: string;
+  reasons: string[];
+  gap: string;
+  /** Short labels: "No agent", "Pre-approved", "Has an agent - your listing" ... */
+  tags: string[];
+  /** Nothing personal to work in - a one-tap plain check-in fits (no AI). */
+  simple: boolean;
+  score: number;
+  group: 'recommended' | 'worth' | 'less';
+  /** The old one-line reason (headline + 2 reasons). */
   reason: string;
   kind: 'text' | 'email';
+}
+
+export interface CheckinGroup {
+  key: 'recommended' | 'worth' | 'less';
+  label: string;
+  hint: string;
 }
 
 /** "Write it for me": message = what's saved (time words as {oh_when:..} slots, {showcase} = their link),

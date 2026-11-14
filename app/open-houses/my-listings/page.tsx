@@ -13,7 +13,7 @@ import LuxeHero, { LuxeStats } from '@/components/ui/LuxeHero'
 import api from '@/lib/api-service'
 import { MyListingsResponse } from '@/types'
 import { useToast } from '@/contexts/ToastContext'
-import ListingCard from '@/components/open-house-manager/ListingCard'
+import ListingCard, { isUnderContract } from '@/components/open-house-manager/ListingCard'
 import { WeekendCell, WeekendCalendarOpen } from '@/components/open-house-manager/WeekendCalendarCards'
 import SummaryMetricCard from '@/components/open-house-manager/SummaryMetricCard'
 import EmptyState from '@/components/open-house-manager/EmptyState'
@@ -393,19 +393,37 @@ function MyListingsContent() {
             {filteredListings.length === 0 ? (
               <EmptyState icon={Search} title="No listings match your search" description="Try a different address, city, or ZIP code." />
             ) : (
-              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {filteredListings.map(listing => (
-                  <ListingCard
-                    key={listing.listing_key}
-                    listing={listing}
-                    onViewInsights={setInsightsKey}
-                    onManageHosts={setManageHostsKey}
-                    onRequestRemove={setRemoveTargetKey}
-                    onCalendarCellClick={handleCalendarCellClick}
-                    pendingDates={pendingDates[listing.listing_key]}
-                  />
+              <>
+                {/* Active listings first; under contract ones get their own section below a line -
+                    they don't need hosts any more (owner, 11/13). */}
+                {[filteredListings.filter(l => !isUnderContract(l.status, l.hosting_blocked)), filteredListings.filter(l => isUnderContract(l.status, l.hosting_blocked))].map((group, gi) => group.length > 0 && (
+                  <div key={gi} className={gi === 1 ? 'mt-10' : ''} data-testid={gi === 1 ? 'manager-under-contract' : undefined}>
+                    {gi === 1 && (
+                      <div className="mb-4 flex items-center gap-3">
+                        <span className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-300 to-gray-300 dark:via-white/15 dark:to-white/15" />
+                        <span className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-violet-700 dark:border-violet-400/25 dark:bg-violet-500/10 dark:text-violet-300">
+                          Under contract <span className="rounded-full bg-violet-600 px-1.5 text-[10px] tracking-normal text-white">{group.length}</span>
+                        </span>
+                        <span className="h-px flex-1 bg-gradient-to-l from-transparent via-gray-300 to-gray-300 dark:via-white/15 dark:to-white/15" />
+                      </div>
+                    )}
+                    {gi === 1 && <p className="-mt-2 mb-4 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">No need to find hosts for these - here for their history and insights.</p>}
+                    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                      {group.map(listing => (
+                        <ListingCard
+                          key={listing.listing_key}
+                          listing={listing}
+                          onViewInsights={setInsightsKey}
+                          onManageHosts={setManageHostsKey}
+                          onRequestRemove={setRemoveTargetKey}
+                          onCalendarCellClick={handleCalendarCellClick}
+                          pendingDates={pendingDates[listing.listing_key]}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 ))}
-              </div>
+              </>
             )}
           </motion.div>
         )}

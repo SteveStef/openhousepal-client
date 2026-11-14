@@ -42,8 +42,8 @@ const chip = (on: boolean) => `ohp-ai-press inline-flex items-center gap-1 round
 
 function Row({ name, children }: { name: string; children: React.ReactNode }) {
   return (
-    <div className="grid gap-1.5 sm:grid-cols-[84px_minmax(0,1fr)] sm:items-start sm:gap-3">
-      <p className={`${label} sm:pt-2`}>{name}</p>
+    <div className="grid gap-1.5 chatwide:grid-cols-[84px_minmax(0,1fr)] chatwide:items-start chatwide:gap-3">
+      <p className={`${label} chatwide:pt-2`}>{name}</p>
       <div className="min-w-0">{children}</div>
     </div>
   )
@@ -73,7 +73,7 @@ export function FollowupPick({ picks, onPicks }: { picks: FollowupPicks; onPicks
   const quick: [string, string][] = [['Today', plus(0)], ['Tomorrow', plus(1)], ['In 3 days', plus(3)], ['Next week', nextMonday()]]
 
   return (
-    <div className="mt-3 space-y-3 rounded-xl bg-[#faf7f0] p-2.5 sm:p-3.5 dark:bg-zinc-800/50" data-testid="ai-followup-pick">
+    <div className="mt-3 space-y-3 rounded-xl bg-[#faf7f0] p-2.5 chatwide:p-3.5 dark:bg-zinc-800/50" data-testid="ai-followup-pick">
       <Row name="What">
         <input value={picks.title} onChange={e => set({ title: e.target.value })} maxLength={200} placeholder="Call Lisa about her Showcase" className={field} data-testid="ai-fu-title" />
       </Row>
@@ -110,7 +110,7 @@ export function FollowupPick({ picks, onPicks }: { picks: FollowupPicks; onPicks
                     className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-[#C9A24D]/10">
                     <UserRound className="h-3.5 w-3.5 shrink-0 text-gray-400" />
                     <span className="min-w-0 flex-1 truncate text-[12.5px] font-bold text-[#111827] dark:text-white">{h.name}</span>
-                    {h.email && <span className="hidden min-w-0 truncate text-[11px] text-gray-400 sm:block">{h.email}</span>}
+                    {h.email && <span className="hidden min-w-0 truncate text-[11px] text-gray-400 chatwide:block">{h.email}</span>}
                   </button>
                 ))}
               </div>
@@ -130,13 +130,13 @@ export function FollowupPick({ picks, onPicks }: { picks: FollowupPicks; onPicks
           {picks.due_date && (
             <>
               <div className="flex flex-wrap items-center gap-2">
-                <label className="relative">
+                <label className="relative min-w-0 max-w-[170px] flex-[1_1_9.5rem]">
                   <CalendarDays className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-                  <input type="date" value={picks.due_date} min={plus(0)} onChange={e => e.target.value && set({ due_date: e.target.value })} className={`${field} w-[170px] pl-8`} data-testid="ai-fu-date" />
+                  <input type="date" value={picks.due_date} min={plus(0)} onChange={e => e.target.value && set({ due_date: e.target.value })} className={`${field} pl-8`} data-testid="ai-fu-date" />
                 </label>
-                <label className="relative">
+                <label className="relative w-[140px] shrink-0">
                   <Clock className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-                  <input type="time" value={picks.due_time} onChange={e => set({ due_time: e.target.value })} className={`${field} w-[140px] pl-8`} data-testid="ai-fu-time" />
+                  <input type="time" value={picks.due_time} onChange={e => set({ due_time: e.target.value })} className={`${field} pl-8`} data-testid="ai-fu-time" />
                 </label>
               </div>
               <div className="flex flex-wrap gap-1.5">

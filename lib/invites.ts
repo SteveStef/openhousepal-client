@@ -3,6 +3,7 @@
 // Backend: app/api/invites_routes.py + app/services/invites_service.py.
 import { API_BASE_URL } from '@/lib/api-service'
 import { getToken } from '@/lib/token'
+import { withOwnerRef } from '@/lib/ownerDevice'
 
 export type InviteType = 'open_house' | 'brokers_open' | 'client_event' | 'custom'
 export type InviteAudience = 'clients' | 'agents'
@@ -186,7 +187,8 @@ export const invitesApi = {
   },
   // ---- the guest's side (no login)
   publicGet: (code: string, host?: string) => call<PublicInvite>(`/invites/public/${encodeURIComponent(code)}${host ? `?host=${encodeURIComponent(host)}` : ''}`, {}, false),
-  publicView: (code: string) => call<null>(`/invites/public/${encodeURIComponent(code)}/view`, { method: 'POST' }, false),
+  // With the sign-in (and owner_ref on the agent's own domain): the agent opening their own invite isn't a view.
+  publicView: (code: string) => call<null>(withOwnerRef(`/invites/public/${encodeURIComponent(code)}/view`), { method: 'POST' }, true),
   publicMine: (code: string, token: string) => call<InviteRsvp>(`/invites/public/${encodeURIComponent(code)}/rsvp/${encodeURIComponent(token)}`, {}, false),
   publicRsvp: (code: string, body: {
     response: RsvpResponse; name: string; email?: string; phone?: string; answers: { questionId: string; value: unknown }[]; token?: string

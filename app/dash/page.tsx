@@ -32,7 +32,7 @@ import { DiscoveryListingStatus } from '@/components/dash/DashDiscoveryPanel'
 import DashManagerCard from '@/components/dash/DashManagerCard'
 import DashCardHeader, { type DashStatusTone } from '@/components/dash/DashCardHeader'
 import DashDiscoveryCard from '@/components/dash/DashDiscoveryCard'
-import TasksPanel, { CalendarChip } from '@/components/tasks/TasksPanel'
+import TasksPanel, { CalendarChip, warmTaskList } from '@/components/tasks/TasksPanel'
 import { useFollowupsEnabled } from '@/components/tasks/FollowupsSwitch'
 import ScrollableSection from '@/components/dash/ScrollableSection'
 import { getNavFeatureAccess, hasMlsAccess, hasAgentHubAccess, hasStudioDesignAccess, type NavFeatureKey } from '@/lib/navAccess'
@@ -180,8 +180,12 @@ export default function DashPage() {
   const mlsPlan = hasMlsAccess(user?.plan_tier)
   const mlsPlanRef = useRef(mlsPlan)
   mlsPlanRef.current = mlsPlan
+  const followupsOnRef = useRef(followupsOn)
+  followupsOnRef.current = followupsOn
   const loadDashDataOnce = useCallback(async (isFirstLoad = false) => {
     const mls = mlsPlanRef.current
+    // The Follow-ups panel's list, asked for alongside the feeds below (the panel mounts after them).
+    if (isFirstLoad && followupsOnRef.current) warmTaskList()
     const skip: Promise<unknown> = Promise.resolve({ success: false, data: null })
     const [statsRes, attentionLeadsRes, recentLeadsRes, activityNotificationsRes, hostRequestsRes, discoveryRes, myListingsRes] = await Promise.all([
       api.stats.getSummary(),

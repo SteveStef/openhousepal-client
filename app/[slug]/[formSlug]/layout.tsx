@@ -4,7 +4,7 @@ import { cardVersion, ogFetch } from '@/lib/og/shared'
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; formSlug: string }> }): Promise<Metadata> {
   const { slug, formSlug } = await params
   const [data, hub] = await Promise.all([
-    ogFetch<any>(`/agent-hub/forms/public/${encodeURIComponent(slug)}/${encodeURIComponent(formSlug)}`, 60),
+    ogFetch<any>(`/agent-hub/forms/public/${encodeURIComponent(slug)}/${encodeURIComponent(formSlug)}?preview=1`, 60),
     ogFetch<any>(`/agent-hub/public/${encodeURIComponent(slug)}`, 60),
   ])
   if (!data?.title && !data?.headline) return {}
