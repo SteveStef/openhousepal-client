@@ -3009,7 +3009,9 @@ function CmaPricingPage({ report, comparables, agent }: { report: CmaReport; com
 export function stripBridgeSentences(text?: string | null): string | null | undefined {
   if (!text) return text;
   // (a paragraph break around the passage stays a paragraph break)
-  const out = text.replace(/\s*How the value was reached:[\s\S]*?Together[^.$]{0,24}\$[\d,]+\.\s*/,
+  // (the wording pass sometimes bolds the lead-in - "**How the value was reached:**" - and the two stars in
+  // front of it were left behind as a line of their own, 701 Great Oak Ln 11/14)
+  const out = text.replace(/\s*\**How the value was reached:[\s\S]*?Together[^.$]{0,24}\$[\d,]+\.\**\s*/,
     (m) => (m.includes('\n') ? '\n\n' : ' '));
   return out.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
 }
@@ -3046,6 +3048,7 @@ function CmaValueBridgeBlocks({ report }: { report: CmaReport }) {
             <Text style={{ flex: 1.1, fontSize: 6.6, fontWeight: 900, color: COLORS.subtext, textTransform: 'uppercase', letterSpacing: 0.6, textAlign: 'right' }}>Sold for</Text>
             <Text style={{ flex: 1.1, fontSize: 6.6, fontWeight: 900, color: COLORS.subtext, textTransform: 'uppercase', letterSpacing: 0.6, textAlign: 'right' }}>Adjusted by</Text>
             <Text style={{ flex: 1.1, fontSize: 6.6, fontWeight: 900, color: COLORS.subtext, textTransform: 'uppercase', letterSpacing: 0.6, textAlign: 'right' }}>Adjusted price</Text>
+            <Text style={{ flex: 0.9, fontSize: 6.6, fontWeight: 900, color: COLORS.subtext, textTransform: 'uppercase', letterSpacing: 0.6, textAlign: 'right' }}>Total adjusting</Text>
             <Text style={{ flex: 0.7, fontSize: 6.6, fontWeight: 900, color: COLORS.subtext, textTransform: 'uppercase', letterSpacing: 0.6, textAlign: 'right' }}>Share</Text>
           </View>
           {sales.rows.map((r, i) => (
@@ -3055,14 +3058,20 @@ function CmaValueBridgeBlocks({ report }: { report: CmaReport }) {
                 {r.reasons ? <Text style={{ fontSize: 6.4, color: COLORS.subtext, marginTop: 1 }}>{r.reasons}</Text> : null}
               </View>
               <Text style={{ flex: 1.1, fontSize: 7.8, color: COLORS.text, textAlign: 'right' }}>{formatMoney(r.sale)}</Text>
-              <Text style={{ flex: 1.1, fontSize: 7.8, color: COLORS.text, textAlign: 'right' }}>{Math.abs(r.net) >= 500 ? formatSignedMoney(Math.round(r.net / 1000) * 1000) : '—'}</Text>
-              <Text style={{ flex: 1.1, fontSize: 7.8, fontWeight: 700, color: COLORS.text, textAlign: 'right' }}>{formatMoney(Math.round(r.adjusted / 1000) * 1000)}</Text>
-              <Text style={{ flex: 0.7, fontSize: 7.8, color: COLORS.text, textAlign: 'right' }}>{r.weightPct}%</Text>
+              <Text style={{ flex: 1.1, fontSize: 7.8, color: COLORS.text, textAlign: 'right' }}>{r.net ? formatSignedMoney(r.net) : '—'}</Text>
+              <Text style={{ flex: 1.1, fontSize: 7.8, fontWeight: 700, color: COLORS.text, textAlign: 'right' }}>{formatMoney(r.adjusted)}</Text>
+              <Text style={{ flex: 0.9, fontSize: 7.8, color: COLORS.text, textAlign: 'right' }}>{r.grossPct != null ? `${r.grossPct.toFixed(1)}%` : '—'}</Text>
+              <Text style={{ flex: 0.7, fontSize: 7.8, color: COLORS.text, textAlign: 'right' }}>{r.share.toFixed(1)}%</Text>
             </View>
           ))}
           <Text style={{ fontSize: 6.6, color: COLORS.subtext, marginTop: 4, lineHeight: 1.35 }}>
-            {`Each sale is moved toward this home for the ways it differs; its share is how much it counts (closer matches that needed less adjusting count more). Share times adjusted price, added up${sales.adjustedSales ? `, is the ${formatMoney(Math.round(sales.adjustedSales / 1000) * 1000)} the sales point to` : ''}.`}
+            {`Every adjustment is listed under its sale; added up they are the "adjusted by" figure, and the sale price plus that is the adjusted price. "Total adjusting" is all of a sale's adjustments added up regardless of direction, as a share of its price. A sale's share starts from how closely it matches this home (type, size, age, distance, how recent) and is cut the more adjusting it needed; a sale adjusted more than 25% can carry at most 10%, and no sale more than 35%. Share times adjusted price, added up${sales.adjustedSales ? `, is the ${formatMoney(Math.round(sales.adjustedSales / 1000) * 1000)} the sales point to` : ''} (figures are rounded, so adding them up by hand lands within a few hundred dollars).`}
           </Text>
+          {sales.sensitivity ? (
+            <Text style={{ fontSize: 6.8, color: COLORS.text, marginTop: 4, lineHeight: 1.35 }}>
+              {`How much one sale matters: this figure leans most on ${sales.sensitivity.address}. Leaving that one sale out, the other ${sales.sensitivity.others} point to about ${formatMoney(sales.sensitivity.without)} (${sales.sensitivity.pct > 0 ? '+' : '−'}${Math.abs(sales.sensitivity.pct).toFixed(1)}%). ${est?.range_min != null && est?.range_max != null ? (sales.sensitivity.without >= est.range_min && sales.sensitivity.without <= est.range_max ? "That is inside the supported range." : "That is outside the supported range, so read the range with that in mind.") : ""}`}
+            </Text>
+          ) : null}
         </View>
       )}
       {bridge && (

@@ -353,6 +353,8 @@ export interface CmaAdjustmentGridComp {
   // city comps: the gap between the comp's few blocks and the subject's, from nearby sale prices (10/23)
   location: number
   adjusted: number; weightPct: number; notes: string[]
+  weightExact?: number        // the share before rounding to a whole percent
+  grossPct?: number | null    // gross adjustment as % of the sale price (what cuts a sale's share)
   // The lower-level area the grid used and whether it was estimated (finished per the MLS, no area
   // recorded) - a bad guess there moves the value, so the agent sees it (10/20 review).
   lowerLevelSqft: number | null; lowerLevelEstimated: boolean
@@ -386,6 +388,8 @@ export function buildAdjustmentGrid(estimate?: CmaAiEstimate | null): CmaAdjustm
       location: (fa as { location?: number } | undefined)?.location ?? 0, adjusted: c.size_adjusted_price,
       lowerLevelSqft: fa?.comp_below_grade_sqft ?? null, lowerLevelEstimated: !!fa?.comp_below_grade_estimated,
       weightPct: Math.round((c.normalized_weight || 0) * 100), notes: fa?.notes || [],
+      weightExact: (c.normalized_weight || 0) * 100,
+      grossPct: (c as { gross_adjustment_pct?: number | null }).gross_adjustment_pct ?? null,
     }
   }).sort((a, b) => b.weightPct - a.weightPct)
   const anchorValue = Math.round(anchor.anchor_value)
@@ -462,24 +466,66 @@ export function bathsTile(h: BathHome): { label: string; value: string } | null 
 // adjustments and weightings behind the adjusted-sales figure"): what it sold for, the net adjustment with its
 // biggest reasons, the adjusted price and its share. Share x adjusted price adds up to the adjusted-sales figure.
 // The full line-by-line worksheet stays in the agent's "How we got there".
-export interface CmaSaleSummaryRow { address: string; sale: number; net: number; reasons: string; adjusted: number; weightPct: number }
-export function buildSaleSummary(estimate?: CmaAiEstimate | null): { rows: CmaSaleSummaryRow[]; adjustedSales: number | null } | null {
+// (Outside audit 11/14, after the table first shipped: it listed only each sale's three biggest adjustments, so
+// in all ten rows reviewed the listed factors did not add up to the "adjusted by" figure - off by up to $22,000 -
+// and a garage line showed on one sale and not on four others that had one. The engine's own lines add up to the
+// dollar. Now EVERY line is listed, each to the nearest $100, "adjusted by" is their sum and "adjusted price" is
+// the sale price plus that sum - so the row adds up as printed. The share is shown to a tenth of a percent, with
+// how much adjusting the sale needed, which is what sets it.)
+export interface CmaSaleSummaryRow {
+  address: string; sale: number; net: number; reasons: string; adjusted: number; weightPct: number
+  share: number          // % of the adjusted-sales figure, one decimal
+  shareExact?: number    // ...unrounded, for the "without this sale" figure
+  grossPct: number | null // all adjustments added up regardless of sign, as % of the sale price
+}
+// How much the adjusted-sales figure rests on any ONE sale (outside audit 11/14, v2: 1624 Brown St - adjusted
+// to $798,000 while the other four sat between $536,000 and $654,000 - carried 16.5%, and without it the figure
+// was about $578,000, not $614,000). Tested on past sales, cutting such a sale's share did not make values more
+// accurate, so the share stays; the report says plainly what the figure would be without that sale.
+export interface CmaSaleSensitivity { address: string; without: number; others: number; pct: number }
+export function saleSensitivity(rows: CmaSaleSummaryRow[], minPct = 3): CmaSaleSensitivity | null {
+  if (rows.length < 3) return null
+  const w = rows.map(r => r.shareExact ?? r.share)
+  const total = w.reduce((t, x) => t + x, 0)
+  if (!total) return null
+  const sum = rows.reduce((t, r, i) => t + w[i] * r.adjusted, 0)
+  const all = sum / total
+  let best: CmaSaleSensitivity | null = null
+  rows.forEach((r, i) => {
+    if (total - w[i] <= 0) return
+    const without = (sum - w[i] * r.adjusted) / (total - w[i])
+    const pct = (without - all) / all * 100
+    if (Math.abs(pct) >= minPct && (!best || Math.abs(pct) > Math.abs(best.pct))) {
+      best = { address: r.address, without: Math.round(without / 1000) * 1000, others: rows.length - 1, pct: Math.round(pct * 10) / 10 }
+    }
+  })
+  return best
+}
+
+export function buildSaleSummary(estimate?: CmaAiEstimate | null): { rows: CmaSaleSummaryRow[]; adjustedSales: number | null; sensitivity: CmaSaleSensitivity | null } | null {
   const grid = buildAdjustmentGrid(estimate)
   if (!grid || !grid.comps.length) return null
+  const to100 = (v: number) => Math.round((v || 0) / 100) * 100
   const rows = grid.comps.filter(c => c.weightPct > 0 && c.sale && c.adjusted).map(c => {
-    const parts: [string, number][] = [
+    const parts: [string, number][] = ([
       ['size', c.size], ['lower level', c.lowerLevel], ['baths', c.baths], ['garage', c.garage], ['land', c.lot],
       ['time since sale', c.time], ['age', c.age], ['condition', c.condition], ['location', c.location],
       ['sewer', c.sewer], ['road', c.road],
-    ]
-    const reasons = parts.filter(([, v]) => Math.abs(v || 0) >= 500)
-      .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 3)
-      .map(([k, v]) => `${k} ${formatSignedMoney(Math.round(v / 1000) * 1000)}`).join(' · ')
+    ] as [string, number][]).map(([k, v]) => [k, to100(v)] as [string, number]).filter(([, v]) => v !== 0)
+    // anything the engine adjusted for that has no line of its own above
+    const other = to100((c.adjusted - c.sale) - parts.reduce((t, [, v]) => t + v, 0))
+    if (Math.abs(other) >= 500) parts.push(['other', other])
+    const net = parts.reduce((t, [, v]) => t + v, 0)
+    const reasons = parts.sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+      .map(([k, v]) => `${k} ${formatSignedMoney(v)}`).join(' · ')
     const titled = (c.address || c.label).toLowerCase().replace(/\b[a-z]/g, m => m.toUpperCase())
-    return { address: titled, sale: c.sale, net: Math.round(c.adjusted - c.sale), reasons, adjusted: c.adjusted, weightPct: c.weightPct }
+    return { address: titled, sale: c.sale, net, reasons, adjusted: c.sale + net, weightPct: c.weightPct,
+             share: Math.round((c.weightExact ?? c.weightPct) * 10) / 10, shareExact: c.weightExact ?? c.weightPct,
+             grossPct: c.grossPct ?? null }
   })
   if (!rows.length) return null
-  return { rows, adjustedSales: estimate?.value_bridge?.adjusted_sales_value ?? estimate?.valuation_trace?.anchor?.anchor_value ?? null }
+  return { rows, adjustedSales: estimate?.value_bridge?.adjusted_sales_value ?? estimate?.valuation_trace?.anchor?.anchor_value ?? null,
+           sensitivity: saleSensitivity(rows) }
 }
 
 export function formatSignedMoney(v: number): string {
