@@ -412,7 +412,7 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
             <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
               {l.status && <span className="rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: badge.bg, color: badge.fg }}>{formatStatus(l.status)}</span>}
-              {isNewListing(l.days_on_market) && <span className="rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>New</span>}
+              {isNewListing(l.days_on_market, l.status) && <span className="rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>New</span>}
               {viewed.has(l.listing_key) && <span className="rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-white">Seen</span>}
             </div>
             <p className="absolute bottom-2.5 left-3 text-xl font-black text-white drop-shadow">{l.price ? `$${l.price.toLocaleString()}` : 'Price on request'}</p>
@@ -427,7 +427,7 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
             </div>
             <OpenHouseChip openHouses={l.open_houses} compact className="mt-2" />
             <p className="mt-2 truncate text-[10px] font-medium" style={{ color: 'var(--site-faint)' }}>
-              {listedAgo(l.days_on_market) ? <span className="mr-1 font-black" style={{ color: 'var(--site-accent-text)' }}>{listedAgo(l.days_on_market)} ·</span> : null}
+              {listedAgo(l.days_on_market, l.status ?? null) ? <span className="mr-1 font-black" style={{ color: 'var(--site-accent-text)' }}>{listedAgo(l.days_on_market)} ·</span> : null}
               {l.list_office_name ? `Courtesy of ${l.list_office_name}` : ''}
             </p>
           </div>
@@ -452,7 +452,7 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
         priceClassName={luxe ? fontClass(theme.heading_font, 'font-serif') : ''}
         photo={l.photo || null}
         price={l.price ? `$${l.price.toLocaleString()}` : 'Price on request'}
-        priceNote={listedAgo(l.days_on_market)}
+        priceNote={listedAgo(l.days_on_market, l.status ?? null)}
         status={status ? { label: status, bg: badge.bg, fg: badge.fg } : null}
         street={street}
         place={[l.city, l.state].filter(Boolean).join(', ')}

@@ -65,7 +65,7 @@ export default function FeaturedHeroCard({ listing, theme, basePrefix = '', vari
   }
   const photos = listing.photos && listing.photos.length > 0 ? listing.photos : listing.photo ? [listing.photo] : []
   const isHero = variant === 'hero'
-  const justListed = isNewListing(listing.days_on_market)
+  const justListed = isNewListing(listing.days_on_market, listing.status)
 
   // A div, not an <a>: the Spotlight chip inside is its own link (a link can't hold a link).
   const href = `${basePrefix}/properties/${encodeURIComponent(listing.listing_key)}`

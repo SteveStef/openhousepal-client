@@ -172,9 +172,9 @@ export default function HeroBlock({ data, theme, siteId, basePrefix = '' }: { da
                     className={`ohp-mls-crop absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-[1400ms] ${i === index ? 'scale-100 opacity-100' : 'scale-105 opacity-0'}`} style={{ objectPosition: 'center 40%' }} />
                 ))}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
-                {home && listedAgo(home.days_on_market) && (
+                {home && listedAgo(home.days_on_market, home.status ?? null) && (
                   <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] font-black text-[#111827] shadow">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{listedAgo(home.days_on_market)}
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{listedAgo(home.days_on_market, home.status ?? null)}
                   </span>
                 )}
                 {home && (
@@ -264,7 +264,7 @@ export default function HeroBlock({ data, theme, siteId, basePrefix = '' }: { da
             <a key={home.listing_key} href={homeHref(home)} className="ohp-hero-card-in group relative w-full overflow-hidden rounded-3xl border border-white/15 bg-black/35 p-5 transition hover:border-white/30 lg:max-w-md">
               <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: 'var(--site-accent-light)' }}>
                 <span className="relative flex h-2 w-2"><span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-70" /><span className="relative h-2 w-2 rounded-full bg-emerald-400" /></span>
-                {listedAgo(home.days_on_market) || 'Newest on the market'}
+                {listedAgo(home.days_on_market, home.status ?? null) || 'Newest on the market'}
               </span>
               <span className={`mt-2 block text-3xl font-black ${serif}`}>{fullPrice(home.price)}</span>
               <span className="mt-1 block truncate text-sm font-semibold text-white/75">{cleanStreet(home.address, home.city)}{home.city ? `, ${home.city}` : ''}</span>

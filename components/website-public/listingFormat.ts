@@ -51,13 +51,26 @@ export function cleanStreet(address?: string | null, city?: string | null): stri
   return a.replace(/\b([A-Z]{2,})\b/g, w => (/^(NE|NW|SE|SW|PO|US)$/.test(w) ? w : w[0] + w.slice(1).toLowerCase())).trim()
 }
 
-/** The NEW tag: on the market under a week (days 0-6) - never a home listed a week or more ago. */
-export function isNewListing(days?: number | null): boolean {
-  return days != null && days >= 0 && days < 7
+/** Actually for sale right now: Active (not Active Under Contract, Pending, Coming Soon, Sold...). */
+export function isActiveStatus(status?: string | null): boolean {
+  const s = String(status || '').toUpperCase()
+  return s.startsWith('ACTIVE') && !s.includes('UNDER CONTRACT')
 }
 
-/** "Listed today" / "Listed 3 days ago" / "New this week" - for fresh-listing badges. */
-export function listedAgo(days?: number | null): string | null {
+/** How long a listing counts as "New" across the IDX site (owner, 11/14: over 10 days is not new). */
+export const NEW_LISTING_DAYS = 10
+
+/** The NEW tag, site-wide on IDX (owner, 11/14): only an ACTIVE home listed 10 days ago or less. A
+ *  pending / under-contract home's days-on-market stops counting at the contract, so its small number
+ *  used to wrongly read as new. No status = not new. */
+export function isNewListing(days: number | null | undefined, status: string | null | undefined): boolean {
+  return isActiveStatus(status) && days != null && days >= 0 && days <= NEW_LISTING_DAYS
+}
+
+/** "Listed today" / "Listed 3 days ago" / "3 weeks on market" - only for a home that's for sale (an
+ *  under-contract home's day count stopped at the contract, so it would read wrong). */
+export function listedAgo(days: number | null | undefined, status?: string | null): string | null {
+  if (status !== undefined && !isActiveStatus(status)) return null
   if (days == null || days < 0) return null
   if (days === 0) return 'Listed today'
   if (days === 1) return 'Listed yesterday'
