@@ -937,6 +937,19 @@ export interface CmaCompetitionHome {
   school_district?: string | null
   annual_taxes?: number | null
   public_remarks?: string | null
+  monthly_fee?: number | null   // condo / HOA fee per month, when the MLS record has one
+}
+
+// Total finished area - above and below grade together. The competition page compares $/sq ft on THIS size for
+// every home (outside audit 11/14, 196 Hudson Dr: the subject's record splits 1,530 above grade from a 370 sq ft
+// walkout level, while the same builder's homes two doors down report all 2,170 as above grade - "$324/sq ft
+// against $245" compared a part of one home with the whole of another, under a banner saying it was "priced above
+// most similar options per square foot").
+export function totalFinishedSqft(h: { sqft?: number | null; above_grade_finished_area?: number | null; below_grade_finished_area?: number | null }): number | null {
+  const above = h.above_grade_finished_area || 0
+  const below = h.below_grade_finished_area || 0
+  if (above) return Math.max(above + below, h.sqft || 0)
+  return (h.sqft || 0) + (below && h.sqft ? 0 : below) || null
 }
 
 /** A Similar Homes card in the shape the comp details sheets read - list price, no sale. */
@@ -956,6 +969,9 @@ export interface CmaCompetitionCard extends CmaCompetitionHome {
 export interface CmaCompetitionGroup { key: 'active' | 'pending'; title: string; subtitle: string; cards: CmaCompetitionCard[] }
 
 export interface CmaCompetitionView {
+  /** this home's size and $/sq ft on the page's one basis (total finished area) */
+  subject: { sqft: number | null; psf: number | null }
+  sizeNote: string
   title: string
   subtitle: string
   note: string
@@ -974,7 +990,7 @@ export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null
   const homes = (comp.homes || []).filter(h => h.list_price)
   const buyer = report.mode === 'buyer'
   const subject = report.subject || ({} as CmaReport['subject'])
-  const subjAg = subject.above_grade_finished_area || subject.sqft || null
+  const subjAg = totalFinishedSqft(subject)
   const ourPrice = buyer
     ? (subject.list_price ?? null)
     : (report.pricing?.ai_estimate?.final_valuation?.value ?? report.pricing?.most_likely_value ?? report.pricing?.ai_estimate?.value ?? null)
@@ -982,7 +998,10 @@ export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null
   const cutText = (h: CmaCompetitionHome) => h.price_cuts && h.price_cuts.count > 0
     ? `Price cut ${k$(h.price_cuts.total)}${h.price_cuts.count > 1 ? ` (${h.price_cuts.count} cuts)` : ''}`
     : null
-  const cards: CmaCompetitionCard[] = homes.map(h => {
+  const cards: CmaCompetitionCard[] = homes.map(h0 => {
+    // a listing row's `sqft` is its above-grade area; its finished lower level is carried beside it
+    const total = (h0.sqft || 0) + (h0.below_grade_finished_area || 0) || null
+    const h = { ...h0, sqft: total, price_per_sqft: h0.list_price && total ? Math.round(h0.list_price / total) : h0.price_per_sqft }
     const diff = ourPrice && h.list_price ? h.list_price - ourPrice : null
     let highlight: string | null = null
     if (diff != null && Math.abs(diff) >= 1000) {
@@ -1059,9 +1078,12 @@ export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null
   }
   const groups: CmaCompetitionGroup[] = [
     { key: 'active' as const, title: 'For sale now', subtitle: buyer ? 'Other homes like this one you could buy.' : 'The homes buyers will compare yours against.', cards: actives },
-    { key: 'pending' as const, title: 'Under contract', subtitle: buyer ? 'Similar homes that just found a buyer - what is moving.' : 'What buyers are agreeing to pay right now (list prices; contract prices are not public yet).', cards: pendings },
+    { key: 'pending' as const, title: 'Under contract', subtitle: buyer ? 'Similar homes that just found a buyer. Their sale prices are not public until they close, so they are not comparable sales yet and do not change the value.' : 'Similar homes that just found a buyer (asking prices shown). Their sale prices are not public until they close, so they are not comparable sales yet and do not change the value.', cards: pendings },
   ].filter(g => g.cards.length > 0)
+  const listPsf = subject.list_price && subjAg ? subject.list_price / subjAg : null
   return {
+    subject: { sqft: subjAg, psf: listPsf },
+    sizeNote: 'Sizes and $/sq ft on this page use each home\'s total finished area (above and below grade together), so homes that record a lower level differently compare like for like.',
     title: buyer ? 'Similar Homes on the Market' : 'Your Competition',
     subtitle: buyer
       ? 'Homes like this one for sale now or recently under contract, with how closely each matches.'
@@ -1073,3 +1095,121 @@ export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null
     empty: 'No similar homes currently for sale or under contract.',
   }
 }
+
+// ---- Engine review sheet (TESTING ONLY - owner, 11/14) ------------------------------------------------------
+// A last PDF section for the people grading reports while the engine is tested: what the engine did on THIS report,
+// the checks it ran on its own output, and how it has scored against past sales. Never shown to a client of a
+// real account unless the agent turns it on; to be removed at launch.
+export interface CmaReviewCheck { label: string; ok: boolean | null; detail: string }
+export interface CmaReviewSheet {
+  checks: CmaReviewCheck[]
+  rules: string[]
+  agentNotes: string[]
+  underContract: string[]
+  /** the in-site grader's last read: null = it did not run on this report */
+  finalRead: { fixed: string[]; forAgent: string[] } | null
+  notes: string | null
+}
+
+/** How the adjusted-sales figure has scored against real sale prices the engine was not shown (free checks, no AI). */
+export const CMA_ENGINE_TESTS: { group: string; sales: number; askingKnown: string; askingUnknown: string }[] = [
+  { group: 'Houses - Main Line and Delaware County', sales: 60, askingKnown: '8.2%', askingUnknown: '12.6%' },
+  { group: 'Townhouses and rowhomes', sales: 60, askingKnown: '7.8%', askingUnknown: '9.5%' },
+  { group: 'Condos (mostly Philadelphia)', sales: 60, askingKnown: '8.1%', askingUnknown: '13.1%' },
+  { group: 'Center-city Philadelphia homes with a garage', sales: 28, askingKnown: '8.9%', askingUnknown: '13.4%' },
+  { group: 'Homes on 2 or more acres', sales: 60, askingKnown: '9.4%', askingUnknown: '13.8%' },
+]
+/** Sold price against FINAL asking price by days on market - 217,037 MLS sales, Nov 2025 to Nov 2026. */
+export const CMA_ASKING_STATS: { days: string; condoMedian: string; condoAbove: string; houseMedian: string; houseAbove: string }[] = [
+  { days: '14 to 29', condoMedian: '98.7%', condoAbove: '13%', houseMedian: '100%', houseAbove: '22%' },
+  { days: '30 to 44', condoMedian: '98.0%', condoAbove: '9%', houseMedian: '99.0%', houseAbove: '16%' },
+  { days: '45 to 89', condoMedian: '98.0%', condoAbove: '8%', houseMedian: '98.6%', houseAbove: '14%' },
+  { days: '90 or more', condoMedian: '97.3%', condoAbove: '7%', houseMedian: '98.1%', houseAbove: '12%' },
+]
+export const CMA_TESTED_NOT_ADOPTED: string[] = [
+  'A larger garage credit in center-city Philadelphia (4% and 6% of price instead of 1.5%): less accurate on 28 past sales, so not adopted.',
+  'Cutting the share of heavily adjusted sales further: no change in accuracy on 88 past sales, so not adopted. The report states how much the figure leans on one sale instead.',
+  'Letting homes under contract move the value: removed. Their prices are asking prices and the effect could not be checked against past sales.',
+  'A wider comp search for homes on acreage: less accurate, so not adopted.',
+]
+export const CMA_KNOWN_LIMITS: string[] = [
+  'The MLS feed does not send original asking prices or cumulative days on market, so price cuts before a sale cannot be shown; "asking price" always means the final one.',
+  'A contract price is not public until the sale closes. Homes under contract are shown with their asking prices and never change the value.',
+  'Condition is read from listing photos and remarks. For a home that is not listed now, they are from its last listing, and the report says so.',
+  'The condition adjustment uses fixed rates per rating step. Where renovated and unrenovated homes of the same plan sell very far apart (a condo tower), the adjusted-sales figure can run high or low; the asking-price step and the range carry that.',
+  'A tax abatement or a very different monthly fee on a sale is stated in words. It has no dollar adjustment: nothing in the past sales measures one.',
+]
+
+export function buildReviewSheet(report: CmaReport): CmaReviewSheet | null {
+  const est = report.pricing?.ai_estimate
+  if (!est) return null
+  const money = (n: number | null | undefined) => (n == null ? '-' : `$${Math.round(n).toLocaleString('en-US')}`)
+  const checks: CmaReviewCheck[] = []
+  const grid = buildAdjustmentGrid(est)
+  const sales = buildSaleSummary(est)
+  if (grid && sales) {
+    let worst = 0
+    grid.comps.filter(c => c.weightPct > 0 && c.sale && c.adjusted).forEach(c => {
+      const sum = [c.size, c.lowerLevel, c.baths, c.garage, c.lot, c.time, c.age, c.condition, c.location, c.sewer, c.road].reduce((t, v) => t + (v || 0), 0)
+      worst = Math.max(worst, Math.abs((c.adjusted - c.sale) - sum))
+    })
+    checks.push({ label: 'Every sale: its adjustment lines add up to its net adjustment', ok: worst <= 150, detail: `largest difference ${money(worst)}` })
+    const shareTotal = sales.rows.reduce((t, r) => t + (r.shareExact ?? r.share), 0)
+    checks.push({ label: 'The shares add up to 100%', ok: Math.abs(shareTotal - 100) <= 0.3, detail: `${shareTotal.toFixed(1)}%` })
+    const weighted = shareTotal ? sales.rows.reduce((t, r) => t + (r.shareExact ?? r.share) * r.adjusted, 0) / shareTotal : 0
+    if (sales.adjustedSales) {
+      const gap = Math.abs(weighted - sales.adjustedSales) / sales.adjustedSales * 100
+      checks.push({ label: 'Share times adjusted price, added up, is the adjusted-sales figure', ok: gap <= 0.5, detail: `${money(weighted)} against ${money(sales.adjustedSales)}` })
+    }
+    if (sales.sensitivity) {
+      checks.push({ label: 'How much one sale matters', ok: null, detail: `without ${sales.sensitivity.address}: ${money(sales.sensitivity.without)} (${sales.sensitivity.pct > 0 ? '+' : ''}${sales.sensitivity.pct}%)` })
+    }
+  }
+  const bridge = est.value_bridge
+  if (bridge) {
+    const total = bridge.adjusted_sales_value + bridge.steps.reduce((t, st) => t + st.amount, 0)
+    checks.push({ label: 'Adjusted sales plus every step is the final value', ok: Math.abs(total - bridge.final_value) <= 1000, detail: `${money(bridge.adjusted_sales_value)} ${bridge.steps.map(st => `${st.amount >= 0 ? '+' : '-'} ${money(Math.abs(st.amount))}`).join(' ')} = ${money(total)}; value ${money(bridge.final_value)}` })
+  }
+  const value = est.value ?? null
+  const lo = est.range_min ?? null, hi = est.range_max ?? null
+  if (value != null && lo != null && hi != null) {
+    checks.push({ label: 'The value sits inside its range', ok: value >= lo && value <= hi, detail: `${money(lo)} - ${money(value)} - ${money(hi)}` })
+  }
+  const comp = (est as { current_competition?: { nudge_pct?: number | null; nudged_from?: number | null; pendings_used?: { street_address?: string; list_price?: number; implied_value?: number; match_score?: number | null }[]; review?: string | null; fee_mismatch?: { street_address?: string; monthly_fee?: number; subject_monthly_fee?: number }[] } }).current_competition
+  checks.push({ label: 'Homes under contract changed the value', ok: !(comp?.nudged_from), detail: comp?.nudged_from ? `yes, by ${comp.nudge_pct}% (a report made before 11/14)` : 'no - they never do' })
+  const flags = (est.qa_flags || []).filter((f): f is string => typeof f === 'string')
+  const fixed = flags.filter(f => /^Fact check:|auto-corrected|rewrote its client narrative|rebuilt from verified facts/i.test(f))
+  checks.push({ label: 'Sentences the engine removed or rewrote after checking them against the records', ok: null, detail: String(fixed.length) })
+  const fresh = (est as { data_freshness?: { message?: string | null } | null }).data_freshness
+  checks.push({ label: 'MLS data was current when the report was made', ok: !fresh?.message, detail: fresh?.message ? fresh.message.replace(/^Review before sending:\s*/, '') : 'yes' })
+  const rules = flags
+    .filter(f => /^(Final value|Range widened|The value is|Market exposure|Subject listing status|Final valuation authority|Fact check: removed|Comps re-ordered|Estimate reused|Final valuation reused)/.test(f)
+      || /already priced in the comp adjustment grid|tax abatement|monthly fee|lower level/i.test(f))
+    .slice(0, 14)
+    .map(f => (f.length > 300 ? `${f.slice(0, 297)}...` : f))
+  const agentNotes = [
+    est.agent_review?.message,
+    comp?.review,
+    (est as { missed_sales?: { message?: string | null } | null }).missed_sales?.message,
+    (est as { subject_status_review?: { message?: string | null } | null }).subject_status_review?.message,
+    (est as { audience_review?: { message?: string | null } | null }).audience_review?.message,
+  ].filter((x): x is string => !!x).map(x => x.replace(/^Review before sending:\s*/, ''))
+  const underContract = [
+    ...(comp?.pendings_used || []).map(p => `${p.street_address}${p.match_score != null ? ` (${Math.round(p.match_score)}% match)` : ''}: asking ${money(p.list_price)}, about ${money(p.implied_value)} adjusted to this home - shown, not used`),
+    ...(comp?.fee_mismatch || []).map(f => `${f.street_address}: monthly fee ${money(f.monthly_fee)} against ${money(f.subject_monthly_fee)} here - not a like-for-like comparison`),
+  ]
+  const fa = (est as { final_audit?: { applied?: { where?: string; why?: string; action?: string }[]; for_agent?: { where?: string; why?: string }[] } | null }).final_audit
+  const finalRead = fa ? {
+    fixed: (fa.applied || []).map(a => `${a.action === 'replace' ? 'Reworded' : 'Removed'} a sentence in ${a.where}: ${a.why}`),
+    forAgent: (fa.for_agent || []).map(a => `${a.where}: ${a.why}`),
+  } : null
+  return { checks, rules, agentNotes, underContract, finalRead, notes: report.presentation?.review_notes || null }
+}
+
+/** On for test accounts unless switched off; off for everyone else unless switched on. */
+export function reviewSheetOn(report: CmaReport, agentEmail?: string | null): boolean {
+  const set = report.presentation?.review_sheet
+  if (set === true || set === false) return set
+  return /@example\.com$/i.test(String(agentEmail || '').trim())
+}
+

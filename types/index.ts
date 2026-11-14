@@ -3619,6 +3619,10 @@ export interface CmaPresentationSettings {
   // Which theme the public share link opens in for a visitor by default - null/undefined means
   // dark (the site's current default). The IDX-embedded view always ignores this and stays light.
   default_theme?: 'light' | 'dark' | null;
+  // TESTING ONLY: the "Engine review sheet" at the end of the PDF (see lib/cma.ts buildReviewSheet). Unset = on
+  // for test accounts (@example.com), off for everyone else. To be removed at launch.
+  review_sheet?: boolean | null;
+  review_notes?: string | null;
 }
 
 export interface CmaReport {

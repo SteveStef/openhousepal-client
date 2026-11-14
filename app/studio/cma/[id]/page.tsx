@@ -4939,6 +4939,7 @@ function AgentValueReviewBanner({ report }: { report: CmaReport }) {
     missed_sales?: { message?: string | null } | null
     data_freshness?: { message?: string | null } | null
     subject_status_review?: { message?: string | null } | null
+    audit_review?: { message?: string | null } | null
   }) | null | undefined
   const note = est?.agent_review
   // Every agent-only review note at once (10/25: a recent same-community sale left out of the report
@@ -4948,6 +4949,8 @@ function AgentValueReviewBanner({ report }: { report: CmaReport }) {
   if (note?.message) notes.push({ text: note.message, values: note })
   if (est?.current_competition?.review) notes.push({ text: est.current_competition.review, values: null })
   if (est?.missed_sales?.message) notes.push({ text: est.missed_sales.message, values: null })
+  // The final read of the finished report (the in-site grader, 11/14): what it could not fix by itself
+  if (est?.audit_review?.message) notes.push({ text: est.audit_review.message, values: null })
   // MLS data more than a day old when this report was made (grader audit 11/13)
   if (est?.data_freshness?.message) notes.unshift({ text: est.data_freshness.message, values: null })
   // The subject's listing left the MLS only days ago - confirm with the owner before sending (grader audit 11/14)
@@ -5479,6 +5482,21 @@ function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
               </button>
             )
           })}
+          {/* TESTING ONLY (owner, 11/14): the "Engine review sheet" at the end of the PDF - the engine's own logic and
+              checks, for whoever is grading reports. Only the admin and test accounts see this switch; it is on by
+              default for test accounts and off for everyone else. To be removed at launch. */}
+          {(user?.is_admin || /@example\.com$/i.test(user?.email || '')) && (() => {
+            const on = presentation.review_sheet ?? /@example\.com$/i.test(user?.email || '')
+            return (
+              <button
+                onClick={() => savePresentation({ ...presentationRef.current, review_sheet: !on })}
+                title="Testing only: adds the engine's review sheet to the end of the PDF"
+                className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-wide transition ${on ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-gray-100 text-gray-400 line-through dark:bg-gray-800'}`}
+              >
+                Engine review sheet (testing)
+              </button>
+            )
+          })()}
         </div>
 
       </SectionCard>

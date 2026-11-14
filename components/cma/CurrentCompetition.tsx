@@ -8,7 +8,7 @@
 import { useState } from 'react'
 import { AlertTriangle, Check, ChevronLeft, ChevronRight, Home, MapPin, TrendingDown } from 'lucide-react'
 import { CmaReport, CmaSubjectProperty } from '@/types'
-import { CmaCompetitionHome, cmaCompetitionView, formatMoney } from '@/lib/cma'
+import { CmaCompetitionHome, cmaCompetitionView, formatMoney, totalFinishedSqft } from '@/lib/cma'
 import { sameDistrict } from '@/lib/matchScore'
 import { normalizeImageUrl } from '@/lib/utils'
 
@@ -32,7 +32,7 @@ function CardPhotos({ photos, onOpen }: { photos: string[], onOpen?: () => void 
 
 function SubjectStrip({ subject }: { subject: CmaSubjectProperty }) {
   const photo = (subject.photos && subject.photos[0]) || subject.photo_url
-  const ag = subject.above_grade_finished_area || subject.sqft
+  const ag = totalFinishedSqft(subject)   // the page's one size basis: total finished area
   const stats: [string, string][] = [
     ['List price', formatMoney(subject.list_price ?? null)],
     ['$/sq ft', subject.list_price && ag ? `$${Math.round(subject.list_price / ag)}` : '-'],
@@ -69,7 +69,7 @@ export default function CurrentCompetition({ report, agentView = false, onOpenHo
 }) {
   const view = cmaCompetitionView(report)
   if (!view) return null
-  const comp = (report.pricing?.ai_estimate as { current_competition?: { pendings_used?: { street_address?: string; list_price?: number; implied_value?: number; moved_value?: boolean }[]; nudge_pct?: number; nudged_from?: number | null; review?: string | null } } | null)?.current_competition
+  const comp = (report.pricing?.ai_estimate as { current_competition?: { pendings_used?: { street_address?: string; list_price?: number; implied_value?: number; moved_value?: boolean; match_score?: number | null }[]; fee_mismatch?: { street_address?: string; monthly_fee?: number; subject_monthly_fee?: number }[]; nudge_pct?: number; nudged_from?: number | null; review?: string | null } } | null)?.current_competition
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -85,6 +85,7 @@ export default function CurrentCompetition({ report, agentView = false, onOpenHo
       ) : (
         <>
           {report.subject && <SubjectStrip subject={report.subject} />}
+          <p className="mt-2 text-[10px] leading-snug text-gray-400">{view.sizeNote}</p>
           {view.callouts.length > 0 && (
             <ul className="mt-4 space-y-1.5">
               {view.callouts.map(c => (
@@ -150,20 +151,24 @@ export default function CurrentCompetition({ report, agentView = false, onOpenHo
         </>
       )}
 
-      {agentView && comp && ((comp.pendings_used?.length || 0) > 0 || comp.review) && (
+      {agentView && comp && ((comp.pendings_used?.length || 0) > 0 || (comp.fee_mismatch?.length || 0) > 0 || comp.review) && (
         <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50/70 p-3 text-xs dark:border-gray-800 dark:bg-white/[0.03]">
-          <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">Agent only - how this section touched the value</p>
+          <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">Agent only - homes under contract</p>
           {comp.nudged_from ? (
             <p className="mt-1 font-semibold text-gray-600 dark:text-gray-300">
               Pending homes moved the value {comp.nudge_pct && comp.nudge_pct > 0 ? 'up' : 'down'} {Math.abs(comp.nudge_pct || 0)}% (from {formatMoney(comp.nudged_from)}), using their list prices as a stand-in.
             </p>
           ) : (
-            <p className="mt-1 font-semibold text-gray-600 dark:text-gray-300">No change to the value - it takes at least two closely matching pending homes that agree.</p>
+            <p className="mt-1 font-semibold text-gray-600 dark:text-gray-300">These homes do not change the value. They just went under contract and may be good comps once they close - their sale prices are not public yet, so they could not be used as comparable sales. Worth knowing before you send this.</p>
           )}
           {(comp.pendings_used || []).map(p => (
             <p key={p.street_address} className="mt-0.5 font-semibold text-gray-500 dark:text-gray-400">
-              {p.street_address}: list {formatMoney(p.list_price)} → about {formatMoney(p.implied_value)} adjusted to this home
-              {p.moved_value === false ? ' - not counted (too far from the value, or it disagrees with the others)' : ''}
+              {p.street_address}{p.match_score != null ? ` (${Math.round(p.match_score)}% match)` : ''}: list {formatMoney(p.list_price)} → about {formatMoney(p.implied_value)} adjusted to this home
+            </p>
+          ))}
+          {(comp.fee_mismatch || []).map(f => (
+            <p key={`fee-${f.street_address}`} className="mt-0.5 font-semibold text-gray-500 dark:text-gray-400">
+              {f.street_address}: monthly fee {formatMoney(f.monthly_fee)} against {formatMoney(f.subject_monthly_fee)} for this home - a different fee, so not a like-for-like comparison
             </p>
           ))}
           {comp.review && (
