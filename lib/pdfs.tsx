@@ -32,7 +32,7 @@ function pdfImageUrl(url?: string | null): string {
   if (typeof window === 'undefined') return normalized;
   return `${window.location.origin}/api/pdf-image?url=${encodeURIComponent(normalized)}`;
 }
-import { cmaCompetitionView, formatSignedMoney } from '@/lib/cma';
+import { cleanUtilityList, cmaCompetitionView, formatSignedMoney } from '@/lib/cma';
 import { CmaGuidanceSection, buildCmaStaticMapUrl, clientCompStrength, cmaGuidanceSections, resolveCmaMarketMetrics, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, buyerOfferFigures, buyerOfferLabels, AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_HEX, STRENGTH_LABEL, STRENGTH_TIER_HEX, compDisplayPrice, effectiveCompPrice, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft, basementDisplay, materialIssuesText } from '@/lib/cma';
 import { qrPdfSrc } from '@/lib/qr';
 import { salesAreRecent, salesWords } from '@/lib/salesWording'
@@ -2485,7 +2485,8 @@ function CmaSubjectPage({ report, agent }: { report: CmaReport; agent: CmaPdfAge
   );
 }
 
-function formatCmaUtilityValue(value?: string[] | string | null): string {
+function formatCmaUtilityValue(raw?: string[] | string | null): string {
+  const value = cleanUtilityList(raw);
   if (!value) return '—';
   if (Array.isArray(value)) return value.filter(Boolean).join(', ') || '—';
   return value;
@@ -2768,8 +2769,10 @@ function CmaComparablePage({ comp, index, agent }: { comp: CmaComparable; index:
         {comp.photo_url ? (
           <Image src={cmaPdfImageUrl(comp.photo_url)} style={{ width: '100%', height: compPhotoHeight, objectFit: 'cover', borderRadius: 12, backgroundColor: '#F3F4F6' }} />
         ) : (
-          <View style={{ width: '100%', height: compPhotoHeight, borderRadius: 12, backgroundColor: '#111827', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 11, color: COLORS.white, fontWeight: 900 }}>Comparable Property</Text>
+          // No listing photo on the MLS record (grader audit 11/13: the dark box read as a broken image)
+          <View style={{ width: '100%', height: compPhotoHeight, borderRadius: 12, backgroundColor: '#F3F4F6', border: `1 solid ${COLORS.border}`, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 11, color: '#6B7280', fontWeight: 700 }}>No listing photo available</Text>
+            <Text style={{ fontSize: 8.5, color: '#9CA3AF', marginTop: 3 }}>The MLS record for this home has no photo</Text>
           </View>
         )}
         <View style={{ position: 'absolute', top: 10, left: 10, backgroundColor: COMP_STATUS_HEX[comp.status] || '#374151', borderRadius: 12, paddingVertical: 4, paddingHorizontal: 10 }}>
@@ -2898,7 +2901,7 @@ function CmaChartsPageV2({ report, comparables, agent }: { report: CmaReport; co
   const valueNote = finalValue ? [
     'These are the prices the homes actually sold for, before adjusting for how each one differs from this home.',
     adjusted && Math.abs(adjusted - finalValue) >= 1000
-      ? `Adjusted for those differences they point to about ${formatMoney(adjusted)}, and the steps to the ${formatMoney(finalValue)} value are on the "From the Sales to the Value" page.`
+      ? `Adjusted for those differences they point to about ${formatMoney(adjusted)}, and each step from there to the ${formatMoney(finalValue)} value is listed under the value later in this report.`
       : `Adjusted for those differences they point to the ${formatMoney(finalValue)} value.`,
   ].join(' ') : null;
   return (
@@ -2941,8 +2944,14 @@ function CmaPricingPage({ report, comparables, agent }: { report: CmaReport; com
     : (suggested.min != null && suggested.max != null
         ? formatMoneyRange(suggested.min, suggested.max)
         : formatMoneyRange(report.pricing.recommended_min, report.pricing.recommended_max));
-  const authoritativeCommentary = aiEstimate?.methodology_summary
+  const rawCommentary = aiEstimate?.methodology_summary
     ?? (isBuyer ? report.pricing.offer_strategy_commentary : report.pricing.pricing_commentary);
+  // The value steps print as a table right under these notes (CmaValueBridgeBlocks). The same steps written
+  // out as sentences inside the notes ("How the value was reached: ... Together: $612,000.") said everything
+  // twice and made the page dense (test round 11/13) - in the PDF the table carries them.
+  const authoritativeCommentary = aiEstimate?.value_bridge?.steps?.length
+    ? stripBridgeSentences(rawCommentary)
+    : rawCommentary;
   const commentarySections = cmaGuidanceSections(authoritativeCommentary);
 
   return (
@@ -2984,6 +2993,8 @@ function CmaPricingPage({ report, comparables, agent }: { report: CmaReport; com
         </View>
       )}
 
+      <CmaValueBridgeBlocks report={report} />
+
       <CmaPageFooter agent={agent} />
     </Page>
   );
@@ -2995,17 +3006,29 @@ function CmaPricingPage({ report, comparables, agent }: { report: CmaReport; com
 // earlier listings and the last sale. Hidden with the rest of the pricing pages. The per-sale adjustment
 // grid is agent-only (Studio "How we got there") - it is an internal worksheet, not a client page (grader
 // 11/01, 719 Beechwood Rd).
-function CmaValueBridgePage({ report, agent }: { report: CmaReport; agent: CmaPdfAgent }) {
+// "How the value was reached: <steps>. Together: $X." / "Together, that gives $X." - the backend's own wording
+// (cma_ai_service._bridge_client_text), sometimes lightly reworded by the final polish. Left alone if not found.
+export function stripBridgeSentences(text?: string | null): string | null | undefined {
+  if (!text) return text;
+  // (a paragraph break around the passage stays a paragraph break)
+  const out = text.replace(/\s*How the value was reached:[\s\S]*?Together[^.$]{0,24}\$[\d,]+\.\s*/,
+    (m) => (m.includes('\n') ? '\n\n' : ' '));
+  return out.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+// These blocks used to be a page of their own - a small table on an otherwise empty page (test round 11/13: a
+// 16-page PDF with several nearly blank pages). They now sit under the value they explain, on the value page,
+// and move to the next page together only when there is no room.
+function CmaValueBridgeBlocks({ report }: { report: CmaReport }) {
   const est = report.pricing.ai_estimate;
   const bridge = est?.value_bridge;
   const record = est?.property_record;
   if (!bridge && !record) return null;
   return (
-    <Page size="LETTER" style={cma.page}>
-      <CmaPdfHeader label="How the Value Was Reached" title="From the Sales to the Value" subtitle="Each step from what similar homes sold for to the final value" />
+    <View wrap={false}>
       {bridge && (
-        <View wrap={false} style={{ backgroundColor: COLORS.white, borderRadius: 10, padding: 12, border: `1 solid ${COLORS.border}`, borderTop: '3 solid #C9A24D', marginBottom: 10 }}>
-          <Text style={{ fontSize: 8.4, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1.1, color: COLORS.text, marginBottom: 6 }}>From the adjusted sales to the final value</Text>
+        <View wrap={false} style={{ backgroundColor: COLORS.white, borderRadius: 10, padding: 12, border: `1 solid ${COLORS.border}`, borderTop: '3 solid #C9A24D', marginTop: 12, marginBottom: 10 }}>
+          <Text style={{ fontSize: 8.4, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1.1, color: COLORS.text, marginBottom: 6 }}>From the sales to the value - each step</Text>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 }}>
             <Text style={{ fontSize: 8.4, fontWeight: 700, color: COLORS.text }}>What similar homes sold for, adjusted for their differences</Text>
             <Text style={{ fontSize: 8.4, fontWeight: 900, color: COLORS.text }}>{formatMoney(bridge.adjusted_sales_value)}</Text>
@@ -3049,8 +3072,7 @@ function CmaValueBridgePage({ report, agent }: { report: CmaReport; agent: CmaPd
           ))}
         </View>
       ) : null}
-      <CmaPageFooter agent={agent} />
-    </Page>
+    </View>
   );
 }
 
@@ -3258,7 +3280,6 @@ export const CmaPresentationDocument = ({ report, agent }: { report: CmaReport; 
       {!hidden.has('charts') && comparables.length > 0 && <CmaChartsPageV2 report={report} comparables={comparables} agent={agent} />}
       {!hidden.has('competition') && <CmaCompetitionPage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaPricingPage report={report} comparables={comparables} agent={agent} />}
-      {!hidden.has('pricing') && <CmaValueBridgePage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaInspectionConcernsPage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaOfferSuggestionPage report={report} agent={agent} />}
       {!hidden.has('pricing') && <CmaPricingStrategyPage report={report} agent={agent} />}

@@ -3012,6 +3012,7 @@ export interface CmaComparable {
   close_date?: string | null;
   sale_date?: string | null;
   price_verified?: boolean;          // false => must not feed valuation math
+  builder_base_price?: boolean | null; // new construction sold above the builder's base price: no "% over asking"
   days_on_market?: number | null;
   cdom?: number | null;
 
@@ -3503,7 +3504,7 @@ export interface CmaValuationTrace {
   subject_asking?: number | null;
   ai_value_cross_check?: number | null;
   final_fmv?: number;
-  asking_price_check?: { asking_price?: number; ratio_used?: number; expected_sale_price?: number; allowed_low_price?: number; allowed_high_price?: number; passed_over?: boolean } | null;
+  asking_price_check?: { asking_price?: number; ratio_used?: number; expected_sale_price?: number; allowed_low_price?: number; allowed_high_price?: number; passed_over?: boolean; buyer_report?: boolean } | null;
   pending_competition?: { nudged_from?: number | null; nudge_pct?: number; pendings_used?: { street_address?: string }[] } | null;
   range_pct?: number;
   range_floor_pct?: number;

@@ -13,6 +13,7 @@ import {
   CmaGuidanceSection, cmaGuidanceSections, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, COMP_STATUS_BADGE_STYLE,
   AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_STYLES, STRENGTH_LABEL, STRENGTH_SCALE_STYLES, STRENGTH_STYLES,
   buyerOfferFigures, buyerOfferLabels, basementDisplay, materialIssuesText, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft,
+  cleanUtilityList,
 } from '@/lib/cma'
 import { CmaPresentationDocument } from '@/lib/pdfs'
 import { googleMapsLoader } from '@/lib/googleMapsLoader'
@@ -861,7 +862,8 @@ function OverviewRow({ index, label, subjectValue, comparables, get }: { index: 
   )
 }
 
-function formatUtilityValue(value?: string[] | string | null) {
+function formatUtilityValue(raw?: string[] | string | null) {
+  const value = cleanUtilityList(raw)
   if (!value) return '-'
   if (Array.isArray(value)) return value.filter(Boolean).join(', ') || '-'
   return value

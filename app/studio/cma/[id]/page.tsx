@@ -34,6 +34,7 @@ import {
   average, cmaSupportCode, compDisplayPrice, resolveCmaMarketMetrics, effectiveCompPrice, formatCompactNumber, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber,
   median, normalizeStrength, pricePerSqft, strongComps, sortComparables, splitCmaBuyerGuidance,
   type CmaCompetitionHome, competitionHomeAsComparable,
+  cleanUtilityList,
 } from '@/lib/cma'
 import { CmaPresentationDocument } from '@/lib/pdfs'
 import { acresToSqft, MatchScoreDetails, sameDistrict, sqftToAcres } from '@/lib/matchScore'
@@ -4750,7 +4751,8 @@ function QualityRow({ label, options, value, onChange, colorCoded }: { label: st
   )
 }
 
-function formatUtilityValue(value?: string[] | string | null) {
+function formatUtilityValue(raw?: string[] | string | null) {
+  const value = cleanUtilityList(raw)
   if (!value) return '—'
   if (Array.isArray(value)) return value.filter(Boolean).join(', ') || '—'
   return value
@@ -4825,9 +4827,11 @@ function ComparisonTable({ subject, comparables }: { subject: CmaSubjectProperty
 }
 
 function PsfChart({ subject, comparables }: { subject: CmaSubjectProperty, comparables: CmaComparable[] }) {
+  // Above-grade for the comps too, like the subject and the table beside it (CMA test 11/13: comps
+  // with a finished basement showed $282 here vs $307 in the table - the subject looked pricier).
   const bars = comparables.map((c, i) => ({
     label: `#${i + 1}`,
-    value: pricePerSqft(effectiveCompPrice(c), c.sqft) ?? 0,
+    value: pricePerSqft(effectiveCompPrice(c), agSqft(c)) ?? 0,
   }))
   const subjectPsf = subject.list_price && agSqft(subject) ? pricePerSqft(subject.list_price, agSqft(subject)) : null
   const max = Math.max(...bars.map(b => b.value), subjectPsf || 0, 1)
@@ -4931,6 +4935,7 @@ function AgentValueReviewBanner({ report }: { report: CmaReport }) {
   const est = report.pricing?.ai_estimate as (CmaReport['pricing']['ai_estimate'] & {
     current_competition?: { review?: string | null }
     missed_sales?: { message?: string | null } | null
+    data_freshness?: { message?: string | null } | null
   }) | null | undefined
   const note = est?.agent_review
   // Every agent-only review note at once (10/25: a recent same-community sale left out of the report
@@ -4940,6 +4945,8 @@ function AgentValueReviewBanner({ report }: { report: CmaReport }) {
   if (note?.message) notes.push({ text: note.message, values: note })
   if (est?.current_competition?.review) notes.push({ text: est.current_competition.review, values: null })
   if (est?.missed_sales?.message) notes.push({ text: est.missed_sales.message, values: null })
+  // MLS data more than a day old when this report was made (grader audit 11/13)
+  if (est?.data_freshness?.message) notes.unshift({ text: est.data_freshness.message, values: null })
   if (!notes.length) return null
   return (
     <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-sm dark:border-amber-900/40 dark:bg-amber-900/10">

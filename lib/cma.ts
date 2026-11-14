@@ -257,11 +257,26 @@ export function compPricePerSqft(c: CmaComparable): number | null {
 // Sold price / last asking price, e.g. 1.138 for a sale 13.8% over asking. Verified sales only.
 export function compSoldToAsking(c: CmaComparable): number | null {
   if (c.status !== 'sold' || !isPriceVerified(c)) return null
+  // A builder lists the base price; the close includes the buyer's options - not an asking-price result (11/13)
+  if (isBuilderBasePriceSale(c)) return null
   const sold = c.sale_price ?? c.close_price ?? null
   const asking = c.list_price ?? null
   return sold && asking ? sold / asking : null
 }
+// A home on public sewer isn't on septic, whatever a listing agent ticked ("Public Sewer, Public Septic"
+// on a 52nd-floor condo - grader audit 11/13): the septic entry is dropped from utility lists.
+export function cleanUtilityList(value?: string[] | string | null): string[] | string | null | undefined {
+  if (!Array.isArray(value)) return value
+  const vals = value.filter(Boolean)
+  const sewer = vals.some(v => /sewer/i.test(v) && !/no/i.test(v))
+  return sewer && vals.some(v => /septic/i.test(v)) ? vals.filter(v => !/septic/i.test(v)) : vals
+}
+export function isBuilderBasePriceSale(c: CmaComparable): boolean {
+  return (c as { builder_base_price?: boolean | null }).builder_base_price === true
+}
+export const BUILDER_BASE_PRICE_LABEL = 'New build: base price plus upgrades'
 export function formatSoldToAsking(c: CmaComparable): string | null {
+  if (c.status === 'sold' && isPriceVerified(c) && isBuilderBasePriceSale(c)) return BUILDER_BASE_PRICE_LABEL
   const r = compSoldToAsking(c)
   if (r == null) return null
   const fmt = (x: number) => { const p = Math.round((x - 1) * 1000) / 10; return p === 0 ? 'at' : `${Math.abs(p)}% ${p > 0 ? 'over' : 'under'}` }
@@ -401,7 +416,7 @@ export function buildAdjustmentGrid(estimate?: CmaAiEstimate | null): CmaAdjustm
       // market-time discount as an explicit, labeled step").
       label: apc?.passed_over ? 'Market-time trim (listed longer than its comps took to sell)' : 'Final valuation pass',
       amount: passValue - formulaValue,
-      note: apc?.asking_price && apc?.ratio_used
+      note: apc?.asking_price && apc?.ratio_used && !apc?.buyer_report
         ? `Weighs condition, location and how homes here sell against asking (about ${Math.round(apc.ratio_used * 100)}% of asking), kept within ${formatMoney(apc.allowed_low_price ?? null)}–${formatMoney(apc.allowed_high_price ?? null)} of what this home's ${formatMoney(apc.asking_price)} asking price implies.`
         : 'Weighs condition, location and market tempo beyond what the adjusted sales capture.',
     })
@@ -534,7 +549,9 @@ export function computeMarketMetrics(comparables: CmaComparable[]): CmaMarketMet
     .map(c => [effectiveCompPrice(c), compWeight(c)] as [number | null, number])
     .filter((r): r is [number, number] => r[0] != null && r[1] > 0)
   const psfRows: [number, number][] = pool
-    .map(c => [pricePerSqft(effectiveCompPrice(c), c.sqft), compWeight(c)] as [number | null, number])
+    // Same above-grade basis as every other $/sqft (psfBasisSqft) - total area here made a comp
+    // with a finished basement read cheaper per foot than the subject on the same report (11/13).
+    .map(c => [compPricePerSqft(c), compWeight(c)] as [number | null, number])
     .filter((r): r is [number, number] => r[0] != null && r[1] > 0)
 
   const prices = priceRows.map(r => r[0])
