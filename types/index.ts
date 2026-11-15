@@ -2155,8 +2155,12 @@ export interface BlogAiReview {
   issues_fixed?: number
   open_issues?: { kind?: string; severity?: string; quote?: string; problem?: string }[]
   fixed_issues?: { kind?: string; severity?: string; quote?: string; problem?: string; replace?: string }[]
-  sources?: { name?: string; url?: string | null; as_of?: string | null; topic?: string }[]
+  sources?: { name?: string; url?: string | null; as_of?: string | null; topic?: string; read?: string | null }[]
   source_count?: number
+  /** The agent changed the article's words after the fact-check (those edits were not checked). */
+  edited?: boolean
+  /** Each question or point from the agent's brief and whether the article answers it. */
+  brief_points?: { point: string; status: 'answered' | 'partly' | 'said_no_data' | 'not_answered'; note?: string; open?: boolean }[]
   evidence_count?: number
   data_as_of?: string
   scores?: Partial<Record<'accuracy' | 'local_specificity' | 'usefulness' | 'voice' | 'readability' | 'seo' | 'compliance', number>>
@@ -2191,7 +2195,9 @@ export interface BlogListItem {
   updated_at?: string | null;
   created_at: string;
   view_count: number;
-  ai_state?: 'interview' | 'running' | 'failed' | null;
+  ai_state?: 'interview' | 'running' | 'overnight' | 'failed' | null;
+  /** An overnight article: when it is likely ready (ISO time). */
+  ai_ready_at?: string | null;
 }
 
 export interface BlogAnalytics {
@@ -4268,6 +4274,8 @@ export interface BlogAiBrief {
   sale_ids: string[]
   /** Towns (Areas slugs) to add a Town Spotlight section for. */
   area_slugs?: string[]
+  /** Asked only when the town is outside the agent's states: false = the article offers an introduction to a licensed agent. */
+  licensed_there?: boolean | null
   listings: LinkedProperty[]
   /** One of the agent's videos to tie in - the AI writes a section for it and it's embedded there. */
   video?: { url: string; title?: string }
@@ -4278,6 +4286,8 @@ export interface BlogAiBrief {
   blog_id?: string
   /** 'max' (Premium) / 'lean' = the researched, fact-checked pipeline; omitted = the quick single-step writer. */
   engine?: 'max' | 'lean'
+  /** Write it overnight: the same article for about half the AI usage, ready in an hour or two instead of minutes. */
+  overnight?: boolean
 }
 
 export interface BlogAiGenerateResult {

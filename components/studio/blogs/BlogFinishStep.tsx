@@ -133,7 +133,7 @@ export default function BlogFinishStep({ ctx, blocks, areas, value, onChange, ca
   value: FinishChoices
   onChange: (next: FinishChoices) => void
   canSignature: boolean
-  /** The video picked before writing is already in its section. */
+  /** The video picked before writing is already in the article (11/15 on: as a related video at the end). */
   videoInArticle?: boolean
   /** Sales / listings were already picked for the article in the interview. */
   usedSales?: boolean
@@ -159,6 +159,9 @@ export default function BlogFinishStep({ ctx, blocks, areas, value, onChange, ca
   }, [ctx, areas])
   const already = [hasSales && 'your sales', hasListings && 'your listings', hasVideos && 'a video', hasSpotlight && 'a Town Spotlight'].filter(Boolean) as string[]
   const spot = videoSpot(blocks)
+  // A video picked before writing is a "Related video" card at the end (11/15) - nothing to move. An older article's
+  // video sits inside a section and can still be moved.
+  const relatedVideo = !spot && blocks.some(b => b.type === 'video_showcase')
   const set = (patch: Partial<FinishChoices>) => onChange({ ...value, ...patch })
   const setVideo = (url: string, title?: string) => {
     setVideoUrl(url)
@@ -184,15 +187,15 @@ export default function BlogFinishStep({ ctx, blocks, areas, value, onChange, ca
       {videoInArticle ? (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-900/15">
           {/* One text run (the words used to split into three cramped flex columns on a phone). */}
-          <p className="flex items-start gap-2 text-xs font-bold leading-snug text-emerald-800 dark:text-emerald-300"><Clapperboard className="mt-px h-4 w-4 shrink-0 text-emerald-600" /><span className="min-w-0">Your video is in the article{spot ? <> - <span className="font-black">{spot.label}</span></> : null}.</span></p>
-          <label className="mt-2 block">
+          <p className="flex items-start gap-2 text-xs font-bold leading-snug text-emerald-800 dark:text-emerald-300"><Clapperboard className="mt-px h-4 w-4 shrink-0 text-emerald-600" /><span className="min-w-0">{relatedVideo ? <>Your video is at the end of the article, under <span className="font-black">Related video</span>.</> : <>Your video is in the article{spot ? <> - <span className="font-black">{spot.label}</span></> : null}.</>}</span></p>
+          {!relatedVideo && <label className="mt-2 block">
             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700/70 dark:text-emerald-300/70">Where it goes</span>
             <select value={value.moveVideo || (spot?.headingId ? `section:${spot.headingId}` : 'after_intro')} onChange={e => set({ moveVideo: e.target.value })} className="mt-1 w-full min-w-0 truncate rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-base font-bold sm:py-2 sm:text-sm text-[#111827] outline-none focus:border-[#C9A24D] dark:border-emerald-900/50 dark:bg-[#1A1A1C] dark:text-white">
               <option value="after_intro">Right after the intro</option>
               {heads.map(h => <option key={h.id} value={`section:${h.id}`}>In: {headingText(h).slice(0, 60)}</option>)}
               <option value="before_end">Just before the ending</option>
             </select>
-          </label>
+          </label>}
         </div>
       ) : (
       <Card icon={Clapperboard} title="Add a video" hint="A YouTube link, or one from your Agent Hub.">
@@ -240,7 +243,7 @@ export default function BlogFinishStep({ ctx, blocks, areas, value, onChange, ca
         )}
         {(!hasSales || !hasListings || !hasVideos || (!hasSpotlight && spotCards.length > 0)) && (
           <>
-            <p className="mb-2 mt-3 text-[10px] font-black uppercase tracking-widest text-gray-400">Show your work above it <span className="normal-case tracking-normal">· optional</span></p>
+            <p className="mb-2 mt-3 text-[10px] font-black uppercase tracking-widest text-gray-400">Related content above it <span className="normal-case tracking-normal">· optional</span></p>
             <div className="grid gap-2 sm:grid-cols-3">
               {!hasSales && <PitchOption icon={Tag} label={sales.local && place ? `Recent Sales in ${place}` : 'Recent Sales'} count={sales.items.length} on={!!value.sales} disabled={!sales.items.length} empty="Add sales on your Agent Hub"
                 onClick={() => toggle('sales', defaultSales(sales.items))} />}
@@ -253,7 +256,7 @@ export default function BlogFinishStep({ ctx, blocks, areas, value, onChange, ca
             </div>
           </>
         )}
-        {already.length > 0 && <p className="mt-2 text-[10px] font-semibold text-gray-400">Already in the article: {already.join(', ')}.</p>}
+        {already.length > 0 && <p className="mt-2 text-[10px] font-semibold text-gray-400">Already at the end of the article: {already.join(', ')}.</p>}
         <AnimatePresence initial={false}>
           {value.sales && !hasSales && <PickRow key="s" title="Which sales" items={sales.items} picked={value.sales} onFlip={id => flip('sales', id)} dated />}
           {value.listings && !hasListings && <PickRow key="l" title="Which listings" items={listings.items} picked={value.listings} onFlip={id => flip('listings', id)} />}

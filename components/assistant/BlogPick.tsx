@@ -7,6 +7,8 @@ import { youtubeIdOf } from '@/components/studio/blogs/ShowcaseBlocks'
 import { BLOG_THEMES, CLASSIC_BLOG_ACCENTS, blogTheme } from '@/components/studio/blogs/BlogThemes'
 import { LUXE_METALS, LUXE_METAL_ORDER, type LuxeMetal } from '@/lib/luxeMetals'
 import { CardStep, OPTION_GRID, PickShell, StepDone, chip, useSteps } from './CardPickers'
+import { recommendSales, type BlogPriceHint } from '@/lib/blogSales'
+import { usageRange } from '@/lib/blogOvernight'
 import { PhotoDrop } from './PhotoDrop'
 
 // The Blogs page's AI writer interview, as the chat card's steps (owner, 11/01: "exactly how it would
@@ -15,6 +17,8 @@ import { PhotoDrop } from './PhotoDrop'
 // Video, Style. Each step stays open while they check things, and its Done folds it.
 export type BlogPicks = {
   topic: string; goal: string; tone: string; length: string; cta: string
+  /** Save usage (the default: the same article made slower, about half the AI) or right now. */
+  when: 'save' | 'now'
   audiences: string[]; areas: string[]; spotlight: boolean
   points: string[]; key_points: string; personal_take: string; facts: string
   sale_ids: string[]; listing_ids: string[]; video: { url: string; title?: string } | null
@@ -23,7 +27,7 @@ export type BlogPicks = {
   agent_hub_visible: boolean; agent_hub_featured: boolean; idx_visible: boolean; use_signature_card: boolean
 }
 const CATEGORIES = ['Buyers', 'Sellers', 'Market Updates', 'Neighborhoods', 'Homeownership', 'Luxury', 'Investments', 'Open Houses', 'Local Guides', 'New Construction', 'Real Estate News']
-type Sale = { id: string; address: string; city: string; price?: number | null; date?: string; photo?: string | null }
+type Sale = { id: string; address: string; city: string; price?: number | null; date?: string; sold?: string; photo?: string | null }
 type Listing = { id: string; address: string; city?: string; price?: number | null; beds?: number; baths?: number; image_url?: string | null }
 type Video = { id: string; title?: string; url: string; image?: string | null; kind?: string }
 
@@ -62,7 +66,9 @@ const Label = ({ children }: { children: React.ReactNode }) => (
 const inputCls = 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-800 outline-none focus:border-[#C9A24D] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100'
 
 export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, any>; picks: BlogPicks; onPicks: (p: BlogPicks) => void }) {
-  const opts = (payload.options || {}) as { areas?: string[]; area_cards?: Record<string, string>; sales?: Sale[]; listings?: Listing[]; videos?: Video[]; angles?: string[]; goals?: string[]; point_ideas?: string[]; luxe_ok?: boolean; idx_ok?: boolean }
+  const opts = (payload.options || {}) as { areas?: string[]; area_cards?: Record<string, string>; sales?: Sale[]; listings?: Listing[]; videos?: Video[]; angles?: string[]; goals?: string[]; point_ideas?: string[]; luxe_ok?: boolean; idx_ok?: boolean
+    takes?: string[]; price?: BlogPriceHint; sales_town?: string | null; paused?: string | null }
+  const takes = opts.takes || []
   const given = String((payload.body || {}).topic || '')
   const angles = Array.from(new Set([given, ...(opts.angles || [])].filter(Boolean)))
   const goals = opts.goals || []
@@ -71,25 +77,37 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
   const sales = opts.sales || []
   const listings = opts.listings || []
   const videos = (opts.videos || []).filter(v => youtubeIdOf(v.url))
-  const ids = ['topic', 'readers', 'points', ...(sales.length || listings.length ? ['homes'] : []), 'video', 'style', 'look', 'cover', 'where']
+  const pctSave = (payload.percents_save || {}) as Record<string, number>
+  const saveTimes = (payload.save_times || {}) as { typical_minutes?: number; max_minutes?: number; cap_minutes?: number }
+  const canSave = Object.keys(pctSave).length > 0
+  const ids = ['topic', 'readers', 'points', ...(sales.length || listings.length ? ['homes'] : []), 'video', 'style', ...(canSave ? ['when'] : []), 'look', 'cover', 'where']
   const steps = useSteps(ids)
   const n = (id: string) => ids.indexOf(id) + 1
   const set = (p: Partial<BlogPicks>) => onPicks({ ...picks, ...p })
   const toggle = (list: string[], v: string, max: number) => (list.includes(v) ? list.filter(x => x !== v) : list.length >= max ? list : [...list, v])
   const pct = (payload.percents || {}) as Record<string, number>
-  const pctText = (ln: string) => (typeof pct[ln] === 'number' ? `about ${pct[ln] < 1 ? 'under 1' : Math.round(pct[ln])}% of your AI` : '')
+  const saving = canSave && picks.when !== 'now'
+  // what this article uses the way it is set to be written right now
+  const pctText = (ln: string, how: 'save' | 'now' = saving ? 'save' : 'now') => {
+    // Save usage: a range - the lower figure when the slower line answers every step (the usual case), the higher
+    // one when the 30-minute cap had to finish it the fast way. The agent pays what it really used.
+    const text = how === 'save' ? usageRange(pctSave[ln], pct[ln]) : usageRange(pct[ln])
+    return text ? `about ${text} of your AI` : ''
+  }
   const few = (list: string[], none: string) => (list.length ? (list.length > 2 ? `${list.slice(0, 2).join(', ')} +${list.length - 2}` : list.join(', ')) : none)
   const [own, setOwn] = useState('')
   const [townDraft, setTownDraft] = useState('')
   const [moreSales, setMoreSales] = useState(5)
   const [paste, setPaste] = useState('')
+  const [videoSearch, setVideoSearch] = useState('')
 
-  // Sales in the towns they checked come first (the page's "Recommended"), then the rest, newest first.
+  // The Blogs page's own rule (lib/blogSales): sales in the towns they checked, the ones closest in price to what the
+  // article is about first, then the most recent - then the rest, newest first.
+  const fit = useMemo(() => recommendSales(sales, picks.areas, opts.price, s => s.sold || s.date || ''), [sales, picks.areas, opts.price])
   const salesSorted = useMemo(() => {
-    const want = picks.areas.map(a => a.toLowerCase().split(',')[0].trim())
-    const inTown = (s: Sale) => want.some(w => (s.city || '').toLowerCase().includes(w))
-    return [...sales.filter(inTown), ...sales.filter(s => !inTown(s))]
-  }, [sales, picks.areas])
+    const top = new Set(fit.recommended.map(s => s.id))
+    return [...fit.recommended, ...sales.filter(s => !top.has(s.id))]
+  }, [sales, fit])
   // The agent's videos whose titles share words with the article come first, marked "Fits".
   const { fits, rest } = useMemo(() => {
     const words = Array.from(new Set(([picks.topic, picks.goal, ...picks.points, ...picks.areas].join(' ').toLowerCase().match(/[a-z][a-z'-]{3,}/g) || []))).filter(w => !STOP.has(w))
@@ -120,6 +138,7 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
       </div>
     }>
       <CardStep id="topic" n={n('topic')} title="Topic" summary={picks.topic} steps={steps}>
+        {opts.paused && <p className="mb-2 text-[11px] font-semibold text-amber-700 dark:text-amber-300" data-testid="ai-blog-paused">{opts.paused}</p>}
         <Label>The angle</Label>
         <div className={OPTION_GRID} data-testid="ai-blog-angles">
           {angles.map(a => <Check2 key={a} round on={picks.topic === a} onClick={() => set({ topic: a })} sub={a === given ? 'What you asked for' : undefined}>{a}</Check2>)}
@@ -166,6 +185,11 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
           <button type="button" onClick={addOwn} disabled={!own.trim()} className="rounded-xl bg-[#111827] px-3 text-[11px] font-black text-white disabled:opacity-40 dark:bg-[#C9A24D] dark:text-[#111827]">Add</button>
         </div>
         <Label>Your take (optional)</Label>
+        {takes.length > 0 && (
+          <div className={`${OPTION_GRID} mb-1.5`} data-testid="ai-blog-takes">
+            {takes.map(t => <Check2 key={t} round on={picks.personal_take === t} onClick={() => set({ personal_take: picks.personal_take === t ? '' : t })} sub={picks.personal_take === t ? 'Make it yours below' : undefined}>{t}</Check2>)}
+          </div>
+        )}
         <textarea value={picks.personal_take} onChange={e => set({ personal_take: e.target.value })} rows={2} maxLength={2000}
           placeholder="A local story only you could tell - the AI weaves it in, in your voice" className={`${inputCls} resize-none`} />
         <Label>Numbers to cite (optional)</Label>
@@ -174,10 +198,11 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
       </CardStep>
 
       {(sales.length > 0 || listings.length > 0) && (
-        <CardStep id="homes" n={n('homes')} title="Your homes" summary={homesPicked ? `${homesPicked} picked` : 'Optional'} steps={steps}>
+        <CardStep id="homes" n={n('homes')} title="Related homes" summary={homesPicked ? `${homesPicked} picked` : 'Optional'} steps={steps}>
+          <p className="mb-1.5 text-[11px] font-semibold text-gray-500 dark:text-zinc-400" data-testid="ai-blog-homes-note">Shown as cards at the end of the article, under Related. The AI doesn&apos;t write about them, unless your title is about your own sales.</p>
           {sales.length > 0 && (
             <>
-              <Label>Your sales · up to {MAX_SALES}</Label>
+              <Label>Your sales · up to {MAX_SALES}{fit.recommended.length > 0 ? (fit.byPrice ? ' · closest in price first' : ' · the ones that fit first') : ''}</Label>
               <div className={OPTION_GRID} data-testid="ai-blog-sales">
                 {salesSorted.slice(0, moreSales).map((x, i) => (
                   <Check2 key={x.id} on={picks.sale_ids.includes(x.id)} onClick={() => set({ sale_ids: toggle(picks.sale_ids, x.id, MAX_SALES) })}
@@ -185,7 +210,7 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
                     <span className="flex items-center gap-1.5">
                       {x.photo && <img src={resolveMediaUrl(x.photo)} alt="" loading="lazy" className="h-6 w-8 shrink-0 rounded object-cover" />}
                       <span className="truncate">{x.address}</span>
-                      {i < 6 && picks.areas.length > 0 && picks.areas.some(a => (x.city || '').toLowerCase().includes(a.toLowerCase().split(',')[0].trim())) && <Star className="h-3 w-3 shrink-0 fill-[#C9A24D] text-[#C9A24D]" />}
+                      {i < fit.recommended.length && fit.recommended.some(r => r.id === x.id) && <Star className="h-3 w-3 shrink-0 fill-[#C9A24D] text-[#C9A24D]" />}
                     </span>
                   </Check2>
                 ))}
@@ -197,7 +222,7 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
           )}
           {listings.length > 0 && (
             <>
-              <Label>Your active listings (shown as home cards)</Label>
+              <Label>Your active listings (shown as cards at the end)</Label>
               <div className={OPTION_GRID}>
                 {listings.map(l => (
                   <Check2 key={l.id} on={picks.listing_ids.includes(l.id)} onClick={() => set({ listing_ids: toggle(picks.listing_ids, l.id, 6) })}
@@ -215,13 +240,16 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
         </CardStep>
       )}
 
-      <CardStep id="video" n={n('video')} title="Video" summary={picks.video ? (picks.video.title || 'Your video') : 'None'} steps={steps}>
+      <CardStep id="video" n={n('video')} title="Related video" summary={picks.video ? (picks.video.title || 'Your video') : 'None'} steps={steps}>
         {videos.length > 0 ? (
           <>
-            <p className="mb-1.5 text-[11px] font-semibold text-gray-500 dark:text-zinc-400">Pick one and the AI writes a section around it - the video sits right in it.</p>
-            {fits.length > 0 && <p className="mb-1 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]"><Star className="h-3 w-3 fill-current" /> Fits this article</p>}
+            <p className="mb-1.5 text-[11px] font-semibold text-gray-500 dark:text-zinc-400" data-testid="ai-blog-video-note">Shown at the end of the article as a related video. The AI doesn&apos;t write about it.</p>
+            {videos.length > 8 && (
+              <input value={videoSearch} onChange={e => setVideoSearch(e.target.value)} placeholder={`Search your ${videos.length} videos`} className={`${inputCls} mb-1.5`} data-testid="ai-blog-video-search" />
+            )}
+            {fits.length > 0 && !videoSearch.trim() && <p className="mb-1 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]"><Star className="h-3 w-3 fill-current" /> Fits this article</p>}
             <div className="-mx-0.5 flex gap-2 overflow-x-auto px-0.5 pb-1 [scrollbar-width:thin]" data-testid="ai-blog-videos">
-              {[...fits, ...rest].slice(0, 12).map(v => {
+              {[...fits, ...rest].filter(v => !videoSearch.trim() || (v.title || '').toLowerCase().includes(videoSearch.trim().toLowerCase())).map(v => {
                 const on = picks.video?.url === v.url
                 return (
                   <button key={v.id} type="button" title={v.title} aria-pressed={on} onClick={() => { set({ video: on ? null : { url: v.url, title: v.title } }); setPaste('') }}
@@ -267,6 +295,21 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
         </div>
         <div className="mt-2.5"><StepDone onDone={() => steps.done('style')} /></div>
       </CardStep>
+
+      {canSave && (
+        <CardStep id="when" n={n('when')} title="How soon" summary={saving ? 'Save usage · about half the AI' : 'Write it now'} steps={steps}>
+          <div className={OPTION_GRID} data-testid="ai-blog-when">
+            <Check2 round on={saving} onClick={() => set({ when: 'save' })}
+              sub={['Same article, made slower so it costs less', pctText(picks.length, 'save'), saveTimes.typical_minutes ? `usually about ${saveTimes.typical_minutes} minutes${saveTimes.max_minutes ? `, ${saveTimes.max_minutes} at most` : ''}` : ''].filter(Boolean).join(' · ')}>Save usage</Check2>
+            <Check2 round on={!saving} onClick={() => set({ when: 'now' })} sub={['Ready in 2-4 minutes', pctText(picks.length, 'now')].filter(Boolean).join(' · ')}>Write it now</Check2>
+          </div>
+          <p className="mt-1.5 text-[11px] font-semibold text-gray-500 dark:text-zinc-400">
+            Save usage is the same product - same research, same writing, same fact-check. It is made in a slower line, which is why it usually uses about half the AI (the lower figure).
+            {saveTimes.cap_minutes ? ` If that line is busy, we finish it the fast way after ${saveTimes.cap_minutes} minutes, and the steps finished that way use the normal amount - the higher figure is the most it can use.` : ''} You pay for what it really used.
+          </p>
+          <div className="mt-2.5"><StepDone onDone={() => steps.done('when')} /></div>
+        </CardStep>
+      )}
 
       <CardStep id="look" n={n('look')} title="Its look" summary={look.label} steps={steps}>
         <div className={OPTION_GRID} data-testid="ai-blog-themes">
@@ -315,8 +358,8 @@ export function BlogPick({ payload, picks, onPicks }: { payload: Record<string, 
           <Check2 on={picks.use_signature_card} onClick={() => set({ use_signature_card: !picks.use_signature_card })}>End with my email signature</Check2>
         </div>
       </CardStep>
-      {typeof pct[picks.length] === 'number' && (
-        <p className="px-0.5 text-[11px] font-semibold text-gray-500 dark:text-zinc-400">Uses {pctText(picks.length)} allowance · saved as a draft - nothing is published until you say so</p>
+      {pctText(picks.length) && (
+        <p className="px-0.5 text-[11px] font-semibold text-gray-500 dark:text-zinc-400">Uses {pctText(picks.length)} allowance{saving ? ' (Save usage)' : ''} · saved as a draft - nothing is published until you say so</p>
       )}
     </PickShell>
   )

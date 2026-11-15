@@ -331,7 +331,14 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
   const [kit, setKit] = useState<KitPicks>(() => kitStart((action.payload || {}) as Record<string, any>))
   const blogBody = ((action.payload as any)?.body || {}) as Record<string, string>
   const blogList = (k: string) => (Array.isArray((blogBody as any)[k]) ? (blogBody as any)[k] as string[] : [])
-  const [blog, setBlog] = useState<BlogPicks>({ topic: blogBody.topic || '', goal: blogBody.goal || '', tone: blogBody.tone || 'warm', length: blogBody.length || 'standard',
+  // The tone and length of their last article start picked, like on the Blogs page - unless they named one in chat.
+  const blogStyleKey = user?.id ? `blog-ai-style:${user.id}` : null
+  const blogLast = (() => { try { return (isBlog && blogStyleKey && JSON.parse(localStorage.getItem(blogStyleKey) || '{}')) || {} } catch { return {} } })() as { tone?: string; length?: string }
+  const blogSaid = (((action.payload as any)?.options || {}).said || {}) as { tone?: boolean; length?: boolean }
+  const [blog, setBlog] = useState<BlogPicks>({ topic: blogBody.topic || '', goal: blogBody.goal || '',
+    tone: (!blogSaid.tone && blogLast.tone) || blogBody.tone || 'warm',
+    length: (!blogSaid.length && (blogBody.length || 'standard') === 'standard' && blogLast.length) || blogBody.length || 'standard',
+    when: (blogBody as any).overnight === false ? 'now' : 'save',
     cta: blogBody.cta || 'how_can_i_help', audiences: blogList('audiences'), areas: blogList('areas'), spotlight: true,
     points: [], key_points: blogBody.key_points || '', personal_take: '', facts: '', sale_ids: [], listing_ids: [], video: null,
     theme: 'luxe', luxe_metal: 'gold', accent_color: null, category: '', cover: ((action.payload as any)?.options?.attached_cover as string) || null,
@@ -398,7 +405,8 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
     let end = { status: 'failed', link: '' }
     setBusy(kind)
     const r = kind === 'confirm'
-      ? await api.ai.confirmAction(action.record_id, messageId, { ...(picks as Record<string, unknown> | undefined), ...extra })
+      ? await (isBlog && blogStyleKey && (() => { try { localStorage.setItem(blogStyleKey, JSON.stringify({ tone: blog.tone, length: blog.length })) } catch { /* private mode */ } })(),
+          api.ai.confirmAction(action.record_id, messageId, { ...(picks as Record<string, unknown> | undefined), ...extra }))
       : await api.ai.cancelAction(action.record_id, messageId)
     const data = r.data as (typeof r.data & { client_action?: string; payload?: Record<string, unknown> }) | undefined
     if (r.success && data?.status === 'running' && data.client_action) {

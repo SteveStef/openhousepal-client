@@ -5,63 +5,50 @@ import OhpLoader from '@/components/brand/OhpLoader'
 
 import Link from 'next/link'
 import { LUXE_METALS, LUXE_METAL_ORDER, metalOf } from '@/lib/luxeMetals'
-import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { smartBack } from '@/lib/navHistory'
-import { AnimatePresence, Reorder, motion, useDragControls, type Variants } from 'framer-motion'
+import { AnimatePresence, motion, type Variants } from 'framer-motion'
 import { LuxeSurface } from '@/components/ui/LuxeSurface'
+import { readyClock } from '@/lib/blogOvernight'
 import { WhenSheet, addDays, nextWeekday, whenText, ymd } from '@/components/ui/WhenPicker'
 import BlogThemeLivePreview from '@/components/studio/blogs/BlogThemeLivePreview'
-import AreaSpotlightSection, { type AreaCard } from '@/components/studio/blogs/AreaSpotlightSection'
 import { MapPin as MapPinIcon, Lock } from 'lucide-react'
 import {
-  AlignCenter, AlignLeft, ArrowLeft, Archive, Bold, Calendar, Check, ChevronDown, Crown, Eye, EyeOff, GripVertical,
-  ExternalLink, ImagePlus, Italic, Link2, Loader2, Mail, Newspaper, Palette, PenLine, Plus, QrCode as QrCodeIcon, Quote as QuoteIcon,
-  Save, Search, Share2, ShieldAlert, ShieldCheck, Sparkles, Strikethrough, Trash2, Underline, User as UserIcon, Video, Wand2, X,
+  ArrowLeft, Archive, Calendar, Check, ChevronDown, Crown, Eye, EyeOff,
+  ExternalLink, ImagePlus, Link2, Loader2, Newspaper, Palette, PenLine,
+  Save, Search, Share2, ShieldAlert, ShieldCheck, Sparkles, X,
 } from 'lucide-react'
-import { ClipboardList as ClipboardListIcon } from 'lucide-react'
-import { Eye as EyeIcon, EyeOff as EyeOffIcon, ChevronRight as ChevronRightIcon, RotateCcw as RotateCcwIcon } from 'lucide-react'
+import { EyeOff as EyeOffIcon, ChevronRight as ChevronRightIcon } from 'lucide-react'
 import { hasEmailSignatureAccess, getNavFeatureAccess } from '@/lib/navAccess'
-import { qrDataUrl } from '@/lib/qr'
 import api, { resolveMediaUrl, type LinkableAreas } from '@/lib/api-service'
 import { notify } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
 import GoogleVisibilityNote from '@/components/ui/GoogleVisibilityNote'
-import { AgentFormConfig, Blog, BlogAiContext, BlogAiRefineAction, BlogBlock, BrandKit, LinkedProperty } from '@/types'
-import { ADDABLE_BLOG_BLOCK_TYPES, BLOG_CATEGORIES, BLOG_CTA_FORMS, ctaFormTypeOf, textStyleClasses } from '@/lib/studio/blogTopics'
+import { Blog, BlogAiContext, BlogAiRefineAction, BlogBlock, BrandKit } from '@/types'
+import { BLOG_CATEGORIES } from '@/lib/studio/blogTopics'
 import { buildGenericDefaultBlocks } from '@/lib/studio/designFormats'
-import { escapeHtml } from '@/lib/studio/sanitizeHtml'
-import BlogArticleBody, { PropertyCardDisplay } from '@/components/studio/blogs/BlogArticleBody'
+import BlogArticleBody from '@/components/studio/blogs/BlogArticleBody'
+import BlogCanvasEditor from '@/components/studio/blogs/editor/BlogCanvasEditor'
+import { REFINABLE_TYPES, unitRange } from '@/components/studio/blogs/editor/blockOps'
 import { BLOG_THEMES, BlogThemedArticle, CLASSIC_BLOG_ACCENTS, blogAccent, blogSignatureMatch, blogTheme, classicAccent } from '@/components/studio/blogs/BlogThemes'
 import LuxeUpgradePitch from '@/components/ui/LuxeUpgradePitch'
 import VerifiedPanel from '@/components/studio/blogs/VerifiedPanel'
 import AiCoverMaker from '@/components/studio/blogs/AiCoverMaker'
 import ConfirmationModal from '@/components/ConfirmationModal'
-import { PropertyShowcase, VideoShowcase } from '@/components/studio/blogs/ShowcaseBlocks'
-import { PaymentExample, SourcesList, type PaymentExampleData, type SourcesData } from '@/components/studio/blogs/ArticleDataBlocks'
 import BlogFinishStep, { applyFinish, emptyFinish, type FinishChoices } from '@/components/studio/blogs/BlogFinishStep'
 import { luxeBlogAllowed, luxeBlogUpgrade } from '@/lib/navAccess'
-import PropertySelector from '@/components/studio/PropertySelector'
 import BlogAiWriter from '@/components/studio/blogs/BlogAiWriter'
 import { startAiActivity, endAiActivity } from '@/lib/aiActivity'
 import AuthGuard from '@/components/AuthGuard'
-import { POPUP_Z, PopupPortal, PopupSheet, useAnchoredStyle, usePhoneWidth } from '@/components/ui/AnchoredPopup'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import { copyText } from '@/lib/copyText'
 import { markOwnerLink } from '@/lib/ownerDevice'
 
-function newBlock(type: BlogBlock['type']): BlogBlock {
-  return { id: `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, type, data: {} }
-}
-
-function richInitialHtml(data: any): string {
-  return data?.html ?? (data?.text ? escapeHtml(data.text) : '')
-}
-
 // ---------------------------------------------------------------------------
-// AI helpers - section refine (per H2 section) + whole-article Fair Housing check. Generation
-// itself lives in components/studio/blogs/BlogAiWriter.tsx (the guided interview).
+// The article itself is edited on the page: components/studio/blogs/editor (BlogCanvasEditor).
+// This file is the shell around it - the top bar, the Fact-check and Look tabs, Review & Publish.
+// AI generation lives in components/studio/blogs/BlogAiWriter.tsx (the guided interview).
 // ---------------------------------------------------------------------------
 
 function blockPlainText(b: BlogBlock): string {
@@ -69,15 +56,6 @@ function blockPlainText(b: BlogBlock): string {
   if (Array.isArray(d.items)) return d.items.join('\n')
   const raw = d.html || d.text || d.label || ''
   return String(raw).replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&bull;/g, '•').replace(/&nbsp;/g, ' ')
-}
-
-// A "section" = a heading block plus everything after it up to the next heading.
-function sectionRange(blocks: BlogBlock[], headingId: string): [number, number] | null {
-  const start = blocks.findIndex(b => b.id === headingId)
-  if (start === -1) return null
-  let end = start + 1
-  while (end < blocks.length && blocks[end].type !== 'heading') end++
-  return [start, end]
 }
 
 // Every heading starts a section that runs to the next heading. The editor groups blocks this way
@@ -98,244 +76,6 @@ function sectionInfo(blocks: BlogBlock[]) {
 }
 
 const headingText = (b: BlogBlock) => blockPlainText(b).trim() || 'Untitled section'
-
-const REFINE_ACTIONS: { id: BlogAiRefineAction; label: string }[] = [
-  { id: 'rewrite', label: 'Rewrite it fresher' },
-  { id: 'expand', label: 'Expand with more depth' },
-  { id: 'shorten', label: 'Make it shorter' },
-  { id: 'more_local', label: 'Make it more local' },
-  { id: 'more_personal', label: 'Make it more personal' },
-  { id: 'simplify', label: 'Simplify the language' },
-]
-
-function SectionRefineMenu({ onRun, onClose, busy }: { onRun: (action: BlogAiRefineAction, instruction?: string) => void; onClose: () => void; busy: boolean }) {
-  const [custom, setCustom] = useState('')
-  return (
-    <>
-      <button className="fixed inset-0 z-40 cursor-default" onClick={onClose} aria-label="Close" />
-      <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl dark:border-gray-800 dark:bg-[#1A1A1C]">
-        <p className="flex items-center gap-1 px-2 pb-1 pt-1 text-[9px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]"><Sparkles className="h-3 w-3" /> Refine this section with AI</p>
-        {REFINE_ACTIONS.map(a => (
-          <button key={a.id} disabled={busy} onClick={() => onRun(a.id)} className="block w-full rounded-lg px-3 py-1.5 text-left text-xs font-bold text-[#111827] hover:bg-[#C9A24D]/10 disabled:opacity-40 dark:text-white">{a.label}</button>
-        ))}
-        <div className="mt-1 flex gap-1 border-t border-gray-100 p-1.5 dark:border-gray-800">
-          <input value={custom} onChange={e => setCustom(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && custom.trim()) onRun('custom', custom.trim()) }} placeholder="Or tell it what to change…" className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-transparent px-2 py-1 text-xs outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:text-white" />
-          <button disabled={busy || !custom.trim()} onClick={() => onRun('custom', custom.trim())} className="rounded-lg bg-[#C9A24D] px-2 text-[#111827] disabled:opacity-40"><Wand2 className="h-3.5 w-3.5" /></button>
-        </div>
-        <p className="px-2 pb-1 text-[9px] font-semibold text-gray-400">Uses your monthly AI credits. Never adds new numbers.</p>
-      </div>
-    </>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Stable, module-scope building blocks (never redefined inside a render —
-// redefining an input-rendering component inside another component's body
-// makes React remount it on every keystroke, which is what was cutting off typing)
-// ---------------------------------------------------------------------------
-
-function AutoGrowTextarea({ value, onChange, placeholder, className }: { value: string; onChange: (value: string) => void; placeholder?: string; className?: string }) {
-  const ref = useRef<HTMLTextAreaElement>(null)
-  useEffect(() => {
-    if (ref.current) {
-      ref.current.style.height = 'auto'
-      ref.current.style.height = `${ref.current.scrollHeight}px`
-    }
-  }, [value])
-  return (
-    <textarea
-      ref={ref}
-      value={value}
-      onChange={event => onChange(event.target.value)}
-      placeholder={placeholder}
-      rows={1}
-      className={`w-full resize-none overflow-hidden bg-transparent outline-none placeholder:text-gray-300 dark:placeholder:text-gray-600 ${className || ''}`}
-    />
-  )
-}
-
-// Range-boundary comparison, not string/offset math, so it stays correct across inline marks
-// (bold/italic spans, links) instead of only counting one text node.
-function isCaretAtEnd(el: HTMLElement, range: Range): boolean {
-  const full = document.createRange()
-  full.selectNodeContents(el)
-  full.setStart(range.endContainer, range.endOffset)
-  return full.toString().length === 0
-}
-function isCaretAtStart(el: HTMLElement, range: Range): boolean {
-  const full = document.createRange()
-  full.selectNodeContents(el)
-  full.setEnd(range.startContainer, range.startOffset)
-  return full.toString().length === 0
-}
-
-// An uncontrolled contentEditable block: seeds its DOM once from `html` on mount and never
-// overwrites it again from props (only the parent's onChangeHtml -> saved state loop would trigger
-// that, and re-applying innerHTML on every keystroke is exactly what causes cursor loss/remounts).
-// The caller must key this by something that changes when the block should genuinely reset
-// (block id + type), not on ordinary content edits.
-function RichTextBlock({
-  html, placeholder, className, onChangeHtml, onEnterAtEnd, onBackspaceAtStart, onSlashChange, slashMenuOpen, registerRef,
-}: {
-  html: string
-  placeholder: string
-  className: string
-  onChangeHtml: (html: string) => void
-  onEnterAtEnd?: () => void
-  onBackspaceAtStart?: () => void
-  onSlashChange?: (query: string | null) => void
-  slashMenuOpen?: boolean
-  registerRef?: (el: HTMLDivElement | null) => void
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  const initialized = useRef(false)
-
-  useEffect(() => {
-    if (ref.current && !initialized.current) {
-      ref.current.innerHTML = html
-      initialized.current = true
-    }
-    registerRef?.(ref.current)
-    return () => registerRef?.(null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const handleInput = () => {
-    const el = ref.current
-    if (!el) return
-    onChangeHtml(el.innerHTML)
-    if (onSlashChange) {
-      const text = el.textContent || ''
-      onSlashChange(text.startsWith('/') ? text.slice(1) : null)
-    }
-  }
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (slashMenuOpen && (event.key === 'Enter' || event.key === 'Escape')) {
-      event.preventDefault()
-      return
-    }
-    if (event.key === 'Enter' && !event.shiftKey && onEnterAtEnd) {
-      const el = ref.current
-      const sel = window.getSelection()
-      if (el && sel && sel.rangeCount > 0 && isCaretAtEnd(el, sel.getRangeAt(0))) {
-        event.preventDefault()
-        onEnterAtEnd()
-        return
-      }
-    }
-    if (event.key === 'Backspace' && onBackspaceAtStart) {
-      const el = ref.current
-      const sel = window.getSelection()
-      const isEmpty = !el || el.textContent === ''
-      if (isEmpty && el && sel && sel.rangeCount > 0 && sel.isCollapsed && isCaretAtStart(el, sel.getRangeAt(0))) {
-        event.preventDefault()
-        onBackspaceAtStart()
-      }
-    }
-  }
-
-  return (
-    <div
-      ref={ref}
-      contentEditable
-      suppressContentEditableWarning
-      onInput={handleInput}
-      onBlur={handleInput}
-      onKeyDown={handleKeyDown}
-      data-placeholder={placeholder}
-      className={`rich-text-block w-full outline-none empty:before:pointer-events-none empty:before:text-gray-300 empty:before:content-[attr(data-placeholder)] dark:empty:before:text-gray-600 ${className}`}
-    />
-  )
-}
-
-// One global floating toolbar (portaled to <body>) that tracks the live text selection anywhere
-// inside the article body and applies inline marks via execCommand - deliberately not per-block,
-// since a selection only ever lives in one place at a time.
-function FloatingTextToolbar({ containerRef }: { containerRef: React.RefObject<HTMLDivElement | null> }) {
-  const [rect, setRect] = useState<DOMRect | null>(null)
-  const [, bump] = useState(0)
-
-  useEffect(() => {
-    const update = () => {
-      const sel = window.getSelection()
-      const container = containerRef.current
-      if (!sel || sel.isCollapsed || sel.rangeCount === 0 || !container) { setRect(null); return }
-      const range = sel.getRangeAt(0)
-      if (!container.contains(range.commonAncestorContainer)) { setRect(null); return }
-      const box = range.getBoundingClientRect()
-      if (box.width === 0 && box.height === 0) { setRect(null); return }
-      setRect(box)
-    }
-    document.addEventListener('selectionchange', update)
-    return () => document.removeEventListener('selectionchange', update)
-  }, [containerRef])
-
-  if (!rect || typeof document === 'undefined') return null
-
-  const exec = (command: string, value?: string) => {
-    document.execCommand(command, false, value)
-    bump(n => n + 1)
-  }
-  const isActive = (command: string) => { try { return document.queryCommandState(command) } catch { return false } }
-  const btnClass = (active: boolean) => `rounded-md p-1.5 transition ${active ? 'bg-white/15 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white'}`
-
-  return createPortal(
-    <div
-      className="fixed z-[60] flex items-center gap-0.5 rounded-xl border border-black/40 bg-[#111827] p-1 shadow-2xl"
-      style={{ top: rect.top + window.scrollY - 46, left: rect.left + window.scrollX + rect.width / 2, transform: 'translateX(-50%)' }}
-      onMouseDown={event => event.preventDefault()}
-    >
-      <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => exec('bold')} className={btnClass(isActive('bold'))} title="Bold"><Bold className="h-3.5 w-3.5" /></button>
-      <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => exec('italic')} className={btnClass(isActive('italic'))} title="Italic"><Italic className="h-3.5 w-3.5" /></button>
-      <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => exec('underline')} className={btnClass(isActive('underline'))} title="Underline"><Underline className="h-3.5 w-3.5" /></button>
-      <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => exec('strikeThrough')} className={btnClass(isActive('strikeThrough'))} title="Strikethrough"><Strikethrough className="h-3.5 w-3.5" /></button>
-      <span className="mx-0.5 h-4 w-px bg-white/15" />
-      <button
-        type="button"
-        onMouseDown={e => e.preventDefault()}
-        onClick={() => { const url = window.prompt('Link URL'); if (url) exec('createLink', url) }}
-        className={btnClass(isActive('createLink'))}
-        title="Link"
-      >
-        <Link2 className="h-3.5 w-3.5" />
-      </button>
-    </div>,
-    document.body,
-  )
-}
-
-// Notion-style "/" command menu: appears inline right below the block being typed into (not
-// viewport-positioned, so it naturally reflows with the document) and converts that block's type
-// in place, matching what typing "/" actually does in Notion.
-function SlashMenu({ query, onSelect, onClose }: { query: string; onSelect: (type: BlogBlock['type']) => void; onClose: () => void }) {
-  const q = query.trim().toLowerCase()
-  const groups = Object.entries(groupBy(ADDABLE_BLOG_BLOCK_TYPES, t => t.group))
-    .map(([group, items]) => [group, items.filter(t => !q || t.label.toLowerCase().includes(q))] as const)
-    .filter(([, items]) => items.length > 0)
-
-  return (
-    <div className="absolute left-0 top-full z-50 mt-1 max-h-72 w-72 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-2xl dark:border-gray-800 dark:bg-[#1A1A1C]">
-      <button className="fixed inset-0 z-[-1]" onClick={onClose} aria-hidden />
-      {groups.length === 0 && <p className="px-3 py-2 text-xs font-bold text-gray-400">No matching blocks</p>}
-      {groups.map(([group, items]) => (
-        <div key={group} className="mb-1">
-          <p className="px-2 pb-1 pt-1 text-[9px] font-black uppercase tracking-widest text-gray-400">{group}</p>
-          {items.map(t => (
-            <button
-              key={t.type}
-              onMouseDown={event => event.preventDefault()}
-              onClick={() => onSelect(t.type)}
-              className="block w-full rounded-lg px-3 py-1.5 text-left text-xs font-bold text-[#111827] hover:bg-[#C9A24D]/10 dark:text-white"
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      ))}
-    </div>
-  )
-}
 
 export default function BlogEditorPage() {
   return (
@@ -375,15 +115,21 @@ function BlogEditorPageInner() {
   const [finishDismissed, setFinishDismissed] = useState(false)
   useEffect(() => { if (new URLSearchParams(window.location.search).get('ai') === '1') setAiDraft(true) }, [])
   const [numbersToVerify, setNumbersToVerify] = useState<string[]>([])
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
-  const [refineFor, setRefineFor] = useState<string | null>(null)
   const [refineBusy, setRefineBusy] = useState<string | null>(null)
   const [refineError, setRefineError] = useState('')
   const blogRef = useRef<Blog | null>(null)
   blogRef.current = blog
+  const editorAgent = useMemo(() => ({
+    name: `${user?.first_name || ''} ${user?.last_name || ''}`.trim(), brokerage: user?.brokerage, photoUrl: resolveMediaUrl(user?.photo_url),
+    title: user?.professional_title, phone: (user as any)?.phone, email: user?.email,
+  }), [user])
+  const townsKey = JSON.stringify((((blog?.ai_review as any)?.towns || []) as any[]).map(t => t?.town))
+  const editorTowns = useMemo(() => JSON.parse(townsKey) as string[], [townsKey])
+  const linkedKey = (blog?.linked_areas || []).join('|')
+  const editorLinks = useMemo(() => (linkableAreas?.ready ? linkedKey.split('|').filter(Boolean).map(slug => linkableAreas.areas.find(a => a.slug === slug)).filter(Boolean).map(a => ({ ...a!, url: a!.url || '#' })) : []), [linkableAreas, linkedKey])
+  const editorFormHref = useMemo(() => (agentHubSlug ? ((slug: string) => `/${agentHubSlug}/${slug}?src=blog`) : undefined), [agentHubSlug])
   const [publishBusy, setPublishBusy] = useState(false)
   const [marketingBusy, setMarketingBusy] = useState(false)
-  const [slashState, setSlashState] = useState<{ blockId: string; query: string } | null>(null)
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
   const [uploadingCover, setUploadingCover] = useState(false)
@@ -394,9 +140,6 @@ function BlogEditorPageInner() {
   const [liveLink, setLiveLink] = useState<string | null>(null)
   const [confirmRewrite, setConfirmRewrite] = useState(false)
   const [copied, setCopied] = useState(false)
-  const bodyRef = useRef<HTMLDivElement>(null)
-  const blockRefs = useRef<Record<string, HTMLDivElement | null>>({})
-  const pendingFocusId = useRef<string | null>(null)
 
   // IDX agents share the new domain-resolved /blog/{slug} route (their own IDX domain, or their
   // free openhousepal.com IDX subdomain if they haven't connected one) - never the old
@@ -467,25 +210,10 @@ function BlogEditorPageInner() {
       }
       else setBlog(b => (b ? { ...b, ai_review: { ...(b.ai_review || {}), stage: res.data!.stage } } : b))
     }
-    const t = setInterval(tick, 4000)
+    // An overnight article takes an hour or more - no need to ask every four seconds.
+    const t = setInterval(tick, (blog.ai_review as any)?.mode === 'overnight' ? 30000 : 4000)
     return () => { alive = false; clearInterval(t) }
   }, [aiRunning, blog?.id])
-
-  // Focus a block created/merged-into by Enter or Backspace once it actually exists in the DOM.
-  useEffect(() => {
-    if (!pendingFocusId.current) return
-    const el = blockRefs.current[pendingFocusId.current]
-    if (el) {
-      el.focus()
-      const range = document.createRange()
-      range.selectNodeContents(el)
-      range.collapse(false)
-      const sel = window.getSelection()
-      sel?.removeAllRanges()
-      sel?.addRange(range)
-    }
-    pendingFocusId.current = null
-  })
 
   const persist = (next: Blog) => {
     setBlog(next)
@@ -501,66 +229,41 @@ function BlogEditorPageInner() {
       })
       setSaveStatus(response.success ? 'saved' : 'error')
       if (response.success) {
+        // The server says whether the saved words still match what the fact-check read - the report's
+        // "Verified" line follows it right away (only that one flag is taken from the reply).
+        const edited = (response.data as Blog | undefined)?.ai_review?.edited
+        if (typeof edited === 'boolean') setBlog(b => (b && b.id === next.id && b.ai_review && !!b.ai_review.edited !== edited ? { ...b, ai_review: { ...b.ai_review, edited } } : b))
         setLastSavedAt(new Date())
         setTimeout(() => setSaveStatus(current => current === 'saved' ? 'idle' : current), 1500)
       }
     }, 700)
   }
 
-  const updateBlocks = (blocks: BlogBlock[]) => { if (blog) persist({ ...blog, blocks }) }
-  const updateBlock = (blockId: string, updater: (block: BlogBlock) => BlogBlock) => {
-    if (!blog) return
-    updateBlocks(blog.blocks.map(b => b.id === blockId ? updater(b) : b))
+  // Every edit starts from the newest copy of the article (not the one from the last draw), so two
+  // quick edits - a letter in the title, then a section moved - can't overwrite each other.
+  const patchBlog = (patch: Partial<Blog>) => {
+    const cur = blogRef.current
+    if (!cur) return
+    const next = { ...cur, ...patch }
+    blogRef.current = next
+    persist(next)
   }
-  const deleteBlock = (blockId: string) => { if (blog) updateBlocks(blog.blocks.filter(b => b.id !== blockId)) }
-  const setSectionHidden = (headingId: string, hidden: boolean) => updateBlock(headingId, b => ({ ...b, data: { ...(b.data || {}), hidden } }))
-  const deleteSection = (headingId: string) => {
-    if (!blog) return
-    const r = sectionRange(blog.blocks, headingId)
-    if (r) updateBlocks([...blog.blocks.slice(0, r[0]), ...blog.blocks.slice(r[1])])
-  }
-  const toggleCollapsed = (headingId: string) => setCollapsed(c => { const n = new Set(c); if (n.has(headingId)) n.delete(headingId); else n.add(headingId); return n })
-  const insertBlockAt = (index: number, type: BlogBlock['type']) => {
-    if (!blog) return
-    const next = [...blog.blocks]
-    next.splice(index, 0, newBlock(type))
-    updateBlocks(next)
-  }
-
-  // Notion-style writing flow: Enter at the end of a block starts a fresh paragraph after it;
-  // Backspace at the start of an empty block removes it and moves focus to the end of whatever's
-  // above (no-op on the very first block - nothing to merge into).
-  const handleEnterAtEnd = (blockId: string) => {
-    if (!blog) return
-    const index = blog.blocks.findIndex(b => b.id === blockId)
-    if (index === -1) return
-    const fresh = newBlock('paragraph')
-    const next = [...blog.blocks]
-    next.splice(index + 1, 0, fresh)
-    pendingFocusId.current = fresh.id
-    updateBlocks(next)
-  }
-  const handleBackspaceAtStart = (blockId: string) => {
-    if (!blog) return
-    const index = blog.blocks.findIndex(b => b.id === blockId)
-    if (index <= 0) return
-    const prev = blog.blocks[index - 1]
-    pendingFocusId.current = prev.id
-    updateBlocks(blog.blocks.filter(b => b.id !== blockId))
-  }
-  const handleConvertBlock = (blockId: string, type: BlogBlock['type']) => {
-    setSlashState(null)
-    updateBlock(blockId, b => ({ id: b.id, type, data: {} }))
+  const updateBlocks = (blocks: BlogBlock[]) => patchBlog({ blocks })
+  const setSectionHidden = (headingId: string, hidden: boolean) => {
+    const cur = blogRef.current
+    if (cur) updateBlocks(cur.blocks.map(b => (b.id === headingId ? { ...b, data: { ...(b.data || {}), hidden } } : b)))
   }
 
   const handleRefineSection = async (headingId: string, action: BlogAiRefineAction, instruction?: string) => {
     if (!blog) return
-    const range = sectionRange(blog.blocks, headingId)
+    const range = unitRange(blog.blocks, headingId)
     if (!range) return
-    setRefineFor(null); setRefineBusy(headingId); setRefineError('')
+    setRefineBusy(headingId); setRefineError('')
     startAiActivity()
+    // The AI rewrites the section's words. Its photos, videos and data cards (a payment example, a
+    // town spotlight) are not sent and not replaced: they used to be lost when a section was refined.
     const res = await api.blogs.aiRefineSection({
-      title: blog.title, section_blocks: blog.blocks.slice(range[0], range[1]), article_blocks: blog.blocks, action, instruction,
+      title: blog.title, section_blocks: blog.blocks.slice(range[0], range[1]).filter(b => REFINABLE_TYPES.includes(b.type)), article_blocks: blog.blocks, action, instruction,
     })
     endAiActivity()
     setRefineBusy(null)
@@ -570,8 +273,14 @@ function BlogEditorPageInner() {
     const fresh = res.data.blocks.map(b => ({ ...b, id: `${b.type}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` }))
     // Latest blog (the agent may have kept typing while the AI worked), not the pre-await copy.
     const current = blogRef.current
-    const r = current ? sectionRange(current.blocks, headingId) : null
-    if (current && r) persist({ ...current, blocks: [...current.blocks.slice(0, r[0]), ...fresh, ...current.blocks.slice(r[1])] })
+    const r = current ? unitRange(current.blocks, headingId) : null
+    if (current && r) {
+      const old = current.blocks.slice(r[0], r[1])
+      const kept = old.filter(b => !REFINABLE_TYPES.includes(b.type))
+      // The section keeps its heading even when the AI's reply left one out.
+      const words = fresh.length && fresh[0].type !== 'heading' && old[0]?.type === 'heading' ? [old[0], ...fresh] : fresh
+      patchBlog({ blocks: [...current.blocks.slice(0, r[0]), ...words, ...kept, ...current.blocks.slice(r[1])] })
+    }
     if (verify.length) setNumbersToVerify(n => Array.from(new Set([...n, ...verify])))
   }
 
@@ -629,6 +338,26 @@ function BlogEditorPageInner() {
       </div>
     )
   }
+  if (blog.ai_review?.status === 'running' && (blog.ai_review as any)?.mode === 'overnight') {
+    const night = (blog.ai_review as any).overnight || {}
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f7f5f1] px-4 dark:bg-[#0B0B0B] sm:px-6">
+        <LuxeSurface className="w-full max-w-md rounded-3xl border border-[#C9A24D]/30 p-6 text-[#111827] shadow-[0_24px_50px_-34px_rgba(139,115,85,.55)] dark:border-white/[0.07] dark:text-white sm:p-7">
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#8b7355] dark:text-[#e8c97a]">AI Blog Writer · Save usage mode</p>
+          <p className="mt-2 line-clamp-4 font-serif text-2xl font-black leading-tight">Still writing “{blog.title}”</p>
+          <div className="mt-5 space-y-2.5 text-sm font-bold">
+            <p className="flex items-start gap-2.5"><Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-[#C9A24D] dark:text-[#e8c97a]" /> <span>{night.likely_at ? <>Likely ready by {readyClock(night.likely_at)}</> : 'Usually ready within an hour or two'}</span></p>
+            <p className="flex items-start gap-2.5"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" /> <span>The same article - made a little slower, so it usually uses about half the AI</span></p>
+            <p className="flex items-start gap-2.5"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" /> <span>Your bell lights up and we email you when it&apos;s ready</span></p>
+          </div>
+          <p className="mt-5 text-[11px] font-semibold text-gray-500 dark:text-white/55">
+            You can leave this page - it opens here on its own when it&apos;s done.{night.cap_minutes ? ` If the slower line is busy, we finish it the fast way ourselves after ${night.cap_minutes} minutes; the steps finished that way use the normal amount of AI.` : ''}
+          </p>
+          <Link href="/studio/blogs" className="mt-5 inline-flex min-h-[44px] items-center gap-1.5 text-sm font-black text-[#8b7355] hover:underline dark:text-[#e8c97a]">Back to my blogs</Link>
+        </LuxeSurface>
+      </div>
+    )
+  }
   if (blog.ai_review?.status === 'running') {
     const steps = [['gathering', 'Gathering what we know'], ['research', 'Researching what is missing'], ['write', 'Writing in your voice'], ['fact_check', 'Fact-checking every claim'], ['finishing', 'Fixing and finishing']]
     const at = Math.max(0, steps.findIndex(([k]) => k === blog.ai_review?.stage))
@@ -672,7 +401,7 @@ function BlogEditorPageInner() {
       <div className={showPublish ? 'hidden' : undefined}>
       {/* Top bar */}
       {/* Solid (not see-through): the article scrolling under a 90% bar showed through it. */}
-      <div className="sticky top-0 z-30 border-b border-gray-200 bg-[#fbfaf7] dark:border-gray-800 dark:bg-[#0B0B0B]">
+      <div data-blog-topbar className="sticky top-0 z-30 border-b border-gray-200 bg-[#fbfaf7] dark:border-gray-800 dark:bg-[#0B0B0B]">
       <div className="flex items-center justify-between gap-2 px-3 py-3 sm:gap-3 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <button onClick={() => smartBack(router, '/studio/blogs')} aria-label="Back to Blogs" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-[#111827] active:scale-95 dark:hover:bg-gray-800 dark:hover:text-white sm:h-auto sm:w-auto sm:rounded-lg sm:p-2">
@@ -720,10 +449,11 @@ function BlogEditorPageInner() {
         </div>
       </div>
       {/* Tabs - on phones the Publish button sits at the end of this row, so the title above keeps its room. */}
+      {/* Tight tab padding on phones: at 375px the Write tab was cut off behind Publish ("Writ") - 11/14. */}
       <div className="mx-auto flex max-w-4xl items-center gap-2 px-3 pb-2 sm:px-6">
       <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none]">
         {([
-          ...(blog.ai_review?.status === 'done' ? [{ id: 'finish', label: 'Fact-check & finish', short: 'Finish', icon: ShieldCheck, dot: !blog.ai_review.finished && !finishDismissed }] : []),
+          ...(blog.ai_review?.status === 'done' ? [{ id: 'finish', label: 'Finishing touches', short: 'Finish', icon: ShieldCheck, dot: !blog.ai_review.finished && !finishDismissed }] : []),
           { id: 'look', label: 'Look & cover', short: 'Look', icon: Palette, dot: !blog.cover_image_url },
           { id: 'write', label: 'Write', short: 'Write', icon: PenLine, dot: false },
         ] as const).map(t => {
@@ -731,7 +461,7 @@ function BlogEditorPageInner() {
           const Icon = t.icon
           return (
             <button key={t.id} type="button" onClick={() => { setTab(t.id as 'finish' | 'look' | 'write'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-              className={`relative inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black transition-colors sm:min-h-0 sm:px-3.5 ${on ? 'text-white dark:text-[#111827]' : 'text-gray-500 hover:bg-gray-100 hover:text-[#111827] dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white'}`}>
+              className={`relative inline-flex min-h-[40px] shrink-0 items-center gap-1 rounded-xl px-2 py-2 text-xs font-black transition-colors sm:min-h-0 sm:gap-1.5 sm:px-3.5 ${on ? 'text-white dark:text-[#111827]' : 'text-gray-500 hover:bg-gray-100 hover:text-[#111827] dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white'}`}>
               {on && <motion.span layoutId="blog-editor-tab" transition={{ type: 'spring', stiffness: 420, damping: 34 }} className="absolute inset-0 rounded-xl bg-[#111827] dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a]" />}
               <Icon className={`relative h-3.5 w-3.5 ${on ? 'text-[#e8c97a] dark:text-[#111827]' : ''}`} />
               <span className="relative sm:hidden">{t.short}</span>
@@ -751,17 +481,36 @@ function BlogEditorPageInner() {
       </div>
       </div>
 
-      {/* Document - one tab at a time */}
+      {/* Write: the article as readers will see it, edited right on the page. */}
+      {tab === 'write' ? (
+        <>
+          {refineError && <p className="mx-auto mt-3 max-w-4xl rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600 dark:bg-red-900/20 dark:text-red-400">{refineError}</p>}
+          <BlogCanvasEditor
+            blog={blog}
+            agent={editorAgent}
+            signatureOn={signatureOn}
+            signatureHubSlug={signatureOn ? agentHubSlug : null}
+            signatureTowns={editorTowns}
+            forms={hubForms}
+            formHref={editorFormHref}
+            neighborhoodLinks={editorLinks}
+            onBlocks={updateBlocks}
+            onMeta={patchBlog}
+            onOpenLook={() => { setTab('look'); window.scrollTo({ top: 0 }) }}
+            onOpenPublish={() => { setShowPublish(true); window.scrollTo({ top: 0 }) }}
+            refineBusy={refineBusy}
+            onRefine={handleRefineSection}
+          />
+        </>
+      ) : (
       <div className="mx-auto max-w-4xl px-4 pb-32 pt-6 sm:px-8 sm:pt-8">
         {refineError && <p className="mb-4 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600 dark:bg-red-900/20 dark:text-red-400">{refineError}</p>}
         <AnimatePresence mode="wait" initial={false}>
         <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}>
         {tab === 'finish' && blog.ai_review && (
           <div className="space-y-5">
+            {/* One quiet line: checked and ready. No stats and no "double-check" list (owner 11/15). */}
             <VerifiedPanel review={blog.ai_review} />
-            {numbersToVerify.length > 0 && (
-              <p className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/15 dark:text-amber-200">Double-check before publishing: {numbersToVerify.join(', ')}</p>
-            )}
             <AnimatePresence>
               {!finishDismissed && !blog.ai_review.finished ? (
                 <EditorFinishCard key="fin" blog={blog}
@@ -892,107 +641,10 @@ function BlogEditorPageInner() {
           </div>
         )}
 
-        {tab === 'write' && (
-          <div>
-        {/* Title & subtitle */}
-        <AutoGrowTextarea
-          value={blog.title}
-          onChange={title => persist({ ...blog, title })}
-          placeholder="Untitled Article"
-          className="font-serif text-[2rem] font-black leading-[1.12] text-[#111827] dark:text-white sm:text-5xl sm:leading-[1.1]"
-        />
-        <AutoGrowTextarea
-          value={blog.subtitle || ''}
-          onChange={subtitle => persist({ ...blog, subtitle })}
-          placeholder="Add a subtitle..."
-          className="mt-3 text-[17px] font-semibold leading-relaxed text-gray-500 dark:text-gray-400 sm:text-lg"
-        />
-
-        {/* Sections at a glance - tap to keep or remove a whole section */}
-        {sections.headings.length > 1 && (
-          <div className="mt-8 rounded-2xl border border-gray-200 bg-white/70 p-3 dark:border-gray-800 dark:bg-white/[0.02]">
-            <p className="mb-2 flex flex-wrap items-baseline gap-x-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
-              Sections <span className="font-semibold normal-case tracking-normal text-gray-400">- tap one to remove it from the article or add it back</span>
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {sections.headings.map((h, i) => {
-                const off = !!h.data?.hidden
-                return (
-                  <motion.button key={h.id} type="button" layout whileTap={{ scale: 0.94 }} onClick={() => setSectionHidden(h.id, !off)}
-                    title={off ? 'Add this section back' : 'Remove this section from the article'}
-                    className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black transition hover:-translate-y-0.5 ${off ? 'border-dashed border-gray-300 text-gray-400 line-through decoration-gray-300 dark:border-gray-700' : 'border-[#C9A24D]/50 bg-[#C9A24D]/10 text-[#111827] dark:text-white'}`}>
-                    <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] ${off ? 'bg-gray-200 text-gray-500 dark:bg-gray-800' : 'bg-[#C9A24D] text-[#111827]'}`}>{off ? <EyeOffIcon className="h-2.5 w-2.5" /> : i + 1}</span>
-                    <span className="truncate">{headingText(h)}</span>
-                  </motion.button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Body */}
-        <div ref={bodyRef} className="mt-10 border-t border-gray-200 pt-8 dark:border-gray-800">
-          <Reorder.Group axis="y" values={blog.blocks} onReorder={updateBlocks} className="space-y-0.5">
-            {blog.blocks.map((block, index) => {
-              const ownerId = sections.owner[block.id]
-              const ownerBlock = ownerId ? blog.blocks.find(b => b.id === ownerId) : null
-              const tucked = !!ownerId && (!!ownerBlock?.data?.hidden || collapsed.has(ownerId))
-              const isHeading = block.type === 'heading'
-              return (
-              <SortableBlock
-                key={block.id}
-                block={block}
-                tucked={tucked}
-                inSection={!!ownerId}
-                section={isHeading ? {
-                  number: sections.headings.findIndex(h => h.id === block.id) + 1,
-                  count: sections.count[block.id] || 0,
-                  title: headingText(block),
-                  hidden: !!block.data?.hidden,
-                  collapsed: collapsed.has(block.id),
-                  onToggleHidden: () => setSectionHidden(block.id, !block.data?.hidden),
-                  onToggleCollapsed: () => toggleCollapsed(block.id),
-                  onDeleteForGood: () => deleteSection(block.id),
-                } : undefined}
-                onDelete={() => deleteBlock(block.id)}
-                onInsertAfter={type => insertBlockAt(index + 1, type)}
-                refine={block.type === 'heading' ? {
-                  open: refineFor === block.id,
-                  busy: refineBusy === block.id,
-                  onToggle: () => setRefineFor(current => (current === block.id ? null : block.id)),
-                  onRun: (action, instruction) => handleRefineSection(block.id, action, instruction),
-                } : undefined}
-              >
-                <BlockContent
-                  block={block}
-                  onUpdate={updater => updateBlock(block.id, updater)}
-                  onEnterAtEnd={() => handleEnterAtEnd(block.id)}
-                  onBackspaceAtStart={() => handleBackspaceAtStart(block.id)}
-                  onSlashChange={block.type === 'paragraph' ? query => setSlashState(query === null ? null : { blockId: block.id, query }) : undefined}
-                  slashMenuOpen={slashState?.blockId === block.id}
-                  registerRef={el => { blockRefs.current[block.id] = el }}
-                />
-                {slashState?.blockId === block.id && (
-                  <SlashMenu
-                    query={slashState.query}
-                    onClose={() => setSlashState(null)}
-                    onSelect={type => handleConvertBlock(block.id, type)}
-                  />
-                )}
-              </SortableBlock>
-              )
-            })}
-          </Reorder.Group>
-
-          <AddBlockMenu onAdd={type => insertBlockAt(blog.blocks.length, type)} full />
-        </div>
-          </div>
-        )}
         </motion.div>
         </AnimatePresence>
       </div>
-
-      <FloatingTextToolbar containerRef={bodyRef} />
+      )}
       </div>
 
       <ConfirmationModal
@@ -1113,155 +765,6 @@ function CategoryPicker({ value, onChange }: { value?: string | null; onChange: 
       )}
     </div>
   )
-}
-
-type SectionControls = {
-  number: number; count: number; title: string; hidden: boolean; collapsed: boolean
-  onToggleHidden: () => void; onToggleCollapsed: () => void; onDeleteForGood: () => void
-}
-
-function SortableBlock({ block, children, onDelete, onInsertAfter, refine, section, tucked = false, inSection = false }: {
-  block: BlogBlock
-  children: React.ReactNode
-  onDelete: () => void
-  onInsertAfter: (type: BlogBlock['type']) => void
-  // Heading blocks only - this section's bar (number, fold, remove / add back, delete for good).
-  section?: SectionControls
-  // A block inside a folded or removed section - kept in the list (drag order) but not shown.
-  tucked?: boolean
-  inSection?: boolean
-  // Heading blocks only - AI refine for the whole section this heading starts.
-  refine?: { open: boolean; busy: boolean; onToggle: () => void; onRun: (action: BlogAiRefineAction, instruction?: string) => void }
-}) {
-  const controls = useDragControls()
-  const [showInsert, setShowInsert] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
-
-  if (tucked) return <Reorder.Item value={block} dragListener={false} dragControls={controls} className="hidden" />
-
-  if (section?.hidden) {
-    return (
-      <Reorder.Item value={block} dragListener={false} dragControls={controls} className="relative pt-4">
-        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center gap-2 rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50/80 px-4 py-3 dark:border-gray-700 dark:bg-white/[0.02]">
-          <EyeOffIcon className="h-4 w-4 shrink-0 text-gray-400" />
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Removed from the article</p>
-            <p className="truncate text-sm font-black text-gray-500 line-through decoration-gray-300 dark:text-gray-400">{section.title}</p>
-          </div>
-          <span className="text-[11px] font-semibold text-gray-400">{section.count + 1} {section.count ? 'blocks' : 'block'}</span>
-          <motion.button type="button" whileTap={{ scale: 0.94 }} onClick={section.onToggleHidden} className="inline-flex items-center gap-1.5 rounded-full bg-[#111827] px-3 py-1.5 text-[11px] font-black text-[#e8c97a] transition hover:-translate-y-0.5 dark:bg-white/10">
-            <RotateCcwIcon className="h-3 w-3" /> Add back
-          </motion.button>
-          {confirmDelete ? (
-            <span className="inline-flex items-center gap-1">
-              <button type="button" onClick={section.onDeleteForGood} className="rounded-full bg-red-500 px-3 py-1.5 text-[11px] font-black text-white hover:bg-red-600">Delete for good</button>
-              <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-full px-2 py-1.5 text-[11px] font-black text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5">Keep</button>
-            </span>
-          ) : (
-            <button type="button" onClick={() => setConfirmDelete(true)} title="Delete this section for good" className="rounded-full p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"><Trash2 className="h-3.5 w-3.5" /></button>
-          )}
-        </motion.div>
-      </Reorder.Item>
-    )
-  }
-
-  return (
-    <Reorder.Item value={block} dragListener={false} dragControls={controls} className={`group relative ${inSection ? 'border-l-2 border-[#C9A24D]/20 pl-3' : ''} ${section ? 'pt-4' : ''}`}>
-      {section && (
-        <div className="mb-1 flex items-center gap-2">
-          <button type="button" onClick={section.onToggleCollapsed} title={section.collapsed ? 'Show this section' : 'Fold this section'} className="inline-flex items-center gap-1.5 rounded-full bg-[#C9A24D]/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] transition hover:bg-[#C9A24D]/20 dark:text-[#d7b974]">
-            <ChevronRightIcon className={`h-3 w-3 transition ${section.collapsed ? '' : 'rotate-90'}`} /> Section {section.number}
-            {section.collapsed && <span className="font-semibold normal-case tracking-normal opacity-70">· {section.count} folded</span>}
-          </button>
-          <span className="h-px flex-1 bg-gradient-to-r from-[#C9A24D]/30 to-transparent" />
-          <motion.button type="button" whileTap={{ scale: 0.94 }} onClick={section.onToggleHidden} title="Remove this whole section from the article - you can add it back" className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-gray-400 opacity-60 transition hover:border-red-300 hover:text-red-500 hover:opacity-100 group-hover:opacity-100 dark:border-gray-700">
-            <EyeOffIcon className="h-3 w-3" /> Remove
-          </motion.button>
-        </div>
-      )}
-      <div className="absolute -left-9 top-0.5 hidden flex-col items-center gap-1 opacity-0 transition group-hover:opacity-100 sm:flex">
-        <button onPointerDown={event => controls.start(event)} className="cursor-grab rounded p-1 text-gray-300 hover:bg-gray-100 hover:text-gray-500 dark:hover:bg-gray-800">
-          <GripVertical className="h-4 w-4" />
-        </button>
-        <button onClick={onDelete} className="rounded p-1 text-gray-300 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20">
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </div>
-      {refine && (
-        <div className={`absolute -right-2 top-1 z-30 transition ${refine.open || refine.busy ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-          <button
-            onClick={refine.onToggle}
-            disabled={refine.busy}
-            title="Refine this section with AI"
-            className="inline-flex items-center gap-1 rounded-full border border-[#C9A24D]/40 bg-white px-2 py-1 text-[10px] font-black uppercase tracking-wide text-[#8b7355] shadow-sm hover:bg-[#C9A24D]/10 dark:bg-[#151517] dark:text-[#d7b974]"
-          >
-            {refine.busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />} {refine.busy ? 'Refining…' : 'Refine'}
-          </button>
-          {refine.open && <SectionRefineMenu busy={refine.busy} onClose={refine.onToggle} onRun={refine.onRun} />}
-        </div>
-      )}
-      <div className={`relative py-1.5 ${refine?.busy ? 'animate-pulse' : ''}`}>{children}</div>
-      <div className="relative h-3" onMouseEnter={() => setShowInsert(true)} onMouseLeave={() => setShowInsert(false)}>
-        {showInsert && (
-          <div className="absolute left-0 right-0 top-1/2 z-20 -translate-y-1/2">
-            <AddBlockMenu onAdd={onInsertAfter} />
-          </div>
-        )}
-      </div>
-    </Reorder.Item>
-  )
-}
-
-function AddBlockMenu({ onAdd, full = false }: { onAdd: (type: BlogBlock['type']) => void; full?: boolean }) {
-  const [open, setOpen] = useState(false)
-  // The list opens on top of the page: a bottom sheet on a phone, and on a computer a box that
-  // flips above the button when it's near the bottom - "Add section" sits at the end of the
-  // article, so the list used to run off the bottom of the screen (10/26).
-  const phone = usePhoneWidth(open)
-  const btnRef = useRef<HTMLButtonElement>(null)
-  const listRef = useRef<HTMLDivElement>(null)
-  const listStyle = useAnchoredStyle(btnRef, listRef, open && !phone, { width: 256, maxHeight: 320, gap: 4 })
-  const choices = Object.entries(groupBy(ADDABLE_BLOG_BLOCK_TYPES, t => t.group)).map(([group, items]) => (
-    <div key={group} className="mb-1">
-      <p className="px-2 pb-1 pt-1 text-[9px] font-black uppercase tracking-widest text-gray-400">{group}</p>
-      {items.map(t => (
-        <button key={t.type} onClick={() => { onAdd(t.type); setOpen(false) }} className="block w-full rounded-lg px-3 py-1.5 text-left text-xs font-bold text-[#111827] hover:bg-[#C9A24D]/10 max-sm:py-3 max-sm:text-[15px] dark:text-white">{t.label}</button>
-      ))}
-    </div>
-  ))
-  return (
-    <div className="relative flex items-center gap-2">
-      <button
-        ref={btnRef}
-        onClick={() => setOpen(current => !current)}
-        className={full
-          ? 'mt-2 inline-flex items-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-2.5 text-xs font-black text-gray-400 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700'
-          : 'flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:bg-[#151517]'
-        }
-      >
-        <Plus className="h-3.5 w-3.5" /> {full && 'Add section'}
-      </button>
-      {phone ? (
-        <PopupSheet open={open} onClose={() => setOpen(false)} title="Add a section">{choices}</PopupSheet>
-      ) : open && (
-        <PopupPortal>
-          <button className="fixed inset-0 cursor-default" style={{ zIndex: POPUP_Z - 1 }} onClick={() => setOpen(false)} aria-label="Close" />
-          <div ref={listRef} style={listStyle} className="overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl dark:border-gray-800 dark:bg-[#1A1A1C]">
-            {choices}
-          </div>
-        </PopupPortal>
-      )}
-    </div>
-  )
-}
-
-function groupBy<T>(items: T[], key: (item: T) => string): Record<string, T[]> {
-  return items.reduce((acc, item) => {
-    const k = key(item)
-    acc[k] = acc[k] || []
-    acc[k].push(item)
-    return acc
-  }, {} as Record<string, T[]>)
 }
 
 function StatusBadge({ status }: { status: Blog['status'] }) {
@@ -1654,467 +1157,3 @@ function Counter({ n, max }: { n: number; max: number }) {
   return <span className={`text-[10px] font-black tabular-nums normal-case tracking-normal ${n > max ? 'text-amber-600' : n > max * 0.85 ? 'text-[#8b7355]' : 'text-gray-300'}`}>{n}/{max}</span>
 }
 
-// ---------------------------------------------------------------------------
-// Block content renderers (module scope, stable identity)
-// ---------------------------------------------------------------------------
-
-function BlockContent({ block, onUpdate, onEnterAtEnd, onBackspaceAtStart, onSlashChange, slashMenuOpen, registerRef }: {
-  block: BlogBlock
-  onUpdate: (updater: (block: BlogBlock) => BlogBlock) => void
-  onEnterAtEnd?: () => void
-  onBackspaceAtStart?: () => void
-  onSlashChange?: (query: string | null) => void
-  slashMenuOpen?: boolean
-  registerRef?: (el: HTMLDivElement | null) => void
-}) {
-  const data = block.data || {}
-  const setData = (key: string, value: any) => onUpdate(b => ({ ...b, data: { ...b.data, [key]: value } }))
-  const rtKey = `${block.id}-${block.type}`
-
-  switch (block.type) {
-    case 'heading':
-      return (
-        <div>
-          <TextStyleToolbar data={data} onChange={setData} />
-          <RichTextBlock key={rtKey} html={richInitialHtml(data)} placeholder="Heading" className="font-serif text-2xl font-black leading-tight text-[#111827] dark:text-white" onChangeHtml={html => setData('html', html)} onEnterAtEnd={onEnterAtEnd} onBackspaceAtStart={onBackspaceAtStart} />
-        </div>
-      )
-    case 'subheading':
-      return (
-        <div>
-          <TextStyleToolbar data={data} onChange={setData} />
-          <RichTextBlock key={rtKey} html={richInitialHtml(data)} placeholder="Subheading" className="font-serif text-xl font-black leading-tight text-[#111827] dark:text-white" onChangeHtml={html => setData('html', html)} onEnterAtEnd={onEnterAtEnd} onBackspaceAtStart={onBackspaceAtStart} />
-        </div>
-      )
-    case 'paragraph':
-      return (
-        <div className="relative">
-          <TextStyleToolbar data={data} onChange={setData} allowSize />
-          <RichTextBlock
-            key={rtKey}
-            html={richInitialHtml(data)}
-            placeholder="Write something, or press '/' for commands..."
-            className={`leading-relaxed text-[#374151] dark:text-gray-300 ${textStyleClasses(data, { allowSize: true })}`}
-            onChangeHtml={html => setData('html', html)}
-            onEnterAtEnd={onEnterAtEnd}
-            onBackspaceAtStart={onBackspaceAtStart}
-            onSlashChange={onSlashChange}
-            slashMenuOpen={slashMenuOpen}
-            registerRef={registerRef}
-          />
-        </div>
-      )
-    case 'quote':
-      return (
-        <div>
-          <TextStyleToolbar data={data} onChange={setData} />
-          <div className="flex gap-3 rounded-xl border-l-4 border-[#C9A24D] bg-[#fbfaf7] p-4 dark:bg-[#1A1A1C]">
-            <QuoteIcon className="h-5 w-5 shrink-0 text-[#C9A24D]" />
-            <RichTextBlock key={rtKey} html={richInitialHtml(data)} placeholder="A quote..." className={`italic text-[#374151] dark:text-gray-300 ${textStyleClasses(data)}`} onChangeHtml={html => setData('html', html)} onEnterAtEnd={onEnterAtEnd} onBackspaceAtStart={onBackspaceAtStart} />
-          </div>
-        </div>
-      )
-    case 'callout':
-      return (
-        <div>
-          <TextStyleToolbar data={data} onChange={setData} />
-          <div className="rounded-xl border border-[#C9A24D]/30 bg-[#C9A24D]/10 p-4">
-            <RichTextBlock key={rtKey} html={richInitialHtml(data)} placeholder="A callout worth noticing..." className="text-[#111827] dark:text-white" onChangeHtml={html => setData('html', html)} onEnterAtEnd={onEnterAtEnd} onBackspaceAtStart={onBackspaceAtStart} />
-          </div>
-        </div>
-      )
-    case 'area_spotlight':
-      return <AreaSpotlightEditor area={data.area || null} onChange={area => setData('area', area)} />
-    case 'payment_example':
-      // Computed from real listings + Freddie Mac's rate when the article was written - shown as
-      // it will appear; the agent can remove it, not retype its math.
-      return (
-        <div>
-          <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">Payment example · calculated {data.as_of || ''}</p>
-          <div className="pointer-events-none"><PaymentExample data={data as PaymentExampleData} /></div>
-        </div>
-      )
-    case 'sources':
-      return <SourcesList data={data as SourcesData} />
-    case 'ask_agent':
-      // The small "Ask [me] about ..." line under a sentence that sends readers to the agent - its
-      // topic is editable; the article fills in the agent's photo, call, text and email.
-      return (
-        <div className="flex flex-wrap items-center gap-2 border-l-2 border-[#C9A24D] py-1 pl-3 text-xs">
-          <span className="font-black text-gray-500 dark:text-gray-400">Ask me about</span>
-          <input value={data.topic || ''} onChange={e => setData('topic', e.target.value.slice(0, 60))} placeholder="this (optional topic)" aria-label="What readers ask you about"
-            className="min-w-0 flex-1 rounded-md border border-gray-200 bg-white px-2 py-1 font-semibold text-[#111827] outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white" />
-          <span className="text-[10px] font-bold text-gray-400">+ Call · Text · Email</span>
-        </div>
-      )
-    case 'property_showcase':
-    case 'video_showcase': {
-      // The closing pitch from the AI writer's Finish step: rename it, drop items, see it live.
-      const isVideo = block.type === 'video_showcase'
-      const items: any[] = (isVideo ? data.videos : data.properties) || []
-      const key = isVideo ? 'videos' : 'properties'
-      return (
-        <div className="rounded-2xl border border-[#C9A24D]/30 bg-[#C9A24D]/[0.04] p-4">
-          <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">{isVideo ? 'Videos about the area' : data.kind === 'listings' ? 'Your listings' : 'Your recent sales'} · {items.length}</p>
-          <input value={data.title || ''} onChange={e => setData('title', e.target.value)} placeholder="Section title" className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 font-serif text-lg font-black text-[#111827] outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white" />
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {items.map((it, i) => (
-              <span key={it.id || it.url || it.address || i} className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-bold text-gray-600 dark:border-gray-700 dark:bg-[#151517] dark:text-gray-300">
-                <span className="truncate">{isVideo ? (it.title || 'Video') : it.address}</span>
-                <button type="button" onClick={() => setData(key, items.filter((_, j) => j !== i))} aria-label="Remove" className="rounded-full p-0.5 text-gray-400 hover:bg-red-50 hover:text-red-500"><X className="h-3 w-3" /></button>
-              </span>
-            ))}
-          </div>
-          <div className="pointer-events-none mt-3 origin-top scale-[0.92] opacity-90">
-            {isVideo ? <VideoShowcase title={data.title} videos={items} /> : <PropertyShowcase title={data.title} kind={data.kind === 'listings' ? 'listings' : 'sales'} properties={items} />}
-          </div>
-        </div>
-      )
-    }
-    case 'disclaimer':
-      return <AutoGrowTextarea value={data.text || ''} onChange={v => setData('text', v)} placeholder="Disclaimer text..." className="text-[11px] font-semibold leading-relaxed text-gray-400" />
-    case 'divider':
-      return <hr className="my-2 border-gray-200 dark:border-gray-800" />
-    case 'bulleted_list':
-    case 'numbered_list':
-      return <ListEditor ordered={block.type === 'numbered_list'} items={data.items || ['']} onChange={items => setData('items', items)} />
-    case 'button':
-      return (
-        <div className="rounded-xl border border-gray-200 p-3 dark:border-gray-800">
-          <div className="flex items-center gap-2">
-            <Link2 className="h-4 w-4 shrink-0 text-gray-400" />
-            <input value={data.label || ''} onChange={e => setData('label', e.target.value)} placeholder="Button label" className="min-w-0 flex-1 bg-transparent text-sm font-black text-[#111827] outline-none dark:text-white" />
-          </div>
-          <input value={data.url || ''} onChange={e => setData('url', e.target.value)} placeholder="https://..." className="mt-2 w-full bg-transparent text-xs font-semibold text-gray-500 outline-none" />
-        </div>
-      )
-    case 'cta':
-      return (
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#111827] to-[#8b6a2b] p-4 text-white">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#e8c97a]">Closing section - the button opens your form right on the article</p>
-          <input value={data.heading || ''} onChange={e => setData('heading', e.target.value)} placeholder="Have a question about your move?" className="mt-1 w-full bg-transparent font-serif text-lg font-black text-white outline-none placeholder:text-white/40" />
-          <input value={data.label || ''} onChange={e => setData('label', e.target.value)} placeholder="Contact Me" className="mt-2 w-48 rounded-lg bg-white px-3 py-1.5 text-xs font-black text-[#111827] outline-none placeholder:text-gray-400" />
-          <p className="mt-3 text-[9px] font-black uppercase tracking-[0.2em] text-white/50">Button opens</p>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {BLOG_CTA_FORMS.map(f => {
-              const on = ctaFormTypeOf(data) === f.formType
-              return (
-                <button key={f.formType} type="button"
-                  onClick={() => onUpdate(b => ({ ...b, data: { ...b.data, formType: f.formType, label: f.label } }))}
-                  className={`rounded-full px-2.5 py-1 text-[10px] font-black transition ${on ? 'bg-[#e8c97a] text-[#111827]' : 'bg-white/10 text-white/75 hover:bg-white/20'}`}>
-                  {f.label}
-                </button>
-              )
-            })}
-          </div>
-          <p className="mt-2 text-[10px] font-semibold text-white/45">With your email signature card switched on, the signature closes the article here instead.</p>
-        </div>
-      )
-    case 'lead_form':
-      return <LeadFormBlockEditor data={data} setData={setData} />
-    case 'contact_form':
-      return (
-        <div className="rounded-2xl border border-[#C9A24D]/40 bg-gradient-to-br from-white to-[#fbf3df] p-4 dark:from-[#151517] dark:to-[#1d1810]">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]">Contact form - readers&apos; questions arrive in Leads</p>
-          <div className="mt-1 flex items-center gap-2">
-            <Mail className="h-4 w-4 shrink-0 text-[#C9A24D]" />
-            <input value={data.label || ''} onChange={e => setData('label', e.target.value)} placeholder="Ask me a question" className="min-w-0 flex-1 bg-transparent font-serif text-lg font-black text-[#111827] outline-none dark:text-white" />
-          </div>
-          <div className="mt-2 grid grid-cols-2 gap-1.5 opacity-60">
-            {['Your name', 'Email', 'Phone', 'Message'].map(f => <span key={f} className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-gray-400 dark:border-gray-700 dark:bg-[#0B0B0B]">{f}</span>)}
-          </div>
-        </div>
-      )
-    case 'image':
-      return <ImageBlockEditor url={data.url} caption={data.caption} alt={data.alt} onChangeUrl={url => setData('url', url)} onChangeCaption={caption => setData('caption', caption)} onChangeAlt={alt => setData('alt', alt)} />
-    case 'gallery':
-      return <GalleryBlockEditor images={data.images || []} onChange={images => setData('images', images)} />
-    case 'youtube':
-      return <YoutubeBlockEditor url={data.url} title={data.title} onChangeUrl={url => setData('url', url)} onChangeTitle={title => setData('title', title)} />
-    case 'property_card':
-      return <PropertyCardEditor property={data.property || null} displaySize={data.displaySize === 'large' ? 'large' : 'compact'} onChange={property => setData('property', property)} onChangeSize={size => setData('displaySize', size)} />
-    case 'agent_profile':
-      return (
-        <div className="flex items-center gap-3 rounded-xl border border-gray-200 p-4 dark:border-gray-800">
-          <UserIcon className="h-8 w-8 rounded-full bg-gray-100 p-1.5 text-gray-400 dark:bg-gray-800" />
-          <p className="text-sm font-semibold text-gray-500">Your contact card, pulled from your profile. With "End with my email signature" on (Review and Publish), your signature card shows here instead.</p>
-        </div>
-      )
-    case 'qr_code':
-      return <QrBlockEditor url={data.url} label={data.label} onChangeUrl={url => setData('url', url)} onChangeLabel={label => setData('label', label)} />
-    case 'related_articles':
-      return <p className="rounded-xl border border-dashed border-gray-300 p-3 text-xs font-bold uppercase tracking-wide text-gray-400 dark:border-gray-700">Related articles appear automatically once published.</p>
-    default:
-      return null
-  }
-}
-
-// Block-level layout controls (alignment, and text size for body paragraphs). Inline marks
-// (bold/italic/underline/strikethrough/link) live in the floating selection toolbar instead.
-function TextStyleToolbar({ data, onChange, allowSize = false }: { data: any; onChange: (key: string, value: any) => void; allowSize?: boolean }) {
-  const btnClass = (active: boolean) => `rounded p-1.5 transition ${active ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`
-  return (
-    <div className="mb-1.5 inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-white p-0.5 dark:border-gray-800 dark:bg-[#1A1A1C]">
-      <button type="button" onClick={() => onChange('align', data?.align === 'center' ? 'left' : 'center')} className={btnClass(data?.align === 'center')} title="Center align">
-        {data?.align === 'center' ? <AlignCenter className="h-3 w-3" /> : <AlignLeft className="h-3 w-3" />}
-      </button>
-      {allowSize && (
-        <>
-          <span className="mx-0.5 h-4 w-px bg-gray-200 dark:bg-gray-700" />
-          {(['sm', 'base', 'lg'] as const).map(size => (
-            <button key={size} type="button" onClick={() => onChange('size', size)} className={`${btnClass((data?.size || 'base') === size)} px-1.5 py-1 text-[10px] font-black uppercase`} title={size === 'sm' ? 'Small text' : size === 'base' ? 'Normal text' : 'Large text'}>
-              {size === 'sm' ? 'S' : size === 'base' ? 'M' : 'L'}
-            </button>
-          ))}
-        </>
-      )}
-    </div>
-  )
-}
-
-function ListEditor({ items, ordered, onChange }: { items: string[]; ordered: boolean; onChange: (items: string[]) => void }) {
-  return (
-    <div className="space-y-1.5">
-      {items.map((item, index) => (
-        <div key={index} className="flex items-start gap-2">
-          <span className="mt-1.5 shrink-0 text-sm font-black text-gray-400">{ordered ? `${index + 1}.` : '•'}</span>
-          <AutoGrowTextarea value={item} onChange={v => { const next = [...items]; next[index] = v; onChange(next) }} placeholder="List item" className="text-base font-medium text-[#374151] dark:text-gray-300" />
-          <button onClick={() => onChange(items.filter((_, i) => i !== index))} className="mt-1 shrink-0 rounded p-1 text-gray-300 hover:text-red-500"><X className="h-3.5 w-3.5" /></button>
-        </div>
-      ))}
-      <button onClick={() => onChange([...items, ''])} className="ml-5 text-xs font-black text-[#8b7355] hover:underline dark:text-[#d7b974]">+ Add item</button>
-    </div>
-  )
-}
-
-function ImageBlockEditor({ url, caption, alt, onChangeUrl, onChangeCaption, onChangeAlt }: { url?: string; caption?: string; alt?: string; onChangeUrl: (url: string) => void; onChangeCaption: (caption: string) => void; onChangeAlt: (alt: string) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [uploading, setUploading] = useState(false)
-  const upload = async (file: File) => {
-    setUploading(true)
-    const response = await api.studio.uploadMedia(file)
-    if (response.success && response.data) onChangeUrl(response.data.url)
-    else notify(response.error || "That photo couldn't be uploaded - use a JPG under 10MB.")
-    setUploading(false)
-  }
-  return (
-    <div>
-      {url ? (
-        <div className="group relative overflow-hidden rounded-xl">
-          <img src={resolveMediaUrl(url)} alt={alt || ''} className="w-full object-cover" />
-          <button onClick={() => inputRef.current?.click()} className="absolute bottom-2 right-2 inline-flex items-center gap-1.5 rounded-lg bg-black/60 px-2.5 py-1.5 text-[11px] font-black text-white opacity-0 transition group-hover:opacity-100">
-            {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImagePlus className="h-3 w-3" />} Replace
-          </button>
-        </div>
-      ) : (
-        <button onClick={() => inputRef.current?.click()} disabled={uploading} className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 text-gray-400 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700">
-          {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
-          <span className="text-xs font-black">Add image</span>
-        </button>
-      )}
-      {url && (
-        <input value={caption || ''} onChange={e => onChangeCaption(e.target.value)} placeholder="Add a caption..." className="mt-2 w-full bg-transparent text-center text-xs font-semibold text-gray-400 outline-none" />
-      )}
-      <input ref={inputRef} type="file" accept="image/jpeg" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) upload(f) }} />
-    </div>
-  )
-}
-
-function GalleryBlockEditor({ images, onChange }: { images: string[]; onChange: (images: string[]) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [uploading, setUploading] = useState(false)
-  return (
-    <div>
-      <div className="grid grid-cols-3 gap-2">
-        {images.map((url, i) => (
-          <div key={i} className="group relative aspect-square overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
-            <img src={resolveMediaUrl(url)} alt="" className="h-full w-full object-cover" />
-            <button onClick={() => onChange(images.filter((_, idx) => idx !== i))} className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition group-hover:opacity-100"><X className="h-3 w-3" /></button>
-          </div>
-        ))}
-        <button
-          onClick={() => inputRef.current?.click()}
-          disabled={uploading}
-          className="flex aspect-square items-center justify-center rounded-lg border-2 border-dashed border-gray-300 text-gray-400 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700"
-        >
-          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-        </button>
-      </div>
-      <input ref={inputRef} type="file" accept="image/jpeg" className="hidden" onChange={async e => {
-        const file = e.target.files?.[0]; e.target.value = ''; if (!file) return
-        setUploading(true)
-        const response = await api.studio.uploadMedia(file)
-        if (response.success && response.data) onChange([...images, response.data.url])
-        else notify(response.error || "That photo couldn't be uploaded - use a JPG under 10MB.")
-        setUploading(false)
-      }} />
-    </div>
-  )
-}
-
-function YoutubeBlockEditor({ url, title, onChangeUrl, onChangeTitle }: { url?: string; title?: string; onChangeUrl: (url: string) => void; onChangeTitle: (title: string) => void }) {
-  if (!url) {
-    return (
-      <div className="rounded-xl border-2 border-dashed border-gray-300 p-4 dark:border-gray-700">
-        <div className="flex items-center gap-2">
-          <Video className="h-4 w-4 shrink-0 text-gray-400" />
-          <input onBlur={e => e.target.value && onChangeUrl(e.target.value)} placeholder="Paste a YouTube URL and click away..." className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-[#111827] outline-none dark:text-white" />
-        </div>
-      </div>
-    )
-  }
-  return (
-    <div>
-      <div className="group relative aspect-video overflow-hidden rounded-xl bg-black">
-        <img src={`https://img.youtube.com/vi/${extractYoutubeId(url)}/hqdefault.jpg`} alt="" className="h-full w-full object-cover opacity-80" />
-        <button onClick={() => onChangeUrl('')} className="absolute right-2 top-2 rounded-lg bg-black/60 px-2 py-1.5 text-[10px] font-black text-white opacity-0 transition group-hover:opacity-100">Change video</button>
-      </div>
-      <input value={title || ''} onChange={e => onChangeTitle(e.target.value)} placeholder="Video title (optional)" className="mt-2 w-full bg-transparent text-sm font-bold text-[#111827] outline-none dark:text-white" />
-    </div>
-  )
-}
-
-function extractYoutubeId(url: string): string {
-  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,})/)
-  return match ? match[1] : ''
-}
-
-function PropertyCardEditor({ property, displaySize, onChange, onChangeSize }: { property: LinkedProperty | null; displaySize: 'compact' | 'large'; onChange: (property: LinkedProperty | null) => void; onChangeSize: (size: 'compact' | 'large') => void }) {
-  const [picking, setPicking] = useState(false)
-  if (!property && !picking) {
-    return (
-      <button onClick={() => setPicking(true)} className="w-full rounded-xl border-2 border-dashed border-gray-300 p-4 text-center text-xs font-black text-gray-400 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700">
-        + Attach a property
-      </button>
-    )
-  }
-  if (picking) {
-    return (
-      <div className="rounded-xl border border-gray-200 p-3 dark:border-gray-800">
-        <PropertySelector value={property} onChange={p => { onChange(p); if (p) setPicking(false) }} compact />
-        <button onClick={() => setPicking(false)} className="mt-2 text-xs font-bold text-gray-400 hover:underline">Cancel</button>
-      </div>
-    )
-  }
-  return (
-    <div>
-      <div className="mb-2 inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-white p-0.5 dark:border-gray-800 dark:bg-[#1A1A1C]">
-        {(['compact', 'large'] as const).map(size => (
-          <button
-            key={size}
-            onClick={() => onChangeSize(size)}
-            className={`rounded px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition ${displaySize === size ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-          >
-            {size === 'compact' ? 'Compact' : 'Full Details'}
-          </button>
-        ))}
-      </div>
-      <div className="group relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
-        <PropertyCardDisplay property={property!} size={displaySize} />
-        <button onClick={() => setPicking(true)} className="absolute right-2 top-2 rounded-lg bg-black/60 px-2 py-1 text-[10px] font-black text-white opacity-0 transition group-hover:opacity-100">Change</button>
-      </div>
-    </div>
-  )
-}
-
-function QrBlockEditor({ url, label, onChangeUrl, onChangeLabel }: { url?: string; label?: string; onChangeUrl: (url: string) => void; onChangeLabel: (label: string) => void }) {
-  const [dataUrl, setDataUrl] = useState('')
-  useEffect(() => {
-    if (!url) { setDataUrl(''); return }
-    let cancelled = false
-    qrDataUrl(url, { size: 240, margin: 1 }).then(d => { if (!cancelled) setDataUrl(d) }).catch(() => {})
-    return () => { cancelled = true }
-  }, [url])
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-800">
-      {dataUrl ? <img src={dataUrl} alt="" className="h-12 w-12 shrink-0" /> : <QrCodeIcon className="h-12 w-12 shrink-0 text-gray-200" />}
-      <div className="min-w-0 flex-1 space-y-1">
-        <input value={url || ''} onChange={e => onChangeUrl(e.target.value)} placeholder="Destination URL" className="w-full bg-transparent text-xs font-semibold text-[#111827] outline-none dark:text-white" />
-        <input value={label || ''} onChange={e => onChangeLabel(e.target.value)} placeholder="Label" className="w-full bg-transparent text-xs font-semibold text-gray-400 outline-none" />
-      </div>
-    </div>
-  )
-}
-
-// Lead Form block: pick one of your forms (What's My Home Worth?, I'm Buying...) - on the published
-// article it's an inviting card that opens that form; responses land in Leads like any other.
-function LeadFormBlockEditor({ data, setData }: { data: any; setData: (key: string, value: any) => void }) {
-  const [forms, setForms] = useState<AgentFormConfig[] | null>(null)
-  useEffect(() => {
-    api.forms.getMine().then(res => setForms(res.success && res.data ? res.data.filter(f => f.form_type !== 'showcase_request') : []))
-  }, [])
-  const pick = (id: string) => {
-    const f = forms?.find(x => x.id === id)
-    if (!f) return
-    setData('formId', f.id)
-    setData('formSlug', f.slug)
-    setData('title', f.headline || f.title)
-    setData('description', f.subtitle || f.description || '')
-  }
-  return (
-    <div className="rounded-2xl border border-[#C9A24D]/40 bg-gradient-to-br from-white to-[#fbf3df] p-4 dark:from-[#151517] dark:to-[#1d1810]">
-      <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]"><ClipboardListIcon className="h-3.5 w-3.5" /> Lead form - one of your forms, right in the article</p>
-      {forms === null ? (
-        <p className="mt-2 flex items-center gap-2 text-xs font-bold text-gray-400"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading your forms...</p>
-      ) : forms.length === 0 ? (
-        <p className="mt-2 text-xs font-semibold text-gray-500">You don&apos;t have any forms yet - make one in Tools &rsaquo; Forms.</p>
-      ) : (
-        <>
-          <select value={data.formId || ''} onChange={e => pick(e.target.value)} className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-[#111827] outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white">
-            <option value="" disabled>Choose a form...</option>
-            {forms.map(f => <option key={f.id} value={f.id}>{f.title}</option>)}
-          </select>
-          {data.formId && (
-            <div className="mt-2 grid gap-1.5 sm:grid-cols-[1fr_140px]">
-              <input value={data.title || ''} onChange={e => setData('title', e.target.value)} placeholder="Headline readers see" className="rounded-lg border border-gray-200 bg-white px-3 py-2 font-serif text-sm font-black text-[#111827] outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white" />
-              <input value={data.label || ''} onChange={e => setData('label', e.target.value)} placeholder="Button: Start" className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-black text-[#111827] outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white" />
-              <input value={data.description || ''} onChange={e => setData('description', e.target.value)} placeholder="One line about what they'll get" className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-gray-300 sm:col-span-2" />
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  )
-}
-
-// Town Spotlight in the editor: pick one of the towns you serve (verified Areas data + live MLS
-// numbers, snapshotted with an as-of date), then it shows exactly as readers will see it.
-function AreaSpotlightEditor({ area, onChange }: { area: AreaCard | null; onChange: (area: AreaCard | null) => void }) {
-  const [cards, setCards] = useState<AreaCard[] | null>(null)
-  const [picking, setPicking] = useState(!area)
-  useEffect(() => {
-    if (!picking || cards) return
-    api.blogs.aiContext().then(r => setCards(r.success && r.data ? ((r.data as any).area_cards || []) : []))
-  }, [picking, cards])
-  if (area && !picking) {
-    return (
-      <div className="group/as relative">
-        <AreaSpotlightSection area={area} />
-        <div className="absolute right-3 top-3 flex gap-1.5 opacity-0 transition group-hover/as:opacity-100">
-          <button type="button" onClick={() => { setCards(null); setPicking(true) }} className="rounded-lg bg-black/60 px-2.5 py-1.5 text-[11px] font-black text-white transition hover:bg-black/75 active:scale-95">Change town / refresh data</button>
-        </div>
-      </div>
-    )
-  }
-  return (
-    <div className="rounded-2xl border-2 border-dashed border-[#C9A24D]/40 bg-[#fffaf0] p-4 dark:bg-white/[0.02]">
-      <p className="flex items-center gap-1.5 text-sm font-black text-[#111827] dark:text-white"><MapPinIcon className="h-4 w-4 text-[#C9A24D]" /> Town Spotlight - pick a town</p>
-      <p className="mt-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400">A photo-led section with the town&apos;s live market numbers, school districts and what&apos;s nearby - from your Areas.</p>
-      {!cards ? (
-        <div className="mt-3 flex items-center gap-2 text-xs font-bold text-gray-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading your towns...</div>
-      ) : cards.length === 0 ? (
-        <p className="mt-3 text-xs font-bold text-gray-500">No towns yet - add the towns you serve in IDX → Areas, then come back.</p>
-      ) : (
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          {cards.map(c => (
-            <motion.button key={c.slug} type="button" whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} onClick={() => { onChange(c); setPicking(false) }} className="group overflow-hidden rounded-xl border border-gray-200 bg-white text-left dark:border-white/10 dark:bg-[#151517]">
-              <span className="block aspect-[16/9] bg-cover bg-center transition-transform duration-500 group-hover:scale-105" style={{ backgroundImage: c.photo ? `url(${resolveMediaUrl(c.photo)})` : 'linear-gradient(135deg,#111827,#2a2218)' }} />
-              <span className="block px-2.5 py-2"><span className="block truncate text-xs font-black text-[#111827] dark:text-white">{c.name}, {c.state}</span>{c.active_count != null && <span className="block text-[10px] font-semibold text-gray-400">{c.active_count} homes for sale</span>}</span>
-            </motion.button>
-          ))}
-        </div>
-      )}
-      {area && <button type="button" onClick={() => setPicking(false)} className="mt-2 text-[11px] font-black text-gray-400 hover:text-[#111827]">Cancel</button>}
-    </div>
-  )
-}

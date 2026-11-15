@@ -10,12 +10,18 @@ import { ArrowRight, BookOpen, Calculator, ExternalLink } from 'lucide-react'
 export type PaymentScenario = {
   down_pct: number; down: number; loan: number; principal_interest: number
   mortgage_insurance: 'none' | 'lender quote'; tax?: number | null; monthly_before_insurance: number; jumbo?: boolean
+  /** monthly_before_insurance plus the town's median association fee (attached-home examples only). */
+  with_fee?: number | null
 }
 export type PaymentExampleData = {
   price: number; price_basis?: string; rate: number; rate_as_of?: string; term_years?: number
   tax_pct?: number | null; tax_basis?: string | null; closing_low: number; closing_high: number
+  /** What the closing-cost range is made of, when it isn't the plain national 2-5% (a city with a large transfer tax). */
+  closing_basis?: string | null
   limit_known?: boolean; limit_area?: string | null
   scenarios: PaymentScenario[]; as_of?: string; cta_form?: string | null; closing_note?: string | null
+  /** The median monthly association fee of the condos or townhomes for sale that list one (11/15: grader round 7). */
+  fee?: { monthly: number; homes: number; label: string } | null
 }
 
 const usd = (n?: number | null) => (n == null ? '-' : `$${Math.round(n).toLocaleString('en-US')}`)
@@ -27,13 +33,19 @@ const day = (iso?: string) => {
 
 export function PaymentExample({ data, accent = '#C9A24D', onAction }: { data: PaymentExampleData; accent?: string; onAction?: () => void }) {
   if (!data?.price || !data.scenarios?.length) return null
+  // Only where the example is a condo or townhome and the town's listings give a median fee.
+  const fee = data.fee && data.fee.monthly ? data.fee : null
   const rows: { label: string; get: (s: PaymentScenario) => string; strong?: boolean }[] = [
     { label: 'Down payment', get: s => usd(s.down) },
     { label: 'Loan amount', get: s => usd(s.loan) + (s.jumbo ? ' *' : '') },
     { label: 'Principal & interest', get: s => `${usd(s.principal_interest)}/mo` },
     ...(data.scenarios.some(s => s.tax) ? [{ label: 'Property tax (est.)', get: (s: PaymentScenario) => `${usd(s.tax)}/mo` }] : []),
     { label: 'Mortgage insurance', get: s => (s.mortgage_insurance === 'none' ? 'None' : 'Lender quote') },
-    { label: data.scenarios.some(s => s.tax) ? 'Principal, interest & tax' : 'Principal & interest only', get: s => `${usd(s.monthly_before_insurance)}/mo`, strong: true },
+    { label: data.scenarios.some(s => s.tax) ? 'Principal, interest & tax' : 'Principal & interest only', get: s => `${usd(s.monthly_before_insurance)}/mo`, strong: !fee },
+    ...(fee ? [
+      { label: 'Association fee (median)', get: () => `${usd(fee.monthly)}/mo` },
+      { label: 'With the association fee', get: (s: PaymentScenario) => `${usd(s.with_fee ?? s.monthly_before_insurance + fee.monthly)}/mo`, strong: true },
+    ] : []),
   ]
   return (
     <motion.section initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-60px' }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
@@ -50,7 +62,7 @@ export function PaymentExample({ data, accent = '#C9A24D', onAction }: { data: P
         {/* 11/01 grader: readers took the total for a full monthly payment - say what's in it, up front. */}
         <p className="mt-3 max-w-2xl text-sm font-semibold leading-relaxed text-[#111827] dark:text-white/85">
           {data.scenarios.some(s => s.tax) ? 'Estimated principal, interest and property tax.' : 'Estimated principal and interest.'}{' '}
-          <span className="font-bold text-gray-500 dark:text-white/55">Not included: homeowners insurance, mortgage insurance and any condo or HOA fee.</span>
+          <span className="font-bold text-gray-500 dark:text-white/55">{fee ? 'Not included: homeowners insurance and mortgage insurance.' : 'Not included: homeowners insurance, mortgage insurance and any condo or HOA fee.'}</span>
         </p>
       </div>
 
@@ -95,12 +107,12 @@ export function PaymentExample({ data, accent = '#C9A24D', onAction }: { data: P
 
       <div className="mx-6 mt-4 rounded-2xl border border-dashed p-4 text-sm sm:mx-8" style={{ borderColor: `${accent}66` }}>
         <p className="font-black text-[#111827] dark:text-white">Cash to bring to settlement</p>
-        <p className="mt-1 text-gray-600 dark:text-white/70">Your down payment plus closing costs of about <strong className="text-[#111827] dark:text-white">{usd(data.closing_low)} - {usd(data.closing_high)}</strong> - the CFPB&apos;s typical range of 2-5% of the price.{data.closing_note ? ` ${data.closing_note}` : ''}</p>
+        <p className="mt-1 text-gray-600 dark:text-white/70">Your down payment plus closing costs of about <strong className="text-[#111827] dark:text-white">{usd(data.closing_low)} - {usd(data.closing_high)}</strong> - {data.closing_basis || "the CFPB's typical range of 2-5% of the price."}{data.closing_note ? ` ${data.closing_note}` : ''}</p>
       </div>
 
       <div className="flex flex-col gap-4 px-6 pb-6 pt-4 sm:flex-row sm:items-end sm:justify-between sm:px-8 sm:pb-8">
         <p className="max-w-xl text-[11px] leading-relaxed text-gray-400 dark:text-white/45">
-          An example, not a quote. Rate is a national average; yours depends on credit, loan type and lender. Property tax {data.tax_basis ? `uses the ${data.tax_basis}` : 'varies by assessment'}; homeowners insurance and any HOA fee are not included. Mortgage insurance applies to conventional loans under 20% down (FHA loans carry it at any down payment; VA loans have none).
+          An example, not a quote. The rate is Freddie Mac&apos;s national average for well-qualified borrowers putting 20% down; yours depends on your credit, down payment, loan type and lender. Property tax {data.tax_basis ? `uses the ${data.tax_basis}` : 'varies by assessment'}; {fee ? `homeowners insurance is not included, and the association fee is the median of the ${fee.homes} ${fee.label} for sale that list one - a home's own fee can be higher or lower` : 'homeowners insurance and any HOA fee are not included'}. Mortgage insurance applies to conventional loans under 20% down (FHA loans carry it at any down payment; VA loans have none).
           {data.scenarios.some(s => s.jumbo) ? ` * Above ${data.limit_area ? `${data.limit_area}'s` : 'the county\'s'} 2026 conforming loan limit - a jumbo loan with its own rates and rules. The rate shown is Freddie Mac's average for conforming loans, so ask a lender for a jumbo quote.` : ''}
         </p>
         {onAction && (
@@ -113,7 +125,13 @@ export function PaymentExample({ data, accent = '#C9A24D', onAction }: { data: P
   )
 }
 
-export type SourcesData = { items?: { name: string; url: string; as_of?: string | null }[]; mls?: string | null; notes?: string[] }
+export type SourcesData = { items?: { name: string; url: string; as_of?: string | null; read?: string | null }[]; mls?: string | null; notes?: string[] }
+
+// Two different dates, never one unexplained bracket: the date or period the fact is for, and the day the page was read.
+const sourceDates = (s: { as_of?: string | null; read?: string | null }) => {
+  const parts = [s.as_of && s.as_of !== s.read ? `for ${s.as_of}` : '', s.read ? `page read ${s.read}` : ''].filter(Boolean)
+  return parts.length ? parts.join(' · ') : (s.as_of || '')
+}
 
 export function SourcesList({ data, accent = '#C9A24D' }: { data: SourcesData; accent?: string }) {
   const items = (data?.items || []).filter(s => s?.url && /^https?:\/\//i.test(s.url))
@@ -133,7 +151,7 @@ export function SourcesList({ data, accent = '#C9A24D' }: { data: SourcesData; a
               <a href={s.url} target="_blank" rel="noopener" className="font-semibold text-gray-700 underline decoration-gray-300 underline-offset-2 hover:decoration-current dark:text-white/80">
                 {s.name}<ExternalLink className="ml-1 inline h-3 w-3 align-[-1px] opacity-60" />
               </a>
-              {s.as_of && <span className="text-gray-400">({s.as_of})</span>}
+              {sourceDates(s) && <span className="text-gray-400">({sourceDates(s)})</span>}
             </li>
           ))}
         </ol>

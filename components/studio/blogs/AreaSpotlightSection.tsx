@@ -19,6 +19,8 @@ export type AreaCard = {
   /** 'sold_2y' = the middle 90% of homes sold in the last two years (older snapshots: today's listings). */
   price_range_basis?: string | null
   school_districts?: ({ name?: string } | string)[]
+  /** The list is the main districts only - smaller ones that serve a few addresses aren't shown. */
+  school_districts_partial?: boolean
   nearby?: { market?: string[]; downtown?: string[]; parks?: string[]; restaurants_shopping?: string[]; transportation?: string[]; standout?: string[] }
   as_of?: string
 }
@@ -43,12 +45,12 @@ export default function AreaSpotlightSection({ area, accent = '#C9A24D' }: { are
     { icon: Home, label: 'Under contract', value: area.under_contract_count ? String(area.under_contract_count) : null },
     // Older articles saved the min/max of whatever was listed (Radnor read $148K - $10M): those
     // only show when the spread is believable.
-    { icon: TrendingUp, label: area.price_range_basis === 'sold_2y' ? 'Typical sales, 2 yrs' : 'Price range', value: area.min_price && area.max_price && area.min_price >= 50_000 && (area.price_range_basis === 'sold_2y' || area.max_price / area.min_price <= 20) ? `${money(area.min_price)} - ${money(area.max_price)}` : null },
+    { icon: TrendingUp, label: area.price_range_basis === 'sold_2y' ? 'Middle 90% of sales, 2 yrs' : 'Price range', value: area.min_price && area.max_price && area.min_price >= 50_000 && (area.price_range_basis === 'sold_2y' || area.max_price / area.min_price <= 20) ? `${money(area.min_price)} - ${money(area.max_price)}` : null },
   ].filter(s => s.value)
   const nearby = [
     { icon: Store, label: 'Downtown', items: n.downtown },
     { icon: Trees, label: 'Parks', items: n.parks },
-    { icon: Bus, label: 'Getting around', items: n.transportation },
+    { icon: Bus, label: 'Transit nearby', items: n.transportation },
     { icon: Store, label: 'Dining & shopping', items: n.restaurants_shopping },
   ].filter(x => x.items && x.items.length)
 
@@ -100,9 +102,9 @@ export default function AreaSpotlightSection({ area, accent = '#C9A24D' }: { are
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             {schools.length > 0 && (
               <div className="rounded-2xl bg-gray-50 p-4 dark:bg-white/[0.03]">
-                <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/50"><GraduationCap className="h-3.5 w-3.5" style={{ color: accent }} /> School districts</p>
+                <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-white/50"><GraduationCap className="h-3.5 w-3.5" style={{ color: accent }} /> {area.school_districts_partial ? 'Main school districts' : 'School districts'}</p>
                 <p className="mt-1.5 text-sm font-semibold text-[#111827] dark:text-white">{schools.join(' · ')}</p>
-                <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Districts can differ by address - verify any specific home with the district.</p>
+                <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{area.school_districts_partial ? 'These serve most addresses; other districts serve some. Verify any specific home with the district.' : 'Districts can differ by address - verify any specific home with the district.'}</p>
               </div>
             )}
             {nearby.map(x => (

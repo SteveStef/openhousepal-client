@@ -18,6 +18,9 @@ export function escapeHtml(text: string): string {
 
 const escapeAttr = (v: string) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
+const BLOCK_OPEN = '\u0001'
+const BLOCK_CLOSE = '\u0002'
+
 export function sanitizeInlineHtml(html: string): string {
   if (!html) return ''
   let s = String(html)
@@ -25,6 +28,11 @@ export function sanitizeInlineHtml(html: string): string {
   s = s.replace(/<!--[\s\S]*?-->/g, '')
   s = s.replace(/<(script|style|iframe|object|embed|noscript|template)\b[\s\S]*?<\/\1\s*>/gi, '')
   s = s.replace(/<(script|style|iframe|object|embed|noscript|template)\b[^>]*\/?>/gi, '')
+  // A line the browser wrapped in its own <div> or <p> (Enter inside a block, a pasted paragraph) is a line
+  // break, not nothing. Unwrapped silently, "...a median of $418" + "<div>A new line</div>" was published as
+  // "$418A new line" (11/14). Opening and closing block tags become markers here and line breaks below.
+  s = s.replace(/<br\s*\/?>\s*(?=<\/(?:div|p|li|h[1-6]|blockquote)\s*>)/gi, '')
+  s = s.replace(/<(?:div|p|li|h[1-6]|blockquote)\b[^>]*>/gi, BLOCK_OPEN).replace(/<\/(?:div|p|li|h[1-6]|blockquote)\s*>/gi, BLOCK_CLOSE)
   // Every remaining tag: keep it (minus attributes) if allowed, otherwise unwrap it (text stays).
   // Then any "<" that isn't one of the rebuilt allowed tags (an unclosed "<img onerror=..." with
   // no ">") becomes text, so nothing half-formed ever reaches the browser's HTML parser.
@@ -42,4 +50,11 @@ export function sanitizeInlineHtml(html: string): string {
     }
     return `<${name}>`
   }).replace(/<(?!\/?(?:b|strong|i|em|u|s|strike|a|br)\b[^<>]*>)/gi, '&lt;')
+    // block markers -> one line break between blocks; none at the very start or end
+    .replace(new RegExp(`${BLOCK_CLOSE}\\s*${BLOCK_OPEN}`, 'g'), BLOCK_OPEN)
+    .replace(new RegExp(`${BLOCK_CLOSE}\\s*$`), '')
+    .replace(new RegExp(`^\\s*${BLOCK_OPEN}`), '')
+    .replace(new RegExp(`[${BLOCK_OPEN}${BLOCK_CLOSE}]`, 'g'), '<br>')
+    // a trailing line break is the editor's own placeholder for "the caret is on a new line"
+    .replace(/(?:\s|&nbsp;|<br>)+$/g, '')
 }

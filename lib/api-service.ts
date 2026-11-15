@@ -2059,16 +2059,31 @@ class ApiService {
 
     // AI Blog Writer - guided interview -> full DRAFT article, metered on the monthly AI allowance.
     aiContext: () => this.request<BlogAiContext>('/studio/blogs/ai/context'),
+    /** Tappable choices read from the article's title: free picks (audience, town, closing) + one tiny AI call. */
+    aiSuggest: (body: { title: string; preset?: string | null }) =>
+      this.request<{ audiences: string[]; areas: string[]; angles: string[]; goals: string[]; key_points: string[]; takes: string[]; tone: string; length: string; cta: string; ai: boolean; cost_usd?: number
+        price?: { band: 'low' | 'high' | null; min: number | null; max: number | null }; sales_town?: string | null
+        /** Set when the smart choices are resting (97% of the month's AI used, or a day's worth asked) - the built-in ones came back. */
+        paused?: { reason: string; message: string } }>(
+        '/studio/blogs/ai/suggest', { method: 'POST', body: JSON.stringify(body) }),
+    /** Titles to tap before one is typed - built from the agent's towns, sales, bio, the month and what they haven't written. */
+    aiTitleIdeas: (body: { preset?: string | null; template_title?: string | null }) =>
+      this.request<{ titles: { title: string; basis: 'your_sales' | 'your_town' | 'timely' | 'fresh' }[]; ai: boolean; cost_usd?: number; paused?: { reason: string; message: string } }>(
+        '/studio/blogs/ai/title-ideas', { method: 'POST', body: JSON.stringify(body) }),
     // Roughly what one AI-written article costs, shown before the agent spends it.
-    aiEstimate: (length: string = 'standard') => this.request<{ usd: number; percent: number | null }>(`/studio/blogs/ai/estimate?length=${encodeURIComponent(length)}`),
+    // `overnight` = the same article through the half-price line: what it uses and when it is likely ready.
+    aiEstimate: (length: string = 'standard') => this.request<{ usd: number; percent: number | null
+      overnight?: { usd: number; percent: number | null; percent_max?: number | null; typical_minutes: number; likely_at: string; latest_at: string; cap_minutes?: number; max_minutes?: number } }>(`/studio/blogs/ai/estimate?length=${encodeURIComponent(length)}`),
     aiGenerateJob: (brief: BlogAiBrief) =>
-      this.request<{ blog_id: string; status: 'running'; stage: string; engine: string }>('/studio/blogs/ai/generate-job', { method: 'POST', body: JSON.stringify(brief) }),
+      this.request<{ blog_id: string; status: 'running'; stage: string; engine: string
+        mode?: 'overnight'; likely_at?: string; latest_at?: string; percent?: number | null; percent_max?: number | null; cap_minutes?: number; max_minutes?: number }>('/studio/blogs/ai/generate-job', { method: 'POST', body: JSON.stringify(brief) }),
     // "Ready to write?" - allowance, towns and whether the servers are quick enough, before Write.
     aiPreflight: (body: { areas: string[]; area_slugs: string[] }) =>
-      this.request<{ ready: boolean; seconds: number; checks: { key: string; level: 'ok' | 'warn' | 'block'; title: string; detail?: string }[] }>('/studio/blogs/ai/preflight', { method: 'POST', body: JSON.stringify(body) }),
+      this.request<{ ready: boolean; seconds: number; checks: { key: string; level: 'ok' | 'warn' | 'block' | 'ask'; title: string; detail?: string; states?: string[] }[] }>('/studio/blogs/ai/preflight', { method: 'POST', body: JSON.stringify(body) }),
     aiFinished: (blogId: string) => this.request<Blog>(`/studio/blogs/${blogId}/ai-finished`, { method: 'POST' }),
     aiJob: (blogId: string) =>
-      this.request<{ status: 'interview' | 'running' | 'done' | 'failed'; stage?: string; error?: string; brief?: any; step?: number; result?: BlogAiGenerateResult }>(`/studio/blogs/ai/jobs/${blogId}`),
+      this.request<{ status: 'interview' | 'running' | 'done' | 'failed'; stage?: string; error?: string; brief?: any; step?: number; result?: BlogAiGenerateResult
+        mode?: 'overnight'; likely_at?: string; latest_at?: string; capped?: boolean; cap_minutes?: number; max_minutes?: number }>(`/studio/blogs/ai/jobs/${blogId}`),
     // Town Spotlight for any town (shared town database; a new town is researched once - poll).
     townCard: (body: { name: string; state?: string }) =>
       this.request<{ status: 'ready' | 'researching'; card?: any; slug?: string; name?: string }>('/studio/blogs/ai/town-card', { method: 'POST', body: JSON.stringify(body) }),

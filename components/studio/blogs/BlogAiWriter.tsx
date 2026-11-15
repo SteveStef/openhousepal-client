@@ -26,9 +26,11 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  AlertTriangle, ArrowLeft, ArrowRight, Check, Clapperboard, CloudCheck, Home, Link2, Loader2, MapPin, PenLine, Play, Plus,
-  RotateCcw, Search, ShieldCheck, SkipForward, Sparkles, Star, Target, Users, Wand2, X,
+  AlertTriangle, ArrowLeft, ArrowRight, Bell, Check, Clapperboard, Clock, CloudCheck, Home, Leaf, Link2, Loader2, MapPin, PenLine, Play, Plus,
+  RotateCcw, Search, ShieldCheck, SkipForward, Sparkles, Star, Target, Users, Wand2, X, Zap,
 } from 'lucide-react'
+import { readyClock, usagePct, usageRange } from '@/lib/blogOvernight'
+import { recommendSales } from '@/lib/blogSales'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
 import { startAiActivity, endAiActivity } from '@/lib/aiActivity'
@@ -69,7 +71,9 @@ const WRITING_STAGES: { key: string; label: string; detail: string }[] = [
   { key: 'finishing', label: 'Fixing and finishing', detail: 'Applying the fact-checker\'s fixes and building your sections' },
 ]
 
-const STEPS = ['Topic', 'Audience', 'Substance', 'Style'] as const
+// Three screens, not four (owner + reviewer 11/14): who it's for and where are ticked from the title, so they
+// share the first screen with it.
+const STEPS = ['Article', 'Substance', 'Style'] as const
 
 function gatheringDetail(plan?: string | null) {
   if (plan === 'IDX') return 'Your sales, live Bright MLS numbers and the town research behind your IDX pages'
@@ -178,7 +182,7 @@ export default function BlogAiWriter({
     try { return JSON.parse(localStorage.getItem(localKey) || '{}') || {} } catch { return {} }
   })
   const [step, setStep] = useState(() => Math.max(0, Math.min(STEPS.length - 1, resume?.step ?? rb.__step ?? 0)))
-  const [phase, setPhase] = useState<'interview' | 'writing' | 'done' | 'failed'>(resume?.error ? 'failed' : 'interview')
+  const [phase, setPhase] = useState<'interview' | 'writing' | 'queued' | 'done' | 'failed'>(resume?.error ? 'failed' : 'interview')
   const [stage, setStage] = useState(0)
   const [error, setError] = useState(resume?.error || '')
   // The DRAFT article these answers are saved on (created by the first autosave of a new article).
@@ -219,7 +223,7 @@ export default function BlogAiWriter({
   const [tone, setTone] = useState<BlogAiTone>(rb.tone || 'warm')
   const [length, setLength] = useState<BlogAiLength>(rb.length || 'standard')
   const [cta, setCta] = useState<string>(rb.cta || 'how_can_i_help')
-  // A video to tie in (asked before writing, so the AI gives it a section of its own).
+  // A related video (owner 11/15): shown as a card at the END of the article. The AI isn't told about it.
   const [video, setVideo] = useState<{ url: string; title?: string } | null>(rb.video || null)
   // The look, picked on the finished draft (a real example, not sample text).
   const [look, setLook] = useState<BlogThemeId>(initialTheme || 'luxe')
@@ -227,8 +231,6 @@ export default function BlogAiWriter({
   const [lookPeek, setLookPeek] = useState(false)
   const canLuxe = luxeBlogAllowed(user?.plan_tier)
   const [videoDraft, setVideoDraft] = useState('')
-  // Where a video picked before writing goes: its own section the AI writes (default), or a fixed spot.
-  const [videoPos, setVideoPos] = useState<string>(rb.video_pos || 'section')
 
   useEffect(() => {
     api.blogs.aiContext().then(res => {
@@ -252,7 +254,7 @@ export default function BlogAiWriter({
   useEffect(() => {
     if (!ctx || !spotlightOn) return
     const known = new Set((((ctx as any).area_cards || []) as any[]).map(c => String(c.name || '').toLowerCase()))
-    const todo = areas.filter(a => !known.has(townKey(a)) && !(townKey(a) in townCards))
+    const todo = areas.filter(a => !known.has(townKey(a)) && !(townKey(a) in townCards) && a !== ctx.agent.market)
     if (!todo.length) return
     setTownCards(cur => ({ ...cur, ...Object.fromEntries(todo.map(a => [townKey(a), 'researching'])) }))
     for (const a of todo) {
@@ -279,33 +281,86 @@ export default function BlogAiWriter({
   // opens every sale with a search box and pages; up to MAX_SALES picked.
   const [saleSearch, setSaleSearch] = useState('')
   const [allSales, setAllSales] = useState(false)
+  // What the title (and what we know about the agent) suggests - see readTitle below.
+  type Suggestions = { audiences: string[]; areas: string[]; angles: string[]; goals: string[]; key_points: string[]; takes: string[]; tone: string; length: string; cta: string; ai: boolean
+    price?: { band: 'low' | 'high' | null; min: number | null; max: number | null }; sales_town?: string | null
+    paused?: { reason: string; message: string } }
+  const [sug, setSug] = useState<Suggestions | null>(null)
   const salePool = useMemo(() => {
     const all = ctx?.recent_sales || []
     const wanted = areas.map(a => a.toLowerCase().split(',')[0].trim()).filter(Boolean)
     const inTown = wanted.length ? all.filter(s => s.city && wanted.some(w => s.city!.toLowerCase().includes(w) || w.includes(s.city!.toLowerCase()))) : []
     const q = saleSearch.trim().toLowerCase()
     const found = q ? all.filter(s => `${s.address} ${s.city || ''} ${s.state || ''}`.toLowerCase().includes(q)) : all
-    return { all, recommended: inTown.slice(0, 6), found, key: `${wanted.join('|')}::${q}` }
-  }, [ctx, areas, saleSearch])
+    // Which of them fit THIS article: one rule, shared with the chat helper's blog card (lib/blogSales).
+    const fit = recommendSales(all, areas, sug?.price, s => String(s.sold_date || ''))
+    return { all, recommended: fit.recommended, byPrice: fit.byPrice, inTown: inTown.length > 0, found, key: `${wanted.join('|')}::${q}` }
+  }, [ctx, areas, saleSearch, sug])
   useEffect(() => { setSalePage(0) }, [salePool.key])
   const pickSale = (id: string) => {
     if (!saleIds.includes(id) && saleIds.length >= MAX_SALES) return
     toggle(saleIds, setSaleIds, id)
   }
   const firstArea = areas[0] || ctx?.served_areas[0] || ctx?.agent.market || 'your area'
-  // Angles on the title the agent wrote in the step before (new-article flow), instead of generic ideas.
-  const baseTitle = initialTopic.trim().replace(/[.?!]+$/, '')
-  // A real town/market only - never "in your area".
-  const knownArea = areas[0] || ctx?.served_areas[0] || ctx?.agent.market || ''
-  const inArea = knownArea ? ` in ${knownArea}` : ''
-  const titleAngles = useMemo(() => !baseTitle ? [] : [
-    `${baseTitle} - what buyers${inArea} should know`,
-    `${baseTitle} - what sellers${inArea} should know`,
-    `${baseTitle}: a step-by-step local guide`,
-    `${baseTitle} - the questions my clients ask most`,
-    `${baseTitle}: what's changed this year${inArea}`,
-    `${baseTitle} - common mistakes and how to avoid them`,
-  ], [baseTitle, inArea])
+  // Smart starting points read from the TITLE (owner 11/14: "I wish I was selecting more than typing, based on
+  // suggestions the AI sees from the title"). It used to be six fixed endings glued to the title with the agent's
+  // FIRST town - a Wayne seller article was offered "what buyers in Villanova should know". Now: the town and the
+  // reader in the title are ticked for them, and the angle / goal / key points / take come as tappable choices.
+  // One small call per title (about a tenth of a cent, cached); what the agent already chose is never overwritten.
+  const [sugLoading, setSugLoading] = useState(false)
+  const sugFor = useRef('')
+  // What the agent set by hand (or a saved draft already had) is theirs - a suggestion never replaces it.
+  const touched = useRef<Record<string, boolean>>({ tone: !!rb.tone, length: !!rb.length, cta: !!rb.cta, audiences: !!(rb.audiences || []).length, areas: !!(rb.areas || []).length })
+  const [autoPicked, setAutoPicked] = useState<{ audiences?: boolean; areas?: boolean; style?: boolean }>({})
+  // The tone and length of their last article start picked (reviewer 11/14: it was Warm + Standard every time,
+  // whatever they chose before). Their voice is theirs: a remembered tone is never replaced by a guess from the title.
+  const styleKey = user?.id ? `blog-ai-style:${user.id}` : null
+  const remembered = useRef<{ tone?: boolean; length?: boolean }>({})
+  const [styleRemembered, setStyleRemembered] = useState(false)
+  useEffect(() => {
+    if (!styleKey) return
+    try {
+      const last = JSON.parse(localStorage.getItem(styleKey) || '{}') || {}
+      if (!touched.current.tone && TONES.some(x => x.id === last.tone)) { setTone(last.tone); touched.current.tone = true; remembered.current.tone = true; setStyleRemembered(true) }
+      if (!touched.current.length && ['short', 'standard', 'long'].includes(last.length)) { setLength(last.length); remembered.current.length = true; setStyleRemembered(true) }
+    } catch { /* private mode */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [styleKey])
+  const readTitle = async (title: string) => {
+    const t = title.trim()
+    if (t.length < 8 || sugFor.current === t.toLowerCase()) return
+    sugFor.current = t.toLowerCase()
+    setSugLoading(true)
+    const r = await api.blogs.aiSuggest({ title: t, preset: initialCategory || null })
+    if (!alive.current || sugFor.current !== t.toLowerCase()) return
+    setSugLoading(false)
+    if (!r.success || !r.data) return
+    const s = r.data as Suggestions
+    setSug(s)
+    const picked: { audiences?: boolean; areas?: boolean; style?: boolean } = {}
+    const who = (s.audiences || []).filter(a => AUDIENCES.includes(a))
+    if (!touched.current.audiences && who.length) { setAudiences(who); picked.audiences = true }
+    if (!touched.current.areas && s.areas?.length) { setAreas(s.areas.slice(0, MAX_TOWNS)); picked.areas = true }
+    if (!touched.current.tone && TONES.some(x => x.id === s.tone)) { setTone(s.tone as BlogAiTone); picked.style = true }
+    // A length they used last time stays unless the title plainly asks for another ("complete guide", "quick update").
+    if (!touched.current.length && ['short', 'standard', 'long'].includes(s.length) && !(remembered.current.length && s.length === 'standard')) { setLength(s.length as BlogAiLength); picked.style = true }
+    if (!touched.current.cta && s.cta) { setCta(s.cta); picked.style = true }
+    setAutoPicked(p => ({ ...p, ...picked }))
+  }
+  useEffect(() => {
+    // Read the title once it exists: straight away when it came from the "Give it a title" screen, else on leaving step 1.
+    if (ctx && ctx.ai_available && phase === 'interview' && (titleBased || step > 0)) readTitle(topic)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, ctx, phase])
+  // Key points are tapped on and off as lines of the same box the agent can also type in.
+  const pointLines = keyPoints.split('\n').map(l => l.replace(/^\s*[-•*]\s*/, '').trim()).filter(Boolean)
+  const hasPoint = (p: string) => pointLines.some(l => l.toLowerCase() === p.toLowerCase())
+  const togglePoint = (p: string) => setKeyPoints(hasPoint(p)
+    ? keyPoints.split('\n').filter(l => l.replace(/^\s*[-•*]\s*/, '').trim().toLowerCase() !== p.toLowerCase()).join('\n')
+    : `${keyPoints.trim() ? `${keyPoints.trim()}\n` : ''}- ${p}`)
+  const [factsOpen, setFactsOpen] = useState<boolean>(!!rb.facts)
+  const baseTitle = initialTopic.trim()
+  const titleAngles = useMemo(() => (sug?.angles || []).filter(a => a.trim().toLowerCase() !== baseTitle.toLowerCase()), [sug, baseTitle])
   const genericIdeas = useMemo(() => [
     `Monthly market update for ${firstArea}`,
     `Neighborhood guide: living in ${firstArea}`,
@@ -316,7 +371,7 @@ export default function BlogAiWriter({
     `Relocating to ${ctx?.agent.market || firstArea}: what to know first`,
     'Just sold: the story behind a recent closing',
   ], [firstArea, ctx?.agent.market])
-  const ideas = titleBased && titleAngles.length ? titleAngles : genericIdeas
+  const ideas = titleBased ? titleAngles : genericIdeas
 
   const areaOptions = useMemo(() => {
     const opts = [...(ctx?.served_areas || [])]
@@ -334,6 +389,7 @@ export default function BlogAiWriter({
 
   const [areaWarn, setAreaWarn] = useState(false)
   const pickArea = (v: string) => {
+    touched.current.areas = true
     if (areas.includes(v)) { setAreas(areas.filter(x => x !== v)); return }
     if (areas.length >= MAX_TOWNS) { setAreaWarn(true); window.setTimeout(() => setAreaWarn(false), 2600); return }
     setAreas([...areas, v])
@@ -376,11 +432,11 @@ export default function BlogAiWriter({
   // step change. A new article's answers live on its DRAFT (shown in Blogs as "Unfinished AI draft");
   // a rewrite's stay on this device. The extra fields put the picker state back exactly.
   const saving = useRef<Promise<unknown> | null>(null)
-  const saveKey = JSON.stringify([topic, goal, audiences, areas, keyPoints, personalTake, facts, saleIds, listingIds, tone, length, cta, video, spotlightOn, videoPos, step])
+  const saveKey = JSON.stringify([topic, goal, audiences, areas, keyPoints, personalTake, facts, saleIds, listingIds, tone, length, cta, video, spotlightOn, step])
   useEffect(() => {
-    if (!ctx || phase !== 'interview' || topic.trim().length < 4) return
+    if (!ctx || !ctx.ai_available || phase !== 'interview' || topic.trim().length < 4) return
     const t = window.setTimeout(async () => {
-      const brief = { ...buildBrief(), listing_ids: listingIds, spotlight_on: spotlightOn, video_pos: videoPos }
+      const brief = { ...buildBrief(), listing_ids: listingIds, spotlight_on: spotlightOn }
       if (localKey) {
         try { localStorage.setItem(localKey, JSON.stringify({ ...brief, __step: step })); setSavedAt(Date.now()) } catch { /* private mode */ }
         return
@@ -401,8 +457,13 @@ export default function BlogAiWriter({
   // to wait forever"): on the last step, and again on Write if it's old or said no - the AI allowance,
   // towns we've never covered, and whether the servers answer fast enough for the run's first step.
   // A check that can't be made (network) never blocks; the run itself also stops early and says so.
-  type Preflight = { ready: boolean; checks: { key: string; level: 'ok' | 'warn' | 'block'; title: string; detail?: string }[]; at: number }
+  type Preflight = { ready: boolean; checks: { key: string; level: 'ok' | 'warn' | 'block' | 'ask'; title: string; detail?: string; states?: string[] }[]; at: number }
   const [preflight, setPreflight] = useState<Preflight | null>(null)
+  // A town outside the agent's states: "Are you licensed there?" (grader 11/15). Yes = written as usual; No = the article
+  // offers an introduction to an agent who is. It must be answered before Write works.
+  const [licensedThere, setLicensedThere] = useState<boolean | null>(null)
+  const asksLicense = !!preflight?.checks.some(c => c.key === 'license')
+  const licenseOpen = asksLicense && licensedThere === null
   const [checking, setChecking] = useState(false)
   const runPreflight = async (): Promise<Preflight | null> => {
     setChecking(true)
@@ -418,12 +479,27 @@ export default function BlogAiWriter({
     if (ctx && !blocked && phase === 'interview' && step === STEPS.length - 1) runPreflight()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, phase, ctx])
+  // Now, or overnight for about half the usage (owner 11/14: "tell the agent exactly how much usage it works and when
+  // it will likely be ready by and that it will alert them"). Overnight is the very same run - same research, same
+  // fact-check - waiting in a slower, half-price line. Only for a new article: a rewrite would lock its editor for hours.
+  const [when, setWhen] = useState<'now' | 'overnight'>('overnight')   // Save usage is the default (owner 11/14)
+  const [estimate, setEstimate] = useState<{ percent: number | null; overnight?: { percent: number | null; percent_max?: number | null; likely_at: string; latest_at: string; cap_minutes?: number; max_minutes?: number } } | null>(null)
+  const [queued, setQueued] = useState<{ likely_at?: string; latest_at?: string; percent?: number | null; percent_max?: number | null; cap_minutes?: number; max_minutes?: number } | null>(null)
+  useEffect(() => {
+    if (!ctx || blocked || phase !== 'interview' || step !== STEPS.length - 1) return
+    let on = true
+    api.blogs.aiEstimate(length).then(r => { if (on && r.success && r.data) setEstimate(r.data) })
+    return () => { on = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, phase, ctx, length])
+  const overnight = !blogId && when === 'overnight' && !!estimate?.overnight   // only once the choice (and its numbers) is on screen
   const notReady = !!preflight && !preflight.ready
 
   const generate = async () => {
     let pf = preflight
     if (!pf || !pf.ready || Date.now() - pf.at > 60_000) pf = (await runPreflight()) || pf
     if (!alive.current) return
+    if (pf && pf.checks.some(c => c.key === 'license') && licensedThere === null) return   // the question on the last step is still open
     if (pf && !pf.ready) {
       // Stay put - the card on the last step says why (from "Try again", say it here).
       const stop = pf.checks.find(c => c.level === 'block')
@@ -431,24 +507,38 @@ export default function BlogAiWriter({
       return
     }
     setError('')
-    setPhase('writing')
+    if (overnight) setChecking(true)   // the button shows it is busy; the next screen is "we're on it", not the progress page
+    else setPhase('writing')
+    if (styleKey) { try { localStorage.setItem(styleKey, JSON.stringify({ tone, length })) } catch { /* private mode */ } }
     if (saving.current) await saving.current
-    const brief = buildBrief()
+    const brief: BlogAiBrief = { ...buildBrief(), ...(pf?.checks.some(c => c.key === 'license') ? { licensed_there: licensedThere } : {}) }
     startAiActivity()
     const fail = (msg?: string) => {
       endAiActivity()
       if (!alive.current) return
+      setChecking(false)
       setError(msg || 'The AI writer could not finish this draft.')
       setPhase('failed')
     }
     // Researched article: runs in the background (a few minutes) - start it, then follow its steps.
-    const started = await api.blogs.aiGenerateJob({ ...brief, engine: 'max' })
+    const started = await api.blogs.aiGenerateJob({ ...brief, engine: 'max', ...(overnight ? { overnight: true } : {}) })
     if (!started.success || !started.data) return fail(started.error)
     const jobId = started.data.blog_id
     if (!blogId) setDraftId(jobId)
     if (localKey) { try { localStorage.removeItem(localKey) } catch { /* */ } }
+    if (overnight) {
+      // Say when, how much, and that they'll be alerted. They can stay (the steps tick by and the draft opens here
+      // when it is done) or leave.
+      if (!alive.current) return
+      setChecking(false)
+      setStage(0)
+      setQueued({ likely_at: started.data.likely_at, latest_at: started.data.latest_at, percent: started.data.percent ?? estimate?.overnight?.percent,
+        percent_max: started.data.percent_max ?? estimate?.overnight?.percent_max ?? estimate?.percent,
+        cap_minutes: started.data.cap_minutes ?? estimate?.overnight?.cap_minutes, max_minutes: started.data.max_minutes ?? estimate?.overnight?.max_minutes })
+      setPhase('queued')
+    }
     for (let misses = 0; ;) {
-      await new Promise(r => setTimeout(r, 3000))
+      await new Promise(r => setTimeout(r, overnight ? 10000 : 3000))
       if (!alive.current) return
       const res = await api.blogs.aiJob(jobId)
       if (!res.success || !res.data) {
@@ -475,8 +565,7 @@ export default function BlogAiWriter({
     if (!result) return
     setFinishing(true)
     let blog = result.blog
-    const choices = { ...finish, moveVideo: finish.moveVideo || (videoPos !== 'section' ? videoPos : null) }
-    const blocks = applyFinish(blog.blocks, choices, ctx, areas)
+    const blocks = applyFinish(blog.blocks, finish, ctx, areas)
     if (JSON.stringify(blocks) !== JSON.stringify(blog.blocks)) {
       const r = await api.blogs.update(blog.id, { blocks })
       if (r.success && r.data) blog = r.data
@@ -505,6 +594,9 @@ export default function BlogAiWriter({
     endAiActivity()
     ;(onLeave || onClose)()
   }
+  // Once it is in the overnight line, closing means "back to my blogs" - never back into the questions,
+  // where a second Write would start (and charge for) the same article again.
+  const closeWriter = () => (phase === 'queued' ? leaveWriting() : onClose())
   const pastedVideo = video && !(ctx?.videos || []).some(v => v.url === video.url) ? video : null
   // The agent's own videos (Agent Hub + their YouTube channel), the ones whose titles share words
   // with what this article is about first (user, 10/17: "look for a couple keywords").
@@ -512,22 +604,34 @@ export default function BlogAiWriter({
     const yt = (ctx?.videos || []).filter(v => youtubeIdOf(v.url))
     const words = Array.from(new Set(([topic, goal, keyPoints, ...areas].join(' ').toLowerCase().match(/[a-z][a-z'-]{3,}/g) || [])))
       .filter(w => !VIDEO_STOP.has(w))
-    const scored = yt.map(v => ({ v, n: words.filter(w => (v.title || '').toLowerCase().includes(w)).length }))
+    // "Off market" is not the market (a market update was offered "Should You Sell Off Market Or Public?" as its
+    // one fit), and a video about the article's own town counts for more than one shared everyday word.
+    const towns = areas.map(a => a.toLowerCase().split(',')[0].trim()).filter(Boolean)
+    const scored = yt.map(v => {
+      const t = (v.title || '').toLowerCase().replace(/off[- ]market/g, ' ')
+      return { v, n: words.filter(w => t.includes(w)).length + 2 * towns.filter(w => t.includes(w)).length }
+    })
     const top = scored.filter(x => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 3).map(x => x.v)
     return { suggestedVideos: top, otherVideos: yt.filter(v => !top.includes(v)) }
   }, [ctx, topic, goal, keyPoints, areas])
+  const [videoSearch, setVideoSearch] = useState('')
+  const shownVideos = useMemo(() => {
+    const q = videoSearch.trim().toLowerCase()
+    const every = [...suggestedVideos, ...otherVideos]
+    return q ? every.filter(v => (v.title || '').toLowerCase().includes(q)) : every
+  }, [suggestedVideos, otherVideos, videoSearch])
 
   // Phones (10/22, "as good as CMA"): one tall sheet - the same height on every step, slides up,
   // pulls down to close (not while it's writing). Computers keep the centred window.
   const isPhone = useIsPhone()
   const sheetMotion = useSheetMotion()
-  const { sheetRef, y: sheetY } = useSwipeToClose(onClose, isPhone && phase !== 'writing' && !finishing)
+  const { sheetRef, y: sheetY } = useSwipeToClose(closeWriter, isPhone && phase !== 'writing' && !finishing)
   // A new step starts at its top (the window kept the last step's scroll spot).
   const bodyRef = useRef<HTMLDivElement>(null)
   useEffect(() => { bodyRef.current?.scrollTo({ top: 0 }) }, [step, doneStep, phase])
-  const phoneTitle = phase === 'done' ? 'Your draft is ready' : phase === 'writing' ? 'Writing your article…' : phase === 'failed' ? "This one didn't finish" : blogId ? 'Rewrite with AI' : resume ? 'Finish with AI' : 'Write with AI'
+  const phoneTitle = phase === 'done' ? 'Your draft is ready' : phase === 'writing' || phase === 'queued' ? 'Writing your article…' : phase === 'failed' ? "This one didn't finish" : blogId ? 'Rewrite with AI' : resume ? 'Finish with AI' : 'Write with AI'
   return (
-    <motion.div {...backdropMotion} className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:p-4" onClick={phase === 'writing' ? undefined : onClose}>
+    <motion.div {...backdropMotion} className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 sm:items-center sm:p-4" onClick={phase === 'writing' ? undefined : closeWriter}>
       <motion.div
         ref={sheetRef}
         {...(isPhone
@@ -551,12 +655,12 @@ export default function BlogAiWriter({
                 </p>
                 <h2 className="truncate font-serif text-lg font-black leading-tight text-white sm:text-xl">
                   <span className="sm:hidden">{phoneTitle}</span>
-                  <span className="hidden sm:inline">{phase === 'done' ? 'Your draft is ready' : phase === 'writing' ? 'Writing your article…' : phase === 'failed' ? "This one didn't finish" : blogId ? 'Rewrite this article with AI' : resume ? 'Finish your article with AI' : 'Write an article with AI'}</span>
+                  <span className="hidden sm:inline">{phase === 'done' ? 'Your draft is ready' : phase === 'writing' || phase === 'queued' ? 'Writing your article…' : phase === 'failed' ? "This one didn't finish" : blogId ? 'Rewrite this article with AI' : resume ? 'Finish your article with AI' : 'Write an article with AI'}</span>
                 </h2>
               </div>
             </div>
             {phase !== 'writing' && (
-              <button onClick={onClose} aria-label="Close" className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-gray-300 transition hover:bg-white/10 hover:text-white active:scale-95 sm:h-9 sm:w-9"><X className="h-5 w-5" /></button>
+              <button onClick={closeWriter} aria-label="Close" className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-gray-300 transition hover:bg-white/10 hover:text-white active:scale-95 sm:h-9 sm:w-9"><X className="h-5 w-5" /></button>
             )}
           </div>
           {phase === 'done' && result && (
@@ -610,36 +714,31 @@ export default function BlogAiWriter({
               <motion.div key={step} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0, transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } }} exit={{ opacity: 0, transition: { duration: 0.08 } }} className="space-y-6">
                 {step === 0 && (
                   <>
-                    <Question icon={PenLine} title={titleBased ? 'What angle should it take?' : "What's this article about?"} hint={titleBased ? 'Your title is below - sharpen it, or tap an angle built from it.' : 'A sentence is plenty. Pick an idea below to start faster.'}>
-                      <textarea autoFocus value={topic} onChange={e => setTopic(e.target.value)} rows={2} placeholder="e.g. What buyers should know about older homes in Bryn Mawr" className={inputCls} />
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {ideas.map(idea => {
-                          // An angle on the agent's own title shows just the angle ("+ the questions my clients ask most").
-                          const angle = baseTitle && idea.startsWith(baseTitle) ? idea.slice(baseTitle.length).replace(/^\s*[-:]\s*/, '') : null
-                          const on = topic === idea
-                          return (
-                            <motion.button key={idea} type="button" whileTap={{ scale: 0.95 }} onClick={() => setTopic(on && baseTitle ? baseTitle : idea)} title={idea}
-                              className={`max-w-full rounded-full px-3 py-1.5 text-left text-[12px] font-bold transition hover:-translate-y-0.5 sm:px-2.5 sm:py-1 sm:text-[11px] ${on ? 'bg-[#C9A24D] text-[#111827]' : 'bg-[#C9A24D]/10 text-[#8b7355] hover:bg-[#C9A24D]/20 dark:text-[#d7b974]'}`}>
-                              {angle ? <>{on ? <Check className="mr-1 inline h-3 w-3" /> : '+ '}{angle.charAt(0).toUpperCase() + angle.slice(1)}</> : idea}
-                            </motion.button>
-                          )
-                        })}
-                      </div>
+                    <Question icon={PenLine} title={titleBased ? 'Your title' : "What's this article about?"} hint={titleBased ? (titleAngles.length ? 'Keep it as it is, or tap a sharper version.' : sugLoading ? 'Reading your title for ideas…' : 'Keep it as it is, or edit it here.') : 'A sentence is plenty. Pick an idea below to start faster.'}>
+                      <textarea autoFocus={!titleBased} value={topic} onChange={e => setTopic(e.target.value)} onBlur={() => { if (ctx.ai_available && !(sug?.angles || []).includes(topic.trim())) readTitle(topic) }} rows={2} placeholder="e.g. What buyers should know about older homes in Bryn Mawr" className={inputCls} />
+                      {ideas.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {ideas.map(idea => {
+                            const on = topic === idea
+                            return (
+                              <motion.button key={idea} type="button" whileTap={{ scale: 0.95 }} onClick={() => setTopic(on && baseTitle ? baseTitle : idea)} title={idea}
+                                className={`max-w-full rounded-full px-3 py-1.5 text-left text-[12px] font-bold transition hover:-translate-y-0.5 sm:px-2.5 sm:py-1 sm:text-[11px] ${on ? 'bg-[#C9A24D] text-[#111827]' : 'bg-[#C9A24D]/10 text-[#8b7355] hover:bg-[#C9A24D]/20 dark:text-[#d7b974]'}`}>
+                                {on && <Check className="mr-1 inline h-3 w-3" />}{idea}
+                              </motion.button>
+                            )
+                          })}
+                        </div>
+                      )}
+                      {sug?.paused && <p className="mt-2 text-[11px] font-semibold text-amber-700 dark:text-amber-300">{sug.paused.message}</p>}
                     </Question>
-                    <Question icon={Target} title="What should a reader walk away knowing — or doing?" hint="Optional, but it sharpens the whole article.">
-                      <AutoGrow value={goal} onChange={setGoal} placeholder="e.g. Feel confident about the inspection steps before making an offer" className={inputCls} />
-                    </Question>
-                  </>
-                )}
-
-                {step === 1 && (
-                  <>
-                    <Question icon={Users} title="Who is it for?" hint="Pick any that apply.">
+                    {/* One screen, not two (reviewer 11/14: "fold the steps"): the reader and the town are ticked from
+                        the title, so they sit right under it to glance at - not a screen of their own. */}
+                    <Question icon={Users} title="Who is it for?" hint={autoPicked.audiences ? 'Picked from your title - tap to change.' : 'Pick any that apply.'}>
                       <div className="flex flex-wrap gap-1.5">
-                        {AUDIENCES.map(a => <Chip key={a} on={audiences.includes(a)} onClick={() => toggle(audiences, setAudiences, a)}>{a}</Chip>)}
+                        {AUDIENCES.map(a => <Chip key={a} on={audiences.includes(a)} onClick={() => { touched.current.audiences = true; toggle(audiences, setAudiences, a) }}>{a}</Chip>)}
                       </div>
                     </Question>
-                    <Question icon={MapPin} title="What area are you writing about?" hint="The towns or neighborhoods it's about, roughly. Naming them is what makes it rank locally - and what the AI needs to get the details right.">
+                    <Question icon={MapPin} title="What area are you writing about?" hint={autoPicked.areas ? 'Picked from your title - tap to change. The town is what makes it rank locally, and what the AI needs to get the details right.' : "The towns or neighborhoods it's about, roughly. Naming them is what makes it rank locally - and what the AI needs to get the details right."}>
                       <div className="flex flex-wrap gap-1.5">
                         {areaOptions.map(a => <Chip key={a} on={areas.includes(a)} onClick={() => pickArea(a)}>{a}</Chip>)}
                       </div>
@@ -658,7 +757,8 @@ export default function BlogAiWriter({
                         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-3 rounded-2xl border border-[#C9A24D]/30 bg-[#fffaf0] p-3 dark:bg-[#C9A24D]/[0.06]">
                           <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="text-xs font-black text-[#111827] dark:text-white">Add a Town Spotlight{spotlightCards.length === 1 ? ` for ${spotlightCards[0].name}` : ` for ${spotlightCards.length || researching.length} towns`}</p>
+                              <p className="text-xs font-black text-[#111827] dark:text-white">{/* Counts the towns still being looked up too - one town mid-lookup read "for 1 towns" (CMA/blog test 11/13). */}
+                                Add a Town Spotlight{(() => { const names = [...spotlightCards.map(c => c.name), ...researching]; return names.length === 1 ? ` for ${names[0]}` : ` for ${names.length} towns` })()}</p>
                               <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">A photo, live market numbers, schools and what&apos;s nearby for each town - verified and dated.</p>
                             </div>
                             <button type="button" role="switch" aria-checked={spotlightOn} onClick={() => setSpotlightOn(v => !v)} className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${spotlightOn ? 'bg-[#C9A24D]' : 'bg-gray-300 dark:bg-gray-700'}`}>
@@ -692,22 +792,44 @@ export default function BlogAiWriter({
                         </motion.div>
                       )}
                     </Question>
+                    <Question icon={Target} title="What should a reader walk away knowing — or doing?" hint={(sug?.goals || []).length ? 'Tap one, or write your own. Optional, but it sharpens the whole article.' : 'Optional, but it sharpens the whole article.'}>
+                      {(sug?.goals || []).length > 0 && (
+                        <div className="mb-2 flex flex-wrap gap-1.5">
+                          {sug!.goals.map(g => <Chip key={g} on={goal.trim() === g} onClick={() => setGoal(goal.trim() === g ? '' : g)}>{g}</Chip>)}
+                        </div>
+                      )}
+                      <AutoGrow value={goal} onChange={setGoal} placeholder={(sug?.goals || []).length ? 'Or write your own' : 'e.g. Feel confident about the inspection steps before making an offer'} className={inputCls} />
+                    </Question>
                   </>
                 )}
 
-                {step === 2 && (
+                {step === 1 && (
                   <>
-                    <Question icon={PenLine} title="Key points to cover" hint="Bullets are fine. Anything you'd tell a client across the table.">
-                      <textarea value={keyPoints} onChange={e => setKeyPoints(e.target.value)} rows={3} placeholder={'- Why pre-approval comes first\n- What to ask at the inspection\n- How we decide on an offer price'} className={inputCls} />
+                    <Question icon={PenLine} title="Key points to cover" hint={(sug?.key_points || []).length ? 'Tap the ones you want covered - add your own below if something is missing.' : "Bullets are fine. Anything you'd tell a client across the table."}>
+                      {(sug?.key_points || []).length > 0 && (
+                        <div className="mb-2 flex flex-wrap gap-1.5">
+                          {sug!.key_points.map(p => <Chip key={p} on={hasPoint(p)} onClick={() => togglePoint(p)}>{p}</Chip>)}
+                        </div>
+                      )}
+                      <textarea value={keyPoints} onChange={e => setKeyPoints(e.target.value)} rows={3} placeholder={(sug?.key_points || []).length ? 'Anything else to cover? One per line.' : '- Why pre-approval comes first\n- What to ask at the inspection\n- How we decide on an offer price'} className={inputCls} />
                     </Question>
-                    <Question icon={Sparkles} title="Your take, or a local story only you could tell" hint="This is what makes it yours instead of generic. The AI weaves it in, in your voice.">
+                    <Question icon={Sparkles} title="Your take, or a local story only you could tell" hint={(sug?.takes || []).length ? 'This is what makes it yours. Tap one you agree with and make it yours - or write your own.' : 'This is what makes it yours instead of generic. The AI weaves it in, in your voice.'}>
+                      {(sug?.takes || []).length > 0 && (
+                        <div className="mb-2 flex flex-col items-start gap-1.5">
+                          {sug!.takes.map(t => <Chip key={t} on={personalTake.trim() === t} onClick={() => setPersonalTake(personalTake.trim() === t ? '' : t)}>{t}</Chip>)}
+                        </div>
+                      )}
                       <textarea value={personalTake} onChange={e => setPersonalTake(e.target.value)} rows={3} placeholder="e.g. The buyers who win here are the ones who've seen enough homes to recognize a good one in the first ten minutes." className={`${inputCls} min-h-[8.25rem] sm:min-h-0`} />
                     </Question>
-                    <Question icon={ShieldCheck} title="Numbers you want cited" hint="Prices, days on market, inventory — only what you know is true. The AI never invents a statistic.">
-                      <textarea value={facts} onChange={e => setFacts(e.target.value)} rows={2} placeholder="e.g. Median sale price in Wayne last quarter: $X (source: Bright MLS)" className={`${inputCls} min-h-[5.75rem] sm:min-h-0`} />
+                    {/* The article pulls live MLS numbers for the towns picked on its own - typing them was the one
+                        question that asked the agent for what the app already has (reviewer, 11/14). */}
+                    <Question icon={ShieldCheck} title="Numbers" hint={areas.length ? `Nothing to type: live prices, how fast homes sell and homes for sale in ${areas.slice(0, 3).join(', ')} are pulled in automatically, with their dates. The AI never invents a statistic.` : 'Pick a town on the step before and its live prices, speed of sale and homes for sale are pulled in automatically. The AI never invents a statistic.'}>
+                      {factsOpen
+                        ? <textarea value={facts} onChange={e => setFacts(e.target.value)} rows={2} placeholder="e.g. Three of my last five listings went under contract in the first weekend" className={`${inputCls} min-h-[5.75rem] sm:min-h-0`} />
+                        : <button type="button" onClick={() => setFactsOpen(true)} className="inline-flex items-center gap-1.5 text-xs font-black text-[#8b7355] hover:text-[#111827] dark:text-[#d7b974] dark:hover:text-white"><Plus className="h-3.5 w-3.5" /> Add a number of my own</button>}
                     </Question>
                     {(ctx.recent_sales.length > 0 || ctx.listings.length > 0) && (
-                      <Question icon={Home} title="Reference your real sales or listings?" hint="Real numbers from your account — optional.">
+                      <Question icon={Home} title="Show your sales or listings at the end?" hint="Optional. They appear as cards in a Related section after the article ends. The AI doesn't write about them, unless your title is about your own sales.">
                         {ctx.recent_sales.length > 0 && (
                           <>
                             <p className="mb-1.5 flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-gray-400">
@@ -724,7 +846,7 @@ export default function BlogAiWriter({
                             )}
                             {salePool.recommended.filter(x => !saleIds.includes(x.id)).length > 0 && (
                               <div className="mb-2 rounded-xl border border-[#C9A24D]/30 bg-[#fffaf0] p-2.5 dark:bg-[#C9A24D]/[0.06]">
-                                <p className="mb-1.5 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]"><Star className="h-3 w-3 fill-current" /> Recommended - your sales in {areas.join(', ')}</p>
+                                <p className="mb-1.5 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]"><Star className="h-3 w-3 fill-current" /> Recommended - {salePool.inTown ? `your sales in ${areas.join(', ')}` : 'your sales that fit this article'}{salePool.inTown && salePool.byPrice ? ', closest in price first' : ''}</p>
                                 <div className="flex flex-wrap gap-1.5">
                                   {salePool.recommended.filter(x => !saleIds.includes(x.id)).map(s => <Chip key={`r-${s.id}`} on={false} onClick={() => pickSale(s.id)}>{propLine(s)}{s.sold_date ? ` · ${String(s.sold_date).slice(0, 7)}` : ''}</Chip>)}
                                 </div>
@@ -755,12 +877,12 @@ export default function BlogAiWriter({
                                 )}
                               </motion.div>
                             )}
-                            {saleIds.length >= MAX_SALES && <p className="mt-1.5 text-[10px] font-bold text-[#8b7355] dark:text-[#e8c97a]">That&apos;s {MAX_SALES} - the most one article uses. Tap a picked sale to swap it.</p>}
+                            {saleIds.length >= MAX_SALES && <p className="mt-1.5 text-[10px] font-bold text-[#8b7355] dark:text-[#e8c97a]">That&apos;s {MAX_SALES} - the most one article shows. Tap a picked sale to swap it.</p>}
                           </>
                         )}
                         {ctx.listings.length > 0 && (
                           <>
-                            <p className="mb-1.5 mt-3 text-[10px] font-black uppercase tracking-widest text-gray-400">Your active listings (added as property cards)</p>
+                            <p className="mb-1.5 mt-3 text-[10px] font-black uppercase tracking-widest text-gray-400">Your active listings (shown as cards at the end)</p>
                             <div className="flex flex-wrap gap-1.5">
                               {ctx.listings.map(l => <Chip key={l.id} on={listingIds.includes(l.id)} onClick={() => toggle(listingIds, setListingIds, l.id)}>{propLine(l)}</Chip>)}
                             </div>
@@ -768,12 +890,20 @@ export default function BlogAiWriter({
                         )}
                       </Question>
                     )}
-                    <Question icon={Clapperboard} title="Tie in one of your videos?" hint="Optional. Pick one and the AI writes a section around it - the video sits right in that section.">
+                    <Question icon={Clapperboard} title="Add a related video?" hint="Optional. It is shown at the end of the article as a related video. The AI doesn't write about it.">
                       {suggestedVideos.length + otherVideos.length > 0 ? (
                         <>
-                          {suggestedVideos.length > 0 && <p className="mb-1.5 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]"><Star className="h-3 w-3 fill-current" /> Suggested for this article</p>}
+                          {/* Every video, with a search box once there are many (reviewer 11/14: only the first 12 of 24 showed). */}
+                          {suggestedVideos.length + otherVideos.length > 8 && (
+                            <div className="relative mb-2">
+                              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                              <input value={videoSearch} onChange={e => setVideoSearch(e.target.value)} placeholder={`Search your ${suggestedVideos.length + otherVideos.length} videos`} className={`${inputCls} py-2 pl-8 text-xs`} />
+                            </div>
+                          )}
+                          {suggestedVideos.length > 0 && !videoSearch.trim() && <p className="mb-1.5 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]"><Star className="h-3 w-3 fill-current" /> Suggested for this article</p>}
+                          {videoSearch.trim() && shownVideos.length === 0 && <p className="mb-1.5 text-[11px] font-semibold text-gray-400">No videos match &ldquo;{videoSearch}&rdquo;.</p>}
                           <div className="flex gap-2 overflow-x-auto pb-1">
-                            {[...suggestedVideos, ...otherVideos].slice(0, 12).map(v => {
+                            {shownVideos.map(v => {
                               const on = video?.url === v.url
                               const fits = suggestedVideos.includes(v)
                               return (
@@ -816,28 +946,30 @@ export default function BlogAiWriter({
                       )}
                       {video && (
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-2 overflow-hidden">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Where it goes</p>
-                          <div className="mt-1.5 grid grid-cols-3 gap-1.5">
-                            {([['section', 'Its own section', 'The AI writes about it'], ['after_intro', 'After the intro', 'First thing readers see'], ['before_end', 'Near the end', 'Right before you sign off']] as const).map(([id, label, hint]) => (
-                              <button key={id} type="button" onClick={() => setVideoPos(id)} className={`min-h-[48px] rounded-xl border-2 px-2 py-2 text-left transition ${videoPos === id ? 'border-[#C9A24D] bg-[#C9A24D]/10' : 'border-gray-200 hover:border-gray-300 dark:border-gray-700'}`}>
-                                <span className="block text-[11px] font-black text-[#111827] dark:text-white">{label}</span>
-                                <span className="hidden text-[10px] font-semibold leading-tight text-gray-400 sm:block">{hint}</span>
-                              </button>
-                            ))}
-                          </div>
-                          <p className="mt-1.5 flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400"><Check className="h-3.5 w-3.5" /> {video.title ? <>&ldquo;{video.title}&rdquo;</> : 'This video'} goes in the article - you can move it once it&apos;s written.</p>
+                          <p className="mt-1.5 flex items-start gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400"><Check className="mt-px h-3.5 w-3.5 shrink-0" /> <span>{video.title ? <>&ldquo;{video.title}&rdquo;</> : 'This video'} will be shown at the end of the article, under Related video.</span></p>
                         </motion.div>
                       )}
                     </Question>
                   </>
                 )}
 
-                {step === 3 && (
+                {step === 2 && (
                   <>
-                    <Question icon={Wand2} title="Tone">
+                    {/* What the agent is about to spend their AI on, in one line (reviewer 11/14: no summary before Write). */}
+                    <div className="rounded-2xl border border-[#C9A24D]/30 bg-[#fffaf0] px-3.5 py-3 dark:bg-[#C9A24D]/[0.06]">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]">Your article</p>
+                      <p className="mt-1 text-sm font-black leading-snug text-[#111827] dark:text-white">{topic.trim()}</p>
+                      <p className="mt-1 text-[11px] font-semibold leading-relaxed text-gray-500 dark:text-gray-400">
+                        {[areas.length ? areas.join(', ') : 'No town picked', audiences.length ? audiences.join(', ') : 'Any reader',
+                          pointLines.length ? `${pointLines.length} key point${pointLines.length === 1 ? '' : 's'}` : 'No key points', personalTake.trim() ? 'your take' : '',
+                          saleIds.length ? `${saleIds.length} of your sales` : '', video ? 'a video' : ''].filter(Boolean).join(' · ')}
+                      </p>
+                      {!areas.length && <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-amber-700 dark:text-amber-300"><AlertTriangle className="h-3.5 w-3.5 shrink-0" /> No town is picked, so the article won&apos;t have local numbers. <button type="button" onClick={() => setStep(0)} className="underline">Pick one</button></p>}
+                    </div>
+                    <Question icon={Wand2} title="Tone" hint={styleRemembered ? 'Tone and length start where you left them on your last article; the closing button fits this title. Change any of them.' : autoPicked.style ? 'Tone, length and the closing button were picked to fit your title - change any of them.' : undefined}>
                       <div className="grid gap-2 sm:grid-cols-3">
                         {TONES.map(t => (
-                          <button key={t.id} type="button" onClick={() => setTone(t.id)} className={`rounded-xl border-2 px-3.5 py-2.5 text-left transition active:scale-[0.99] sm:p-3 ${tone === t.id ? 'border-[#C9A24D] bg-[#C9A24D]/10' : 'border-gray-200 hover:border-gray-300 dark:border-gray-700'}`}>
+                          <button key={t.id} type="button" onClick={() => { touched.current.tone = true; setTone(t.id) }} className={`rounded-xl border-2 px-3.5 py-2.5 text-left transition active:scale-[0.99] sm:p-3 ${tone === t.id ? 'border-[#C9A24D] bg-[#C9A24D]/10' : 'border-gray-200 hover:border-gray-300 dark:border-gray-700'}`}>
                             <p className="text-sm font-black text-[#111827] dark:text-white sm:text-xs">{t.label}</p>
                             <p className="mt-0.5 text-[11px] font-semibold text-gray-400">{t.hint}</p>
                           </button>
@@ -848,7 +980,7 @@ export default function BlogAiWriter({
                       {/* Phones: one row each (label left, words + minutes right) - three narrow columns broke "~1,000 words · 5 min" over four lines. */}
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                         {LENGTHS.map(l => (
-                          <button key={l.id} type="button" onClick={() => setLength(l.id)} className={`flex min-h-[48px] items-center justify-between gap-3 rounded-xl border-2 px-3.5 py-2.5 text-left transition active:scale-[0.99] sm:block sm:p-3 ${length === l.id ? 'border-[#C9A24D] bg-[#C9A24D]/10' : 'border-gray-200 hover:border-gray-300 dark:border-gray-700'}`}>
+                          <button key={l.id} type="button" onClick={() => { touched.current.length = true; setLength(l.id) }} className={`flex min-h-[48px] items-center justify-between gap-3 rounded-xl border-2 px-3.5 py-2.5 text-left transition active:scale-[0.99] sm:block sm:p-3 ${length === l.id ? 'border-[#C9A24D] bg-[#C9A24D]/10' : 'border-gray-200 hover:border-gray-300 dark:border-gray-700'}`}>
                             <p className="text-sm font-black text-[#111827] dark:text-white sm:text-xs">{l.label}</p>
                             <p className="text-[11px] font-semibold text-gray-400 sm:mt-0.5">{l.hint}</p>
                           </button>
@@ -857,7 +989,7 @@ export default function BlogAiWriter({
                     </Question>
                     <Question icon={Target} title="What should readers do at the end?">
                       <div className="flex flex-wrap gap-1.5">
-                        {CTAS.map(c => <Chip key={c.id} on={cta === c.id} onClick={() => setCta(c.id)}>{c.label}</Chip>)}
+                        {CTAS.map(c => <Chip key={c.id} on={cta === c.id} onClick={() => { touched.current.cta = true; setCta(c.id) }}>{c.label}</Chip>)}
                       </div>
                       <p className="mt-2 text-[11px] font-semibold text-gray-400">The button opens your {cta === 'question' ? 'question box' : `"${CTAS.find(c => c.id === cta)?.label}" form`} right on the article - readers never leave.</p>
                     </Question>
@@ -877,20 +1009,70 @@ export default function BlogAiWriter({
                         </p>
                       ) : (
                         <ul className="mt-1.5 space-y-1.5">
-                          {preflight.checks.map(c => (
-                            <li key={c.key} className="flex items-start gap-2">
-                              {c.level === 'ok'
-                                ? <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                : <AlertTriangle className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${c.level === 'block' ? 'text-rose-600 dark:text-rose-300' : 'text-amber-600 dark:text-amber-300'}`} />}
-                              <span className="min-w-0">
-                                <span className="block text-[12px] font-bold text-[#111827] dark:text-white">{c.title}</span>
-                                {c.detail && <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{c.detail}</span>}
-                              </span>
-                            </li>
-                          ))}
+                          {preflight.checks.map(c => {
+                            // Not enough left to write it now, but overnight (about half the usage) still fits: a note, not a stop.
+                            const soft = false
+                            const title = c.title
+                            const detail = c.detail
+                            return (
+                              <li key={c.key} className="flex items-start gap-2">
+                                {c.level === 'ok' || (c.key === 'license' && licensedThere !== null)
+                                  ? <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                  : <AlertTriangle className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${c.level === 'block' && !soft ? 'text-rose-600 dark:text-rose-300' : 'text-amber-600 dark:text-amber-300'}`} />}
+                                <span className="min-w-0">
+                                  <span className="block text-[12px] font-bold text-[#111827] dark:text-white">{title}</span>
+                                  {detail && <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{detail}</span>}
+                                  {c.key === 'license' && (
+                                    <span className="mt-1.5 flex flex-wrap gap-1.5" role="radiogroup" aria-label={title}>
+                                      {([[true, "Yes, I'm licensed there"], [false, "No, I'm not"]] as const).map(([v, label]) => (
+                                        <button key={String(v)} type="button" role="radio" aria-checked={licensedThere === v} onClick={() => setLicensedThere(v)}
+                                          data-testid={`blog-licensed-${v ? 'yes' : 'no'}`}
+                                          className={`min-h-[36px] rounded-full border px-3 py-1.5 text-xs font-black transition active:scale-95 ${licensedThere === v ? 'border-[#C9A24D] bg-[#C9A24D] text-[#111827]' : 'border-gray-200 text-gray-600 hover:border-[#C9A24D]/60 dark:border-gray-700 dark:text-gray-300'}`}>
+                                          {label}
+                                        </button>
+                                      ))}
+                                    </span>
+                                  )}
+                                </span>
+                              </li>
+                            )
+                          })}
                         </ul>
                       )}
                     </div>
+                    {/* Save usage (the default) or right now. The same article either way. */}
+                    {!blogId && estimate?.overnight && (
+                      <div>
+                        <p className="mb-2 text-xs font-black text-[#111827] dark:text-white">How soon do you need it?</p>
+                        <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="How soon do you need it?">
+                          {([
+                            { id: 'overnight' as const, Icon: Leaf, title: 'Save usage', line: `Same article, made slower so it costs less. Likely ready by ${readyClock(estimate.overnight.likely_at)}${estimate.overnight.max_minutes ? `, ${estimate.overnight.max_minutes} minutes at most` : ''} - we alert you`, use: usageRange(estimate.overnight.percent, estimate.overnight.percent_max ?? estimate.percent) },
+                            { id: 'now' as const, Icon: Zap, title: 'Write it now', line: 'Ready in 2-4 minutes', use: usageRange(estimate.percent) },
+                          ]).map(o => {
+                            const on = when === o.id
+                            return (
+                              <button key={o.id} type="button" role="radio" aria-checked={on} onClick={() => setWhen(o.id)}
+                                className={`flex min-h-[84px] items-start gap-2.5 rounded-2xl border p-3 text-left transition-[border-color,background-color,transform] duration-200 active:scale-[0.99] disabled:opacity-50 ${on ? 'border-[#C9A24D] bg-[#C9A24D]/10 shadow-sm' : 'border-gray-200 hover:border-[#C9A24D]/60 dark:border-gray-800'}`}>
+                                <span className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl ${on ? 'bg-[#C9A24D] text-[#111827]' : 'bg-gray-100 text-gray-500 dark:bg-white/[0.06] dark:text-gray-300'}`}><o.Icon className="h-4 w-4" /></span>
+                                <span className="min-w-0">
+                                  <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] font-black text-[#111827] dark:text-white">
+                                    {o.title}
+                                    {o.id === 'overnight' && <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">Usually half the AI</span>}
+                                  </span>
+                                  <span className="mt-0.5 block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{o.line}</span>
+                                  {o.use && <span className="mt-0.5 block text-[11px] font-black text-[#8b7355] dark:text-[#e8c97a]">About {o.use} of your monthly AI</span>}
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <p className="mt-2 text-[11px] font-semibold text-gray-400">
+                          {when === 'overnight'
+                            ? `Save usage is the same product - same research, same writing, same fact-check. It is made in a slower line, which is why it usually uses about half the AI (the lower figure).${estimate.overnight.cap_minutes ? ` If that line is busy, we finish it the fast way after ${estimate.overnight.cap_minutes} minutes, and the steps finished that way use the normal amount - the higher figure is the most it can use.` : ''} You pay for what it really used. Your bell and an email tell you when it is ready.`
+                            : 'Not in a hurry? Save usage writes the very same article and usually uses about half the AI.'}
+                        </p>
+                      </div>
+                    )}
                     {/* Before writing: where this month's AI allowance stands (after, the draft
                         shows what it used and how long it took). */}
                     <MonthlyAiUsageMeter variant="inline" compact stretch />
@@ -944,6 +1126,41 @@ export default function BlogAiWriter({
                 <p className="text-center text-[11px] font-semibold text-gray-400">It keeps writing. Your bell lights up when it&apos;s ready, and it waits in your Blogs list.</p>
               </div>
             </div>
+          )}
+
+          {phase === 'queued' && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 py-3 text-center">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#111827] text-[#e8c97a] dark:bg-white/[0.08]"><Leaf className="h-7 w-7" /></span>
+              <h3 className="font-serif text-2xl font-black text-[#111827] dark:text-white">We&apos;re on it</h3>
+              <p className="mx-auto max-w-sm text-sm font-semibold text-gray-600 dark:text-gray-300">
+                &ldquo;{topic.trim()}&rdquo; is being researched, written and fact-checked in Save usage mode - the same article, made a little slower so it usually uses about half the AI. Stay and watch, or close this and get on with your day.
+              </p>
+              <ol className="mx-auto max-w-sm space-y-1.5 text-left">
+                {WRITING_STAGES.map((s, i) => (
+                  <li key={s.key} className={`flex items-center gap-2.5 text-[13px] font-bold transition-opacity ${i <= stage ? 'opacity-100' : 'opacity-35'}`}>
+                    {i < stage ? <Check className="h-4 w-4 shrink-0 text-emerald-500" /> : i === stage ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#C9A24D]" /> : <span className="block h-4 w-4 shrink-0 rounded-full border-2 border-gray-200 dark:border-gray-700" />}
+                    <span className="text-[#111827] dark:text-white">{s.label}</span>
+                  </li>
+                ))}
+              </ol>
+              <ul className="mx-auto max-w-sm space-y-2.5 rounded-2xl border border-[#C9A24D]/30 bg-[#fffdf8] p-4 text-left dark:border-white/10 dark:bg-white/[0.03]">
+                {[
+                  { Icon: Clock, text: queued?.likely_at ? <>Likely ready by <b className="font-black text-[#111827] dark:text-white">{readyClock(queued.likely_at)}</b>{queued.max_minutes ? ` - ${queued.max_minutes} minutes at most` : ''}</> : 'Usually ready in 10 to 20 minutes' },
+                  { Icon: Sparkles, text: usageRange(queued?.percent, queued?.percent_max) ? <>Uses about <b className="font-black text-[#111827] dark:text-white">{usageRange(queued?.percent, queued?.percent_max)}</b> of your monthly AI - usually the lower figure</> : 'Usually uses about half the AI of "Write it now"' },
+                  { Icon: Bell, text: 'Your bell lights up and we email you the moment it is ready' },
+                  { Icon: ShieldCheck, text: 'It arrives as a draft - nothing is published until you say so' },
+                ].map((r, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-[13px] font-semibold text-gray-600 dark:text-gray-300">
+                    <r.Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#C9A24D]" /> <span className="min-w-0">{r.text}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mx-auto max-w-sm text-[11px] font-semibold text-gray-400">
+                {queued?.cap_minutes
+                  ? `If the slower line is busy, we finish it the fast way ourselves after ${queued.cap_minutes} minutes. The steps finished that way use the normal amount of AI - that is the higher figure above. You pay for what it really used.`
+                  : 'You pay for what it really used.'}
+              </p>
+            </motion.div>
           )}
 
           {phase === 'failed' && (
@@ -1033,33 +1250,14 @@ export default function BlogAiWriter({
                   <>
               {result.verification && result.verification.checked !== false && <VerifiedPanel review={result.verification} />}
 
-              <BlogFinishStep ctx={ctx} blocks={result.blog.blocks} areas={areas} value={finish} onChange={setFinish} canSignature={hasEmailSignatureAccess(user?.plan_tier)} videoInArticle={result.blog.blocks.some(b => b.type === 'youtube')} usedSales={saleIds.length > 0} usedListings={listingIds.length > 0} />
+              <BlogFinishStep ctx={ctx} blocks={result.blog.blocks} areas={areas} value={finish} onChange={setFinish} canSignature={hasEmailSignatureAccess(user?.plan_tier)} videoInArticle={result.blog.blocks.some(b => b.type === 'youtube' || b.type === 'video_showcase')} usedSales={saleIds.length > 0} usedListings={listingIds.length > 0} />
 
               <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-[#151517]">
                 <NeighborhoodLinksPicker value={linkedAreas} articleText={articleTextOf(result.blog.blocks)} autoPick
                   onChange={slugs => { setLinkedAreas(slugs); api.blogs.updateHubVisibility(result.blog.id, { linked_areas: slugs }) }} />
               </div>
 
-              {result.numbers_to_verify.length > 0 ? (
-                <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-900/15">
-                  <p className="flex items-center gap-1.5 text-xs font-black text-amber-900 dark:text-amber-200"><AlertTriangle className="h-3.5 w-3.5" /> Double-check {result.numbers_to_verify.length === 1 ? 'this number' : 'these numbers'} before publishing</p>
-                  <p className="mt-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300">They don&apos;t appear word-for-word in what you gave the AI (often it&apos;s just math on your figures):</p>
-                  <div className="mt-1.5 flex flex-wrap gap-1">{result.numbers_to_verify.map(n => <span key={n} className="rounded-md bg-white px-1.5 py-0.5 font-mono text-[11px] font-bold text-amber-900 dark:bg-black/30 dark:text-amber-200">{n}</span>)}</div>
-                </div>
-              ) : (
-                <p className="flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
-                  <ShieldCheck className="h-4 w-4" /> Every number in this draft traces back to your brief or your real sales data.
-                </p>
-              )}
-
-              {result.facts_used.length > 0 && (
-                <details className="rounded-xl border border-gray-200 px-3 py-2 dark:border-gray-800">
-                  <summary className="cursor-pointer text-xs font-black text-gray-500">Facts the AI used ({result.facts_used.length})</summary>
-                  <ul className="mt-2 space-y-1">
-                    {result.facts_used.map((f, i) => <li key={i} className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">• {f.fact} <span className="text-gray-300">({f.source.replace('_', ' ')})</span></li>)}
-                  </ul>
-                </details>
-              )}
+              {/* No "double-check these numbers" box and no list of facts here: the article is checked before it is saved (owner 11/15). */}
 
               <AiCoverMaker blogId={result.blog.id} idea={result.cover_image_idea} coverUrl={result.blog.cover_image_url}
                 onUse={async url => {
@@ -1082,7 +1280,7 @@ export default function BlogAiWriter({
             extra={step > 0 && step < STEPS.length - 1 ? { label: 'Skip', icon: <SkipForward />, onClick: () => setStep(STEPS.length - 1) } : undefined}
             {...(step < STEPS.length - 1
               ? { onContinue: () => setStep(step + 1), disabled: !canNext }
-              : { onContinue: generate, disabled: !topic.trim() || notReady, continueLabel: blogId ? 'Rewrite' : 'Write it', icon: <Sparkles /> })} />
+              : { onContinue: generate, disabled: !topic.trim() || notReady || checking, continueLabel: blogId ? 'Rewrite' : 'Write it', icon: !blogId && when === 'now' ? <Zap /> : <Sparkles /> })} />
         )}
         {phase === 'done' && result && (
           <FlowDock inline step={doneStep + 1} total={3}
@@ -1113,11 +1311,18 @@ export default function BlogAiWriter({
                   Continue <ArrowRight className="h-4 w-4" />
                 </button>
               ) : (
-                <button onClick={generate} disabled={!topic.trim() || notReady || checking} className="inline-flex items-center gap-2 rounded-xl bg-[#C9A24D] px-5 py-2.5 text-sm font-black text-[#111827] shadow-md transition hover:brightness-105 disabled:opacity-40">
-                  {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} {blogId ? 'Rewrite my article' : 'Write my article'}
+                <button onClick={generate} disabled={!topic.trim() || notReady || checking || licenseOpen} title={licenseOpen ? 'Answer the licence question above first' : undefined} className="inline-flex items-center gap-2 rounded-xl bg-[#C9A24D] px-5 py-2.5 text-sm font-black text-[#111827] shadow-md transition hover:brightness-105 disabled:opacity-40">
+                  {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : !blogId && when === 'now' ? <Zap className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />} {blogId ? 'Rewrite my article' : 'Write my article'}
                 </button>
               )}
             </div>
+          </div>
+        )}
+        {phase === 'queued' && (
+          <div className="flex shrink-0 justify-end border-t border-gray-100 px-4 py-4 dark:border-gray-800 sm:px-6">
+            <button onClick={leaveWriting} className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-[#111827] px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-black active:scale-[0.99] dark:bg-white dark:text-[#111827] sm:min-h-0 sm:w-auto">
+              Keep working - tell me when it&apos;s done <ArrowRight className="h-4 w-4" />
+            </button>
           </div>
         )}
         {phase === 'failed' && (

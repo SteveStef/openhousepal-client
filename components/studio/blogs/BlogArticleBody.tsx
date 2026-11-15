@@ -1,7 +1,7 @@
 'use client'
 
 import { contrastRatio } from '@/lib/siteTheme'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { qrDataUrl } from '@/lib/qr'
 import { ArrowRight, Bath, Bed, Check, ClipboardList, ExternalLink, Home, LandPlot, Lightbulb, Loader2, MapPin, Maximize, Quote, Send, X } from 'lucide-react'
@@ -18,6 +18,7 @@ import { IMG, sizedImage } from '@/lib/siteImage'
 import { PropertyShowcase, VideoShowcase } from './ShowcaseBlocks'
 import ClosingCta from './ClosingCta'
 import AskAgentLine from './AskAgentLine'
+import { tailStart } from './editor/blockOps'
 
 // New blocks store rich text as sanitized HTML (data.html); older blocks only have plain data.text.
 function richHtml(data: { html?: string; text?: string }): string {
@@ -77,7 +78,21 @@ function youtubeId(url: string): string | null {
 export interface BlogLeadPayload { name: string; email?: string; phone?: string; message?: string }
 export interface BlogRelatedArticle { slug: string; title: string; category?: string | null; coverImageUrl?: string | null; readingTimeMinutes?: number }
 
+/** The editor's hooks (components/studio/blogs/editor): with these the same article markup readers get
+ *  becomes editable in place. Nothing here runs on a published article. */
+export interface BlogEditHooks {
+  /** Attributes for the article's root (the editor listens for typing and clicks there). */
+  rootProps: Record<string, any>
+  /** Attributes that make an element a text spot the agent types into ("html", "i0", "caption"...). */
+  host: (block: BlogBlock, field: string, placeholder: string) => Record<string, any>
+  /** Shown in the block's place: a "pick a photo" tile for a block that isn't set up yet, the bar of a
+   *  section hidden from readers. undefined = draw the block as readers see it. */
+  replace?: (block: BlogBlock) => React.ReactNode | undefined
+}
+
 interface BlogArticleBodyProps {
+  /** Editing on the page (the blog editor) - see BlogEditHooks. */
+  edit?: BlogEditHooks
   blocks: BlogBlock[]
   agent: BlogArticleAgentInfo
   accentColor?: string
@@ -106,14 +121,17 @@ interface BlogArticleBodyProps {
 }
 
 /** Sections the agent switched off in the editor (a heading with data.hidden) are left out of the
- *  article - the heading and everything under it, up to the next heading. */
+ *  article - the heading and everything under it, up to the next heading. The article's ending (its
+ *  sources, the agent's sales / listings / videos, the closing button and contact card) belongs to
+ *  no section: hiding the last section used to take all of that away with it. */
 export function visibleBlocks(blocks: BlogBlock[]): BlogBlock[] {
   const out: BlogBlock[] = []
+  const ending = tailStart(blocks)
   let hiding = false
-  for (const b of blocks) {
+  blocks.forEach((b, i) => {
     if (b.type === 'heading') hiding = !!b.data?.hidden
-    if (!hiding) out.push(b)
-  }
+    if (!hiding || i >= ending) out.push(b)
+  })
   return withoutBlanks(out)
 }
 
@@ -158,7 +176,9 @@ export default function BlogArticleBody(props: BlogArticleBodyProps) {
   const [contactOpen, setContactOpen] = useState<false | string>(false)
   // One of the agent's forms open in a window over the article (from the closing section).
   const [formWin, setFormWin] = useState<{ url: string; title: string } | null>(null)
-  let blocks = visibleBlocks(props.blocks)
+  const edit = props.edit
+  // The editor shows every block (an empty one is where the agent is about to type); readers never do.
+  let blocks = edit ? props.blocks : visibleBlocks(props.blocks)
   // With the signature on, it IS the closing section: the first Call to Action / contact card
   // becomes the signature, and any later one is dropped (never both, never twice).
   if (signatureHubSlug) {
@@ -179,7 +199,7 @@ export default function BlogArticleBody(props: BlogArticleBodyProps) {
   const nLinks = props.neighborhoodLinks || []
   if (nLinks.length) {
     const used = new Set<string>()
-    blocks = blocks.map(b => (b.type === 'paragraph' && (b.data?.html || b.data?.text)
+    if (!edit) blocks = blocks.map(b => (b.type === 'paragraph' && (b.data?.html || b.data?.text)
       ? { ...b, data: { ...b.data, __linkedHtml: linkTownsInHtml(richHtml(b.data || {}), nLinks, used) } } as BlogBlock
       : b))
     const at = blocks.findIndex(b => ['cta', 'agent_profile', 'related_articles'].includes(b.type))
@@ -187,15 +207,19 @@ export default function BlogArticleBody(props: BlogArticleBodyProps) {
     blocks = at === -1 ? [...blocks, row] : [...blocks.slice(0, at), row, ...blocks.slice(at)]
   }
   return (
-    <div className="blog-article space-y-6 text-[17px]">
+    <div className="blog-article space-y-6 text-[17px]" {...(edit?.rootProps || {})}>
       {blocks.map(block => (
-        <Block key={block.id} block={block} {...props} accentColor={accentColor}
+        <Fragment key={block.id}>
+        {/* The editor finds each block on the page by this marker (hidden: it takes no room and no spacing). */}
+        {edit && <span hidden data-bm={block.id} />}
+        <Block block={block} {...props} accentColor={accentColor}
           openContact={(intent?: string) => setContactOpen(intent || 'Ask me anything')}
           openForm={(formType, label) => {
             const form = formType === 'question' ? null : props.forms?.find(f => f.formType === formType)
             if (form && props.formHref) setFormWin({ url: props.formHref(form.slug), title: label })
             else setContactOpen(formType === 'question' ? `Ask ${(props.agent.name || '').trim().split(/\s+/)[0] || 'me'} a question` : label)
           }} />
+        </Fragment>
       ))}
       <FormWindow url={formWin?.url || null} title={formWin?.title} onClose={() => setFormWin(null)} />
       <AnimatePresence>
@@ -217,30 +241,36 @@ export default function BlogArticleBody(props: BlogArticleBodyProps) {
   )
 }
 
-function Block({ block, agent, accentColor, onEvent, onLead, related, relatedHref, formHref, openContact, openForm, signatureHubSlug, signatureTowns, signatureMatch, hideCta, neighborhoodLinks }: BlogArticleBodyProps & { block: BlogBlock; accentColor: string; openContact: (intent?: string) => void; openForm: (formType: string, label: string) => void }) {
+function Block({ block, agent, accentColor, onEvent, onLead, related, relatedHref, formHref, openContact, openForm, signatureHubSlug, signatureTowns, signatureMatch, hideCta, neighborhoodLinks, edit }: BlogArticleBodyProps & { block: BlogBlock; accentColor: string; openContact: (intent?: string) => void; openForm: (formType: string, label: string) => void }) {
   const data = block.data || {}
+  if (edit?.replace) {
+    const instead = edit.replace(block)
+    if (instead !== undefined) return <>{instead}</>
+  }
+  // A text element's words: typed in place in the editor, the saved (sanitized) words for readers.
+  const words = (placeholder: string, html?: string) => (edit ? edit.host(block, 'html', placeholder) : { dangerouslySetInnerHTML: { __html: html ?? richHtml(data) } })
   switch (block.type) {
     case 'heading':
-      return data.text || data.html ? <h2 className={`pt-4 font-serif text-[1.7rem] font-black leading-tight tracking-[-0.01em] text-[#111827] dark:text-white sm:text-3xl ${textStyleClasses(data)}`} dangerouslySetInnerHTML={{ __html: richHtml(data) }} /> : null
+      return data.text || data.html || edit ? <h2 className={`pt-4 font-serif text-[1.7rem] font-black leading-tight tracking-[-0.01em] text-[#111827] dark:text-white sm:text-3xl ${textStyleClasses(data)}`} {...words('Heading')} /> : null
     case 'subheading':
-      return data.text || data.html ? <h3 className={`font-serif text-xl font-black leading-snug text-[#111827] dark:text-white ${textStyleClasses(data)}`} dangerouslySetInnerHTML={{ __html: richHtml(data) }} /> : null
+      return data.text || data.html || edit ? <h3 className={`font-serif text-xl font-black leading-snug text-[#111827] dark:text-white ${textStyleClasses(data)}`} {...words('Subheading')} /> : null
     case 'paragraph':
-      return data.text || data.html ? <p className={`leading-[1.85] text-[#1f2937] dark:text-gray-200 [&_a]:font-bold [&_a]:underline [&_a]:decoration-[#C9A24D]/60 [&_a]:underline-offset-4 ${textStyleClasses(data, { allowSize: true })}`} dangerouslySetInnerHTML={{ __html: (data as any).__linkedHtml ?? richHtml(data) }} /> : null
+      return data.text || data.html || edit ? <p className={`leading-[1.85] text-[#1f2937] dark:text-gray-200 [&_a]:font-bold [&_a]:underline [&_a]:decoration-[#C9A24D]/60 [&_a]:underline-offset-4 ${textStyleClasses(data, { allowSize: true })}`} {...words('Write here...', (data as any).__linkedHtml ?? richHtml(data))} /> : null
     case ('neighborhood_links' as BlogBlock['type']):
       return neighborhoodLinks?.length ? <NeighborhoodLinksRow links={neighborhoodLinks} accentColor={accentColor} onOpen={slug => onEvent?.('link_click', { neighborhood: slug })} /> : null
     case 'quote':
-      return (data.text || data.html) ? (
+      return (data.text || data.html || edit) ? (
         <blockquote className={`relative my-2 border-l-4 py-2 pl-6 pr-2 ${textStyleClasses(data)}`} style={{ borderColor: accentColor }}>
           <Quote className="mb-1.5 h-6 w-6 opacity-40" style={{ color: accentColor }} />
-          <span className="block font-serif text-2xl font-light italic leading-snug text-[#111827] dark:text-white" dangerouslySetInnerHTML={{ __html: richHtml(data) }} />
+          <span className="block font-serif text-2xl font-light italic leading-snug text-[#111827] dark:text-white" {...words('A line worth pulling out')} />
         </blockquote>
       ) : null
     case 'bulleted_list':
       return (
         <ul className="space-y-2.5">
-          {(data.items || []).filter((item: string) => item?.trim()).map((item: string, i: number) => (
+          {(edit ? (data.items?.length ? data.items : ['']) : (data.items || []).filter((item: string) => item?.trim())).map((item: string, i: number) => (
             <li key={i} className="flex gap-3 leading-relaxed text-[#1f2937] dark:text-gray-200">
-              <span className="mt-[0.6em] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: accentColor }} />{item}
+              <span className="mt-[0.6em] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: accentColor }} />{edit ? <span className="min-w-0 flex-1" {...edit.host(block, `i${i}`, 'List item')} /> : item}
             </li>
           ))}
         </ul>
@@ -248,10 +278,10 @@ function Block({ block, agent, accentColor, onEvent, onLead, related, relatedHre
     case 'numbered_list':
       return (
         <ol className="space-y-3">
-          {(data.items || []).filter((item: string) => item?.trim()).map((item: string, i: number) => (
+          {(edit ? (data.items?.length ? data.items : ['']) : (data.items || []).filter((item: string) => item?.trim())).map((item: string, i: number) => (
             <li key={i} className="flex gap-3 leading-relaxed text-[#1f2937] dark:text-gray-200">
               <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-black" style={{ background: `${accentColor}22`, color: accentColor }}>{i + 1}</span>
-              <span className="pt-0.5">{item}</span>
+              {edit ? <span className="min-w-0 flex-1 pt-0.5" {...edit.host(block, `i${i}`, 'List item')} /> : <span className="pt-0.5">{item}</span>}
             </li>
           ))}
         </ol>
@@ -265,13 +295,15 @@ function Block({ block, agent, accentColor, onEvent, onLead, related, relatedHre
         </div>
       )
     case 'callout':
-      return (data.text || data.html) ? (
+      return (data.text || data.html || edit) ? (
         <div className={`flex gap-3 rounded-2xl border p-5 ${textStyleClasses(data)}`} style={{ borderColor: `${accentColor}55`, backgroundColor: `${accentColor}12` }}>
           <Lightbulb className="mt-0.5 h-5 w-5 shrink-0" style={{ color: accentColor }} />
-          <div className="font-semibold leading-relaxed text-[#111827] dark:text-white" dangerouslySetInnerHTML={{ __html: richHtml(data) }} />
+          <div className={`font-semibold leading-relaxed text-[#111827] dark:text-white ${edit ? 'min-w-0 flex-1' : ''}`} {...words('A tip or a fact worth noticing')} />
         </div>
       ) : null
     case 'button':
+      // A button with nowhere to go never reaches readers.
+      if (!edit && !String(data.url || '').trim()) return null
       return (
         <a href={data.url || '#'} onClick={() => onEvent?.('link_click', { label: data.label })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5" style={{ backgroundColor: accentColor }}>
           {data.label || 'Learn More'} <ExternalLink className="h-3.5 w-3.5" />
@@ -281,10 +313,12 @@ function Block({ block, agent, accentColor, onEvent, onLead, related, relatedHre
       return data.url ? (
         <figure className="-mx-1 sm:-mx-6">
           <BlogPhoto src={data.url} width={1080} widths={IMG.half} sizes="(min-width: 900px) 900px, 100vw" alt={data.alt || ''} className="w-full rounded-2xl bg-gray-100 object-cover shadow-[0_24px_50px_-30px_rgba(0,0,0,.5)] dark:bg-white/5" />
-          {data.caption && <figcaption className="mt-2.5 text-center text-sm font-medium italic text-gray-500 dark:text-gray-400">{data.caption}</figcaption>}
+          {edit ? <figcaption className="mt-2.5 text-center text-sm font-medium italic text-gray-500 dark:text-gray-400" {...edit.host(block, 'caption', 'Add a caption (optional)')} />
+            : data.caption && <figcaption className="mt-2.5 text-center text-sm font-medium italic text-gray-500 dark:text-gray-400">{data.caption}</figcaption>}
         </figure>
       ) : null
     case 'gallery':
+      if (!(data.images || []).length) return null
       return (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {(data.images || []).map((url: string, i: number) => <BlogPhoto key={i} src={url} width={640} widths={IMG.card} sizes="(min-width: 640px) 33vw, 50vw" className="aspect-square w-full rounded-xl bg-gray-100 object-cover transition duration-500 hover:scale-[1.02] dark:bg-white/5" />)}
@@ -335,6 +369,8 @@ function Block({ block, agent, accentColor, onEvent, onLead, related, relatedHre
     case 'contact_form':
       return <ContactFormCard agent={agent} accentColor={accentColor} onLead={onLead} heading={data.label || 'Ask me a question'} onEvent={onEvent} />
     case 'lead_form':
+      // No form picked yet: the editor shows its own "pick a form" tile; readers see nothing.
+      if (!edit && !data.formSlug) return null
       return <LeadFormCard data={data} accentColor={accentColor} href={data.formSlug && formHref ? formHref(data.formSlug) : null} onEvent={onEvent} />
     case 'qr_code':
       return <QrBlock url={data.url} label={data.label} />
@@ -369,7 +405,8 @@ function Block({ block, agent, accentColor, onEvent, onLead, related, relatedHre
     case 'sources':
       return <SourcesList data={data as SourcesData} accent={accentColor} />
     case 'disclaimer':
-      return <p className="border-t border-gray-200 pt-4 text-[11px] font-semibold leading-relaxed text-gray-400 dark:border-gray-800">{data.text}</p>
+      if (edit) return <p className="border-t border-gray-200 pt-4 text-[11px] font-semibold leading-relaxed text-gray-400 dark:border-gray-800" {...edit.host(block, 'text', 'Disclaimer text')} />
+      return String(data.text || '').trim() ? <p className="border-t border-gray-200 pt-4 text-[11px] font-semibold leading-relaxed text-gray-400 dark:border-gray-800">{data.text}</p> : null
     default:
       return null
   }

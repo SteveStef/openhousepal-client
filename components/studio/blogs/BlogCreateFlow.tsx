@@ -1,5 +1,6 @@
 'use client'
 
+import { usageRange } from '@/lib/blogOvernight'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -41,6 +42,7 @@ export default function BlogCreateFlow({ onClose }: { onClose: () => void }) {
   // Back from the AI writer: on a phone the sheet is already up, so it fades back in place.
   const [backFromAi, setBackFromAi] = useState(false)
   const [estimate, setEstimate] = useState<number | null>(null)
+  const [estimateMax, setEstimateMax] = useState<number | null>(null)   // the most a Save usage article can use (finished the fast way)
 
   const template = picked && picked !== 'custom' ? picked : null
   // Phones (10/22, "make blog as good as CMA"): one tall sheet that slides up, keeps the same height
@@ -58,8 +60,37 @@ export default function BlogCreateFlow({ onClose }: { onClose: () => void }) {
   }, [title, step])
   useEffect(() => {
     if (step !== 2 || estimate !== null) return
-    api.blogs.aiEstimate('standard').then(res => { if (res.success && res.data?.percent != null) setEstimate(res.data.percent) })
+    // Save usage is how an article is written unless the agent picks 'Write it now', so that is the figure shown here.
+    api.blogs.aiEstimate('standard').then(res => { const p = res.data?.overnight?.percent ?? res.data?.percent; if (res.success && p != null) { setEstimate(p); setEstimateMax(res.data?.overnight ? res.data?.percent ?? null : null) } })
   }, [step, estimate])
+  // The month's AI is used up: say so on the choice itself (reviewer 11/14 - the button looked live, said "uses about
+  // 5%", and led to a dead end after the agent had already picked a topic and typed a title).
+  const [aiOut, setAiOut] = useState(false)
+  useEffect(() => {
+    if (step !== 2) return
+    api.ai.monthlyUsage().then(res => { if (res.success && res.data) setAiOut(!!res.data.exhausted) })
+  }, [step])
+
+  // Titles to tap, built from the agent's own towns, sales, bio, the month and what they haven't written yet
+  // (owner 11/14: "having title suggestions also be very intelligent"). One tiny call per topic per day.
+  type TitleIdea = { title: string; basis: 'your_sales' | 'your_town' | 'timely' | 'fresh' }
+  const [ideas, setIdeas] = useState<TitleIdea[]>([])
+  const [ideasLoading, setIdeasLoading] = useState(false)
+  const ideasFor = useRef<string | null>(null)
+  const [ideasNote, setIdeasNote] = useState('')   // why the smart ideas are resting (97% of the month's AI used)
+  useEffect(() => {
+    if (step !== 1 || picked === null) return
+    const key = picked === 'custom' ? 'custom' : picked.id
+    if (ideasFor.current === key) return
+    ideasFor.current = key
+    setIdeas([]); setIdeasLoading(true)
+    api.blogs.aiTitleIdeas({ preset: picked === 'custom' ? null : picked.category, template_title: picked === 'custom' ? null : picked.title }).then(res => {
+      if (ideasFor.current !== key) return
+      setIdeasLoading(false)
+      if (res.success && res.data) { setIdeas(res.data.titles || []); setIdeasNote(res.data.paused?.message || '') }
+    })
+  }, [step, picked])
+  const IDEA_TAG: Record<TitleIdea['basis'], string> = { your_sales: 'From your sales', your_town: 'Your town', timely: 'Timely now', fresh: 'New for you' }
 
   const go = (n: number) => { setDir(n > step ? 1 : -1); setStep(n) }
   const pick = (p: BlogTopicTemplate | 'custom') => {
@@ -225,14 +256,42 @@ export default function BlogCreateFlow({ onClose }: { onClose: () => void }) {
                   <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
                     {template ? <>Started from <span className="font-black text-[#8b7355] dark:text-[#e8c97a]">{template.title}</span> - make it yours. The AI builds the article around this title.</> : 'A clear, specific title works best - the AI builds the whole article around it.'}
                   </p>
+                  {(ideasLoading || ideas.length > 0) && (
+                    <div>
+                      <p className="mb-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-[#8b7355] dark:text-[#e8c97a]">
+                        <Sparkles className="h-3.5 w-3.5" /> Ideas for you <span className="normal-case tracking-normal text-gray-400">· from your towns and sales - tap one</span>
+                      </p>
+                      {ideasNote && !ideasLoading && <p className="mb-2 text-[11px] font-semibold text-amber-700 dark:text-amber-300">{ideasNote}</p>}
+                      {ideasLoading ? (
+                        <div className="grid gap-2 sm:grid-cols-2" aria-hidden>
+                          {[0, 1, 2, 3].map(i => <span key={i} className="h-[58px] animate-pulse rounded-2xl bg-gray-100 dark:bg-white/[0.05]" />)}
+                        </div>
+                      ) : (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {ideas.map(i => {
+                            const on = title.trim() === i.title
+                            return (
+                              <button key={i.title} type="button" onClick={() => setTitle(i.title)}
+                                className={`w-full rounded-2xl border p-3.5 text-left transition-[border-color,background-color,transform] duration-200 active:scale-[0.99] ${on ? 'border-[#C9A24D] bg-[#fbf3df] dark:bg-[#C9A24D]/10' : 'border-gray-200 hover:-translate-y-0.5 hover:border-[#C9A24D]/60 dark:border-white/10'}`}>
+                                <p className="text-[13px] font-black leading-snug text-[#111827] dark:text-white">{i.title}</p>
+                                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#e8c97a]">{IDEA_TAG[i.basis] || 'For you'}</p>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
               {step === 2 && (
                 <div className="space-y-3">
                   <button
-                    onClick={() => setShowAi(true)}
-                    className="group relative flex w-full items-center gap-3.5 overflow-hidden rounded-2xl border border-[#C9A24D]/60 bg-gradient-to-r from-[#111827] via-[#172033] to-[#4a3820] p-4 text-left active:scale-[0.99] sm:gap-4 sm:p-5 shadow-[0_18px_40px_-18px_rgba(201,162,77,0.7)] transition hover:-translate-y-0.5"
+                    onClick={() => { if (!aiOut) setShowAi(true) }}
+                    disabled={aiOut}
+                    aria-disabled={aiOut}
+                    className="group relative flex w-full items-center gap-3.5 overflow-hidden rounded-2xl border border-[#C9A24D]/60 disabled:cursor-not-allowed disabled:opacity-60 bg-gradient-to-r from-[#111827] via-[#172033] to-[#4a3820] p-4 text-left active:scale-[0.99] sm:gap-4 sm:p-5 shadow-[0_18px_40px_-18px_rgba(201,162,77,0.7)] transition hover:-translate-y-0.5"
                   >
                     <span className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-card-shimmer" />
                     <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#C9A24D] to-[#e8c97a] text-[#111827] shadow-md sm:h-12 sm:w-12"><Sparkles className="h-5 w-5 sm:h-6 sm:w-6" /></span>
@@ -240,7 +299,8 @@ export default function BlogCreateFlow({ onClose }: { onClose: () => void }) {
                       <p className="font-serif text-lg font-black text-white">Write it with AI</p>
                       <p className="text-xs font-semibold text-gray-300">A few quick questions about the area and your take, then a complete article in your voice.</p>
                       <p className="mt-1.5 text-[11px] font-black text-[#e8c97a]">
-                        {estimate != null ? `Uses about ${estimate < 1 ? estimate.toFixed(1) : Math.round(estimate)}% of your monthly AI` : 'Uses your monthly AI allowance'}
+                        {aiOut ? "You've used this month's AI - write it yourself below, or come back when it resets"
+                          : estimate != null ? `Uses about ${usageRange(estimate, estimateMax)} of your monthly AI` : 'Uses your monthly AI allowance'}
                       </p>
                     </div>
                     <ArrowRight className="relative hidden h-5 w-5 shrink-0 text-[#C9A24D] transition-transform group-hover:translate-x-1 min-[380px]:block" />

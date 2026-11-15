@@ -154,6 +154,18 @@ export interface ThemedArticleProps {
   readerToggle?: boolean
   /** Classic look's accent (the Agent Hub's Classic choices); null = Original gold. */
   accent?: string | null
+  /** The blog editor only: the title and subtitle are typed in place, and `cover` is the editor's
+   *  add / change cover control. Also leaves out the reading-progress bar. */
+  edit?: ThemedArticleEdit
+}
+
+export interface ThemedArticleEdit {
+  /** Gets the title as readers see it (its last word in the look's accent) and returns the editable title. */
+  title: (styled: React.ReactNode) => React.ReactNode
+  /** The editable subtitle (shown even while it is empty). */
+  subtitle: React.ReactNode
+  /** The cover control: over the cover photo when there is one, in its place when there isn't. */
+  cover: (hasCover: boolean) => React.ReactNode
 }
 
 const READER_KEY = 'ohp-blog-reader-mode'
@@ -210,7 +222,7 @@ function ReaderToggle({ mode, onChange }: { mode: 'light' | 'dark'; onChange: (m
 
 // A whole public article in its theme: reading-progress bar, the themed hero (title, byline,
 // cover), the body, and the agent card at the end.
-export function BlogThemedArticle({ theme, title, subtitle, category, coverUrl, publishedAt, readingTimeMinutes, agent, backHref, hubHref, children, afterArticle, preview, mode: forcedMode, readerToggle, metal, signatureOn, accent }: ThemedArticleProps) {
+export function BlogThemedArticle({ theme, title, subtitle, category, coverUrl, publishedAt, readingTimeMinutes, agent, backHref, hubHref, children, afterArticle, preview, mode: forcedMode, readerToggle, metal, signatureOn, accent, edit }: ThemedArticleProps) {
   const t = blogTheme(theme)
   // Classic wears the agent's chosen accent (Original gold unless they picked another color).
   const acc = t.id === 'luxe' ? classicAccent(accent) : t.accent
@@ -258,7 +270,7 @@ export function BlogThemedArticle({ theme, title, subtitle, category, coverUrl, 
   if (t.id === 'luxe_plus') {
     return (
       <>
-        <LuxeArticle {...{ title, subtitle, category, cover, date, readingTimeMinutes, agent, backHref, hubHref, progress, dark, preview, after, signatureOn }} metal={metalOf(metal)}>{children}</LuxeArticle>
+        <LuxeArticle {...{ title, subtitle, category, cover, date, readingTimeMinutes, agent, backHref, hubHref, progress, dark, preview, after, signatureOn, edit }} metal={metalOf(metal)}>{children}</LuxeArticle>
         {readerToggle && !preview && <ReaderToggle mode={mode} onChange={setMode} />}
       </>
     )
@@ -268,7 +280,7 @@ export function BlogThemedArticle({ theme, title, subtitle, category, coverUrl, 
     <div className={`${dark ? 'dark' : ''} blog-theme-${t.id}`} style={accVars}>
       <style>{THEME_CSS}</style>
       {readerToggle && !preview && <ReaderToggle mode={mode} onChange={setMode} />}
-      <div className={`${preview ? 'hidden' : 'fixed'} inset-x-0 top-0 z-50 h-[3px]`} aria-hidden>
+      <div className={`${preview || edit ? 'hidden' : 'fixed'} inset-x-0 top-0 z-50 h-[3px]`} aria-hidden>
         <div className="h-full origin-left transition-transform duration-150" style={{ transform: `scaleX(${progress})`, background: `linear-gradient(90deg, ${acc}, ${t.id === 'editorial' ? '#555' : tones.light})` }} />
       </div>
       <main className={`${preview ? '' : 'min-h-screen'} transition-colors duration-500 ${t.id === 'modern' ? 'font-sans' : ''}`} style={{ background: pal.bg }}>
@@ -303,9 +315,9 @@ export function BlogThemedArticle({ theme, title, subtitle, category, coverUrl, 
                 className={`${category ? 'mt-3' : 'mt-8'} ${serif ? 'font-serif' : 'font-sans'} ${t.id === 'editorial' ? 'text-[2.6rem] sm:text-6xl' : 'text-[2.3rem] sm:text-5xl'} font-black leading-[1.05] tracking-[-0.02em]`}
                 style={{ color: pal.ink }}
               >
-                <TitleWords text={title} gold={t.id === 'luxe' || t.id === 'midnight'} />
+                {edit ? edit.title(<TitleWords text={title} gold={t.id === 'luxe' || t.id === 'midnight'} />) : <TitleWords text={title} gold={t.id === 'luxe' || t.id === 'midnight'} />}
               </h1>
-              {subtitle && <p className={`mt-4 text-lg font-medium leading-relaxed opacity-80 sm:text-xl ${t.id === 'editorial' ? 'mx-auto max-w-2xl font-serif italic' : ''}`} style={{ color: pal.ink }}>{subtitle}</p>}
+              {(subtitle || edit) && <p className={`mt-4 text-lg font-medium leading-relaxed opacity-80 sm:text-xl ${t.id === 'editorial' ? 'mx-auto max-w-2xl font-serif italic' : ''}`} style={{ color: pal.ink }}>{edit ? edit.subtitle : subtitle}</p>}
               {t.id === 'editorial' && <div className={`mx-auto mt-6 h-px w-24 ${dark ? 'bg-white/40' : 'bg-black/40'}`} />}
               <div className="mt-6">{byline}</div>
             </motion.div>
@@ -314,11 +326,13 @@ export function BlogThemedArticle({ theme, title, subtitle, category, coverUrl, 
 
         {cover && (
           <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }} className={`mx-auto px-5 ${t.id === 'modern' ? 'max-w-5xl' : 'max-w-4xl'}`}>
-            <div className={`overflow-hidden ${t.id === 'editorial' ? 'rounded-none' : 'rounded-[28px]'} ${t.id === 'luxe' ? 'bg-gradient-to-br from-[var(--ba-light)] via-white to-[var(--ba)] p-1.5 shadow-[0_40px_80px_-40px_rgba(139,115,85,.7)]' : 'shadow-[0_30px_70px_-40px_rgba(0,0,0,.6)]'}`}>
+            <div className={`relative overflow-hidden ${t.id === 'editorial' ? 'rounded-none' : 'rounded-[28px]'} ${t.id === 'luxe' ? 'bg-gradient-to-br from-[var(--ba-light)] via-white to-[var(--ba)] p-1.5 shadow-[0_40px_80px_-40px_rgba(139,115,85,.7)]' : 'shadow-[0_30px_70px_-40px_rgba(0,0,0,.6)]'}`}>
               <img src={cover} alt="" className={`aspect-[16/9] w-full object-cover ${t.id === 'luxe' ? 'rounded-[22px]' : ''}`} />
+              {edit && <div className="absolute right-4 top-4 z-10">{edit.cover(true)}</div>}
             </div>
           </motion.div>
         )}
+        {!cover && edit && <div className={`mx-auto px-5 ${t.id === 'modern' ? 'max-w-5xl' : 'max-w-4xl'}`}>{edit.cover(false)}</div>}
 
         <article className="mx-auto max-w-4xl px-5 pb-20">
           <div className={`blog-body ${t.id === 'luxe' || t.id === 'midnight' ? 'mt-10 rounded-[28px] border p-6 sm:p-10' : 'mt-10'} ${(t.id === 'luxe' || t.id === 'midnight') && !dark ? 'border-[rgba(var(--ba-rgb),0.2)] bg-white shadow-[0_30px_60px_-46px_rgba(139,115,85,.7)]' : ''} ${(t.id === 'luxe' || t.id === 'midnight') && dark ? 'border-white/10 bg-[#141416]' : ''}`}>
@@ -348,12 +362,23 @@ export function BlogThemedArticle({ theme, title, subtitle, category, coverUrl, 
 // and a midnight-and-gold author card. Reduced motion keeps every layer, just still.
 const LX_SPARKS: [string, string, number][] = [['10%', '64%', 0], ['26%', '30%', 1.4], ['48%', '72%', 2.8], ['66%', '24%', 0.6], ['82%', '58%', 2.1], ['92%', '30%', 3.4]]
 
-function LuxeArticle({ title, subtitle, category, cover, date, readingTimeMinutes, agent, backHref, hubHref, children, dark, preview, after, metal = 'gold', signatureOn }: {
+function LuxeArticle({ title, subtitle, category, cover, date, readingTimeMinutes, agent, backHref, hubHref, children, dark, preview, after, metal = 'gold', signatureOn, edit }: {
   title: string; subtitle?: string | null; category?: string | null; cover: string; date: string | null; readingTimeMinutes?: number
   agent: ThemedArticleProps['agent']; backHref?: string; hubHref?: string; progress: number; children: React.ReactNode
-  dark?: boolean; preview?: boolean; after?: React.ReactNode; metal?: LuxeMetal; signatureOn?: boolean
+  dark?: boolean; preview?: boolean; after?: React.ReactNode; metal?: LuxeMetal; signatureOn?: boolean; edit?: ThemedArticleEdit
 }) {
   const i = title.trim().lastIndexOf(' ')
+  // Each word is followed by a NON-BREAKING space (\u00a0), inside its box: a normal space at the end
+  // of an inline-block is dropped by the browser, which runs the whole title together ("SellingaHome").
+  const titleWords = title.split(' ').map((w, k, all) => (
+    <span key={k} className="inline-block overflow-hidden pb-[0.08em] align-bottom">
+      <motion.span
+        className={`inline-block ${i >= 0 && k === all.length - 1 ? 'lxa-glint font-light italic' : ''}`}
+        initial={{ y: '105%', opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.8, delay: 0.35 + k * 0.06, ease: [0.16, 1, 0.3, 1] }}
+      >{w}{k < all.length - 1 ? '\u00a0' : ''}</motion.span>
+    </span>
+  ))
   return (
     <div className={`blog-theme-luxe_plus ${dark ? 'dark' : ''}`} style={{ ...metalStyle(metal), '--m-ink': LUXE_INK[metal].light, '--m-ink-d': LUXE_INK[metal].dark } as React.CSSProperties}>
       <style>{LUXE_CSS}</style>
@@ -371,6 +396,7 @@ function LuxeArticle({ title, subtitle, category, cover, date, readingTimeMinute
             {LX_SPARKS.map(([l, tp, d], k) => <span key={k} className="lxa-spark absolute" style={{ left: l, top: tp, animationDelay: `${d + 1}s` }} />)}
           </div>
           <div className={`relative mx-auto flex w-full max-w-4xl flex-1 flex-col px-6 pt-8 sm:px-10 ${cover ? 'pb-14' : 'pb-20'}`}>
+            {edit && <div className="relative z-10 flex justify-end">{edit.cover(!!cover)}</div>}
             {backHref && (
               <Link href={backHref} className="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-white transition hover:-translate-x-0.5 hover:border-[color:var(--m-light)]">
                 <ArrowLeft className="h-3.5 w-3.5" /> All Articles
@@ -383,17 +409,9 @@ function LuxeArticle({ title, subtitle, category, cover, date, readingTimeMinute
                 </motion.p>
               )}
               <h1 className="mt-4 font-serif text-[2.5rem] font-black leading-[1.02] tracking-[-0.02em] sm:text-6xl">
-                {title.split(' ').map((w, k, all) => (
-                  <span key={k} className="inline-block overflow-hidden pb-[0.08em] align-bottom">
-                    <motion.span
-                      className={`inline-block ${i >= 0 && k === all.length - 1 ? 'lxa-glint font-light italic' : ''}`}
-                      initial={{ y: '105%', opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-                      transition={{ duration: 0.8, delay: 0.35 + k * 0.06, ease: [0.16, 1, 0.3, 1] }}
-                    >{w}{k < all.length - 1 ? ' ' : ''}</motion.span>
-                  </span>
-                ))}
+                {edit ? edit.title(titleWords) : titleWords}
               </h1>
-              {subtitle && <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.7 }} className="mt-5 max-w-2xl text-lg font-medium leading-relaxed text-white/75 sm:text-xl">{subtitle}</motion.p>}
+              {(subtitle || edit) && <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.7 }} className="mt-5 max-w-2xl text-lg font-medium leading-relaxed text-white/75 sm:text-xl">{edit ? edit.subtitle : subtitle}</motion.p>}
               {signatureOn ? (
                 <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.85 }} className="mt-7 flex w-fit max-w-full items-center gap-4 rounded-2xl border border-white/15 bg-white/[0.07] py-3 pl-3 pr-6">
                   {agent.photoUrl && <img src={sizedImage(resolveMediaUrl(agent.photoUrl), 128)} alt={agent.name} className="h-14 w-14 shrink-0 rounded-full object-cover ring-2 ring-[color:var(--m-base)] ring-offset-2 ring-offset-[#111827]" />}

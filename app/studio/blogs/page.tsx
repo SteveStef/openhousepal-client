@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeft, Check, Clock, ExternalLink, Eye, Loader2, Lock, Newspaper, Plus, Search, Share2, Sparkles, Star, Trash2 } from 'lucide-react'
+import { readyClock } from '@/lib/blogOvernight'
 import { copyText } from '@/lib/copyText'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import api, { resolveMediaUrl } from '@/lib/api-service'
@@ -210,7 +211,9 @@ function BlogsDashboardInner() {
                 )}
                 {blog.ai_state ? (
                   <span className={`absolute left-3 top-3 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide shadow ${blog.ai_state === 'failed' ? 'bg-rose-600 text-white' : 'bg-[#C9A24D] text-[#111827]'}`}>
-                    {blog.ai_state === 'running' ? <><Loader2 className="h-2.5 w-2.5 animate-spin" /> AI is writing</> : blog.ai_state === 'failed' ? "AI couldn't finish" : 'Unfinished AI draft'}
+                    {blog.ai_state === 'running' ? <><Loader2 className="h-2.5 w-2.5 animate-spin" /> AI is writing</>
+                      : blog.ai_state === 'overnight' ? <><Loader2 className="h-2.5 w-2.5 animate-spin" /> AI is writing{blog.ai_ready_at ? ` · ready ~${readyClock(blog.ai_ready_at)}` : ''}</>
+                      : blog.ai_state === 'failed' ? "AI couldn't finish" : 'Unfinished AI draft'}
                   </span>
                 ) : (
                   <span className="absolute left-3 top-3 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white">{blog.status.toLowerCase()}</span>
@@ -232,7 +235,7 @@ function BlogsDashboardInner() {
             </Link>
               {/* Open it (live page once published, the preview while it's a draft) and share it. */}
               <div className="flex items-center gap-2 border-t border-[#C9A24D]/15 px-4 py-3 dark:border-white/[0.06] sm:py-2.5">
-                {blog.ai_state && blog.ai_state !== 'running' ? (
+                {blog.ai_state && blog.ai_state !== 'running' && blog.ai_state !== 'overnight' ? (
                   <Link href={`/studio/blogs/${blog.id}`}
                     className="inline-flex min-h-[42px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#C9A24D] px-3 py-2 text-[12.5px] font-black text-[#111827] transition hover:-translate-y-0.5 active:scale-95 sm:min-h-0 sm:text-[11.5px]">
                     <Sparkles className="h-3.5 w-3.5" /> {blog.ai_state === 'failed' ? 'Try again' : 'Finish with AI'}
