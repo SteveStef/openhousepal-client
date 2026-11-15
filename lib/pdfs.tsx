@@ -32,7 +32,7 @@ function pdfImageUrl(url?: string | null): string {
   if (typeof window === 'undefined') return normalized;
   return `${window.location.origin}/api/pdf-image?url=${encodeURIComponent(normalized)}`;
 }
-import { bathsText, bathsTile, buildSaleSummary, cleanUtilityList, cmaCompetitionView, formatSignedMoney, buildReviewSheet, reviewSheetOn, CMA_ENGINE_TESTS, CMA_ASKING_STATS, CMA_TESTED_NOT_ADOPTED, CMA_KNOWN_LIMITS } from '@/lib/cma';
+import { bathsText, bathsTile, buildSaleSummary, cleanUtilityList, cmaCompetitionView, formatSignedMoney, buildReviewSheet, reviewSheetOn, CMA_ENGINE_TESTS, CMA_LAST_STEP_TEST, CMA_MISS_SPREAD, CMA_WARNING_SIGNS, CMA_WARNING_SIGNS_NOTE, CMA_ASKING_STATS, CMA_TESTED_NOT_ADOPTED, CMA_KNOWN_LIMITS } from '@/lib/cma';
 import { CmaGuidanceSection, buildCmaStaticMapUrl, clientCompStrength, cmaGuidanceSections, resolveCmaMarketMetrics, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, buyerOfferFigures, buyerOfferLabels, AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_HEX, STRENGTH_LABEL, STRENGTH_TIER_HEX, compDisplayPrice, effectiveCompPrice, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft, basementDisplay, materialIssuesText } from '@/lib/cma';
 import { qrPdfSrc } from '@/lib/qr';
 import { salesAreRecent, salesWords } from '@/lib/salesWording'
@@ -2238,7 +2238,7 @@ function getCmaSubjectStats(s: CmaSubjectProperty, authoritativeStatus?: CmaFina
     s.sewer ? { label: 'Sewer / Septic', value: formatCmaUtilityValue(s.sewer) } : null,
     statusValue ? { label: 'Current Status', value: statusValue } : null,
     activeMarketDays != null ? { label: 'Days on Market', value: String(activeMarketDays) } : null,
-    s.annual_taxes != null ? { label: 'Annual Taxes', value: formatMoney(s.annual_taxes) } : null,
+    s.annual_taxes ? { label: 'Annual Taxes', value: formatMoney(s.annual_taxes) } : null,   // 0 = not assessed yet, not a $0 bill
     s.last_sale_date ? { label: 'Last Sale Date', value: formatDate(s.last_sale_date) } : null,
     s.last_sale_price != null ? { label: 'Last Sale Price', value: formatMoney(s.last_sale_price) } : null,
   ].filter(Boolean) as { label: string; value: string }[];
@@ -2421,7 +2421,7 @@ function CmaSubjectPage({ report, agent }: { report: CmaReport; agent: CmaPdfAge
     s.water_source ? { label: 'Water Source', value: formatCmaUtilityValue(s.water_source) } : null,
     s.sewer ? { label: 'Sewer / Septic', value: formatCmaUtilityValue(s.sewer) } : null,
     statusValue ? { label: 'Current Status', value: statusValue } : null,
-    s.annual_taxes != null ? { label: 'Annual Taxes', value: formatMoney(s.annual_taxes) } : null,
+    s.annual_taxes ? { label: 'Annual Taxes', value: formatMoney(s.annual_taxes) } : null,   // 0 = not assessed yet, not a $0 bill
     s.last_sale_date ? { label: 'Last Sale Date', value: formatDate(s.last_sale_date) } : null,
     s.last_sale_price != null ? { label: 'Last Sale Price', value: formatMoney(s.last_sale_price) } : null,
   ].filter(Boolean) as { label: string; value: string }[];
@@ -3259,7 +3259,7 @@ function CmaCompetitionPage({ report, agent }: { report: CmaReport; agent: CmaPd
               ? <Image src={normalizeImageUrl(photo)} style={{ width: 104, height: 70, objectFit: 'cover' }} />
               : <View style={{ width: 104, height: 70, backgroundColor: '#F3F4F6' }} />}
             <View style={{ flex: 1, padding: 7 }}>
-              <Text style={{ fontSize: 6.2, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.5, color: '#8b7355' }}>This home</Text>
+              <Text style={{ fontSize: 6.2, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.5, color: '#8b7355' }}>{`This home${s.list_price ? ` - ${view.subject.priceLabel.toLowerCase()}` : ''}`}</Text>
               <Text style={{ fontSize: 12, fontWeight: 900, color: COLORS.text, marginTop: 2 }}>
                 {formatMoney(s.list_price ?? null)}{s.list_price && ag ? `  ·  $${Math.round(s.list_price / ag)}/sq ft` : ''}
               </Text>
@@ -3332,8 +3332,15 @@ function CmaReviewSheetPages({ report, agent }: { report: CmaReport; agent: CmaP
       <Page size="LETTER" style={cma.page}>
         <CmaPdfHeader label="Engine review sheet" title="How This Report Was Produced" subtitle="For accuracy checking - the engine's steps and its own checks on this report" />
         {banner}
-        <View style={box}>
-          <Text style={h}>Checks the engine ran on this report</Text>
+        {sheet.notes ? (
+          <View style={box} wrap={false}>
+            <Text style={h}>OpenHousePal's own review of this report</Text>
+            <Text style={p}>{sheet.notes}</Text>
+          </View>
+        ) : null}
+        <View style={box} wrap={false}>
+          <Text style={h}>Arithmetic and data checks on this report</Text>
+          <Text style={{ ...small, marginBottom: 4 }}>PASS means the numbers add up and the data was current. It does not mean the value is right or that every sentence was verified - see the review and the final read.</Text>
           {sheet.checks.map((c, i) => (
             <View key={i} style={{ flexDirection: 'row', paddingVertical: 2.2, borderTop: i ? `0.5 solid ${COLORS.line}` : undefined }}>
               <Text style={{ width: 34, fontSize: 7, fontWeight: 900, color: c.ok === null ? COLORS.subtext : c.ok ? '#1E7B3A' : '#B42318' }}>{c.ok === null ? 'NOTE' : c.ok ? 'PASS' : 'CHECK'}</Text>
@@ -3355,24 +3362,32 @@ function CmaReviewSheetPages({ report, agent }: { report: CmaReport; agent: CmaP
             {sheet.underContract.map((r, i) => <Text key={`u${i}`} style={{ ...small, marginBottom: 2 }}>{`- Under contract: ${r}`}</Text>)}
           </View>
         )}
-        <View style={box}>
-          <Text style={h}>The final read (a second AI checks the finished text against the report's own facts)</Text>
-          {sheet.finalRead ? (
-            <>
-              {sheet.finalRead.fixed.length === 0 && sheet.finalRead.forAgent.length === 0 ? <Text style={small}>It ran and found nothing to change.</Text> : null}
-              {sheet.finalRead.fixed.map((r, i) => <Text key={`f${i}`} style={{ ...small, marginBottom: 2 }}>{`- Fixed before the report was saved: ${r}`}</Text>)}
-              {sheet.finalRead.forAgent.map((r, i) => <Text key={`g${i}`} style={{ ...small, marginBottom: 2 }}>{`- Left for the agent: ${r}`}</Text>)}
-            </>
-          ) : <Text style={small}>Not run on this report.</Text>}
-        </View>
-        {sheet.notes ? (
-          <View style={box}>
-            <Text style={h}>OpenHousePal's own review of this report</Text>
-            <Text style={p}>{sheet.notes}</Text>
+        {!sheet.finalRead && (
+          <View style={box} wrap={false}>
+            <Text style={h}>The final read (a second AI checks the finished text against the report's own facts)</Text>
+            <Text style={small}>Not run on this report.</Text>
           </View>
-        ) : null}
+        )}
         <CmaPageFooter agent={agent} />
       </Page>
+      {sheet.finalRead && (
+        <Page size="LETTER" style={cma.page}>
+          <CmaPdfHeader label="Engine review sheet" title="What the Final Read Found" subtitle="A second AI reads the finished text against the report's own facts - it never changes the value" />
+          {banner}
+        <View style={box}>
+            <Text style={h}>The final read (a second AI checks the finished text against the report's own facts)</Text>
+            {sheet.finalRead ? (
+              <>
+                {sheet.finalRead.fixed.length === 0 && sheet.finalRead.forAgent.length === 0 && sheet.finalRead.unverified.length === 0 ? <Text style={small}>It ran and found nothing to change.</Text> : null}
+                {sheet.finalRead.fixed.map((r, i) => <Text key={`f${i}`} style={{ ...small, marginBottom: 2 }}>{`- Fixed before the report was saved: ${r}`}</Text>)}
+                {sheet.finalRead.forAgent.map((r, i) => <Text key={`g${i}`} style={{ ...small, marginBottom: 2 }}>{`- Left for the agent: ${r}`}</Text>)}
+                {sheet.finalRead.unverified.slice(0, 6).map((r, i) => <Text key={`u${i}`} style={{ ...small, marginBottom: 2 }}>{`- Could not find in its copy of the record (left as written, not shown to the agent): ${r}`}</Text>)}
+              </>
+            ) : <Text style={small}>Not run on this report.</Text>}
+          </View>
+          <CmaPageFooter agent={agent} />
+        </Page>
+      )}
       <Page size="LETTER" style={cma.page}>
         <CmaPdfHeader label="Engine review sheet" title="How the Engine Has Been Tested" subtitle="Past sales the engine was not shown - no AI is used in these checks" />
         {banner}
@@ -3393,7 +3408,29 @@ function CmaReviewSheetPages({ report, agent }: { report: CmaReport; agent: CmaP
             </View>
           ))}
           <Text style={{ ...small, marginTop: 4 }}>
-            "Typical miss" is the middle case: half the homes landed closer than this, half further. Each home is valued as of the day before it went under contract, from sales that had closed by then. "Asking price known" is the buyer's case; "not known" is the seller's. These measure the adjustment table and the comp search only - the step from the adjusted sales to the final value is the AI's and is not in these figures.
+            "Typical miss" is the middle case: half the homes landed closer than this, half further. Each home is valued as of the day before it went under contract, from sales that had closed by then. "Asking price known" is the buyer's case; "not known" is the seller's. These measure the adjustment table and the comp search only - the step from the adjusted sales to the final value is scored next.
+          </Text>
+        </View>
+        <View style={box} wrap={false}>
+          <Text style={h}>The step after the adjusted sales: the asking-price rule against the real sale price</Text>
+          <View style={{ flexDirection: 'row', paddingBottom: 2, borderBottom: `0.5 solid ${COLORS.line}` }}>
+            <Text style={{ flex: 2.4, ...small, fontWeight: 900 }}>Past sales</Text>
+            <Text style={{ flex: 0.6, ...small, fontWeight: 900, textAlign: 'right' }}>Sales</Text>
+            <Text style={{ flex: 1.1, ...small, fontWeight: 900, textAlign: 'right' }}>Typical miss, adjusted sales alone</Text>
+            <Text style={{ flex: 1.1, ...small, fontWeight: 900, textAlign: 'right' }}>Typical miss, with the rule</Text>
+            <Text style={{ flex: 1.5, ...small, fontWeight: 900, textAlign: 'right' }}>Rule moved it closer on</Text>
+          </View>
+          {CMA_LAST_STEP_TEST.map((t, i) => (
+            <View key={i} style={{ flexDirection: 'row', paddingVertical: 2 }}>
+              <Text style={{ flex: 2.4, ...p }}>{t.group}</Text>
+              <Text style={{ flex: 0.6, ...p, textAlign: 'right' }}>{t.sales}</Text>
+              <Text style={{ flex: 1.1, ...p, textAlign: 'right' }}>{t.before}</Text>
+              <Text style={{ flex: 1.1, ...p, textAlign: 'right' }}>{t.after}</Text>
+              <Text style={{ flex: 1.5, ...p, textAlign: 'right' }}>{t.closer}</Text>
+            </View>
+          ))}
+          <Text style={{ ...small, marginTop: 4 }}>
+            The rule is the one a buyer report uses: the asking price may hold a value down, never lift it. Same homes and same dates as the table above, no AI. Every home here found a buyer the next day, so its asking price was close to right; a home that sits unsold is not in this test. The AI's own judgment on top of the rule is not in these figures: on the 19 reports made with the current engine it moved the value by 0.2% in the middle case and never by more than 4.7%.
           </Text>
         </View>
         <View style={box}>
@@ -3417,6 +3454,31 @@ function CmaReviewSheetPages({ report, agent }: { report: CmaReport; agent: CmaP
           <Text style={{ ...small, marginTop: 4 }}>
             217,037 MLS sales, November 2025 to November 2026. "Sold / asking" is the middle sale price as a share of the FINAL asking price (after any price cuts, which the MLS feed does not report separately).
           </Text>
+        </View>
+        <CmaPageFooter agent={agent} />
+      </Page>
+      {/* its own page: with the last-step table above, these two boxes ran onto a page with no heading */}
+      <Page size="LETTER" style={cma.page}>
+        <CmaPdfHeader label="Engine review sheet" title="How Far Off It Can Be, and Known Limits" subtitle="The full spread of past misses, changes that were tried and dropped, and what the data cannot show" />
+        {banner}
+        <View style={box} wrap={false}>
+          <Text style={h}>How far off it can be, and which reports are most at risk</Text>
+          <Text style={{ ...p, marginBottom: 4 }}>{CMA_MISS_SPREAD}</Text>
+          <View style={{ flexDirection: 'row', paddingBottom: 2, borderBottom: `0.5 solid ${COLORS.line}` }}>
+            <Text style={{ flex: 2.2, ...small, fontWeight: 900 }}>Past sales showing</Text>
+            <Text style={{ flex: 0.7, ...small, fontWeight: 900, textAlign: 'right' }}>Sales</Text>
+            <Text style={{ flex: 1.1, ...small, fontWeight: 900, textAlign: 'right' }}>Typical miss</Text>
+            <Text style={{ flex: 1.6, ...small, fontWeight: 900, textAlign: 'right' }}>Missed by more than 15%</Text>
+          </View>
+          {CMA_WARNING_SIGNS.map((t, i) => (
+            <View key={i} style={{ flexDirection: 'row', paddingVertical: 2 }}>
+              <Text style={{ flex: 2.2, ...p }}>{t.group}</Text>
+              <Text style={{ flex: 0.7, ...p, textAlign: 'right' }}>{t.sales}</Text>
+              <Text style={{ flex: 1.1, ...p, textAlign: 'right' }}>{t.typical}</Text>
+              <Text style={{ flex: 1.6, ...p, textAlign: 'right' }}>{t.over15}</Text>
+            </View>
+          ))}
+          <Text style={{ ...small, marginTop: 4 }}>{CMA_WARNING_SIGNS_NOTE}</Text>
         </View>
         <View style={box}>
           <Text style={h}>Tested and not adopted</Text>

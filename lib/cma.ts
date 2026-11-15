@@ -970,7 +970,7 @@ export interface CmaCompetitionGroup { key: 'active' | 'pending'; title: string;
 
 export interface CmaCompetitionView {
   /** this home's size and $/sq ft on the page's one basis (total finished area) */
-  subject: { sqft: number | null; psf: number | null }
+  subject: { sqft: number | null; psf: number | null; priceLabel: string }
   sizeNote: string
   title: string
   subtitle: string
@@ -995,6 +995,7 @@ export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null
     ? (subject.list_price ?? null)
     : (report.pricing?.ai_estimate?.final_valuation?.value ?? report.pricing?.most_likely_value ?? report.pricing?.ai_estimate?.value ?? null)
   const ourPsf = ourPrice && subjAg ? ourPrice / subjAg : null
+  const sellerAuction = !buyer && !!report.pricing?.ai_estimate?.auction_listing
   const cutText = (h: CmaCompetitionHome) => h.price_cuts && h.price_cuts.count > 0
     ? `Price cut ${k$(h.price_cuts.total)}${h.price_cuts.count > 1 ? ` (${h.price_cuts.count} cuts)` : ''}`
     : null
@@ -1067,8 +1068,14 @@ export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null
       callouts.push('Similar homes are selling quickly - be ready to move.')
     }
   } else {
+    // The seller's page compares OUR SUGGESTED PRICE with the competition - and has to say so: beside a card that
+    // shows the home's own list price it read as a claim about that price (outside audit 11/14, 101 Sues Way: a
+    // $500,000 auction opening bid, a $515,000 competitor, and "Priced above all current competition").
+    if (sellerAuction) {
+      callouts.push('This home is being sold at auction - the price shown for it is the opening bid, not an asking price. These are the homes its bidders could buy instead.')
+    }
     if (ourPrice && actives.length >= 1 && actives.every(a => (a.list_price || 0) < ourPrice)) {
-      callouts.push('Priced above all current competition - expect longer market time.')
+      callouts.push(`Our suggested price of ${formatMoney(ourPrice)} is above every similar home for sale now - at that price expect a longer market time.`)
     }
     if (actives.some(a => (a.days_on_market || 0) >= 60 || (a.price_cuts?.count || 0) > 0)) {
       callouts.push('Some similar homes have sat 60+ days or cut their price - pricing right matters.')
@@ -1082,7 +1089,7 @@ export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null
   ].filter(g => g.cards.length > 0)
   const listPsf = subject.list_price && subjAg ? subject.list_price / subjAg : null
   return {
-    subject: { sqft: subjAg, psf: listPsf },
+    subject: { sqft: subjAg, psf: listPsf, priceLabel: report.pricing?.ai_estimate?.auction_listing ? 'Opening bid (auction)' : 'List price' },
     sizeNote: 'Sizes and $/sq ft on this page use each home\'s total finished area (above and below grade together), so homes that record a lower level differently compare like for like.',
     title: buyer ? 'Similar Homes on the Market' : 'Your Competition',
     subtitle: buyer
@@ -1107,7 +1114,7 @@ export interface CmaReviewSheet {
   agentNotes: string[]
   underContract: string[]
   /** the in-site grader's last read: null = it did not run on this report */
-  finalRead: { fixed: string[]; forAgent: string[] } | null
+  finalRead: { fixed: string[]; forAgent: string[]; unverified: string[] } | null
   notes: string | null
 }
 
@@ -1115,10 +1122,31 @@ export interface CmaReviewSheet {
 export const CMA_ENGINE_TESTS: { group: string; sales: number; askingKnown: string; askingUnknown: string }[] = [
   { group: 'Houses - Main Line and Delaware County', sales: 60, askingKnown: '8.2%', askingUnknown: '12.6%' },
   { group: 'Townhouses and rowhomes', sales: 60, askingKnown: '7.8%', askingUnknown: '9.5%' },
-  { group: 'Condos (mostly Philadelphia)', sales: 60, askingKnown: '8.1%', askingUnknown: '13.1%' },
-  { group: 'Center-city Philadelphia homes with a garage', sales: 28, askingKnown: '8.9%', askingUnknown: '13.4%' },
+  { group: 'Condos (mostly Philadelphia)', sales: 60, askingKnown: '6.5%', askingUnknown: '13.0%' },
+  { group: 'Center-city Philadelphia homes with a garage', sales: 38, askingKnown: '8.7%', askingUnknown: '12.9%' },
   { group: 'Homes on 2 or more acres', sales: 60, askingKnown: '9.4%', askingUnknown: '13.8%' },
 ]
+/** The step AFTER the adjusted sales, scored the same free way (11/14 night, after the outside audit asked whether
+ *  the final step had ever been checked against past sales): the same 278 past sales, valued as of the day before
+ *  each went under contract, with and without the asking-price rule a buyer report uses. No AI in it. */
+export const CMA_LAST_STEP_TEST: { group: string; sales: number; before: string; after: string; closer: string }[] = [
+  { group: 'All past sales', sales: 278, before: '8.2%', after: '5.7%', closer: '76 of the 85 it changed' },
+  { group: 'The rule took 5% or more off the adjusted sales', sales: 56, before: '13.2%', after: '3.5%', closer: '52 of 56' },
+  { group: 'On the market 30 days or more', sales: 96, before: '6.8%', after: '4.7%', closer: '35 of the 39 it changed' },
+  { group: 'Sold for $1 million or more', sales: 50, before: '11.5%', after: '9.6%', closer: '9 of the 12 it changed' },
+]
+/** Not just the middle case (outside audit of round 6: "median error may conceal consequential outliers"). The same
+ *  278 past sales, adjusted sales + the asking-price rule, buyer report. And the three measurable signs that pick out
+ *  the reports most likely to be far off - counted free on those sales, 11/15. All three are about the SALES (owner,
+ *  11/15: "it should be based on the comps' similarity score"); a lot of 2+ acres and a $1 million price were tried
+ *  as signs first and taken out. They drive the agent-only evidence label (backend _evidence_strength). */
+export const CMA_MISS_SPREAD = 'Half of the 278 homes landed within 5.7% of the real sale price, three in four within 10.7%, nine in ten within 17.7% and nineteen in twenty within 23.2%. The worst miss was 31.4%. Forty-two homes (15%) were missed by more than 15%.'
+export const CMA_WARNING_SIGNS: { group: string; sales: number; typical: string; over15: string }[] = [
+  { group: 'None of the three signs (label: Strong)', sales: 97, typical: '3.5%', over15: '3%' },
+  { group: 'One sign (label: Fair)', sales: 95, typical: '6.1%', over15: '18%' },
+  { group: 'Two or more signs (label: Limited)', sales: 86, typical: '7.7%', over15: '26%' },
+]
+export const CMA_WARNING_SIGNS_NOTE = 'The three signs: the adjusted sales and the asking price are 10% or more apart; the sales needed large adjustments (15% or more of each sale price, weighted by share); the sales are not close matches (Match score under 80, weighted by share). The strongest single sign is the first. Sales that merely disagree with each other did NOT predict a miss, and neither the size of the lot nor the price of the home is used. With no asking price to check against, the sales and the adjustment table alone (no photos, no AI) landed within about 11% in the middle case - the full seller engine has not been measured yet. Every home here found a buyer the next day; homes that sat unsold are not in the test.'
 /** Sold price against FINAL asking price by days on market - 217,037 MLS sales, Nov 2025 to Nov 2026. */
 export const CMA_ASKING_STATS: { days: string; condoMedian: string; condoAbove: string; houseMedian: string; houseAbove: string }[] = [
   { days: '14 to 29', condoMedian: '98.7%', condoAbove: '13%', houseMedian: '100%', houseAbove: '22%' },
@@ -1131,6 +1159,9 @@ export const CMA_TESTED_NOT_ADOPTED: string[] = [
   'Cutting the share of heavily adjusted sales further: no change in accuracy on 88 past sales, so not adopted. The report states how much the figure leans on one sale instead.',
   'Letting homes under contract move the value: removed. Their prices are asking prices and the effect could not be checked against past sales.',
   'A wider comp search for homes on acreage: less accurate, so not adopted.',
+  'A sturdier average for the adjusted sales (a weighted median, a half-and-half blend, clamping or down-weighting sales far from the rest): none was closer to the real sale prices than the weighted average, so not adopted. The agent is told when one or two sales carry the figure.',
+  'Trusting an MLS basement field that says Unfinished over listing text that says finished basement: it changed five of 120 past values, each slightly further from the real price, so not adopted. The comp write-up states the conflict instead.',
+  'Taking the photo-based condition ratings out of the adjustment table (condition from the MLS field and listing words only, or no condition line): further from the real price on 15 and 16 of 25 past test homes, so not adopted. Counting a rating only when two of finish, interior and exterior agree: no real change (8 closer, 6 further), so not adopted.',
 ]
 export const CMA_KNOWN_LIMITS: string[] = [
   'The MLS feed does not send original asking prices or cumulative days on market, so price cuts before a sale cannot be shown; "asking price" always means the final one.',
@@ -1188,20 +1219,25 @@ export function buildReviewSheet(report: CmaReport): CmaReviewSheet | null {
     .slice(0, 14)
     .map(f => (f.length > 300 ? `${f.slice(0, 297)}...` : f))
   const agentNotes = [
+    // the agent-only evidence label (11/15) leads: it is the first thing the agent is told
+    (est as { evidence_strength?: { message?: string | null } | null }).evidence_strength?.message,
     est.agent_review?.message,
     comp?.review,
     (est as { missed_sales?: { message?: string | null } | null }).missed_sales?.message,
     (est as { subject_status_review?: { message?: string | null } | null }).subject_status_review?.message,
     (est as { audience_review?: { message?: string | null } | null }).audience_review?.message,
+    (est as { spread_review?: { message?: string | null } | null }).spread_review?.message,
   ].filter((x): x is string => !!x).map(x => x.replace(/^Review before sending:\s*/, ''))
   const underContract = [
     ...(comp?.pendings_used || []).map(p => `${p.street_address}${p.match_score != null ? ` (${Math.round(p.match_score)}% match)` : ''}: asking ${money(p.list_price)}, about ${money(p.implied_value)} adjusted to this home - shown, not used`),
     ...(comp?.fee_mismatch || []).map(f => `${f.street_address}: monthly fee ${money(f.monthly_fee)} against ${money(f.subject_monthly_fee)} here - not a like-for-like comparison`),
   ]
-  const fa = (est as { final_audit?: { applied?: { where?: string; why?: string; action?: string }[]; for_agent?: { where?: string; why?: string }[] } | null }).final_audit
+  const fa = (est as { final_audit?: { applied?: { where?: string; why?: string; action?: string }[]; for_agent?: { where?: string; why?: string }[]; unverified?: { where?: string; why?: string; sentence?: string }[] } | null }).final_audit
   const finalRead = fa ? {
     fixed: (fa.applied || []).map(a => `${a.action === 'replace' ? 'Reworded' : 'Removed'} a sentence in ${a.where}: ${a.why}`),
     forAgent: (fa.for_agent || []).map(a => `${a.where}: ${a.why}`),
+    // details it could not find in its copy of the record - never applied, never shown to the agent
+    unverified: (fa.unverified || []).map(a => `${a.where}: "${(a.sentence || '').slice(0, 110)}" - ${a.why}`),
   } : null
   return { checks, rules, agentNotes, underContract, finalRead, notes: report.presentation?.review_notes || null }
 }

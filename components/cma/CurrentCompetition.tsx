@@ -30,11 +30,11 @@ function CardPhotos({ photos, onOpen }: { photos: string[], onOpen?: () => void 
   )
 }
 
-function SubjectStrip({ subject }: { subject: CmaSubjectProperty }) {
+function SubjectStrip({ subject, priceLabel = 'List price' }: { subject: CmaSubjectProperty; priceLabel?: string }) {
   const photo = (subject.photos && subject.photos[0]) || subject.photo_url
   const ag = totalFinishedSqft(subject)   // the page's one size basis: total finished area
   const stats: [string, string][] = [
-    ['List price', formatMoney(subject.list_price ?? null)],
+    [priceLabel, formatMoney(subject.list_price ?? null)],
     ['$/sq ft', subject.list_price && ag ? `$${Math.round(subject.list_price / ag)}` : '-'],
     ['Beds', subject.beds != null ? String(subject.beds) : '-'],
     ['Baths', subject.baths != null ? String(subject.baths) : '-'],
@@ -84,7 +84,7 @@ export default function CurrentCompetition({ report, agentView = false, onOpenHo
         <p className="mt-4 rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm font-bold text-gray-400 dark:border-gray-800">{view.empty}</p>
       ) : (
         <>
-          {report.subject && <SubjectStrip subject={report.subject} />}
+          {report.subject && <SubjectStrip subject={report.subject} priceLabel={view.subject.priceLabel} />}
           <p className="mt-2 text-[10px] leading-snug text-gray-400">{view.sizeNote}</p>
           {view.callouts.length > 0 && (
             <ul className="mt-4 space-y-1.5">

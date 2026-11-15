@@ -620,7 +620,7 @@ function SubjectShowcaseCard({ subject }: { subject: CmaPublicResponse['subject'
     subject.year_built != null ? { icon: Calendar, label: 'Built', value: String(subject.year_built) } : null,
     subject.days_on_market != null ? { icon: Calendar, label: 'DOM', value: String(subject.days_on_market) } : null,
     subject.lot_size != null ? { icon: LandPlot, label: 'Acres', value: formatAcresFromSqft(subject.lot_size).replace(' ac', '') } : null,
-    subject.annual_taxes != null ? { icon: DollarSign, label: 'Annual Taxes', value: formatMoney(subject.annual_taxes) } : null,
+    subject.annual_taxes ? { icon: DollarSign, label: 'Annual Taxes', value: formatMoney(subject.annual_taxes) } : null,   // 0 = not assessed yet
   ].filter(Boolean) as { icon: any, label: string, value: string }[]
 
   useEffect(() => {

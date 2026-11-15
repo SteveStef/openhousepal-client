@@ -1565,6 +1565,8 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
           if (r.data.price_band?.[1] != null) setMaxPrice(String(r.data.price_band[1]))
         } else {
           showToast(r.error || 'Search failed.', 'error')
+          // a reason the search cannot run at all (a commercial listing, a 5+ unit building) stays on the page
+          if (r.error && /can't (?:price|value)/i.test(r.error)) setLimitedNote(r.error)
         }
         setOptimizing(false)
       })
@@ -1648,6 +1650,8 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
         setOptimizing(willWidenAgain)
       } else {
         showToast(r.error || 'Search failed.', 'error')
+          // a reason the search cannot run at all (a commercial listing, a 5+ unit building) stays on the page
+          if (r.error && /can't (?:price|value)/i.test(r.error)) setLimitedNote(r.error)
         setOptimizing(false)
       }
     })
@@ -2271,6 +2275,7 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
 const MATCH_COMPONENT_LABELS: Record<string, string> = {
   proximity: "distance", market_area: "same area", size: "size", property_type: "home type", lot: "lot",
   age: "age", style: "style / levels", recency: "how recent", data_reliability: "data quality",
+  bedrooms: "bedroom count", building: "same building",
 }
 function matchBreakdownTitle(d: MatchScoreDetails): string {
   const parts = Object.entries(d.componentPoints).map(([k, pts]) => {
@@ -4940,8 +4945,27 @@ function AgentValueReviewBanner({ report }: { report: CmaReport }) {
     data_freshness?: { message?: string | null } | null
     subject_status_review?: { message?: string | null } | null
     audit_review?: { message?: string | null } | null
+    spread_review?: { message?: string | null } | null
+    evidence_strength?: { level?: 'strong' | 'fair' | 'limited' | null; label?: string | null; message?: string | null } | null
   }) | null | undefined
   const note = est?.agent_review
+  // How strong the evidence behind the value is, from the engine's past-sales record (owner, 11/15). Agent only:
+  // never in the PDF or the client link. Always shown - a strong report says so too.
+  const ev = est?.evidence_strength?.message ? est.evidence_strength : null
+  const evTone = ev?.level === 'strong'
+    ? { box: 'border-emerald-300 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-900/10', head: 'text-emerald-800 dark:text-emerald-300', body: 'text-emerald-900 dark:text-emerald-200', icon: 'text-emerald-600' }
+    : ev?.level === 'limited'
+      ? { box: 'border-amber-300 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-900/10', head: 'text-amber-800 dark:text-amber-300', body: 'text-amber-900 dark:text-amber-200', icon: 'text-amber-600' }
+      : { box: 'border-sky-300 bg-sky-50 dark:border-sky-900/40 dark:bg-sky-900/10', head: 'text-sky-800 dark:text-sky-300', body: 'text-sky-900 dark:text-sky-200', icon: 'text-sky-600' }
+  const evidence = ev ? (
+    <div className={`flex items-start gap-2.5 rounded-2xl border p-3.5 text-sm ${evTone.box}`}>
+      {ev.level === 'strong' ? <Check className={`mt-0.5 h-4 w-4 shrink-0 ${evTone.icon}`} /> : <Scale className={`mt-0.5 h-4 w-4 shrink-0 ${evTone.icon}`} />}
+      <div className="min-w-0">
+        <p className={`text-xs font-black uppercase tracking-wide ${evTone.head}`}>{ev.label || 'Evidence'} <span className="font-semibold normal-case tracking-normal opacity-70">· only you see this</span></p>
+        <p className={`mt-0.5 text-xs font-semibold leading-relaxed ${evTone.body}`}>{String(ev.message).replace(/^(Strong|Fair|Limited) evidence\.\s*/, '')}</p>
+      </div>
+    </div>
+  ) : null
   // Every agent-only review note at once (10/25: a recent same-community sale left out of the report
   // got its own note, and the old banner showed only one of them).
   type ReviewNote = { text: string; values: { comps_value?: number | null; final_value?: number | null } | null }
@@ -4951,24 +4975,29 @@ function AgentValueReviewBanner({ report }: { report: CmaReport }) {
   if (est?.missed_sales?.message) notes.push({ text: est.missed_sales.message, values: null })
   // The final read of the finished report (the in-site grader, 11/14): what it could not fix by itself
   if (est?.audit_review?.message) notes.push({ text: est.audit_review.message, values: null })
+  // One or two sales sit far from the rest after adjusting and carry the figure (11/14)
+  if (est?.spread_review?.message) notes.push({ text: est.spread_review.message, values: null })
   // MLS data more than a day old when this report was made (grader audit 11/13)
   if (est?.data_freshness?.message) notes.unshift({ text: est.data_freshness.message, values: null })
   // The subject's listing left the MLS only days ago - confirm with the owner before sending (grader audit 11/14)
   if (est?.subject_status_review?.message) notes.unshift({ text: est.subject_status_review.message, values: null })
-  if (!notes.length) return null
+  if (!notes.length) return evidence
   return (
-    <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-sm dark:border-amber-900/40 dark:bg-amber-900/10">
-      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-      <div className="min-w-0">
-        <p className="text-xs font-black uppercase tracking-wide text-amber-800 dark:text-amber-300">Review before sending</p>
-        {notes.map((n, i) => (
-          <div key={i} className={i ? 'mt-2 border-t border-amber-200/70 pt-2 dark:border-amber-900/40' : ''}>
-            <p className="mt-0.5 text-xs font-semibold leading-relaxed text-amber-900 dark:text-amber-200">{n.text.replace(/^Review before sending:\s*/, '')}</p>
-            {n.values && (
-              <p className="mt-1.5 text-[11px] font-black tabular-nums text-amber-800 dark:text-amber-300">Comps alone: {formatMoney(n.values.comps_value)} · Final value: {formatMoney(n.values.final_value)}</p>
-            )}
-          </div>
-        ))}
+    <div className="space-y-2">
+      {evidence}
+      <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-sm dark:border-amber-900/40 dark:bg-amber-900/10">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-wide text-amber-800 dark:text-amber-300">Review before sending</p>
+          {notes.map((n, i) => (
+            <div key={i} className={i ? 'mt-2 border-t border-amber-200/70 pt-2 dark:border-amber-900/40' : ''}>
+              <p className="mt-0.5 text-xs font-semibold leading-relaxed text-amber-900 dark:text-amber-200">{n.text.replace(/^Review before sending:\s*/, '')}</p>
+              {n.values && (
+                <p className="mt-1.5 text-[11px] font-black tabular-nums text-amber-800 dark:text-amber-300">Comps alone: {formatMoney(n.values.comps_value)} · Final value: {formatMoney(n.values.final_value)}</p>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
