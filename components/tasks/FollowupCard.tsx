@@ -583,6 +583,18 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
         </div>
       )}
 
+      {/* ── a repeat open-house guest: every visit and what that home was like (the text stays the normal one) */}
+      {!done && !compact && (t.visits?.length ?? 0) > 0 && (
+        <div className="mt-3 rounded-xl border border-amber-200/70 bg-amber-50/60 px-3 py-2 dark:border-amber-300/15 dark:bg-amber-300/[0.05]" data-testid="followup-visits">
+          <p className="text-[9.5px] font-black uppercase tracking-[0.16em] text-amber-800 dark:text-amber-200">Their open house visits</p>
+          <ul className="mt-1 space-y-0.5">
+            {t.visits!.map((v, i) => (
+              <li key={i} className="break-words text-[12px] font-semibold leading-snug text-gray-700 dark:text-gray-200">{v}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* ── what they did since this was added (a form, a question, an RSVP ...) */}
       {!done && since.length > 0 && (
         <div className="mt-3 rounded-xl border border-sky-200/70 bg-sky-50/70 px-3 py-2 dark:border-sky-400/15 dark:bg-sky-400/[0.06]" data-testid="followup-since">

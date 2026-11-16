@@ -2583,6 +2583,8 @@ export interface AgentTask {
   requested_times?: string[] | null;
   /** What they told you (form answers, their message) - minus the picked times. */
   details?: string[] | null;
+  /** Open-house sign-in cards, 2+ visits: each visit (oldest first) with the home's beds, baths, sq ft, price, school district. */
+  visits?: string[] | null;
   /** The request this follow-up answers, when the card can answer it in place: a Showcase tour
    *  (confirm a time / decline) or an open-house second visit / disclosure (Mark scheduled / sent). */
   request?: { kind: 'tour'; tour_id: string; collection_id: string; confirmed: boolean; done: boolean }

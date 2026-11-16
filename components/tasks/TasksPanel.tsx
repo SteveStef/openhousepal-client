@@ -888,7 +888,9 @@ function likesCoveredUntil(tasks: AgentTask[]): number {
 
 export function suggestFollowups(events: LeadEvent[], name: string | null | undefined, openTitles: string[], likesCovered = 0,
   tasks: AgentTask[] = [], me = ''): Suggestion[] {
-  const first = (name || '').trim().split(/\s+/)[0] || 'them'
+  const raw = (name || '').trim().split(/\s+/)[0] || 'them'
+  // "peter" / "PETER" typed in one case reads Peter in the titles (11/16)
+  const first = raw !== 'them' && (raw === raw.toLowerCase() || raw === raw.toUpperCase()) ? raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase() : raw
   const byNewest = [...events].sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))
   const recent = byNewest.filter(e => Date.now() - Date.parse(e.occurred_at) < 7 * 864e5)
   // Homes whose latest like / pass is a pass - never suggested as "liked" (or looked at).
@@ -949,7 +951,11 @@ export function suggestFollowups(events: LeadEvent[], name: string | null | unde
     if (e.source_type === 'open_house_visitor' && e.guest_has_agent && !e.own_listing) continue
     used.add(rule.key)
     const street = streetOf(tidyAddress((e.property_address || '').trim()))
-    const title = rule.title(first, street)
+    // A guest with their own agent at YOUR listing: you're the listing agent - ask how they liked
+    // it (feedback for your seller, and a door open for an offer through their agent), not the
+    // buyer "thanks for coming" pitch (11/16).
+    const feedback = e.source_type === 'open_house_visitor' && !!e.guest_has_agent && !!e.own_listing
+    const title = feedback ? `Ask ${first} for feedback on ${street || 'your listing'}` : rule.title(first, street)
     // Its automatic follow-up is already there (still open, or made for this) - no second copy.
     const at = Date.parse(e.occurred_at)
     if (alreadyAdded(title, at)) continue
@@ -960,8 +966,11 @@ export function suggestFollowups(events: LeadEvent[], name: string | null | unde
     if (tasks.some(t => !t.completed_at && (t.notes || '').split('\n').some(l => l.toLowerCase().startsWith(sinceLine)))) continue
     const why = `${e.summary} · ${happenedWhen(e.occurred_at)}`
     // Their first name as the server writes it (tasks_service._guest_first): "JOHN" reads John.
-    const guest = first === 'them' ? '' : first === first.toUpperCase() ? first.charAt(0) + first.slice(1).toLowerCase() : first
-    out.push({ key: rule.key, kind: rule.kind, title, why, note: `What happened: ${why}`, message: guest ? rule.message?.(guest, me, street) : undefined })
+    const guest = first === 'them' ? '' : first === first.toUpperCase() || first === first.toLowerCase() ? first.charAt(0).toUpperCase() + first.slice(1).toLowerCase() : first
+    const message = !guest ? undefined : feedback
+      ? `${hi(guest, me)} Thanks for coming by ${street || 'my listing'}. I'm the listing agent, and I'd love to hear what you thought of the home. Any questions I can answer for you or your agent?`
+      : rule.message?.(guest, me, street)
+    out.push({ key: rule.key, kind: feedback ? 'text' : rule.kind, title, why: feedback ? `${why} · has an agent` : why, note: `What happened: ${why}`, message })
     if (out.length === 2) break
   }
   return out
