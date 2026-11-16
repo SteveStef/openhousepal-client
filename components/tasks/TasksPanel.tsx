@@ -565,11 +565,14 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
     setSaving(false)
     if (res.success) {
       setTitle(''); setKind('call'); setPriority('normal'); setDateMode('tomorrow'); setCustom(''); setTime('')
-      setMsg(''); setWritten(null); setWriteErr('')
+      setMsg(''); setWritten(null); setWriteErr(''); setSaveErr('')
       setOpen(false)
       onAdded()
+    } else {
+      setSaveErr(res.error || "Couldn't add it just now - check your connection and try again.")
     }
   }
+  const [saveErr, setSaveErr] = useState('')
 
   const closedButton = (
       <button
@@ -679,6 +682,7 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
           setTime(v.anytime ? '' : v.time || '')
           setWhenOpen(false)
         }} />
+      {saveErr && <p className="mt-2 text-[12px] font-bold text-rose-600 dark:text-rose-400" role="alert">{saveErr}</p>}
       <div className={phone ? 'mt-4' : 'mt-2 flex justify-end'}>
         <button onClick={submit} disabled={saving || !title.trim()}
           className={`inline-flex items-center justify-center gap-1.5 bg-[#C9A24D] font-black uppercase tracking-wide text-[#111827] transition hover:brightness-105 disabled:opacity-50 ${phone ? 'h-12 w-full rounded-2xl text-sm' : 'rounded-lg px-4 py-2 text-xs'}`}>
@@ -897,6 +901,10 @@ export function suggestFollowups(events: LeadEvent[], name: string | null | unde
     reacted.add(k)
     if (e.source_type === 'showcase_dislike') passedOn.add(k)
   }
+  // Added already: open with this title, or added for this (made after it happened) and checked off
+  // since - a suggestion the agent took and finished never comes back (owner, 11/16).
+  const alreadyAdded = (title: string, at: number) =>
+    openTitles.includes(title) || tasks.some(t => t.title === title && Date.parse(t.created_at) >= at - 10 * 60e3)
   const out: Suggestion[] = []
   const used = new Set<string>()
   const named = new Set<string>()
@@ -928,7 +936,7 @@ export function suggestFollowups(events: LeadEvent[], name: string | null | unde
       if (!s || used.has(s.key)) continue
       used.add(s.key)
       s.homes.forEach(h => named.add(homeKey(h)))
-      if (openTitles.includes(s.title)) continue
+      if (alreadyAdded(s.title, Date.parse(e.occurred_at))) continue
       const why = `${s.did} · ${happenedWhen(e.occurred_at)}`
       out.push({ key: s.key, kind: s.kind, title: s.title, why, note: `What happened: ${why}` })
       if (out.length === 2) break
@@ -942,10 +950,14 @@ export function suggestFollowups(events: LeadEvent[], name: string | null | unde
     used.add(rule.key)
     const street = streetOf(tidyAddress((e.property_address || '').trim()))
     const title = rule.title(first, street)
-    if (openTitles.includes(title)) continue
     // Its automatic follow-up is already there (still open, or made for this) - no second copy.
     const at = Date.parse(e.occurred_at)
+    if (alreadyAdded(title, at)) continue
     if (rule.covers?.some(src => tasks.some(t => t.auto_source === src && (!t.completed_at || Date.parse(t.created_at) >= at - 10 * 60e3)))) continue
+    // ...or it was added onto their open follow-up as "New since this was added" (tasks_service
+    // note_activity_on_open_followups) - reaching out on that card covers it (owner, 11/16).
+    const sinceLine = `since then: ${(e.summary || '').split(/\s+/).join(' ').trim().slice(0, 200)}`.toLowerCase()
+    if (tasks.some(t => !t.completed_at && (t.notes || '').split('\n').some(l => l.toLowerCase().startsWith(sinceLine)))) continue
     const why = `${e.summary} · ${happenedWhen(e.occurred_at)}`
     // Their first name as the server writes it (tasks_service._guest_first): "JOHN" reads John.
     const guest = first === 'them' ? '' : first === first.toUpperCase() ? first.charAt(0) + first.slice(1).toLowerCase() : first
@@ -972,6 +984,7 @@ function CheckinSlot({ leadId, onAdded }: { leadId: string; onAdded: () => void 
 function SuggestedFollowups({ leadId, items, onAdded }: { leadId: string; items: Suggestion[]; onAdded: () => void }) {
   const [busy, setBusy] = useState<string | null>(null)
   const [added, setAdded] = useState<string[]>([])
+  const [err, setErr] = useState('')
   if (!items.length) return null
   const add = async (s: Suggestion) => {
     setBusy(s.key)
@@ -980,7 +993,8 @@ function SuggestedFollowups({ leadId, items, onAdded }: { leadId: string; items:
     const at = (h: number) => { const d = new Date(day); d.setHours(h, 0, 0, 0); return d.toISOString() }
     const res = await api.tasks.create({ title: s.title, kind: s.kind, priority: 'normal', due_at: at(12), remind_at: at(9), all_day: true, lead_id: leadId, notes: s.note, ...(s.message ? { suggested_message: s.message, signed: true } : {}) })
     setBusy(null)
-    if (res.success) { setAdded(a => [...a, s.key]); onAdded() }
+    if (res.success) { setErr(''); setAdded(a => [...a, s.key]); onAdded() }
+    else setErr(res.error || "Couldn't add it just now - try again.")
   }
   return (
     <div className="mb-3 rounded-xl border border-[#C9A24D]/30 bg-[#fffaf0] p-3 dark:border-[#C9A24D]/20 dark:bg-[#C9A24D]/[0.06]" data-testid="suggested-followups">
@@ -1003,6 +1017,7 @@ function SuggestedFollowups({ leadId, items, onAdded }: { leadId: string; items:
           </div>
         )
       })}
+      {err && <p className="mt-2 text-[12px] font-bold text-rose-600 dark:text-rose-400" role="alert">{err}</p>}
     </div>
   )
 }

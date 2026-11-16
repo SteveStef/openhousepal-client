@@ -100,6 +100,10 @@ export function fmtDue(due?: string | null, allDay?: boolean): string {
   return `${datePart} · ${d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
 }
 
+// tasks_service.SINCE_PREFIX / SINCE_MAX - activity added onto an open follow-up after it was made.
+const SINCE_PREFIX = 'Since then: '
+const SINCE_MAX = 5
+
 // Notes minus what the card already shows. Alerts keep only the extra facts (the long how-to is
 // for the calendar alert); everything else keeps what the agent typed / the feedback text.
 function extraNotes(t: AgentTask): string {
@@ -296,7 +300,11 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
   // ...and never twice: a Guest Pass copy of a question the card already shows is dropped.
   const squash = (v: string) => v.toLowerCase().replace(/["“”]/g, '').replace(/\s+/g, ' ').trim()
   const toldValues = new Set((t.details || []).map(l => squash(l.replace(/^[^:]{1,60}:\s+/, ''))))
+  // What they did after this follow-up was made (tasks_service SINCE_PREFIX) - its own block, on
+  // every kind of card (alerts included), newest last like the calendar event.
+  const since = (t.notes || '').split('\n').filter(l => l.startsWith(SINCE_PREFIX)).map(l => l.slice(SINCE_PREFIX.length))
   const notes = compact ? '' : extraNotes(t).split('\n')
+    .filter(l => !l.startsWith(SINCE_PREFIX))
     .filter(l => !(times.length && l.startsWith("They'd also like")))
     .filter(l => { const q = l.match(/^Asked on their Guest Pass:\s*(.+)$/); return !(q && toldValues.has(squash(q[1]))) })
     .join('\n').trim()
@@ -572,6 +580,18 @@ export default function FollowupCard({ t, compact, busy, clickable, onToggleDone
               </Link>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── what they did since this was added (a form, a question, an RSVP ...) */}
+      {!done && since.length > 0 && (
+        <div className="mt-3 rounded-xl border border-sky-200/70 bg-sky-50/70 px-3 py-2 dark:border-sky-400/15 dark:bg-sky-400/[0.06]" data-testid="followup-since">
+          <p className="text-[9.5px] font-black uppercase tracking-[0.16em] text-sky-700 dark:text-sky-300">New since this was added</p>
+          <ul className="mt-1 space-y-0.5">
+            {since.slice(compact ? -1 : -SINCE_MAX).map((s, i) => (
+              <li key={i} className="break-words text-[12px] font-semibold leading-snug text-gray-700 dark:text-gray-200">{s}</li>
+            ))}
+          </ul>
         </div>
       )}
 
