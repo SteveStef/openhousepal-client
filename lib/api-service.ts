@@ -2792,8 +2792,8 @@ class ApiService {
         body: JSON.stringify({ notify_visitor: notifyVisitor }),
       }, false),
 
-    // t = the email came from the agent's own mailbox: only that agent's emails stop (11/16)
-    unsubscribe: (email: string, t?: string | null) => this.request<{ scope?: 'agent'; agent_name?: string; message?: string }>(`/collections/unsubscribe?email=${encodeURIComponent(email)}${t ? `&t=${encodeURIComponent(t)}` : ''}`, {
+    // a / t = which agent's email the link was on: only that agent's emails stop (11/16)
+    unsubscribe: (email: string, t?: string | null, a?: string | null) => this.request<{ scope?: 'agent'; agent_name?: string; message?: string }>(`/collections/unsubscribe?email=${encodeURIComponent(email)}${t ? `&t=${encodeURIComponent(t)}` : ''}${a ? `&a=${encodeURIComponent(a)}` : ''}`, {
       method: 'POST',
     }, false),
 
