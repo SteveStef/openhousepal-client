@@ -23,11 +23,13 @@ function UnsubscribeContent() {
     if (!email) return
 
     setStatus('loading')
-    const { success, error } = await api.public.unsubscribe(email)
+    const { success, error, data } = await api.public.unsubscribe(email, searchParams.get('t'))
 
     if (success) {
       setStatus('success')
-      setMessage(`Successfully unsubscribed ${email}. You will no longer receive property update notifications.`)
+      setMessage(data?.scope === 'agent'
+        ? `Done - ${email} won't get any more emails from ${data.agent_name || 'this agent'}.`
+        : `Successfully unsubscribed ${email}. You will no longer receive property update notifications.`)
     } else {
       setStatus('error')
       setMessage(error || 'Failed to unsubscribe. Please try again later.')

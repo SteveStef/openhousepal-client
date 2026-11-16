@@ -21,6 +21,10 @@ export type LeadOhShowcase = {
   showcase_id?: string | null
   showcase_invite_at?: string | null
   showcase_invite_delay?: number | null
+  /** Every one of your open houses they came to, oldest first (11/16). */
+  visited?: { open_house_id: string; address?: string | null; signed_in_at?: string | null }[]
+  /** The open house their Showcase is built around. */
+  built_around_open_house_id?: string | null
 }
 
 const street = (a?: string | null) => tidyAllCaps((a || '').split(',')[0].trim())
@@ -78,7 +82,23 @@ export function useLeadOhShowcase({ leadId, represented, asked, onAsked, onChang
   useEffect(() => { if (fresh && !question) onAsked() }, [fresh, question, onAsked])
 
   const show = !!(data?.visitor_id && data.plan && (data.switchable || data.showcase_on))
-  const where = street(data?.address)
+  // Where their Showcase came from: the open house it's built around (one Showcase per client, 11/16).
+  const around = data?.visited?.find(v => v.open_house_id === data?.built_around_open_house_id)
+  const where = street(around?.address || data?.address)
+
+  // Rebuild it as if it had been made from another open house they came to - agent only.
+  const rebuild = async (ohId: string, label: string) => {
+    if (!data?.showcase_id) return false
+    setBusy(true)
+    const r = await api.collections.rebuildFromOpenHouse(data.showcase_id, ohId)
+    setBusy(false)
+    if (!r.success) { showToast(r.error || "Couldn't rebuild their Showcase - try again.", 'error'); return false }
+    const added = r.data?.added || 0
+    showToast(`Rebuilt around ${label} - ${r.data?.properties_count ?? 0} homes${added ? `, ${added} new` : ''}. Same link; their likes and comments stayed.`, 'success')
+    await load()
+    onChanged?.()
+    return true
+  }
 
   const modal = (
     <MotionModal open={!!question} onBackdropClick={onAsked} className="z-[60] bg-black/55">
@@ -104,10 +124,54 @@ export function useLeadOhShowcase({ leadId, represented, asked, onAsked, onChang
     </MotionModal>
   )
 
-  return { data, busy, set, show, where, modal }
+  return { data, busy, set, show, where, modal, rebuild }
 }
 
 export type LeadOhShowcaseState = ReturnType<typeof useLeadOhShowcase>
+
+/** Came to 2+ of your open houses: "Rebuild around <the other home>" - same link, their engagement stays. */
+function RebuildAround({ oh }: { oh: LeadOhShowcaseState }) {
+  const { data, busy, rebuild } = oh
+  const [ask, setAsk] = useState<{ id: string; label: string } | null>(null)
+  const others = (data?.visited || []).filter(v => v.open_house_id !== data?.built_around_open_house_id)
+  if (!data?.showcase_id || !data.showcase_on || (data.visited || []).length < 2 || !others.length) return null
+  return (
+    <div className="mt-2.5 rounded-xl border border-[#C9A24D]/25 bg-[#fffaf0] px-3 py-2.5 dark:border-[#C9A24D]/20 dark:bg-[#C9A24D]/[0.06]" data-testid="lead-showcase-rebuild">
+      {!ask ? (
+        <>
+          <p className="text-[11.5px] font-semibold leading-snug text-gray-600 dark:text-gray-300">
+            They came to {(data.visited || []).length} of your open houses.{' '}
+            {data.built_around_open_house_id && (data.visited || []).some(v => v.open_house_id === data.built_around_open_house_id)
+              ? <>Their Showcase is built around {street((data.visited || []).find(v => v.open_house_id === data.built_around_open_house_id)?.address)}.</>
+              : <>Their Showcase isn&apos;t built around any of them.</>}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {others.map(v => (
+              <button key={v.open_house_id} type="button" disabled={busy} onClick={() => setAsk({ id: v.open_house_id, label: street(v.address) || 'that home' })}
+                className="rounded-full border border-[#C9A24D]/40 bg-white px-3 py-1.5 text-[12px] font-black text-[#8b7355] transition hover:border-[#C9A24D] disabled:opacity-50 dark:bg-white/[0.04] dark:text-[#e8c97a]">
+                Rebuild around {street(v.address) || 'this open house'}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="text-[12px] font-black text-[#111827] dark:text-white">Rebuild their Showcase around {ask.label}?</p>
+          <p className="mt-0.5 text-[11.5px] font-semibold leading-snug text-gray-500 dark:text-gray-400">
+            Homes like {ask.label}, near it, at its price. Same link. Every home they liked, commented on, toured or opened stays.
+          </p>
+          <div className="mt-2 flex gap-1.5">
+            <button type="button" onClick={() => setAsk(null)} className="rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-bold text-gray-600 dark:border-white/10 dark:text-gray-300">Cancel</button>
+            <button type="button" disabled={busy} data-testid="lead-showcase-rebuild-yes" onClick={async () => { if (await rebuild(ask.id, ask.label)) setAsk(null) }}
+              className="rounded-full bg-[#111827] px-3 py-1.5 text-[12px] font-black text-white disabled:opacity-50 dark:bg-white dark:text-[#111827]">
+              {busy ? 'Rebuilding…' : 'Rebuild it'}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 /** The switch + where it came from. `withLink` = no Showcase box under it, so link to the Showcase here. */
 export function LeadOhShowcaseSwitch({ oh, withLink }: { oh: LeadOhShowcaseState; withLink?: boolean }) {
@@ -128,6 +192,7 @@ export function LeadOhShowcaseSwitch({ oh, withLink }: { oh: LeadOhShowcaseState
           )}
         </p>
       )}
+      <RebuildAround oh={oh} />
     </div>
   )
 }

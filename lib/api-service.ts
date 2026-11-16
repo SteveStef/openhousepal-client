@@ -1235,6 +1235,12 @@ class ApiService {
         method: 'PUT',
         body: JSON.stringify(preferences),
       }),
+    /** Agent only: rebuild the Showcase as if made from another open house they came to - same link, engagement kept (11/16). */
+    rebuildFromOpenHouse: (collectionId: string, openHouseEventId: string) =>
+      this.request<{ built_around: string; added: number; removed: number; properties_count: number }>(`/collections/${collectionId}/rebuild-from-open-house`, {
+        method: 'POST',
+        body: JSON.stringify({ open_house_event_id: openHouseEventId }),
+      }),
 
     // Live, unsaved preview for the map-first Showcase editor - calls the exact same
     // PropertyService function the real save path uses, so the preview never drifts from what
@@ -2786,7 +2792,8 @@ class ApiService {
         body: JSON.stringify({ notify_visitor: notifyVisitor }),
       }, false),
 
-    unsubscribe: (email: string) => this.request(`/collections/unsubscribe?email=${encodeURIComponent(email)}`, {
+    // t = the email came from the agent's own mailbox: only that agent's emails stop (11/16)
+    unsubscribe: (email: string, t?: string | null) => this.request<{ scope?: 'agent'; agent_name?: string; message?: string }>(`/collections/unsubscribe?email=${encodeURIComponent(email)}${t ? `&t=${encodeURIComponent(t)}` : ''}`, {
       method: 'POST',
     }, false),
 
