@@ -121,6 +121,7 @@ function BlogsDashboardInner() {
       return true
     })
   }, [blogs, statusTab, search])
+  const listKey = filtered.map(b => b.id).join(',')
 
   return (
     <div className="min-h-screen bg-[#faf9f7] dark:bg-[#0B0B0B]">
@@ -188,6 +189,10 @@ function BlogsDashboardInner() {
             <motion.div
               key={blog.id}
               layout
+              // Cards glide to a new place only when the LIST changes (one deleted, a filter picked) - not on every
+              // re-draw. Opening the delete pop-up locks the page's scroll, which nudged the grid a few pixels and
+              // made every card re-settle, one after another (owner 11/15).
+              layoutDependency={listKey}
               initial={{ opacity: 0, y: 14, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
