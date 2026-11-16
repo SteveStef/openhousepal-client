@@ -70,6 +70,53 @@ export function tailStart(blocks: BlogBlock[]): number {
 
 /** What moves, hides or duplicates together: a heading takes its whole section (up to the next
  *  heading or the article's ending); anything else is just itself. */
+// ---- whose words are these? ------------------------------------------------------------------
+// Every block the AI writer makes carries "-ai-" in its id (the server's _bid). A block the agent added does not,
+// and an AI block whose words the agent changed is marked `data.edited`. "Refine with AI" goes by this (owner,
+// 11/16): the AI's own fact-checked paragraphs are not offered for another AI rewrite; the agent's words are.
+const AI_ID = /-ai-/
+const wordsOf = (b: BlogBlock) => JSON.stringify([b.data?.html ?? null, b.data?.text ?? null, b.data?.items ?? null, b.data?.title ?? null])
+export const byHand = (b: BlogBlock) => !AI_ID.test(b.id) || !!b.data?.edited
+/** Did the AI writer write (any of) this article? */
+export const aiWrote = (blocks: BlogBlock[]) => blocks.some(b => AI_ID.test(b.id))
+
+/** After an edit: an AI-written block whose words changed is now the agent's own. Returns `next` itself when nothing changed. */
+export function stampEdited(prev: BlogBlock[], next: BlogBlock[]): BlogBlock[] {
+  const before = new Map(prev.map(b => [b.id, b]))
+  let changed = false
+  const out = next.map(b => {
+    const o = before.get(b.id)
+    if (!o || o === b || !AI_ID.test(b.id) || b.data?.edited || !REFINABLE_TYPES.includes(b.type) || wordsOf(o) === wordsOf(b)) return b
+    changed = true
+    return { ...b, data: { ...(b.data || {}), edited: true } }
+  })
+  return changed ? out : next
+}
+
+/** What Refine can fix: words (never a card, a photo or the "Ask me" line). */
+export const POLISH_TYPES: BlockType[] = [...RICH_TYPES, ...LIST_TYPES]
+
+/** The passages a press of Refine on this block sends to be fixed: the agent's own words, nothing the AI wrote.
+ *  On a heading that is the section's passages; on anything else, that one passage. */
+export function refineTargets(blocks: BlogBlock[], id: string): BlogBlock[] {
+  const r = unitRange(blocks, id)
+  if (!r) return []
+  const ai = aiWrote(blocks)
+  return blocks.slice(r[0], r[1]).filter(x => POLISH_TYPES.includes(x.type) && (!ai || byHand(x)) && !!plainOf(x).trim())
+}
+
+/** Is Refine offered on this block? One button per section (its heading) wherever the section holds words of the
+ *  agent's own under it. A passage with no section button of its own to go to - one the agent typed or changed in an
+ *  article the AI wrote, or anything above the first heading - carries the button itself. */
+export function canRefine(blocks: BlogBlock[], id: string): boolean {
+  const b = blocks.find(x => x.id === id)
+  if (!b) return false
+  if (b.type === 'heading') return refineTargets(blocks, id).some(x => x.type !== 'heading')
+  if (!POLISH_TYPES.includes(b.type) || !plainOf(b).trim()) return false
+  if (aiWrote(blocks)) return byHand(b)
+  return sectionOwners(blocks)[id] == null && tailStart(blocks) > blocks.indexOf(b)
+}
+
 export function unitRange(blocks: BlogBlock[], id: string): [number, number] | null {
   const start = blocks.findIndex(b => b.id === id)
   if (start === -1) return null

@@ -77,12 +77,19 @@ function BlogsDashboardInner() {
     if (await copyText(url)) { setShared(b.id); window.setTimeout(() => setShared(s => (s === b.id ? null : s)), 1800) }
   }
 
-  useEffect(() => {
+  // A load that fails must not read as "No articles yet" (11/16 editor test: the server was restarting and the
+  // page told an agent with 26 articles to publish their first one).
+  const [loadFailed, setLoadFailed] = useState(false)
+  const loadBlogs = () => {
+    setLoading(true)
+    setLoadFailed(false)
     api.blogs.getMine().then(response => {
       if (response.success && response.data) setBlogs(response.data)
+      else setLoadFailed(true)
       setLoading(false)
     })
-  }, [])
+  }
+  useEffect(loadBlogs, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (searchParams.get('new') === '1') setShowCreate(true)
@@ -170,7 +177,28 @@ function BlogsDashboardInner() {
               <Loader2 className="h-5 w-5 animate-spin" /> Loading articles...
             </div>
           )}
-          {!loading && filtered.length === 0 && (
+          {!loading && loadFailed && blogs.length === 0 && (
+            <button
+              onClick={loadBlogs}
+              className="col-span-full flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-300 p-16 text-center transition hover:border-[#C9A24D] dark:border-gray-700"
+            >
+              <Newspaper className="h-8 w-8 text-gray-300" />
+              <p className="font-black text-gray-500 dark:text-gray-400">We couldn&apos;t load your articles</p>
+              <p className="text-sm font-semibold text-gray-400">They are safe. Tap to try again.</p>
+            </button>
+          )}
+          {/* Articles exist, but none fits the search or the tab: say that, never "No articles yet". */}
+          {!loading && !loadFailed && blogs.length > 0 && filtered.length === 0 && (
+            <button
+              onClick={() => { setSearch(''); setStatusTab('ALL') }}
+              className="col-span-full flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-300 p-16 text-center transition hover:border-[#C9A24D] dark:border-gray-700"
+            >
+              <Newspaper className="h-8 w-8 text-gray-300" />
+              <p className="font-black text-gray-500 dark:text-gray-400">{search.trim() ? 'No article matches that search' : `No ${statusTab.toLowerCase()} articles`}</p>
+              <p className="text-sm font-semibold text-gray-400">Tap to show all {blogs.length} of your articles.</p>
+            </button>
+          )}
+          {!loading && !loadFailed && blogs.length === 0 && (
             <button
               onClick={() => setShowCreate(true)}
               className="col-span-full flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-300 p-16 text-center transition hover:border-[#C9A24D] dark:border-gray-700"

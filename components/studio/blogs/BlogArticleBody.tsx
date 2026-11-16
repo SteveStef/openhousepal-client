@@ -1,6 +1,5 @@
 'use client'
 
-import { contrastRatio } from '@/lib/siteTheme'
 import { Fragment, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { qrDataUrl } from '@/lib/qr'
@@ -11,9 +10,10 @@ import FormWindow from '@/components/forms/FormWindow'
 import { escapeHtml, sanitizeInlineHtml } from '@/lib/studio/sanitizeHtml'
 import { BlogBlock, LinkedProperty } from '@/types'
 import AreaSpotlightSection from './AreaSpotlightSection'
-import { PaymentExample, SourcesList, type PaymentExampleData, type SourcesData } from './ArticleDataBlocks'
+import { PaymentExample, SourcesList, inkOn, type PaymentExampleData, type SourcesData } from './ArticleDataBlocks'
 import SignatureSiteCard from './SignatureSiteCard'
 import BlogPhoto from './BlogPhoto'
+import BlogCoverArt from '@/components/BlogCoverArt'
 import { IMG, sizedImage } from '@/lib/siteImage'
 import { PropertyShowcase, VideoShowcase } from './ShowcaseBlocks'
 import ClosingCta from './ClosingCta'
@@ -305,7 +305,7 @@ function Block({ block, agent, accentColor, onEvent, onLead, related, relatedHre
       // A button with nowhere to go never reaches readers.
       if (!edit && !String(data.url || '').trim()) return null
       return (
-        <a href={data.url || '#'} onClick={() => onEvent?.('link_click', { label: data.label })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5" style={{ backgroundColor: accentColor }}>
+        <a href={data.url || '#'} onClick={() => onEvent?.('link_click', { label: data.label })} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-black shadow-lg transition hover:-translate-y-0.5" style={{ backgroundColor: accentColor, color: inkOn(accentColor) }}>
           {data.label || 'Learn More'} <ExternalLink className="h-3.5 w-3.5" />
         </a>
       )
@@ -361,7 +361,7 @@ function Block({ block, agent, accentColor, onEvent, onLead, related, relatedHre
             <p className="font-serif text-lg font-black text-[#111827] dark:text-white">{agent.name}</p>
             <p className="text-xs font-bold text-gray-500">{agent.title ? `${agent.title} · ` : ''}{agent.brokerage}</p>
           </div>
-          <button type="button" onClick={() => { onEvent?.('contact_click'); openContact() }} className="shrink-0 rounded-xl px-4 py-2.5 text-xs font-black transition hover:-translate-y-0.5" style={{ backgroundColor: accentColor, color: /^#[0-9a-f]{6}$/i.test(accentColor) && contrastRatio(accentColor, '#ffffff') < contrastRatio(accentColor, '#111827') ? '#111827' : '#ffffff' }}>Contact</button>
+          <button type="button" onClick={() => { onEvent?.('contact_click'); openContact() }} className="shrink-0 rounded-xl px-4 py-2.5 text-xs font-black transition hover:-translate-y-0.5" style={{ backgroundColor: accentColor, color: inkOn(accentColor) }}>Contact</button>
         </div>
       )
       return signatureHubSlug ? <SignatureSiteCard hubSlug={signatureHubSlug} fallback={small} towns={signatureTowns} match={signatureMatch} /> : small
@@ -387,7 +387,10 @@ function Block({ block, agent, accentColor, onEvent, onLead, related, relatedHre
             {related.map(r => (
               <a key={r.slug} href={relatedHref ? relatedHref(r.slug) : '#'} className="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-gray-800 dark:bg-[#151517]">
                 <div className="aspect-[16/10] overflow-hidden bg-gradient-to-br from-[#fbf6ec] to-[#f1e3c2] dark:from-[#1d1810] dark:to-[#111827]">
-                  <BlogPhoto src={r.coverImageUrl} width={640} widths={IMG.card} sizes="(min-width: 640px) 33vw, 100vw" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                  {/* No photo: the drawn cover, not an empty box (11/16). */}
+                  {r.coverImageUrl
+                    ? <BlogPhoto src={r.coverImageUrl} width={640} widths={IMG.card} sizes="(min-width: 640px) 33vw, 100vw" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                    : <BlogCoverArt category={r.category} title={r.title} showWord={false} />}
                 </div>
                 <div className="p-3">
                   {r.category && <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: accentColor }}>{r.category}</p>}
@@ -463,7 +466,7 @@ function ContactFormCard({ agent, accentColor, onLead, heading, sheet = false, o
               <textarea value={message} onChange={e => setMessage(e.target.value)} disabled={!live} rows={3} placeholder="What would you like to know?" className={`${field} resize-none sm:col-span-2`} style={{ ['--tw-ring-color' as any]: `${accentColor}33` }} />
             </div>
             {state === 'error' && <p className="mt-2 text-xs font-bold text-red-500">{error}</p>}
-            <button type="submit" disabled={!live || state === 'sending'} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-60" style={{ backgroundColor: accentColor }}>
+            <button type="submit" disabled={!live || state === 'sending'} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-black shadow-lg transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-60" style={{ backgroundColor: accentColor, color: inkOn(accentColor) }}>
               {state === 'sending' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {live ? 'Send' : 'Live on your published article'}
             </button>
           </motion.form>
@@ -483,13 +486,13 @@ function LeadFormCard({ data, accentColor, href, onEvent }: { data: any; accentC
   const inner = (
     <>
       <div className="pointer-events-none absolute -right-10 -top-14 h-44 w-44 rounded-full opacity-30" style={{ background: `radial-gradient(closest-side, ${accentColor}, transparent)` }} />
-      <span className="relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white shadow-lg" style={{ background: accentColor }}><ClipboardList className="h-6 w-6" /></span>
+      <span className="relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl shadow-lg" style={{ background: accentColor, color: inkOn(accentColor) }}><ClipboardList className="h-6 w-6" /></span>
       <span className="relative min-w-0 flex-1">
         <span className="block text-[10px] font-black uppercase tracking-[0.25em]" style={{ color: accentColor }}>Free · about a minute</span>
         <span className="block font-serif text-xl font-black leading-tight text-[#111827] dark:text-white">{data.title || 'Tell me what you need'}</span>
         {data.description && <span className="mt-0.5 block text-sm font-medium leading-snug text-gray-500 dark:text-gray-400">{data.description}</span>}
       </span>
-      <span className="relative inline-flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-black text-white shadow-md transition group-hover:-translate-y-0.5" style={{ backgroundColor: accentColor }}>
+      <span className="relative inline-flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-black shadow-md transition group-hover:-translate-y-0.5" style={{ backgroundColor: accentColor, color: inkOn(accentColor) }}>
         {data.label || 'Start'} <ArrowRight className="h-3.5 w-3.5" />
       </span>
     </>

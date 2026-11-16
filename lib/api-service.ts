@@ -2103,7 +2103,12 @@ class ApiService {
     aiGenerate: (brief: BlogAiBrief) =>
       this.request<BlogAiGenerateResult>('/studio/blogs/ai/generate', { method: 'POST', body: JSON.stringify(brief) }),
     aiRefineSection: (body: { title: string; section_blocks: BlogBlock[]; article_blocks: BlogBlock[]; action: BlogAiRefineAction; instruction?: string }) =>
-      this.request<{ blocks: BlogBlock[]; numbers_to_verify: string[] }>('/studio/blogs/ai/refine-section', { method: 'POST', body: JSON.stringify(body) }),
+      this.request<{ blocks: BlogBlock[]; numbers_to_verify: string[]; used?: { usd: number; percent: number | null } | null }>('/studio/blogs/ai/refine-section', { method: 'POST', body: JSON.stringify(body) }),
+    // Refine = fix my writing: the agent's own passages in, each improved one back beside the original.
+    aiPolish: (body: { title: string; blocks: BlogBlock[] }) =>
+      this.request<{ changes: { id: string; type: string; before: string; after: string; data: Record<string, any> }[]; used?: { usd: number; percent: number | null } | null }>('/studio/blogs/ai/polish', { method: 'POST', body: JSON.stringify(body) }),
+    // About what one Refine uses, as a share of the agent's monthly AI (said before the press).
+    aiRefineEstimate: () => this.request<{ usd: number; percent: number | null }>('/studio/blogs/ai/refine-estimate'),
   };
 
   /**

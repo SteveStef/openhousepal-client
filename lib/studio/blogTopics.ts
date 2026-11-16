@@ -40,7 +40,9 @@ function blockId(prefix: string): string {
 export function buildStarterBlocks(topic: BlogTopicTemplate | null): BlogBlock[] {
   if (!topic) {
     return [
-      { id: blockId('heading'), type: 'heading', data: { text: 'Untitled Article' } },
+      // An empty heading (the editor shows "type a heading" there; readers never see an empty block). It used to
+      // hold the words "Untitled Article", which readers saw as a section heading once anything was typed under it.
+      { id: blockId('heading'), type: 'heading', data: { text: '' } },
       { id: blockId('paragraph'), type: 'paragraph', data: { text: '' } },
     ]
   }

@@ -8,21 +8,27 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, ClipboardCopy, ImagePlus, PenLine, Sparkles } from 'lucide-react'
+import { aiUsedLine } from '@/lib/studio/aiShare'
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { OhpSpinner } from '@/components/brand/OhpLoader'
 import { copyText } from '@/lib/copyText'
 
-export default function AiCoverMaker({ blogId, idea: initialIdea, coverUrl, onUse }: {
+export default function AiCoverMaker({ blogId, idea: initialIdea, coverUrl, last, onUse }: {
+  /** The last picture made for this article and how many changes it has had (the server keeps both). A picture the
+   *  agent paid for is shown again when they come back - it used to be gone after a reload, and a second press paid twice. */
+  last?: { url?: string | null; revisions?: number } | null
   blogId: string
   idea?: string | null
   /** The article's cover right now (to show "This is your cover"). */
   coverUrl?: string | null
   onUse: (url: string) => Promise<void> | void
 }) {
-  const [est, setEst] = useState<{ percent: number | null; allowed: boolean; max_revisions: number } | null>(null)
+  const [est, setEst] = useState<{ usd: number; percent: number | null; allowed: boolean; max_revisions: number } | null>(null)
+  // What the pictures made here have really used so far (said after each one).
+  const [spent, setSpent] = useState(0)
   const [idea, setIdea] = useState(initialIdea || '')
   const [busy, setBusy] = useState<'make' | 'change' | 'use' | null>(null)
-  const [img, setImg] = useState<string | null>(null)
+  const [img, setImg] = useState<string | null>(last?.url || null)
   const [left, setLeft] = useState(2)
   const [changing, setChanging] = useState(false)
   const [comment, setComment] = useState('')
@@ -30,18 +36,20 @@ export default function AiCoverMaker({ blogId, idea: initialIdea, coverUrl, onUs
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    api.blogs.aiCoverEstimate().then(r => { if (r.success && r.data) { setEst(r.data); setLeft(r.data.max_revisions) } })
+    api.blogs.aiCoverEstimate().then(r => { if (r.success && r.data) { setEst(r.data); setLeft(Math.max(0, r.data.max_revisions - (last?.url ? Number(last.revisions) || 0 : 0))) } })
   }, [])
 
   const pct = est?.percent != null ? (est.percent < 1 ? est.percent.toFixed(1) : String(Math.round(est.percent))) : null
   const used = !!img && !!coverUrl && coverUrl === img
+  // The same share the estimate uses, for what was really spent.
+  const usedLine = spent > 0 && est?.percent && est.usd ? aiUsedLine({ usd: spent, percent: spent / est.usd * est.percent }) : null
 
   const run = async (kind: 'make' | 'change') => {
     setError(''); setBusy(kind)
     const r = await api.blogs.aiCover(blogId, kind === 'make' ? { idea } : { comment })
     setBusy(null)
     if (!r.success || !r.data) { setError(r.error || "Couldn't make that picture - nothing was charged."); return }
-    setImg(r.data.url); setLeft(r.data.revisions_left); setChanging(false); setComment('')
+    setImg(r.data.url); setLeft(r.data.revisions_left); setChanging(false); setComment(''); setSpent(s => s + (r.data?.cost_usd || 0))
   }
   const use = async () => {
     if (!img) return
@@ -105,6 +113,7 @@ export default function AiCoverMaker({ blogId, idea: initialIdea, coverUrl, onUs
             </>
           )}
           {pct && <span className="text-[10px] font-bold text-gray-400">Each picture uses about {pct}% of your monthly AI</span>}
+          {usedLine && <span data-testid="blog-cover-used" className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">{usedLine} here so far</span>}
         </div>
       )}
       {busy === 'use' && <p className="mt-2 text-[11px] font-bold text-gray-400">Saving…</p>}

@@ -15,9 +15,10 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlignCenter, AlignLeft, ArrowDown, ArrowUp, Bold, Check, ChevronDown, Copy, EyeOff, GripVertical, ImagePlus, Italic, Link2, Link2Off,
-  Loader2, Moon, Pencil, Plus, Redo2, RotateCcw, Sparkles, Strikethrough, Sun, Trash2, Type, Underline, Undo2, Wand2, X,
+  Loader2, Moon, Pencil, Plus, Redo2, RotateCcw, Sparkles, Strikethrough, Sun, Trash2, Type, Underline, Undo2, X,
 } from 'lucide-react'
-import type { Blog, BlogAiRefineAction, BlogBlock } from '@/types'
+import type { Blog, BlogBlock } from '@/types'
+import { aiUsesLine, type AiShare } from '@/lib/studio/aiShare'
 import BlogArticleBody, { visibleBlocks, type BlogArticleAgentInfo, type BlogEditHooks, type NeighborhoodLink } from '@/components/studio/blogs/BlogArticleBody'
 import { BlogThemedArticle, blogAccent, blogSignatureMatch, blogTheme } from '@/components/studio/blogs/BlogThemes'
 import { PopupSheet, usePhoneWidth } from '@/components/ui/AnchoredPopup'
@@ -28,7 +29,7 @@ import {
   CLOSING_TYPES, SINGLE_TYPES, SOFT_TYPES, TAIL_TYPES, applyHostValue, backspaceInList, backspaceRich, canStep, clampDrop, cleanPlain, cleanSplitEdge,
   convertBlock, defaultInsertIndex, duplicateUnit, enterInList, exitBox, hostValue, insertAt, isList, isRich, isText, labelOf, moveUnit, needsSetup,
   newBlock, pasteItems, pasteParagraphs, pastedParagraphs, plainOf, plainOfHtml, removeBlock, removeUnit, sectionOwners, shortcutType, splitRich,
-  stepUnit, stripListMark, tailStart, unitRange, withHtml, type BlockType, type Focus,
+  stampEdited, canRefine, stepUnit, stripListMark, tailStart, unitRange, withHtml, type BlockType, type Focus,
 } from './blockOps'
 import { caretAtEnd, caretAtStart, offsetFromPoint, parseHost, rangeIn, setCaret, splitAtCaret, tidyEmpty } from './domText'
 
@@ -37,6 +38,10 @@ const READER_KEY = 'ohp-blog-reader-mode'
 const EDIT_CSS = `
 [data-editing] [data-host]{outline:none;cursor:text;-webkit-tap-highlight-color:transparent}
 [data-editing] [data-host]:empty::before{content:attr(data-ph);opacity:.38;pointer-events:none}
+/* A section heading keeps its ::before for the look's own gold bar (4px wide in Classic and Midnight): its "type here"
+   hint goes in ::after, or the hint was squeezed into the bar and stood one letter per line (11/16). */
+[data-editing] h2[data-host]:empty::before{content:"";opacity:1}
+[data-editing] h2[data-host]:empty::after{content:attr(data-ph);opacity:.38;pointer-events:none}
 [data-editing] [data-host] a{cursor:text}
 [data-editing] iframe{pointer-events:none}
 [data-editing] ::selection{background:rgba(201,162,77,.34)}
@@ -44,14 +49,6 @@ const EDIT_CSS = `
 [data-blog-line]:empty::before{content:attr(data-ph);opacity:.42;pointer-events:none}
 `
 
-const REFINE_ACTIONS: { id: BlogAiRefineAction; label: string }[] = [
-  { id: 'rewrite', label: 'Rewrite it fresher' },
-  { id: 'expand', label: 'Expand with more depth' },
-  { id: 'shorten', label: 'Make it shorter' },
-  { id: 'more_local', label: 'Make it more local' },
-  { id: 'more_personal', label: 'Make it more personal' },
-  { id: 'simplify', label: 'Simplify the language' },
-]
 
 const TURN_INTO: { type: BlockType; label: string }[] = [
   { type: 'paragraph', label: 'Paragraph' },
@@ -237,9 +234,11 @@ export interface BlogCanvasEditorProps {
   /** Cover, look and color live on the "Look & cover" tab. */
   onOpenLook: () => void
   onOpenPublish: () => void
-  /** AI "Refine" for a section (paid AI - the page runs it). */
+  /** AI "Refine" for a section, or for one passage the agent wrote (paid AI - the page runs it). */
   refineBusy: string | null
-  onRefine: (headingId: string, action: BlogAiRefineAction, instruction?: string) => void
+  onRefine: (id: string) => void
+  /** About what one Refine uses, said on the button's menu before it is pressed. */
+  refineEstimate?: AiShare | null
 }
 
 type Menu = null | 'style' | 'delete' | 'refine' | 'settings'
@@ -318,6 +317,8 @@ export default function BlogCanvasEditor(props: BlogCanvasEditorProps) {
   // --- saving an edit -----------------------------------------------------------
   const commit = (next: BlogBlock[], opts: { focus?: Focus; reseed?: boolean; typingHost?: string; draw?: boolean } = {}) => {
     const prev = blocksRef.current
+    // The agent changed the words of something the AI wrote: it is theirs now (this is what "Refine with AI" goes by).
+    next = stampEdited(prev, next)
     if (next !== prev) {
       const now = Date.now()
       if (opts.typingHost) {
@@ -962,6 +963,7 @@ export default function BlogCanvasEditor(props: BlogCanvasEditorProps) {
           setMenu={setMenu}
           signatureOn={props.signatureOn}
           refineBusy={props.refineBusy}
+          refineEstimate={props.refineEstimate}
           keepHover={keepHover}
           fadeHover={fadeHover}
           onStartMove={startMove}
@@ -974,7 +976,7 @@ export default function BlogCanvasEditor(props: BlogCanvasEditorProps) {
           onHide={id => setHidden(id, true)}
           onAddBelow={id => { const blocks = blocksRef.current; const i = blocks.findIndex(b => b.id === id); const b = blocks[i]; const r = b && b.type === 'heading' && b.data?.hidden ? unitRange(blocks, id) : null; setSelected(id); openPalette(r ? r[1] : i + 1) }}
           onUpdate={(id, updater) => update(id, updater, `settings:${id}`)}
-          onRefine={(id, action, instruction) => { setMenu(null); props.onRefine(id, action, instruction) }}
+          onRefine={id => { setMenu(null); props.onRefine(id) }}
           onOpenPublish={props.onOpenPublish}
         />,
         document.body,
@@ -1049,6 +1051,7 @@ function SectionChrome(p: {
   setMenu: (m: Menu) => void
   signatureOn: boolean
   refineBusy: string | null
+  refineEstimate?: AiShare | null
   keepHover: () => void
   fadeHover: () => void
   onStartMove: (id: string, e: React.PointerEvent) => void
@@ -1061,13 +1064,12 @@ function SectionChrome(p: {
   onHide: (id: string) => void
   onAddBelow: (id: string) => void
   onUpdate: (id: string, updater: (b: BlogBlock) => BlogBlock) => void
-  onRefine: (id: string, action: BlogAiRefineAction, instruction?: string) => void
+  onRefine: (id: string) => void
   onOpenPublish: () => void
 }) {
   const { selected: sel, hover: hov, phone, menu, setMenu } = p
   const [boxes, setBoxes] = useState<{ sel: Box | null; hov: Box | null; scroll: number; bar: number; vw: number }>({ sel: null, hov: null, scroll: 0, bar: 0, vw: 1200 })
   const [, tick] = useReducer((n: number) => n + 1, 0)
-  const [custom, setCustom] = useState('')
   // Something is picked or under the mouse: keep its outline lined up while photos load or the page reflows.
   const liveRef = useRef(false)
   liveRef.current = !!(sel || hov)
@@ -1089,7 +1091,6 @@ function SectionChrome(p: {
     const slow = setInterval(() => { if (liveRef.current) on() }, 900)
     return () => { cancelAnimationFrame(raf); clearInterval(slow); window.removeEventListener('scroll', on); window.removeEventListener('resize', on); document.removeEventListener('input', on, true); document.removeEventListener('load', on, true) }
   }, [])
-  useEffect(() => { setCustom('') }, [sel?.id])
 
   const btn = 'grid h-9 w-9 shrink-0 place-items-center rounded-lg text-white/75 transition hover:bg-white/10 hover:text-white disabled:opacity-25 sm:h-8 sm:w-8'
   const hold = (e: React.MouseEvent) => e.preventDefault()   // keep the caret where it is while a toolbar button is pressed
@@ -1155,16 +1156,11 @@ function SectionChrome(p: {
         <p className="px-1 pt-1 text-[11px] font-semibold text-gray-400">You can undo any of these.</p>
       </div>
     ) : menu === 'refine' ? (
-      <div>
-        <p className="flex items-center gap-1 pb-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]"><Sparkles className="h-3 w-3" /> Refine this section with AI</p>
-        {REFINE_ACTIONS.map(a => (
-          <button key={a.id} type="button" disabled={!!p.refineBusy} onClick={() => p.onRefine(b.id, a.id)} className="block min-h-[40px] w-full rounded-lg px-3 text-left text-sm font-bold text-[#111827] hover:bg-[#C9A24D]/10 disabled:opacity-40 dark:text-white sm:min-h-[34px] sm:text-xs">{a.label}</button>
-        ))}
-        <div className="mt-1 flex gap-1 border-t border-gray-100 pt-2 dark:border-gray-800">
-          <input value={custom} onChange={e => setCustom(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && custom.trim()) p.onRefine(b.id, 'custom', custom.trim()) }} placeholder="Or tell it what to change..." className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-transparent px-2.5 py-2 text-base outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:text-white sm:text-xs" />
-          <button type="button" aria-label="Refine with this instruction" disabled={!!p.refineBusy || !custom.trim()} onClick={() => p.onRefine(b.id, 'custom', custom.trim())} className="grid w-10 place-items-center rounded-lg bg-[#C9A24D] text-[#111827] disabled:opacity-40"><Wand2 className="h-4 w-4" /></button>
-        </div>
-        <p className="pt-2 text-[10px] font-semibold text-gray-400">Uses your monthly AI credits. Rewrites the words only: photos, cards and numbers in the section stay as they are.</p>
+      <div className="max-w-[300px]">
+        <p className="flex items-center gap-1 pb-1 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]"><Sparkles className="h-3 w-3" /> Refine</p>
+        <p className="text-[12px] font-semibold leading-snug text-gray-600 dark:text-gray-300">Fixes the spelling, grammar and wording of {heading ? 'what you wrote in this section' : 'what you wrote here'}. Your facts and numbers stay the same, and nothing is added. You see both versions and pick one.</p>
+        <button type="button" data-testid="blog-refine-go" disabled={!!p.refineBusy} onClick={() => p.onRefine(b.id)} className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-[#111827] px-4 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:opacity-40 dark:bg-white dark:text-[#111827] sm:min-h-[38px]"><Sparkles className="h-4 w-4" /> Fix my writing</button>
+        <p data-testid="blog-refine-cost" className="pt-2 text-[10px] font-black text-[#8b7355] dark:text-[#d7b974]">{aiUsesLine(p.refineEstimate)}</p>
       </div>
     ) : menu === 'settings' ? (
       <div>
@@ -1192,8 +1188,8 @@ function SectionChrome(p: {
           <button type="button" onClick={() => p.onAddBelow(b.id)} aria-label="Add a section below" title="Add a section below" className={btn}><Plus className="h-4 w-4" /></button>
           {canCopy && <button type="button" onClick={() => p.onDuplicate(b.id)} aria-label="Duplicate" title={heading ? 'Duplicate the section' : 'Duplicate'} className={btn}><Copy className="h-4 w-4" /></button>}
           {hasSettings(b.type) && <button type="button" onClick={() => setMenu(menu === 'settings' ? null : 'settings')} aria-label="Settings" title="Change what it shows" className={`${btn} ${menu === 'settings' ? 'bg-white/15 text-white' : ''}`}><Pencil className="h-4 w-4" /></button>}
-          {heading && (
-            <button type="button" onClick={() => setMenu(menu === 'refine' ? null : 'refine')} disabled={p.refineBusy === b.id} aria-label="Refine with AI" title="Refine this section with AI" className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg px-2 text-[11px] font-black text-[#e8c97a] transition hover:bg-white/10 sm:h-8">
+          {canRefine(p.blocks, b.id) && (
+            <button type="button" onClick={() => setMenu(menu === 'refine' ? null : 'refine')} disabled={p.refineBusy === b.id} aria-label="Refine with AI" title={heading ? 'Fix the writing in this section' : 'Fix the writing here'} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg px-2 text-[11px] font-black text-[#e8c97a] transition hover:bg-white/10 sm:h-8">
               {p.refineBusy === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />} <span className="hidden sm:inline">{p.refineBusy === b.id ? 'Refining...' : 'Refine'}</span>
             </button>
           )}

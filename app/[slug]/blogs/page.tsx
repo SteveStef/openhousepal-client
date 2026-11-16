@@ -10,6 +10,7 @@ import { PublicBlogSummary } from '@/types'
 import HubFormLauncher from '@/components/agent-hub/HubFormLauncher'
 import BlogCard from '@/components/studio/blogs/BlogCard'
 import BlogPhoto from '@/components/studio/blogs/BlogPhoto'
+import BlogCoverArt from '@/components/BlogCoverArt'
 import { IMG } from '@/lib/siteImage'
 
 const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '')
@@ -108,7 +109,8 @@ export default function PublicBlogListPage() {
               <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-[#fbf6ec] to-[#f1e3c2] md:aspect-auto md:min-h-[320px] dark:from-[#1d1810] dark:to-[#111827]">
                 {featured.coverImageUrl
                   ? <BlogPhoto src={featured.coverImageUrl} width={1080} widths={IMG.half} sizes="(min-width: 768px) 60vw, 100vw" eager className="h-full w-full object-cover transition duration-700 group-hover:scale-105" />
-                  : <Newspaper className="absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 text-[#C9A24D]/40" />}
+                  // No photo: the same drawn cover the smaller cards use (it was an empty box with a small icon).
+                  : <BlogCoverArt category={featured.category} title={featured.title} className="absolute inset-0" showWord={false} />}
                 <span className="absolute left-4 top-4 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#111827] shadow">Latest</span>
               </div>
               <div className="flex flex-col justify-center p-6 sm:p-9">

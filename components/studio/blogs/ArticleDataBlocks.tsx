@@ -2,6 +2,11 @@
 
 import { motion } from 'framer-motion'
 import { ArrowRight, BookOpen, Calculator, ExternalLink } from 'lucide-react'
+import { contrastRatio } from '@/lib/siteTheme'
+
+// Button text that stays readable on the article's accent color: white on a deep accent, near-black on a
+// bright one (a bright gold with white letters was hard to read - 11/16 IDX dark mode check).
+export const inkOn = (accent: string) => (/^#[0-9a-f]{6}$/i.test(accent) && contrastRatio(accent, '#ffffff') < contrastRatio(accent, '#111827') ? '#111827' : '#ffffff')
 
 // Two blocks the AI writer's research pipeline adds to an article, both filled from real data
 // (never typed by the model): a worked payment example for a realistic entry price, and the
@@ -111,12 +116,12 @@ export function PaymentExample({ data, accent = '#C9A24D', onAction }: { data: P
       </div>
 
       <div className="flex flex-col gap-4 px-6 pb-6 pt-4 sm:flex-row sm:items-end sm:justify-between sm:px-8 sm:pb-8">
-        <p className="max-w-xl text-[11px] leading-relaxed text-gray-400 dark:text-white/45">
+        <p className="max-w-xl text-[11px] leading-relaxed text-gray-500 dark:text-white/55">
           An example, not a quote. The rate is Freddie Mac&apos;s national average for well-qualified borrowers putting 20% down; yours depends on your credit, down payment, loan type and lender. Property tax {data.tax_basis ? `uses the ${data.tax_basis}` : 'varies by assessment'}; {fee ? `homeowners insurance is not included, and the association fee is the median of the ${fee.homes} ${fee.label} for sale that list one - a home's own fee can be higher or lower` : 'homeowners insurance and any HOA fee are not included'}. Mortgage insurance applies to conventional loans under 20% down (FHA loans carry it at any down payment; VA loans have none).
           {data.scenarios.some(s => s.jumbo) ? ` * Above ${data.limit_area ? `${data.limit_area}'s` : 'the county\'s'} 2026 conforming loan limit - a jumbo loan with its own rates and rules. The rate shown is Freddie Mac's average for conforming loans, so ask a lender for a jumbo quote.` : ''}
         </p>
         {onAction && (
-          <button type="button" onClick={onAction} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5" style={{ backgroundColor: accent }}>
+          <button type="button" onClick={onAction} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-black shadow-lg transition hover:-translate-y-0.5" style={{ backgroundColor: accent, color: inkOn(accent) }}>
             Get my numbers for a home <ArrowRight className="h-4 w-4" />
           </button>
         )}
@@ -151,7 +156,7 @@ export function SourcesList({ data, accent = '#C9A24D' }: { data: SourcesData; a
               <a href={s.url} target="_blank" rel="noopener" className="font-semibold text-gray-700 underline decoration-gray-300 underline-offset-2 hover:decoration-current dark:text-white/80">
                 {s.name}<ExternalLink className="ml-1 inline h-3 w-3 align-[-1px] opacity-60" />
               </a>
-              {sourceDates(s) && <span className="text-gray-400">({sourceDates(s)})</span>}
+              {sourceDates(s) && <span className="text-gray-500 dark:text-white/55">({sourceDates(s)})</span>}
             </li>
           ))}
         </ol>

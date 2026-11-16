@@ -879,9 +879,11 @@ async function BlogDetail({ siteId, slug, theme, basePrefix, path }: { siteId: s
     notFound()
   }
   const hubSlug = await resolveAgentHubSlug(siteId)
-  const related = ((media?.posts || []) as any[])
-    .filter(p => p.slug !== slug && (!post.category || p.category === post.category))
-    .slice(0, 3)
+  // "Keep reading": same category first, then the newest - the same rule as the Agent Hub copy
+  // (an article alone in its category used to end with no "Keep reading" here).
+  const others = ((media?.posts || []) as any[]).filter(p => p.slug !== slug)
+  const sameCategory = (p: any) => !!post.category && p.category === post.category
+  const related = [...others.filter(sameCategory), ...others.filter(p => !sameCategory(p))].slice(0, 3)
   const readTime = estimateReadTime(post.blocks)
 
   const gold = theme.secondary_color
