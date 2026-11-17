@@ -91,9 +91,9 @@ export function FastExample({ format }: { format?: string }) {
 
 // ------------------------------------------------------------------ how soon: Save usage or Make it now
 
-const pctText = (v: number) => (v < 1 ? 'less than 1%' : `${v < 10 ? Math.round(v * 10) / 10 : Math.round(v)}%`)
+const pctText = (v: number) => (v < 0.1 ? 'less than 0.1%' : `${v < 10 ? Math.max(0.1, Math.round(v * 10) / 10) : Math.round(v)}%`)
 
-const about = (v: number) => (v < 1 ? 'Less than 1%' : `About ${pctText(v)}`)
+const about = (v: number) => (v < 0.1 ? 'Less than 0.1%' : `About ${pctText(v)}`)
 
 export function SpeedPicker({ s, up, fast }: { s: MotionSettings; up: (fn: (d: MotionSettings) => MotionSettings) => void; fast: boolean }) {
   const speed = s.speed === 'now' ? 'now' : 'save'
@@ -110,17 +110,19 @@ export function SpeedPicker({ s, up, fast }: { s: MotionSettings; up: (fn: (d: M
     return () => { alive = false }
   }, [n, seconds, fast])
   const same = !!use && use.now - use.lo < 0.05
+  // how much less Save usage uses, rounded to 5 (e.g. "about 50% less")
+  const less = use && !same && use.now > 0 ? Math.round(((use.now - use.lo) / use.now) * 20) * 5 : 0
   const opts = [
-    { id: 'save' as const, label: 'Save usage', tag: 'Uses less AI',
-      blurb: fast ? 'The AI editor, the twilight ending and the video maker take the slower, cheaper line. Usually about 10 minutes longer.' : 'The video maker takes the slower, cheaper line. Usually a few minutes longer.',
-      use: use ? (use.hi - use.lo < 0.05 ? `${about(use.lo)} of your monthly AI` : `${about(use.lo)}, at most ${pctText(use.hi)} of your monthly AI`) : '' },
+    { id: 'save' as const, label: 'Save usage', tag: 'Recommended',
+      blurb: fast ? 'Ready in about 25 minutes. The AI and the video maker wait in the cheaper line.' : 'The video maker takes the slower, cheaper line. Usually a few minutes longer.',
+      use: use ? `${about(use.lo)} of your monthly AI` : '', save: less >= 10 ? `Uses about ${less}% less` : '' },
     { id: 'now' as const, label: 'Make it now', tag: '',
-      blurb: 'The fastest way, start to finish.',
-      use: use ? `${about(use.now)} of your monthly AI` : '' },
+      blurb: fast ? 'Ready in about 15 minutes, at the full price.' : 'The fastest way, start to finish.',
+      use: use ? `${about(use.now)} of your monthly AI` : '', save: '' },
   ]
   return (
     <div className={card} data-testid="speed-picker">
-      <Title title="How soon do you need it?" sub="It is the same video either way - only the wait and the AI it uses change" />
+      <Title title="How soon do you need it?" sub="The exact same video and quality either way. Save usage just takes a little longer, and uses much less of your monthly AI" />
       <div className="grid grid-cols-2 gap-2.5">
         {opts.map(o => (
           <button key={o.id} type="button" onClick={() => up(d => ({ ...d, speed: o.id }))} aria-pressed={speed === o.id} data-testid={`speed-${o.id}`} className={`${pickCls(speed === o.id)} p-3`}>
@@ -129,12 +131,13 @@ export function SpeedPicker({ s, up, fast }: { s: MotionSettings; up: (fn: (d: M
               {o.tag && <span className="rounded-full bg-[#C9A24D]/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-[#8b7355] dark:text-[#d7b974]">{o.tag}</span>}
             </span>
             <span className="mt-1 block text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400">{o.blurb}</span>
-            {o.use && <span className={`mt-1.5 block text-[10.5px] font-black leading-tight ${gold}`}>{o.use}</span>}
+            {o.use && <span className={`mt-1.5 block text-[10.5px] font-black leading-tight ${gold}`} data-testid={`speed-${o.id}-use`}>{o.use}</span>}
+            {o.save && <span className="mt-1 block text-[10.5px] font-black leading-tight text-emerald-700 dark:text-emerald-400" data-testid="speed-save-less">{o.save}</span>}
           </button>
         ))}
       </div>
       <p className="mt-3 text-[11px] font-semibold text-gray-400">
-        {same ? 'Right now both use the same amount for this video. ' : ''}That is for {fast ? 'the AI editor and making the video' : 'making the video'} - getting the photos ready uses the same either way.
+        {same ? 'Right now both use the same amount for this video. ' : ''}{fast ? 'That covers everything this video uses: the AI editor, getting the photos ready, the twilight ending and making it. If a cheaper line is busy, Save usage does that part the normal way - never more than Make it now.' : 'That is for making the video.'}
       </p>
     </div>
   )
