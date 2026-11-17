@@ -1359,6 +1359,13 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
   // would re-run the same search once - this skips that echo.
   const skipEchoSearchRef = useRef(false)
   const [limitedNote, setLimitedNote] = useState<string | null>(null)
+  // A search that did not go through (the server too slow or unreachable) says so with Try again - never "No
+  // matching properties", which read as "there are no comps" (live 11/17). The automatic first search tries once
+  // more by itself first.
+  const [searchFailed, setSearchFailed] = useState<string | null>(null)
+  const autoRetryRef = useRef(0)
+  const failedAutoRef = useRef(false)
+  const runSearchRef = useRef<() => void>(() => {})
   // Same autofill rule as the Similar Properties sheet (CreateOpenHouseWizard) - seed the price
   // and beds range from the subject itself so the very first search already returns real comps,
   // not an unbounded dump of every property in the radius. Price band is a wide ±35% (the tighter
@@ -1535,6 +1542,7 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
     if (skipEchoSearchRef.current) { skipEchoSearchRef.current = false; return }
     setSearching(true)
     setSearched(true)
+    setSearchFailed(null)
     const seq = ++searchSeqRef.current
     // ONE set of subject facts for both searches. The server scores "same area" from the state / ZIP / street and,
     // for a listed home, puts each sale's price level inside the Match % from the asking price - so a search the
@@ -1566,10 +1574,23 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
           setSoldWithinDays(String(r.data.sold_within_days))
           if (r.data.price_band?.[0] != null) setMinPrice(String(r.data.price_band[0]))
           if (r.data.price_band?.[1] != null) setMaxPrice(String(r.data.price_band[1]))
-        } else {
-          showToast(r.error || 'Search failed.', 'error')
+        } else if (r.error && /can't (?:price|value)/i.test(r.error)) {
           // a reason the search cannot run at all (a commercial listing, a 5+ unit building) stays on the page
-          if (r.error && /can't (?:price|value)/i.test(r.error)) setLimitedNote(r.error)
+          showToast(r.error, 'error')
+          setLimitedNote(r.error)
+        } else if (autoRetryRef.current < 1) {
+          // Live 11/17 (119 East Ln): the first search of a quiet server ran past the 100-second limit and the page
+          // said "No matching properties yet" - wrong, there were 14. The server has usually just finished by then:
+          // one quiet second try, still showing the "finding" animation.
+          autoRetryRef.current += 1
+          autoRadiusRef.current = true
+          autoSoldDaysRef.current = true
+          setSearching(true)
+          setTimeout(() => runSearchRef.current(), 1500)
+          return
+        } else {
+          setSearchFailed(r.error || 'The search did not go through.')
+          failedAutoRef.current = true
         }
         setOptimizing(false)
       })
@@ -1655,10 +1676,17 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
         showToast(r.error || 'Search failed.', 'error')
           // a reason the search cannot run at all (a commercial listing, a 5+ unit building) stays on the page
           if (r.error && /can't (?:price|value)/i.test(r.error)) setLimitedNote(r.error)
+          else { setSearchFailed(r.error || 'The search did not go through.'); failedAutoRef.current = false }
         setOptimizing(false)
       }
     })
   }, [report.subject, scoreSubject, radius, statuses, soldWithinDays, minPrice, maxPrice, minSqft, maxSqft, minAcres, maxAcres, minYearBuilt, maxYearBuilt, minBeds, minBaths, schoolDistrictSel, citySel, showToast, scoreFor])
+  runSearchRef.current = runSearch
+  const retrySearch = () => {
+    if (failedAutoRef.current) { autoRadiusRef.current = true; autoSoldDaysRef.current = true }
+    setOptimizing(true)
+    runSearch()
+  }
 
   // Auto-pulls from the database as filters change - no manual search trigger, debounced the
   // same way the Similar Properties sheet debounces its preference changes.
@@ -1947,6 +1975,16 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
             <div className="mt-4 rounded-2xl border border-dashed border-gray-200 p-10 text-center dark:border-gray-800">
               <p className="text-sm font-black text-gray-500 dark:text-gray-400">Select at least one status</p>
               <p className="mt-1 text-xs font-semibold text-gray-400">Open Refine Your Search and choose Active, Active Under Contract, Pending, and/or Sold.</p>
+            </div>
+          ) : searched && results.length === 0 && searchFailed ? (
+            <div data-comp-search-failed className="mt-4 rounded-2xl border border-dashed border-amber-300/70 p-10 text-center dark:border-amber-500/30">
+              <RefreshCw className="mx-auto mb-3 h-6 w-6 text-amber-500" />
+              <p className="text-sm font-black text-gray-700 dark:text-gray-200">The search didn&apos;t go through</p>
+              <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">Our server took too long to answer. Nothing is lost - try again.</p>
+              <button type="button" onClick={retrySearch}
+                className="mt-4 inline-flex h-10 items-center gap-2 rounded-full bg-[#111827] px-5 text-xs font-black text-white transition active:scale-95 dark:bg-white dark:text-[#111827]">
+                <RefreshCw className="h-3.5 w-3.5" /> Try again
+              </button>
             </div>
           ) : searched && results.length === 0 ? (
             <div className="mt-4 rounded-2xl border border-dashed border-gray-200 p-10 text-center dark:border-gray-800">
