@@ -223,12 +223,23 @@ export function suggestRooms(pool: MotionPoolPhoto[] = [], length?: number | nul
   return pick.sort((a, b) => (ROOM_RANK.get(a) ?? 99) - (ROOM_RANK.get(b) ?? 99))
 }
 
-const newId = () => Math.random().toString(36).slice(2, 12).padEnd(10, '0')
+/** A photo's id comes from the photo itself (owner 11/17): the same photo always gets the same id, so switching a
+ *  video between Cinematic and Fast Cut (or taking a photo out and back in) keeps it the photo the AI editor already
+ *  looked at - its one look is not paid for again. 10 letters/digits (the server takes 6-16). */
+const stableId = (source: string) => {
+  let a = 0x811c9dc5, b = 0x01000193 ^ source.length
+  for (let i = 0; i < source.length; i++) {
+    const c = source.charCodeAt(i)
+    a = Math.imul(a ^ c, 0x01000193) >>> 0
+    b = Math.imul(b ^ c, 0x5bd1e995) >>> 0
+  }
+  return ('p' + a.toString(36) + b.toString(36)).replace(/[^a-z0-9]/g, '').padEnd(10, '0').slice(0, 14)
+}
 
 function fromPool(it: MotionPoolPhoto, keep?: MotionPhotoSetting): MotionPhotoSetting {
   if (keep && keep.source === it.source) return keep
   return {
-    id: newId(), source: it.source, clean: it.clean ?? null, depth: it.depth ?? null, sharp: it.sharp ?? null, sharpDepth: !!it.sharpDepth,
+    id: stableId(it.source), source: it.source, clean: it.clean ?? null, depth: it.depth ?? null, sharp: it.sharp ?? null, sharpDepth: !!it.sharpDepth,
     kind: it.kind, label: it.label, kicker: it.kicker, showLabel: true, move: 'auto', focusX: it.focusX,
     lights: it.lights, water: it.water, sky: it.sky, trees: it.trees, fire: it.fire, fireBox: it.fireBox ?? null, transitionIn: null, hidden: false,
     analyzed: it.analyzed, sure: it.sure, confirmed: false, room: it.room,

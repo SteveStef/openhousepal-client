@@ -10,9 +10,10 @@
 // The edit itself is made on the server (backend fast_cut_edit.py + fast_cut_recipe.py).
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, Flame, Loader2, Pause, Play, RefreshCw, Sunset, X } from 'lucide-react'
+import FastShotBoard from './FastShotBoard'
+import { Loader2, Pause, Play, RefreshCw } from 'lucide-react'
 import api from '@/lib/api-service'
-import { MotionSettings, photosForFastCut, thumbOf } from '@/lib/studio/cinematic'
+import { MotionSettings, photosForFastCut, sectionsOf, thumbOf } from '@/lib/studio/cinematic'
 
 const gold = 'text-[#8b7355] dark:text-[#d7b974]'
 const card = 'rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-5'
@@ -29,7 +30,7 @@ export const FAST_SONGS: { id: string; label: string; blurb: string }[] = [
   { id: 'sunset', label: 'Sunset', blurb: 'Laid-back groove' },
 ]
 
-export type FastPlanRow = { photo: string; start: number; seconds: number; what: string; stat?: { value: string; label: string } | null; role: string; fire: boolean; dusk: boolean; movable: boolean; kind?: string }
+export type FastPlanRow = { photo: string; start: number; seconds: number; what: string; stat?: { value: string; label: string } | null; role: string; fire: boolean; dusk: boolean; movable: boolean; kind?: string; section?: string | null }
 export type FastPlan = {
   rows: FastPlanRow[]; order: string[]; seconds: number; song: string; long: boolean; usable: number; needed: number; needed_long: number
   recommend: 30 | 60; skipped: string[]; seconds_short: number; seconds_long: number
@@ -281,9 +282,17 @@ export function FastPhotos({ s, up, ready, failed, onRetry }: { s: MotionSetting
     return add ? { ...d, photos: [...d.photos, add] } : d
   })
   const n = inBySrc.size
+  // room by room, like a Cinematic Video's picking (owner 11/17: the same features on both kinds)
+  const rooms = sectionsOf(pool)
+  const setRoom = (srcs: string[], on: boolean) => up(d => {
+    if (!on) return { ...d, photos: d.photos.filter(p => !srcs.includes(p.source)) }
+    const have = new Set(d.photos.map(p => p.source))
+    const add = photosForFastCut(d, true).filter(p => srcs.includes(p.source) && !have.has(p.source))
+    return { ...d, photos: [...d.photos, ...add] }
+  })
   return (
     <div className={card} data-testid="fast-photos">
-      <Title title="Photos in your video" sub="Every good photo is in to start with. Tap any you don't want - the AI editor picks the order and leaves out near-duplicates."
+      <Title title="Photos in your video" sub="Every good photo is in to start with, room by room. Tap any you don't want - the AI editor picks the order and leaves out near-duplicates; you can rearrange it on Your shots."
         right={<button type="button" onClick={() => up(d => ({ ...d, photos: photosForFastCut(d) }))} className={`shrink-0 text-[11px] font-black ${gold} hover:underline`}>Use all</button>} />
       {failed && !ready ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-900/10" data-testid="fast-photos-failed">
@@ -295,16 +304,30 @@ export function FastPhotos({ s, up, ready, failed, onRetry }: { s: MotionSetting
       ) : (
         <>
           <p className={`mb-2 text-[11px] font-black ${n < FAST_MIN_PHOTOS ? 'text-red-600' : 'text-gray-500'}`}>{n} of {pool.length} photos in{n < FAST_MIN_PHOTOS ? ` - a Fast Cut needs at least ${FAST_MIN_PHOTOS}` : ''}</p>
-          <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
-            {pool.map(it => {
-              const on = inBySrc.has(it.source)
+          <div className="space-y-3.5" data-testid="fast-photo-rooms">
+            {rooms.map(room => {
+              const inRoom = room.photos.filter(it => inBySrc.has(it.source)).length
+              const all = inRoom === room.photos.length
               return (
-                <button key={it.source} type="button" onClick={() => toggle(it.source)} aria-pressed={on} title={it.label}
-                  className={`relative aspect-[4/3] overflow-hidden rounded-lg border-2 ${on ? 'border-[#111827] dark:border-white' : 'border-transparent opacity-40'}`}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={thumbOf(it.clean || it.source) || it.source} alt={it.label || 'Photo'} loading="lazy" className="h-full w-full object-cover" />
-                  {on && <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#111827] text-[9px] font-black text-white dark:bg-white dark:text-[#111827]">✓</span>}
-                </button>
+                <section key={room.id}>
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <p className="min-w-0 truncate text-xs font-black text-[#111827] dark:text-white">{room.label}<span className="font-bold text-gray-400"> · {inRoom} of {room.photos.length} in</span></p>
+                    <button type="button" onClick={() => setRoom(room.photos.map(it => it.source), !all)} className={`shrink-0 text-[10.5px] font-black ${gold} hover:underline`}>{all ? 'Take all out' : 'Put all in'}</button>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+                    {room.photos.map(it => {
+                      const on = inBySrc.has(it.source)
+                      return (
+                        <button key={it.source} type="button" onClick={() => toggle(it.source)} aria-pressed={on} title={it.label}
+                          className={`relative aspect-[4/3] overflow-hidden rounded-lg border-2 transition ${on ? 'border-[#C9A24D]' : 'border-transparent opacity-40 hover:opacity-70'}`}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={thumbOf(it.clean || it.source) || it.source} alt={it.label || 'Photo'} loading="lazy" className="h-full w-full object-cover" />
+                          {on && <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#C9A24D] text-[9px] font-black text-[#111827]">✓</span>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </section>
               )
             })}
           </div>
@@ -374,18 +397,8 @@ export function FastPlanCard({ id, s, up, flush }: {
     if (on) cur.delete(key); else cur.add(key)
     return { ...d, fast: { ...(d.fast || {}), stats_off: Array.from(cur) } }
   })
-  const swap = (a: string, b: string) => {
-    if (!plan) return
-    const order = [...plan.order]
-    const i = order.indexOf(a), j = order.indexOf(b)
-    if (i < 0 || j < 0) return
-    ;[order[i], order[j]] = [order[j], order[i]]
-    up(d => ({ ...d, fast: { ...(d.fast || {}), order } }))
-  }
   const remove = (pid: string) => up(d => ({ ...d, photos: d.photos.filter(p => p.id !== pid), fast: { ...(d.fast || {}), order: (d.fast?.order || []).filter(x => x !== pid) } }))
   const reset = () => up(d => ({ ...d, fast: { ...(d.fast || {}), order: [] } }))
-  const movable = (plan?.rows || []).filter(r => r.movable)
-  const fmt = (t: number) => `0:${String(Math.floor(t)).padStart(2, '0')}`
 
   return (
     <div className="space-y-4" data-testid="fast-plan">
@@ -404,7 +417,7 @@ export function FastPlanCard({ id, s, up, flush }: {
         </div>
       </div>
       <div className={card}>
-        <Title title="Your video, shot by shot" sub="The AI editor's order. Move a photo earlier or later, or take it out - the cuts stay on the beat."
+        <Title title="Your video, shot by shot" sub="The AI editor's order, part by part - it plays left to right, then the next row. Drag a shot in the build-up or the drop to move it, or take it out; the cuts stay on the beat. Locked shots keep their place on the song."
           right={<span className="flex shrink-0 items-center gap-3">
             {(s.fast?.order || []).length > 0 && <button type="button" onClick={reset} className={`text-[11px] font-black ${gold} hover:underline`} title="Puts back the AI editor's order">Reset to AI&apos;s order</button>}
             <button type="button" onClick={load} disabled={busy} aria-label="Refresh the plan" className="text-gray-400 hover:text-[#111827] dark:hover:text-white"><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} /></button>
@@ -430,35 +443,8 @@ export function FastPlanCard({ id, s, up, flush }: {
             {plan.long && plan.usable < plan.needed && (
               <p className="mb-2 rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">A minute needs {plan.needed} photos and {plan.usable} are usable, so a few are shown twice. 30 seconds would use only your best.</p>
             )}
-            <ol className={`space-y-1.5 ${busy ? 'opacity-60' : ''}`}>
-              {plan.rows.map((r, i) => {
-                const p = bySrc.get(r.photo)
-                const mi = movable.findIndex(m => m.photo === r.photo && m.start === r.start)
-                return (
-                  <li key={`${r.photo}-${i}`} className="flex items-center gap-2.5 rounded-xl border border-gray-100 bg-gray-50/60 p-1.5 dark:border-white/5 dark:bg-white/[0.03]">
-                    <span className="w-8 shrink-0 text-center text-[10px] font-black tabular-nums text-gray-400">{fmt(r.start)}</span>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={thumbOf(p?.clean || p?.source) || ''} alt="" loading="lazy" className="h-11 w-16 shrink-0 rounded-md object-cover" />
-                    <span className="min-w-0 flex-1">
-                      <span className="line-clamp-2 block text-xs font-black capitalize leading-tight text-[#111827] dark:text-white">{r.role === 'opening' ? 'Opening · ' : r.role === 'closing' ? 'Ending · ' : ''}{r.what || 'Photo'}</span>
-                      <span className="flex flex-wrap items-center gap-x-2 text-[10px] font-bold text-gray-500">
-                        <span>{r.seconds.toFixed(1)} sec</span>
-                        {r.stat && <span className={gold}>{r.stat.value} {r.stat.label}</span>}
-                        {r.fire && <span className="inline-flex items-center gap-0.5"><Flame className="h-3 w-3" /> fire moves</span>}
-                        {r.dusk && <span className="inline-flex items-center gap-0.5"><Sunset className="h-3 w-3" /> turns to dusk</span>}
-                      </span>
-                    </span>
-                    {r.movable && (
-                      <span className="flex shrink-0 items-center">
-                        <button type="button" disabled={mi <= 0 || busy} onClick={() => swap(r.photo, movable[mi - 1].photo)} aria-label="Move earlier" className="p-1.5 text-gray-400 hover:text-[#111827] disabled:opacity-20 dark:hover:text-white"><ChevronUp className="h-4 w-4" /></button>
-                        <button type="button" disabled={mi < 0 || mi >= movable.length - 1 || busy} onClick={() => swap(r.photo, movable[mi + 1].photo)} aria-label="Move later" className="p-1.5 text-gray-400 hover:text-[#111827] disabled:opacity-20 dark:hover:text-white"><ChevronDown className="h-4 w-4" /></button>
-                        <button type="button" disabled={busy || visible.length <= FAST_MIN_PHOTOS} onClick={() => remove(r.photo)} aria-label="Take this photo out" className="p-1.5 text-gray-400 hover:text-red-600 disabled:opacity-20"><X className="h-4 w-4" /></button>
-                      </span>
-                    )}
-                  </li>
-                )
-              })}
-            </ol>
+            <FastShotBoard plan={plan} photos={bySrc} busy={busy} opening={s.sections?.opening !== false}
+              onOrder={order => up(d => ({ ...d, fast: { ...(d.fast || {}), order } }))} onRemove={remove} canRemove={visible.length > FAST_MIN_PHOTOS} />
           </>
         ) : null}
       </div>

@@ -6,11 +6,12 @@
 // to right, then the next row). Each card shows the room's opening photo - the one its name shows over -
 // big, with the room's other photos under it (tap one to open the room with it instead). Drag a card (or
 // its handle on a phone) to move the whole room; on a keyboard, the handle moves with the arrow keys.
-import { useMemo, useRef, useState } from 'react'
+import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronRight, GripVertical, Type } from 'lucide-react'
 import { thumbOf, type MotionPhotoSetting, type MotionSettings } from '@/lib/studio/cinematic'
 import { roomOption, kindLabel } from '@/motion-video/presets'
+import { useSlotDrag } from './useSlotDrag'
 
 export type RoomRun = { key: string; room: string | null; label: string; photos: MotionPhotoSetting[] }
 
@@ -59,71 +60,11 @@ export default function VideoOrder({ s, cols, onMove, onOpenWith }: {
   onOpenWith: (photoId: string) => void
 }) {
   const runs = useMemo(() => runsOf(s), [s])
-  const [drag, setDrag] = useState<{ from: number; over: number } | null>(null)
-  const dragRef = useRef<{ from: number; over: number } | null>(null)
-  const start = useRef<{ x: number; y: number; i: number; id: number; active: boolean } | null>(null)
-  // the grid's places, measured when a drag starts: the cards slide between them, the places stay put
-  const slots = useRef<DOMRect[]>([])
-  const scroll0 = useRef<number | null>(null)
-  const setD = (v: { from: number; over: number } | null) => { dragRef.current = v; setDrag(v) }
-
-  // what's shown while dragging: the room lifted out of its place and dropped where the pointer is
-  const shown = useMemo(() => {
-    const idx = runs.map((_, i) => i)
-    if (!drag) return idx
-    const [m] = idx.splice(drag.from, 1)
-    idx.splice(drag.over, 0, m)
-    return idx
-  }, [runs, drag])
-
-  const down = (i: number) => (e: React.PointerEvent<HTMLDivElement>) => {
-    const t = e.target as HTMLElement
-    if (t.closest('[data-nodrag]')) return
-    if (e.pointerType === 'mouse' ? e.button !== 0 : !t.closest('[data-grip]')) return   // a finger drags by the handle (the card still scrolls the page)
-    start.current = { x: e.clientX, y: e.clientY, i, id: e.pointerId, active: false }
-    scroll0.current = window.scrollY
-    e.currentTarget.setPointerCapture(e.pointerId)
-  }
-  const move = (e: React.PointerEvent<HTMLDivElement>) => {
-    const st = start.current
-    if (!st || st.id !== e.pointerId) return
-    if (!st.active) {
-      if (Math.hypot(e.clientX - st.x, e.clientY - st.y) < 6) return
-      st.active = true
-      slots.current = Array.from(e.currentTarget.parentElement?.querySelectorAll<HTMLElement>('[data-run]') || [])
-        .sort((a, b) => Number(a.dataset.run) - Number(b.dataset.run)).map(el => el.getBoundingClientRect())
-      setD({ from: st.i, over: st.i })
-    }
-    // the place nearest the pointer (the page may have scrolled: places move with it)
-    const dy = window.scrollY - (scroll0.current ?? window.scrollY)
-    let j = -1, best = Infinity
-    slots.current.forEach((r, k) => {
-      const cx = r.left + r.width / 2, cy = r.top - dy + r.height / 2
-      const d2 = (e.clientX - cx) ** 2 + (e.clientY - cy) ** 2
-      if (d2 < best) { best = d2; j = k }
-    })
-    if (j >= 0 && dragRef.current && dragRef.current.over !== j) setD({ ...dragRef.current, over: j })
-  }
-  const up = () => {
-    const st = start.current
-    start.current = null
-    const d = dragRef.current
-    if (st?.active && d && d.over !== d.from) onMove(d.from, d.over)
-    setD(null)
-  }
-  const key = (i: number) => (e: React.KeyboardEvent) => {
-    const dir = e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : 0
-    if (!dir) return
-    e.preventDefault()
-    const j = i + dir
-    if (j < 0 || j >= runs.length) return
-    onMove(i, j)
-    requestAnimationFrame(() => (document.querySelector(`[data-grip-i="${j}"]`) as HTMLElement | null)?.focus())
-  }
+  const { rootRef, drag, shown, bind, key } = useSlotDrag(runs.length, onMove)
 
   if (!runs.length) return null
   return (
-    <div className="grid gap-x-5 gap-y-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }} data-testid="video-order">
+    <div ref={rootRef} className="grid gap-x-5 gap-y-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }} data-testid="video-order">
       {shown.map((ri, pos) => {
         const run = runs[ri]
         const cover = run.photos[0]
@@ -131,8 +72,7 @@ export default function VideoOrder({ s, cols, onMove, onOpenWith }: {
         const lastInRow = pos % cols === cols - 1 || pos === shown.length - 1
         const opening = pos === 0 && s.sections?.opening !== false
         return (
-          <motion.div key={run.key} layout transition={{ type: 'spring', stiffness: 520, damping: 40 }} data-run={pos}
-            onPointerDown={down(pos)} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+          <motion.div key={run.key} layout transition={{ type: 'spring', stiffness: 520, damping: 40 }} {...bind(pos)}
             className={`relative select-none ${drag ? '' : 'cursor-grab'} ${lifted ? 'z-10 cursor-grabbing' : ''}`} data-testid={`order-run-${pos}`}>
             <div className={`overflow-hidden rounded-2xl border-2 bg-white transition-shadow dark:bg-[#151517] ${lifted ? 'scale-[1.03] border-[#C9A24D] shadow-2xl shadow-[#C9A24D]/25' : 'border-gray-200 shadow-sm dark:border-gray-800'}`}>
               <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
