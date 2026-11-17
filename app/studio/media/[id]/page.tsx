@@ -1,6 +1,6 @@
 'use client'
 
-import OhpLoader from '@/components/brand/OhpLoader'
+import MediaPageSkeleton from '@/components/studio/media/MediaPageSkeleton'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -399,7 +399,7 @@ function MediaResultPage() {
   }
 
   if (loading) {
-    return <OhpLoader />
+    return <MediaPageSkeleton />
   }
   if (notFound || !current) {
     return (

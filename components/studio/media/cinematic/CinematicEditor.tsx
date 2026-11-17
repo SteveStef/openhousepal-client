@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
+import MediaPageSkeleton from '@/components/studio/media/MediaPageSkeleton'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -36,8 +37,13 @@ import { LENGTH_OPTIONS, buildTimeline, maxPhotosFor } from '@/motion-video/time
 import { FORMAT_SIZE, musicFile, type MotionFormat, type PhotoKind, type TransitionId } from '@/motion-video/types'
 import type { StudioMediaAsset } from '@/types'
 
-import { FastExample, FastPhotos, FastPlanCard, FastSetup, KindPicker, SpeedPicker, FAST_MIN_PHOTOS } from '@/components/studio/media/cinematic/FastCut'
+import { FAST_SONGS, FastPhotos, FastPlanCard, FastSetup, KindPicker, SpeedPicker, FAST_MIN_PHOTOS } from '@/components/studio/media/cinematic/FastCut'
 
+import VideoOrder, { moveRun, openWith } from '@/components/studio/media/cinematic/VideoOrder'
+const FastLivePreview = dynamic(() => import('@/components/studio/media/cinematic/FastLivePreview'), {
+  ssr: false,
+  loading: () => <div className="aspect-[9/16] max-h-[40vh] w-full rounded-2xl bg-[#111827]" />,
+})
 const LivePreview = dynamic(() => import('@/components/studio/media/cinematic/LivePreview'), {
   ssr: false,
   // kept short while it loads (in the wide chat a full-width 16:9 box filled the screen - owner 11/13)
@@ -55,6 +61,11 @@ const STEPS = [
   { key: 'make', title: 'Make your video', short: 'Make' },
 ] as const
 const S = { setup: 0, rooms: 1, check: 2, situation: 3, look: 4, flow: 5, details: 6, make: 7 } as const
+const FAST_TITLES: Partial<Record<number, string>> = { 1: 'Photos', 4: 'Look', 5: 'Your shots' }
+/** A step's title for this kind of video. */
+const stepTitle = (i: number, fast: boolean) => (fast && FAST_TITLES[i]) || STEPS[i].title
+/** The step after this one (a Fast Cut has no "Check each photo"). */
+const nextStep = (i: number, fast: boolean) => (fast && i + 1 === S.check ? S.situation : i + 1)
 const TALL: MotionFormat[] = ['9:16', '4:5']
 
 const FORMAT_INFO: { id: MotionFormat; label: string; where: string }[] = [
@@ -169,8 +180,8 @@ const MAKING_CSS = `
 @keyframes ohpMkGlow{0%,100%{opacity:.35}50%{opacity:.8}}
 @keyframes ohpMkSpin{to{transform:rotate(360deg)}}
 .ohp-mk-scan{animation:ohpMkScan 2.4s cubic-bezier(.4,0,.2,1) infinite;will-change:transform}
-.ohp-mk-photo{opacity:0;transform:scale(1.18);transition:opacity 1.4s ease}
-.ohp-mk-photo.on{opacity:1;animation:ohpMkDrift 4.6s linear both;will-change:transform,opacity}
+.ohp-mk-photo{opacity:0;transform:scale(1.02);transition:opacity 1.8s ease-in-out,transform 0s linear 1.8s;will-change:transform,opacity}
+.ohp-mk-photo.on{opacity:1;transform:scale(1.09);transition:opacity 1.8s ease-in-out,transform 7.5s linear}
 .ohp-mk-glow{animation:ohpMkGlow 1.6s ease-in-out infinite}
 .ohp-mk-spin{animation:ohpMkSpin 1s linear infinite}
 .ohp-mk-sheen{position:relative;overflow:hidden}
@@ -208,14 +219,14 @@ function MakingCard({ photos, aspect, title, stage, pct, etaAt, startedAt, ahead
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const showing = useShowing(ref)
-  const [{ i, prev }, setPair] = useState({ i: 0, prev: -1 })
+  const [i, setI] = useState(0)
   const [now, setNow] = useState(() => Date.now())
   const [broken, setBroken] = useState<Record<string, true>>({})
-  const list = photos.filter(u => !broken[u])
+  const list = photos.filter(u => !broken[u]).slice(0, 12)
   useEffect(() => {
     if (!showing || list.length < 2) return
     const n = list.length
-    const t = setInterval(() => setPair(p => ({ prev: p.i % n, i: (p.i + 1) % n })), 4600)
+    const t = setInterval(() => setI(x => (x + 1) % n), 5500)
     return () => clearInterval(t)
   }, [showing, list.length])
   useEffect(() => {
@@ -240,13 +251,11 @@ function MakingCard({ photos, aspect, title, stage, pct, etaAt, startedAt, ahead
         maxWidth: compact ? undefined : tall ? `min(${embedded ? 420 : 820}px, calc(${maxH} * ${aspect.toFixed(4)}))` : embedded ? 600 : 820,
         boxShadow: '0 0 44px -10px rgba(201,162,77,0.5)',
       }}>
-      {list.map((src, k) => (k === cur || k === prev) && (
+      {list.map((src, k) => (
         <img key={src} src={src} alt="" draggable={false} decoding="async" onError={() => setBroken(b => ({ ...b, [src]: true }))}
           className={`ohp-mk-photo absolute inset-0 h-full w-full object-cover ${k === cur ? 'on' : ''}`} />
       ))}
-      <div className="absolute inset-0 bg-black/60" />
-      <div className="ohp-mk-scan pointer-events-none absolute inset-x-0 top-0 h-1/3"
-        style={{ background: 'linear-gradient(180deg,transparent,rgba(230,199,122,0.42) 45%,rgba(255,255,255,0.7) 50%,rgba(230,199,122,0.42) 55%,transparent)' }} />
+      <div className="absolute inset-0 bg-black/55" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/30" />
       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2.5 px-6 text-center [text-shadow:0_1px_10px_rgba(0,0,0,0.55)]">
         <div className="relative flex h-14 w-14 items-center justify-center">
@@ -689,9 +698,9 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
     if (!s) return
     let alive = true
     const n = Math.max(1, needsSharpen)
-    const t = setTimeout(() => api.mediaLab.motion.estimate(n, true, s.kind === 'fastcut' ? ((s.length || 30) >= 45 ? 57 : 30) : (lengthBucket || 30)).then(r => { if (alive && r.success && r.data) setEst(r.data) }), 300)
+    const t = setTimeout(() => api.mediaLab.motion.estimate(s.kind === 'fastcut' ? Math.max(1, (s.pool || s.photos).length) : n, true, s.kind === 'fastcut' ? ((s.length || 30) >= 45 ? 57 : 30) : (lengthBucket || 30), s.kind === 'fastcut').then(r => { if (alive && r.success && r.data) setEst(r.data) }), 300)
     return () => { alive = false; clearTimeout(t) }
-  }, [needsSharpen, s?.sharpen, lengthBucket]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [needsSharpen, s?.sharpen, lengthBucket, s?.kind, s?.length]) // eslint-disable-line react-hooks/exhaustive-deps
   // "To make": the video maker's measured speed + the line ahead right now (QA 11/12 - was a fixed
   // guess); the old rule of thumb only if it hasn't answered.
   const makeSecs = speed?.sec_per_frame
@@ -699,6 +708,12 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
       + (needsSharpen ? 20 : 0)
     : null
   const makeMinutes = makeSecs != null ? (makeSecs < 90 ? `~${Math.max(1, Math.round(makeSecs / 60))}m` : `~${Math.round(makeSecs / 60)}m`) : `~${Math.max(2, Math.round(length / 6))}m`
+  // A Fast Cut: 30 or 57 seconds, about 22 / 50 photos (its own order when the agent set one), ready on the
+  // speed they picked (the line ahead included)
+  const fastSecs = (s?.length || 30) >= 45 ? 57 : 30
+  const fastShots = Math.min(visible.length, (s?.fast?.order || []).length || (fastSecs === 57 ? 50 : 22))
+  const fastReady = est ? (s?.speed === 'now' ? est.speed_now_ready_minutes : est.speed_save_ready_minutes) ?? null : null
+  const fastPct = est ? ((s?.speed === "now" ? est.speed_now_percent : est.speed_save_percent) ?? null) : null
   const sit = situationPreset(s?.situation)
   // Uploads have no listing address: ask for it on "What's it for?" (stays shown once typed, so the
   // box doesn't vanish mid-word; a listing's own address is already filled in)
@@ -796,7 +811,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
     // Inside the chat: a small placeholder, not most of the screen (owner 11/13)
     return embedded
       ? <div className="flex h-40 items-center justify-center rounded-2xl bg-[#faf9f7] dark:bg-[#0B0B0B]"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
-      : <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-[#C9A24D]" /></div>
+      : <MediaPageSkeleton side label="Opening your video" />
   }
 
   const title = s.facts.address || 'Cinematic Video'
@@ -823,9 +838,19 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   // chat (owner 11/13: in the chat on a big screen the preview was huge and on top). Narrow spaces
   // (phones, the narrow chat panel) stack it on top, kept short.
   const tall = TALL.includes(s.format)
+  // The small look / style / transition previews show THIS home: the photos picked, else its best ones (outside first)
+  const homeThumbs = (() => {
+    const shown = s.photos.filter(p => !p.hidden).map(p => thumbOf(p.clean || p.source)).filter((u): u is string => !!u)
+    if (shown.length >= 3) return shown.slice(0, 3)
+    const outside = (k: string) => (k === 'exterior' || k === 'aerial' ? 0 : 1)
+    return [...(s.pool || [])].filter(p => p.room !== 'skip').sort((a, b) => outside(a.kind) - outside(b.kind) || (b.score || 0) - (a.score || 0))
+      .slice(0, 3).map(p => thumbOf(p.clean || p.source)).filter((u): u is string => !!u)
+  })()
   // The check step shows each photo big, and while the video is being made the making screen
   // takes over - no preview on either.
-  const showPreview = step !== S.check && !(step === S.make && rendering) && !fast   // (the live preview draws a Cinematic Video)
+  // A Fast Cut shows a real finished Fast Cut in the same spot (the live preview draws a Cinematic Video) -
+  // so both kinds are laid out the same (owner 11/17).
+  const showPreview = step !== S.check && !(step === S.make && rendering)
   const sidePreview = wide && showPreview
   const previewMaxH = wide ? (tall ? (embedded ? '62vh' : '74vh') : '60vh') : tall ? '52vh' : '40vh'
   // The options' own width (beside a side preview, it's what's left) decides how many columns fit.
@@ -853,12 +878,15 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
       const photos = photosForFastCut(d)
       return { ...d, kind: k, length: (d.length || 30) >= 45 ? 60 : 30, format: d.format === '16:9' ? '9:16' : d.format, photos: photos.length >= FAST_MIN_PHOTOS ? photos : d.photos }
     }
-    return { ...withPhotos(d, trimToCap(d, maxPhotosFor(d.length || 30))), kind: k }
+    // back to Cinematic: our suggested rooms in walk-through order (11/17 - it used to keep a handful of the Fast
+    // Cut's photos in the listing's order), keeping any captions already checked
+    const len = d.length || 30
+    const fresh = photosForRooms({ ...d, photos: d.photos.map(p => ({ ...p, hidden: true })) }, suggestRooms(d.pool, len), len).map(p => ({ ...p, hidden: false }))
+    return { ...withPhotos(d, fresh.length >= 2 ? fresh : trimToCap(d, maxPhotosFor(len))), kind: k }
   })
   const setupStep = (
     <div className="space-y-4">
       <KindPicker kind={fast ? 'fastcut' : 'cinematic'} onChange={setKind} />
-      {fast && <FastExample format={s.format} />}
       {fast && <FastSetup s={s} up={up} usable={analysisDone ? (s.pool || []).filter(it => it.room && it.room !== 'skip').length : null} />}
       {!fast && <Card>
         <CardTitle title="How long?" sub="The length decides how many photos fit - shorter is punchier" />
@@ -927,9 +955,9 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
             <button type="button" onClick={() => {
               setRoomNote(''); setOpenSec(null)
               up(d => withPhotos(d, photosForRooms({ ...d, photos: [] }, suggestRooms(d.pool, d.length), d.length)))
-            }}
+            }} title="Puts back our suggested photos, in our suggested order" data-testid="cine-reset-suggested"
               className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] font-black text-[#111827] shadow-sm hover:-translate-y-0.5 dark:bg-white/10 dark:text-white">
-              <Shuffle className="h-3.5 w-3.5 text-[#C9A24D]" /> Our pick
+              <Shuffle className="h-3.5 w-3.5 text-[#C9A24D]" /> Reset to suggested
             </button>
           </div>
           <AnimatePresence>
@@ -937,6 +965,13 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
               <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">{roomNote}</motion.p>
             )}
           </AnimatePresence>
+          {visible.length > 0 && (
+            <Card className="ohp-reveal">
+              <CardTitle title="Your video, in order" sub="Plays left to right, then the next row. Drag a room to move it. The gold-edged photo opens each room - tap another to open with it instead." />
+              <VideoOrder s={s} cols={secCols} onMove={(a, b) => up(d => moveRun(d, a, b))} onOpenWith={pid => up(d => openWith(d, pid))} />
+            </Card>
+          )}
+          <p className="px-1 pt-1 font-serif text-base font-black text-[#111827] dark:text-white">Pick photos, room by room</p>
           {sections.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-xs font-bold text-gray-400 dark:border-gray-700">We couldn&apos;t sort these photos into rooms. Add photos below to keep going.</p>
           ) : (
@@ -974,7 +1009,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
             className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-300 py-3.5 text-xs font-black text-gray-500 transition hover:border-[#C9A24D] hover:bg-[#C9A24D]/5 hover:text-[#8b7355] dark:border-gray-700">
             <ImagePlus className="h-4 w-4" /> Don&apos;t see something? Add photos
           </button>
-          <p className="text-[11px] font-semibold text-gray-400">We tick the best photo of each room to start. Tap a room to see all its photos and tick the ones you want - up to {maxShown} for {s.length || 30} seconds. You&apos;ll check each caption next.</p>
+          <p className="text-[11px] font-semibold text-gray-400">We tick the best photo of each room to start. Tap a room to see all its photos and tick the ones you want - up to {maxShown} for {s.length || 30} seconds. New photos join their room in the order above. You&apos;ll check each caption next.</p>
         </>
       )}
     </div>
@@ -1132,7 +1167,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
         <div className="grid grid-cols-2 gap-3">
           {(['classic', 'luxe'] as const).map(th => (
             <Pick key={th} active={s.theme === th} onClick={() => up(d => ({ ...d, theme: th }))}>
-              <ThemeMini theme={th} accent={s.accent} metal={s.metal} address={s.facts.address || '847 Lesley Road'} kicker={s.copy.kicker || sit.kicker} luxeKicker={s.copy.kicker || sit.luxeKicker} className="aspect-video w-full" />
+              <ThemeMini photo={homeThumbs[0]} theme={th} accent={s.accent} metal={s.metal} address={s.facts.address || '847 Lesley Road'} kicker={s.copy.kicker || sit.kicker} luxeKicker={s.copy.kicker || sit.luxeKicker} className="aspect-video w-full" />
               <div className="p-3">
                 <p className="font-serif text-sm font-black text-[#111827] dark:text-white">{th === 'classic' ? 'Default' : 'Luxe'}</p>
                 <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">{th === 'classic' ? 'Ivory type with your accent color' : 'Black, ivory and metal'}</p>
@@ -1164,14 +1199,14 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
           )}
         </div>
       </Card>
-      <Card>
+      {!fast && <Card>
         <CardTitle title="Animation style" sub="How the camera moves and how quickly rooms change"
           right={<button type="button" onClick={() => setExampleOpen(true)} className={`inline-flex shrink-0 items-center gap-1 text-[11px] font-black ${gold} hover:underline`}><Play className="h-3.5 w-3.5" /> See an example</button>} />
         <div className="grid gap-3 sm:grid-cols-3">
           {STYLE_PRESETS.map(st => (
             <Pick key={st.id} active={s.style === st.id} badge={st.id === 'cinematic' ? 'Recommended' : 'Coming soon'} disabled={st.id !== 'cinematic' && s.style !== st.id}
               onClick={() => up(d => ({ ...d, style: st.id, transition: transitionTouched.current ? d.transition : st.defaultTransition }))}>
-              <StyleMini id={st.id} className="aspect-video w-full" />
+              <StyleMini photos={homeThumbs} id={st.id} className="aspect-video w-full" />
               <div className="p-3">
                 <p className="font-serif text-sm font-black text-[#111827] dark:text-white">{st.label}</p>
                 <p className="text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400">{st.blurb}</p>
@@ -1179,7 +1214,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
             </Pick>
           ))}
         </div>
-      </Card>
+      </Card>}
     </div>
   )
 
@@ -1191,7 +1226,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
           {TRANSITION_PRESETS.map(tp => (
             <Pick key={tp.id} active={s.transition === tp.id} badge={tp.id === stylePreset(s.style).defaultTransition ? 'Recommended' : undefined}
               onClick={() => { transitionTouched.current = true; up(d => ({ ...d, transition: tp.id })) }}>
-              <TransitionMini id={tp.id} className="aspect-video w-full" />
+              <TransitionMini photos={homeThumbs} id={tp.id} className="aspect-video w-full" />
               <div className="p-2.5">
                 <p className="text-xs font-black text-[#111827] dark:text-white">{tp.label}</p>
                 <p className="line-clamp-2 text-[10.5px] font-semibold leading-snug text-gray-500 dark:text-gray-400">{tp.blurb}</p>
@@ -1201,7 +1236,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
         </div>
       </Card>
       <Card>
-        <CardTitle title="Your video, in order" sub="Move rooms, pick a camera move, or change a single transition" />
+        <CardTitle title="Every shot" sub="Move single photos, pick a camera move, or change a single transition" />
         <Timeline s={s} onMove={movePhoto} onPhoto={upPhoto} gapFor={gapFor} setGapFor={setGapFor} />
       </Card>
     </div>
@@ -1241,7 +1276,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
         )}
       </Card>
       <Card>
-        <CardTitle title="Room captions" sub="The label on each photo (you checked them in Check each photo)" right={<Switch on={s.sections.labels} label="Room captions" onChange={v => up(d => ({ ...d, sections: { ...d.sections, labels: v } }))} />} />
+        <CardTitle title="Room captions" sub={fast ? 'The room name on each shot' : 'The label on each photo (you checked them in Check each photo)'} right={<Switch on={s.sections.labels} label="Room captions" onChange={v => up(d => ({ ...d, sections: { ...d.sections, labels: v } }))} />} />
       </Card>
       <Card>
         <CardTitle title="Closing card" sub={`${sit.endKicker} · ${sit.endBig(s.facts)}`} right={<Switch on={s.sections.endCard} label="Closing card" onChange={v => up(d => ({ ...d, sections: { ...d.sections, endCard: v } }))} />} />
@@ -1270,10 +1305,10 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
           </div>
         </div>
       </Card>
-      <Card>
+      {!fast && <Card>
         <CardTitle title="Music" sub="Written for OpenHousePal - safe to post anywhere" />
         <MusicPicker value={s.music} onChange={v => up(d => ({ ...d, music: v }))} />
-      </Card>
+      </Card>}
     </div>
   )
 
@@ -1283,10 +1318,22 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   const makingPhotos = visible.map(ph => sized(ph.clean || ph.source, 750, 70) || '').filter(Boolean)
   const target = (render.target as MotionSettings['format']) || s.format
   const making = (
-    <MakingCard photos={makingPhotos} embedded={embedded}
-      aspect={FORMAT_SIZE[target].w / FORMAT_SIZE[target].h}
-      title={render.main === false ? `Making the ${FORMAT_SIZE[target].label.toLowerCase()} version` : asset.result_url ? 'Updating your video' : 'Making your video'}
-      stage={render.stage || 'Starting the cameras'} pct={p} etaAt={render.eta_at} startedAt={render.started_at} ahead={ahead} />
+    <div className="space-y-3">
+      <MakingCard photos={makingPhotos} embedded={embedded}
+        aspect={FORMAT_SIZE[target].w / FORMAT_SIZE[target].h}
+        title={render.main === false ? `Making the ${FORMAT_SIZE[target].label.toLowerCase()} version` : asset.result_url ? 'Updating your video' : 'Making your video'}
+        stage={render.stage || 'Starting the cameras'} pct={p} etaAt={render.eta_at} startedAt={render.started_at} ahead={ahead} />
+      {/* Owner 11/17: say plainly they can leave - nobody has to sit on this screen. */}
+      {!embedded && (
+        <div className="flex flex-col items-center gap-1.5 text-center">
+          <Link href="/studio/media" data-testid="cine-making-leave"
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-black text-[#111827] shadow-sm transition hover:-translate-y-0.5 hover:border-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
+            <ArrowLeft className="h-4 w-4" /> Back to Media Lab
+          </Link>
+          <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Your video keeps being made while you&apos;re away. Your bell tells you when it&apos;s ready.</p>
+        </div>
+      )}
+    </div>
   )
   const scheduled = (compact?: boolean) => (
     <ScheduledCard compact={compact} photos={makingPhotos} readyAt={render.ready_at} nowUse={finePct(est?.render_percent)}
@@ -1306,7 +1353,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
             <span className="rounded-[4px] border-2 border-[#111827]/70 dark:border-white/70" style={{ width: 9 * Math.sqrt(FORMAT_SIZE[s.format].w / FORMAT_SIZE[s.format].h) * 2.4, height: 9 * Math.sqrt(FORMAT_SIZE[s.format].h / FORMAT_SIZE[s.format].w) * 2.4 }} />
           </span>
           <div className="min-w-0">
-            <p className="font-serif text-base font-black text-[#111827] dark:text-white">{FORMAT_SIZE[s.format].label} · {s.length || 30} seconds</p>
+            <p className="font-serif text-base font-black text-[#111827] dark:text-white">{FORMAT_SIZE[s.format].label} · {fast ? `${fastSecs} seconds · Fast Cut` : `${s.length || 30} seconds`}</p>
             <p className="truncate text-xs font-semibold text-gray-500">{FORMAT_INFO.find(f => f.id === s.format)?.where}</p>
           </div>
         </div>
@@ -1315,10 +1362,19 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
       {/* Owner 11/12: photos are always sharpened (no switch) - a fraction of a cent each, once. */}
       <Card className="bg-gradient-to-br from-[#C9A24D]/[0.08] via-white to-white dark:via-[#151517] dark:to-[#151517]">
         <div className="grid grid-cols-3 gap-3 text-center">
-          <div><p className="font-serif text-2xl font-black text-[#111827] dark:text-white">{visible.length}</p><p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Photos</p></div>
-          <div><p className="font-serif text-2xl font-black text-[#111827] dark:text-white">{Math.round(length)}s</p><p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Long</p></div>
-          <div><p className={`font-serif font-black text-[#111827] dark:text-white ${overnightOn ? 'text-xl leading-8' : 'text-2xl'}`}>{overnightOn ? readyClock(est?.overnight_ready_at) : makeMinutes}</p><p className="text-[10px] font-black uppercase tracking-wider text-gray-400">{overnightOn ? 'Ready by' : 'To make'}</p></div>
+          <div><p className="font-serif text-2xl font-black text-[#111827] dark:text-white">{fast ? fastShots : visible.length}</p><p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Photos</p></div>
+          <div><p className="font-serif text-2xl font-black text-[#111827] dark:text-white">{fast ? fastSecs : Math.round(length)}s</p><p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Long</p></div>
+          <div><p className={`font-serif font-black text-[#111827] dark:text-white ${overnightOn && !fast ? 'text-xl leading-8' : 'text-2xl'}`}>{fast ? (fastReady != null ? `~${fastReady}m` : '~25m') : overnightOn ? readyClock(est?.overnight_ready_at) : makeMinutes}</p><p className="text-[10px] font-black uppercase tracking-wider text-gray-400">{overnightOn && !fast ? 'Ready by' : 'To make'}</p></div>
         </div>
+        {fast ? (
+          <div className="mt-4 space-y-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300">
+            <p className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} /> Rooms sorted: done{usedPct != null ? ` (${aboutPct(usedPct)} of your monthly AI)` : ''}</p>
+            <p className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} /> Song: {FAST_SONGS.find(g => g.id === (s.song || 'skyline'))?.label || 'Skyline'}</p>
+            <p className="flex items-center gap-2"><Sparkles className="h-3.5 w-3.5 text-[#C9A24D]" />
+              {s.speed === 'now' ? 'Make it now' : 'Save usage'}: {fastPct != null ? `about ${finePct(fastPct)} of your monthly AI` : 'a small share of your monthly AI'} for everything - preparing the photos and making the video
+              <button type="button" onClick={() => goStep(S.setup)} className={`ml-1 font-black ${gold} hover:underline`}>Change</button></p>
+          </div>
+        ) : (<>
         <div className="mt-4 space-y-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300">
           <p className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} /> Rooms sorted &amp; captions written: done{usedPct != null ? ` (${aboutPct(usedPct)} of your monthly AI)` : ''}</p>
           <p className="flex items-center gap-2">
@@ -1335,9 +1391,10 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
             {needsSharpen === 0 ? 'Photos sharpened with AI: done' : (est?.sharpen_paused || est?.soft_capped) ? 'Photos sharpened with AI: paused (your AI limit is reached for now)' : `Every photo sharpened with AI for crisper detail: ${aboutPct(sharpenPct)} of your monthly AI`}
           </p>
         </div>
+        </>)}
         <MonthlyAiUsageMeter variant="inline" compact stretch className="mt-4" />
       </Card>
-      {whenPicker()}
+      {!fast && whenPicker()}
       {canOvernight && paidBlocked && <p className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-200">You&apos;ve reached your AI limit for now, but overnight videos don&apos;t use any - this one can still be made tonight.</p>}
       {workerUp === false && <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">The video maker is restarting - give it a minute. The button turns back on by itself.</p>}
       {makeBlocked && <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">You&apos;ve reached your AI limit for now, so new videos can&apos;t be made until it resets. Your finished videos still play and save.</p>}
@@ -1474,7 +1531,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
     </div>
   )
 
-  const preview = (
+  const preview = fast ? <FastLivePreview id={id} settings={s} maxH={previewMaxH} onExample={() => setExampleOpen(true)} /> : (
     <div className="space-y-2">
       <LivePreview settings={s} maxH={previewMaxH} />
       <div className="flex items-center justify-between gap-2 px-1 text-[11px] font-bold text-gray-400">
@@ -1521,7 +1578,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
           </div>
           {view === 'steps' && (
             <div className="px-4 pb-3 sm:px-5">
-              <p className="mb-1.5 text-[11px] font-black text-gray-500 md:hidden">Step {step + 1 - (fast && step > S.check ? 1 : 0)} of {STEPS.length - (fast ? 1 : 0)} · <span className="text-[#111827] dark:text-white">{STEPS[step].title}</span></p>
+              <p className="mb-1.5 text-[11px] font-black text-gray-500 md:hidden">Step {step + 1 - (fast && step > S.check ? 1 : 0)} of {STEPS.length - (fast ? 1 : 0)} · <span className="text-[#111827] dark:text-white">{stepTitle(step, fast)}</span></p>
               <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${STEPS.length - (fast ? 1 : 0)}, minmax(0,1fr))` }}>
                 {STEPS.map((st, i) => {
                   if (fast && i === S.check) return null   // a Fast Cut has no "Check each photo" step
@@ -1529,12 +1586,13 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
                   const locked = rendering && !asset.result_url && i !== step
                   const reachable = !locked && (i <= step || STEPS.slice(0, i).every((_, k) => canNext(k)))
                   const done = i < step
+                  const num = i + 1 - (fast && i > S.check ? 1 : 0)
                   return (
-                    <button key={st.key} type="button" disabled={!reachable} onClick={() => goStep(i)} title={st.title} aria-label={`Step ${i + 1}: ${st.title}`}
+                    <button key={st.key} type="button" disabled={!reachable} onClick={() => goStep(i)} title={stepTitle(i, fast)} aria-label={`Step ${num}: ${stepTitle(i, fast)}`}
                       className="group min-w-0 py-1 text-left disabled:cursor-not-allowed">
                       <span className={`block h-1.5 rounded-full transition-colors ${i === step ? 'bg-[#C9A24D]' : done ? 'bg-[#111827] dark:bg-white/80' : 'bg-gray-200 group-hover:bg-gray-300 dark:bg-white/10'}`} />
                       <span className={`mt-1.5 hidden truncate text-[10.5px] font-black md:block ${i === step ? 'text-[#111827] dark:text-white' : done ? 'text-[#8b7355] dark:text-[#d7b974]' : 'text-gray-400'}`}>
-                        {done ? <Check className="mr-0.5 inline h-3 w-3 -translate-y-px" strokeWidth={3.5} /> : <span className="mr-0.5">{i + 1}.</span>}{st.title}
+                        {done ? <Check className="mr-0.5 inline h-3 w-3 -translate-y-px" strokeWidth={3.5} /> : <span className="mr-0.5">{num}.</span>}{stepTitle(i, fast)}
                       </span>
                     </button>
                   )
@@ -1551,14 +1609,14 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
             {sidePreview && <div className="min-w-0"><div className={embedded ? 'sticky top-3' : 'sticky top-36'}>{preview}</div></div>}
             <div className="min-w-0">
               <div className="mb-4">
-                <h1 className="font-serif text-2xl font-black text-[#111827] dark:text-white sm:text-3xl">{fast && step === S.rooms ? 'Photos' : fast && step === S.flow ? 'Your shots' : STEPS[step].title}</h1>
+                <h1 className="font-serif text-2xl font-black text-[#111827] dark:text-white sm:text-3xl">{stepTitle(step, fast)}</h1>
                 <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">
                   {[
                     'How long it runs and where you\'ll post it first.',
                     fast ? 'Every good photo is in. Take out any you do not want.' : 'Tap a room to see all of its photos, then tick the ones you want - we\'ve ticked our picks.',
                     'One photo at a time: is it the right room, and are the words right?',
                     'Pick the moment - it sets the opening words and the closing card.',
-                    'Choose a theme, your color, and how the camera moves.',
+                    fast ? 'Choose a theme and your color - the camera moves with the beat.' : 'Choose a theme, your color, and how the camera moves.',
                     fast ? 'Check the order and the stats before it is made.' : 'The order of the rooms and how they flow into each other.',
                     'Every word on your video, your branding and the music.',
                     'Check the summary, then make it. You can change anything afterwards.',
@@ -1579,9 +1637,9 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
                 {step < STEPS.length - 1 && (
                   <div className="flex items-center gap-3">
                     {!canNext(step) && <span className="text-xs font-bold text-gray-400">{nextBlockedReason(step)}</span>}
-                    <button type="button" onClick={() => goStep(step + 1)} disabled={!canNext(step)}
+                    <button type="button" onClick={() => goStep(nextStep(step, fast))} disabled={!canNext(step)}
                       className="inline-flex items-center gap-1.5 rounded-xl bg-[#111827] px-5 py-2.5 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-40 dark:bg-white dark:text-[#111827]">
-                      {STEPS[step + 1].short === 'Make' ? 'Almost done' : `Next: ${STEPS[step + 1].title}`} <ChevronRight className="h-4 w-4" />
+                      {nextStep(step, fast) === S.make ? 'Almost done' : `Next: ${stepTitle(nextStep(step, fast), fast)}`} <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
                 )}
@@ -1604,7 +1662,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
       )}
 
       <AnimatePresence>
-        {exampleOpen && <ExampleModal onClose={() => setExampleOpen(false)} />}
+        {exampleOpen && <ExampleModal fast={fast} format={s.format} onClose={() => setExampleOpen(false)} />}
         {addOpen && (
           <AddPhotosModal asset={asset} used={[...s.photos.map(p => p.source), ...(s.pool || []).map(it => it.source)]} onClose={() => setAddOpen(false)}
             onAdd={async (urls) => {
@@ -1652,7 +1710,7 @@ function Timeline({ s, onMove, onPhoto, gapFor, setGapFor }: {
                     {TRANSITION_PRESETS.map(tp => (
                       <button key={tp.id} type="button" onClick={() => { onPhoto(ph.id, { transitionIn: tp.id === s.transition ? null : tp.id }); setGapFor(null) }}
                         className={`overflow-hidden rounded-lg border-2 text-left ${tIn === tp.id ? 'border-[#C9A24D]' : 'border-transparent hover:border-[#C9A24D]/50'}`}>
-                        <TransitionMini id={tp.id} className="aspect-video w-full" />
+                        <TransitionMini photos={[vis[i - 1], ph].map(x => thumbOf(x.clean || x.source) || "")} id={tp.id} className="aspect-video w-full" />
                         <p className="truncate bg-white px-1.5 py-1 text-[10px] font-black text-[#111827] dark:bg-[#151517] dark:text-white">{tp.label}</p>
                       </button>
                     ))}
@@ -1777,7 +1835,20 @@ function Modal({ onClose, children, wide }: { onClose: () => void; children: Rea
   )
 }
 
-function ExampleModal({ onClose }: { onClose: () => void }) {
+function ExampleModal({ onClose, fast, format }: { onClose: () => void; fast?: boolean; format?: string }) {
+  if (fast) {
+    const wide = format === '16:9'
+    const name = wide ? 'fastcut-wide' : 'fastcut-tall'
+    return (
+      <Modal onClose={onClose} wide={wide}>
+        <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${gold}`}>Example</p>
+        <p className="mb-3 pr-10 font-serif text-xl font-black text-[#111827] dark:text-white">A finished Fast Cut, about a minute</p>
+        <video src={`/motion/example/${name}.mp4`} poster={`/motion/example/${name}.jpg`} controls autoPlay playsInline preload="metadata"
+          className={`mx-auto rounded-2xl bg-black ${wide ? 'aspect-video w-full' : 'aspect-[9/16] max-h-[70vh]'}`} data-testid="fast-example-video" />
+        <p className="mt-3 text-xs font-semibold text-gray-500">A real one, made by the AI editor - turn the sound on. Yours uses your photos, your song, your words and your branding.</p>
+      </Modal>
+    )
+  }
   return (
     <Modal onClose={onClose} wide>
       <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${gold}`}>Example</p>

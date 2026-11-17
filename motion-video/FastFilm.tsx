@@ -91,6 +91,8 @@ export type FastProps = {
   accent?: string
   brand?: FastBrand
   perf?: { steps?: number; glow?: number; dil?: number }
+  /** The editor's live preview (lighter drawing). */
+  preview?: boolean
 }
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
@@ -133,7 +135,7 @@ const FAST_SAFE = Number((globalThis as { FAST_SAFE_TEST?: number }).FAST_SAFE_T
 const IN_SECONDS = 0.23
 const OUT_SECONDS = 0.27
 
-const Shot: React.FC<{ s: FastShot; index: number; t: number; W: number; H: number; last: boolean; dur: number; perf?: FastProps['perf'] }> = ({ s, index, t, W, H, last, dur, perf }) => {
+const Shot: React.FC<{ s: FastShot; index: number; t: number; W: number; H: number; last: boolean; dur: number; perf?: FastProps['perf']; preview?: boolean }> = ({ s, index, t, W, H, last, dur, perf, preview }) => {
   const tall = H > W * 1.1
   const panK = tall ? 1 : W > H * 1.1 ? 0.4 : 0.7
   const lens = lensFor(s.kind)
@@ -206,11 +208,11 @@ const Shot: React.FC<{ s: FastShot; index: number; t: number; W: number; H: numb
   }
   return (
     <AbsoluteFill>
-      <CinePhoto src={s.src} depth={s.depth} W={W} H={H} cam={s.duskSrc ? { ...cam, dusk: 0, windows: null } : cam} perf={perf} />
+      <CinePhoto src={s.src} depth={s.depth} W={W} H={H} cam={s.duskSrc ? { ...cam, dusk: 0, windows: null } : cam} perf={perf} preview={preview} />
       {s.duskSrc && (
         // the AI Twilight photo on the very same camera (same size, same depth map), faded in as the day fades
         <AbsoluteFill style={{ opacity: cam.dusk || 0 }}>
-          <CinePhoto src={s.duskSrc} depth={s.depth} W={W} H={H} cam={{ ...cam, dusk: 0, windows: null }} perf={perf} />
+          <CinePhoto src={s.duskSrc} depth={s.depth} W={W} H={H} cam={{ ...cam, dusk: 0, windows: null }} perf={perf} preview={preview} />
         </AbsoluteFill>
       )}
     </AbsoluteFill>
@@ -379,7 +381,7 @@ export const FastFilm: React.FC<FastProps> = (props) => {
     <AbsoluteFill style={{ background: '#000' }}>
       {/* a little more colour and snap than the calm Cinematic grade */}
       <AbsoluteFill style={{ filter: 'saturate(1.1) contrast(1.04)' }}>
-        {shots.map((s, i) => (t >= s.start && t < s.end ? <Shot key={s.id} s={s} index={i} t={t} W={W} H={H} last={i === shots.length - 1} dur={dur} perf={props.perf} /> : null))}
+        {shots.map((s, i) => (t >= s.start && t < s.end ? <Shot key={s.id} s={s} index={i} t={t} W={W} H={H} last={i === shots.length - 1} dur={dur} perf={props.perf} preview={props.preview} /> : null))}
       </AbsoluteFill>
       {brand && look && openEnd > 0 && t < openEnd && (
         <>

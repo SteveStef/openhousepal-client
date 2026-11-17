@@ -15,8 +15,8 @@ import api from '@/lib/api-service'
 import { MotionSettings, photosForFastCut, thumbOf } from '@/lib/studio/cinematic'
 
 const gold = 'text-[#8b7355] dark:text-[#d7b974]'
-const card = 'rounded-3xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#151517] sm:p-5'
-const pickCls = (on: boolean) => `relative flex flex-col overflow-hidden rounded-2xl border-2 text-left transition ${on ? 'border-[#111827] bg-[#f8f5ee] dark:border-white dark:bg-white/10' : 'border-gray-200 bg-white hover:border-gray-300 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-white/25'}`
+const card = 'rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-5'
+const pickCls = (on: boolean) => `relative flex flex-col overflow-hidden rounded-2xl border-2 bg-white text-left transition hover:-translate-y-0.5 dark:bg-[#151517] ${on ? 'border-[#C9A24D] shadow-[0_0_34px_-14px_rgba(201,162,77,0.8)]' : 'border-gray-200 hover:border-[#C9A24D]/50 dark:border-gray-800'}`
 
 export const FAST_MIN_PHOTOS = 8
 /** Every song is cut to the same beat pattern, so the edit is identical - only the sound changes. */
@@ -70,6 +70,22 @@ export function KindPicker({ kind, onChange }: { kind: 'cinematic' | 'fastcut'; 
           </button>
         ))}
       </div>
+    </div>
+  )
+}
+
+// ------------------------------------------------------------------ the preview spot (beside the options, or on top on a phone)
+
+/** Where a Cinematic Video shows its live preview, a Fast Cut shows a real finished one in the chosen shape. */
+export function FastSidePreview({ format, maxH }: { format?: string; maxH?: string }) {
+  const wide = format === '16:9'
+  const name = wide ? 'fastcut-wide' : 'fastcut-tall'
+  return (
+    <div className="space-y-2" data-testid="fast-side-preview">
+      <div className={`mx-auto overflow-hidden rounded-2xl bg-black shadow-xl ${wide ? 'aspect-video w-full' : 'aspect-[9/16]'}`} style={wide ? { maxHeight: maxH } : { maxHeight: maxH, height: maxH, maxWidth: '100%' }}>
+        <video key={name} src={`/motion/example/${name}.mp4`} poster={`/motion/example/${name}.jpg`} controls playsInline preload="none" className="h-full w-full object-contain" data-testid={`fast-example-${wide ? 'wide' : 'tall'}`} />
+      </div>
+      <p className="truncate px-1 text-[11px] font-bold text-gray-400">Example Fast Cut · 57 sec · press play, with the sound on</p>
     </div>
   )
 }
@@ -192,6 +208,15 @@ export function FastSetup({ s, up, usable }: { s: MotionSettings; up: (fn: (d: M
     setPlaying(id)
   }
   const enoughForLong = usable == null || usable >= 50
+  // Each length's share of the monthly AI, with Save usage (the pre-picked speed) - like the Cinematic length buttons
+  const n = Math.max(1, usable ?? (s.pool || s.photos).length)
+  const [use, setUse] = useState<Record<number, number>>({})
+  useEffect(() => {
+    let alive = true
+    Promise.all([30, 57].map(sec => api.mediaLab.motion.estimate(n, true, sec, true).then(r => [sec, r.success && r.data ? (r.data.analyze_percent || 0) + (r.data.speed_save_percent ?? 0) : null] as const).catch(() => [sec, null] as const)))
+      .then(rows => { if (alive) setUse(Object.fromEntries(rows.filter(([, v]) => v != null)) as Record<number, number>) })
+    return () => { alive = false }
+  }, [n])
   return (
     <>
       <div className={card}>
@@ -202,6 +227,7 @@ export function FastSetup({ s, up, usable }: { s: MotionSettings; up: (fn: (d: M
               className={`${pickCls(long === (o.len === 60))} items-center px-3 pb-3 pt-5 text-center`}>
               <span className="font-serif text-3xl font-black leading-none text-[#111827] dark:text-white">{o.big}<span className="ml-0.5 text-sm font-black text-gray-400">{o.unit}</span></span>
               <span className="mt-1.5 text-[10.5px] font-semibold leading-tight text-gray-500">{o.hint}</span>
+              {use[o.len === 60 ? 57 : 30] != null && <span className={`mt-1.5 text-[10px] font-black leading-tight ${gold}`}>{use[o.len === 60 ? 57 : 30] < 1 ? 'less than 1%' : `about ${pctText(use[o.len === 60 ? 57 : 30])}`} of your monthly AI</span>}
             </button>
           ))}
         </div>
@@ -380,7 +406,7 @@ export function FastPlanCard({ id, s, up, flush }: {
       <div className={card}>
         <Title title="Your video, shot by shot" sub="The AI editor's order. Move a photo earlier or later, or take it out - the cuts stay on the beat."
           right={<span className="flex shrink-0 items-center gap-3">
-            {(s.fast?.order || []).length > 0 && <button type="button" onClick={reset} className={`text-[11px] font-black ${gold} hover:underline`}>AI's order</button>}
+            {(s.fast?.order || []).length > 0 && <button type="button" onClick={reset} className={`text-[11px] font-black ${gold} hover:underline`} title="Puts back the AI editor's order">Reset to AI&apos;s order</button>}
             <button type="button" onClick={load} disabled={busy} aria-label="Refresh the plan" className="text-gray-400 hover:text-[#111827] dark:hover:text-white"><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} /></button>
           </span>} />
         {visible.length < FAST_MIN_PHOTOS ? (

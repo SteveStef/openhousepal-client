@@ -3,9 +3,9 @@
 import { PHOTO_ACCEPT, fitForMediaLab, isPhotoFile } from '@/components/assistant/PhotoDrop'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import LuxeHero from '@/components/ui/LuxeHero'
 import {
-  ArrowLeft, Check, ChevronDown, Clapperboard, ImagePlus, Loader2, Maximize2, Sparkles, Sunset, Trash2, Upload, Wand2,
+  ArrowRight, Check, ChevronDown, Clapperboard, Home, ImagePlus, Loader2, Maximize2, Sparkles, Sunset, Trash2, Upload, Wand2,
 } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
@@ -23,7 +23,7 @@ import type {
   LinkedProperty, StudioEnhancement, StudioImageEffect, StudioMediaAsset, StudioMediaOptions,
 } from '@/types'
 import {
-  Chip, EFFECTS, EnhancementOptions, ImageInspectModal, MAX_VIDEO_PHOTOS, ModeCard, OHP_MEDIA_STYLE, OptionRow,
+  Chip, EFFECTS, EnhancementOptions, ImageInspectModal, MAX_VIDEO_PHOTOS, OHP_MEDIA_STYLE, OptionRow,
   PhotoGeneratingCard, PhotoGrid, ROOM_TYPES, STAGING_STYLES, Section, StagedPhoto, estimatedVideoSeconds, stageLabel,
 } from '@/components/studio/media/shared'
 
@@ -55,11 +55,21 @@ function CreateMediaPage() {
   // What a typical 30-second Cinematic Video uses of THIS agent's monthly AI (owner 11/13: "doesn't that
   // depend on plan?") - room sorting + sharpening + making it, from their own allowance.
   const [cineShare, setCineShare] = useState<number | null>(null)
+  // Owner 11/17: the video card covers both kinds now - so the share is the cheaper of a 30-second
+  // Cinematic and a 30-second Fast Cut, on Save usage (the pre-picked speed), room sorting included.
   useEffect(() => {
-    api.mediaLab.motion.estimate(5, true, 30).then(r => {
-      const d = r.success ? r.data : null
-      if (d && d.analyze_percent != null) setCineShare((d.analyze_percent || 0) + (d.sharpen_percent || 0) + (d.render_percent || 0))
-    }).catch(() => {})
+    const share = (d: { analyze_percent?: number | null; speed_save_percent?: number | null; sharpen_percent?: number | null; render_percent?: number | null } | null | undefined) => {
+      if (!d) return null
+      if (d.speed_save_percent != null) return (d.analyze_percent || 0) + d.speed_save_percent
+      return d.analyze_percent != null ? (d.analyze_percent || 0) + (d.sharpen_percent || 0) + (d.render_percent || 0) : null
+    }
+    Promise.all([
+      api.mediaLab.motion.estimate(5, true, 30).catch(() => null),
+      api.mediaLab.motion.estimate(25, true, 30, true).catch(() => null),
+    ]).then(([cine, fast]) => {
+      const vals = [share(cine?.success ? cine.data : null), share(fast?.success ? fast.data : null)].filter((v): v is number => v != null)
+      if (vals.length) setCineShare(Math.min(...vals))
+    })
   }, [])
   const [photo, setPhoto] = useState<{ url: string; kind: 'listing' | 'upload' } | null>(null)
   const [videoPhotos, setVideoPhotos] = useState<string[]>([])
@@ -383,26 +393,20 @@ function CreateMediaPage() {
         </div>
       )}
       <div className="mx-auto max-w-6xl px-4 pb-28 pt-4 sm:py-6">
-        <div className="sticky top-0 z-10 relative -mx-4 mb-4 overflow-hidden border-b border-gray-200 bg-white/95 dark:border-gray-800 dark:bg-[#151517]/95 sm:-mx-0 sm:rounded-2xl sm:border">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#C9A24D] to-[#e0b85f]" />
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3.5 sm:px-5">
-            <div className="flex shrink-0 items-center gap-2.5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#C9A24D] to-[#e0b85f] text-[#111827] shadow-sm">
-                <Sparkles className="h-4 w-4" />
-              </span>
-              <p className="hidden whitespace-nowrap font-serif sm:block text-base font-black text-[#111827] dark:text-white sm:text-lg">Create New</p>
-            </div>
-            <div className="min-w-[160px] flex-1">
-              <StepBar step={step} busy={busy} onJumpToSource={changeSource} onJumpToMode={startOver} />
-            </div>
-            <Link
-              href="/studio/media"
-              aria-label="Back to projects" className="shrink-0 inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs sm:px-3 font-black text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white"
-            >
-              <ArrowLeft className="h-4 w-4 sm:h-3.5 sm:w-3.5" /> <span className="hidden sm:inline">Projects</span>
-            </Link>
-          </div>
-        </div>
+        {/* The same alive Luxe header as the Media Lab list and the video editor (owner 11/17: this
+            first part of the flow should look as polished as the rest). */}
+        <LuxeHero
+          compact
+          backHref="/studio/media"
+          backLabel="Projects"
+          kicker="Media Lab"
+          icon={Sparkles}
+          title={step === 1 ? <>Start with a <em>home</em></> : step === 2 ? <>What should we <em>make</em>?</> : isVideo ? <>Your <em>video</em></> : <>Your <em>photo edit</em></>}
+          subtitle={step === 1
+            ? (canUseListings ? 'Pick one of your listings or sales, search any address, or upload your own photos.' : 'Upload the photos you want to use.')
+            : step === 2 ? 'A video tour with music, or an edit to a single photo.' : undefined}
+          tabs={<StepBar step={step} busy={busy} onJumpToSource={changeSource} onJumpToMode={startOver} />}
+        />
 
         {/* Working from their own uploads, the library (with Upload + remove) stays open above the
             next steps - it used to vanish the moment one upload existed, so a second photo could
@@ -425,10 +429,9 @@ function CreateMediaPage() {
             <input ref={fileInputRef} type="file" accept={PHOTO_ACCEPT} multiple hidden onChange={(e) => { if (e.target.files?.length) onUpload(e.target.files); e.currentTarget.value = '' }} />
           </div>
         ) : (step === 1 || !canUseListings || usingUploads) && (
-          <Section step={1} title="Choose photos" active={step === 1} overflowVisible raised>
+          <Section step={1} title={canUseListings ? "Pick a home" : "Choose photos"} active={step === 1} overflowVisible raised>
             {canUseListings ? (
               <>
-                <p className="mb-2 text-[10px] font-black uppercase tracking-[0.25em] text-[#8b7355] dark:text-[#d7b974]">Pick a property, or upload your own photos</p>
                 <ListingPhotoSearch
                   value={property}
                   onChange={(p) => { setProperty(p); setPhoto(null); setVideoPhotos([]) }}
@@ -443,18 +446,49 @@ function CreateMediaPage() {
           </Section>
         )}
 
+        {/* The home that was picked, once the listing picker folds away - its photos fan in. */}
+        {canUseListings && property && !usingUploads && step >= 2 && (
+          <PickedHome property={property} photos={listingPhotos} onChange={changeSource} disabled={busy} />
+        )}
+
         {hasSource && !mode && (
           <Section step={2} title="What do you want to make?" active={step === 2}>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <ModeCard
-                active={mode === 'motion'} onClick={() => pickMode('motion')}
-                icon={Clapperboard} title="Cinematic Video"
-                blurb={`New - a film-style tour of the home: pick the length, tap the rooms to show, and real 3D camera moves, room captions, your branding and music do the rest. ${cineShare == null ? 'Uses a small share of your monthly AI.' : cineShare < 1 ? 'A 30-second video uses less than 1% of your monthly AI.' : `A 30-second video uses about ${Math.round(cineShare)}% of your monthly AI.`}`}
+            <div className="grid gap-3.5 md:grid-cols-2">
+              <MakeCard
+                index={0} testId="make-video" onClick={() => pickMode('motion')}
+                icon={Clapperboard} title="Video Creation" badge="2 styles"
+                blurb="A branded video tour of the home with music, captions and your contact card. Choose Cinematic or Fast Cut on the next screen."
+                note={cineShare == null ? 'Uses a small share of your monthly AI' : cineShare < 1 ? 'A 30-second video uses less than 1% of your monthly AI' : `A 30-second video uses about ${Math.round(cineShare)}% of your monthly AI`}
+                media={
+                  <div className="grid h-full grid-cols-2 gap-px bg-black">
+                    {([['Cinematic', 'Slow, film-style', '/motion/example/example'], ['Fast Cut', 'Quick cuts on the beat', '/motion/example/fastcut-wide']] as const).map(([label, sub, src]) => (
+                      <div key={label} className="relative overflow-hidden">
+                        <video src={`${src}.mp4`} poster={`${src}.jpg`} muted loop playsInline autoPlay preload="metadata" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]" />
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent px-2.5 pb-2 pt-6">
+                          <p className="text-[12px] font-black text-white">{label}</p>
+                          <p className="text-[10px] font-semibold text-white/75">{sub}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                }
               />
-              <ModeCard
-                active={mode === 'photo'} onClick={() => pickMode('photo')}
-                icon={Wand2} title="Photo edit"
-                blurb="Stack twilight, lights-on, virtual staging & enhancement onto one photo — all applied as a single combined edit."
+              <MakeCard
+                index={1} testId="make-photo" onClick={() => pickMode('photo')}
+                icon={Wand2} title="Photo Edit"
+                blurb="Twilight, lights on, virtual staging and touch-ups on one photo, all done together in a single edit."
+                note="Pick one photo, then choose what to change"
+                media={
+                  <div className="relative h-full overflow-hidden bg-black">
+                    <img src={(usingUploads ? uploadPhotos[0] : listingPhotos[0]) || '/motion/example/living.jpg'} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                    <div className="absolute inset-x-0 bottom-0 flex flex-wrap gap-1.5 p-2.5">
+                      {['Twilight', 'Lights on', 'Staging', 'Touch-ups'].map((t, i) => (
+                        <span key={t} style={{ animationDelay: `${380 + i * 90}ms` }} className="ohp-pop rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-black text-[#111827] shadow-sm">{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                }
               />
             </div>
           </Section>
@@ -761,6 +795,88 @@ function CreateMediaPage() {
           continueLabel: busy ? 'Working…' : isMotion ? 'Continue' : isVideo ? 'Create' : 'Generate',
           icon: <Sparkles />,
         } : {})} />
+    </div>
+  )
+}
+
+// One big choice on "What do you want to make?": a moving preview on top, then the name and what it
+// does. The two cards rise in one after the other.
+function MakeCard({ index, testId, onClick, icon: Icon, title, badge, blurb, note, media }: {
+  index: number; testId: string; onClick: () => void
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>
+  title: string; badge?: string; blurb: string; note: string; media: React.ReactNode
+}) {
+  return (
+    <button
+      type="button" onClick={onClick} data-testid={testId}
+      style={{ animationDelay: `${index * 110}ms` }}
+      className="ohp-card-in group relative flex flex-col overflow-hidden rounded-2xl border-2 border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:border-[#C9A24D] hover:shadow-[0_22px_50px_-26px_rgba(201,162,77,0.75)] focus-visible:border-[#C9A24D] focus-visible:outline-none dark:border-gray-800 dark:bg-[#151517] dark:hover:border-[#C9A24D]"
+    >
+      <div className="relative aspect-[16/8] w-full overflow-hidden">{media}</div>
+      <div className="flex flex-1 items-start gap-3 p-4">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#C9A24D]/30 bg-[#111827] text-[#C9A24D] transition group-hover:border-[#C9A24D] group-hover:bg-gradient-to-br group-hover:from-[#C9A24D] group-hover:to-[#e0b85f] group-hover:text-[#111827] dark:bg-[#0B0B0B]">
+          <Icon className="h-5 w-5" strokeWidth={2} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-2 font-serif text-lg font-black leading-tight text-[#111827] dark:text-white">
+            {title}
+            {badge && <span className="rounded-full bg-[#C9A24D]/15 px-2 py-0.5 font-sans text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#e8c97a]">{badge}</span>}
+          </p>
+          <p className="mt-1 text-[12px] font-semibold leading-snug text-gray-500 dark:text-gray-400">{blurb}</p>
+          <p className="mt-2.5 flex items-center gap-1.5 text-[11px] font-black text-[#8b7355] dark:text-[#d7b974]">
+            <Sparkles className="h-3.5 w-3.5 shrink-0" /> {note}
+          </p>
+        </div>
+        <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 text-gray-400 transition group-hover:translate-x-0.5 group-hover:border-[#C9A24D] group-hover:bg-[#C9A24D] group-hover:text-[#111827] dark:border-gray-700">
+          <ArrowRight className="h-4 w-4" />
+        </span>
+      </div>
+    </button>
+  )
+}
+
+// The picked listing, after the picker folds away: address and facts, with its first photos
+// fanning in one by one. "Change" goes back to the picker.
+function PickedHome({ property, photos, onChange, disabled }: {
+  property: LinkedProperty; photos: string[]; onChange: () => void; disabled: boolean
+}) {
+  const shown = photos.slice(0, 6)
+  const facts = [
+    property.price ? `$${Number(property.price).toLocaleString()}` : null,
+    property.beds ? `${property.beds} bd` : null,
+    property.baths ? `${property.baths} ba` : null,
+    property.sqft ? `${Number(property.sqft).toLocaleString()} sqft` : null,
+  ].filter(Boolean)
+  return (
+    <div className="ohp-reveal mt-5 overflow-hidden rounded-2xl border border-[#C9A24D]/30 bg-white shadow-sm dark:bg-[#151517]">
+      <div className="flex flex-wrap items-center gap-3 p-3 sm:p-4">
+        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800 sm:h-16 sm:w-20">
+          {(property.image_url || shown[0]) ? <img src={property.image_url || shown[0]} alt="" className="h-full w-full object-cover" /> : <Home className="m-auto h-6 w-6 text-gray-300" />}
+          <span className="ohp-pop absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#C9A24D] text-[#111827] shadow" style={{ animationDelay: '250ms' }}>
+            <Check className="h-3 w-3" strokeWidth={3.5} />
+          </span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#8b7355] dark:text-[#d7b974]">Home</p>
+          <p className="truncate font-serif text-base font-black text-[#111827] dark:text-white sm:text-lg">{property.address}</p>
+          <p className="truncate text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+            {[...facts, `${photos.length} ${photos.length === 1 ? 'photo' : 'photos'}`].join(' · ')}
+          </p>
+        </div>
+        <button type="button" onClick={onChange} disabled={disabled}
+          className="shrink-0 rounded-full border border-gray-200 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-gray-600 transition hover:border-[#C9A24D] hover:text-[#8b7355] disabled:opacity-50 dark:border-gray-700 dark:text-gray-300">
+          Change
+        </button>
+      </div>
+      {shown.length > 1 && (
+        <div className="grid grid-cols-6 gap-1 px-3 pb-3 sm:px-4 sm:pb-4">
+          {shown.map((u, i) => (
+            <div key={u} style={{ animationDelay: `${120 + i * 70}ms` }} className="ohp-pop aspect-[4/3] overflow-hidden rounded-md bg-gray-100 dark:bg-gray-800">
+              <img src={u} alt="" loading="lazy" className="h-full w-full object-cover" />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

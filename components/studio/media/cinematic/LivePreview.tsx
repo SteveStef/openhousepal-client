@@ -8,7 +8,8 @@ import { Player, type PlayerRef } from '@remotion/player'
 import { MotionFilm } from '@/motion-video/MotionFilm'
 import { buildTimeline } from '@/motion-video/timeline'
 import { FPS, type MotionProps } from '@/motion-video/types'
-import { previewProps, previewSize, targetPhotosFor, type MotionSettings } from '@/lib/studio/cinematic'
+import { previewProps, previewSize, sized, targetPhotosFor, type MotionSettings } from '@/lib/studio/cinematic'
+import type { MotionPhoto } from '@/motion-video/types'
 import { SAMPLE_EXTRA, SAMPLE_PHOTOS } from '@/motion-video/sample'
 
 export default function LivePreview({ settings, props: rawProps, autoPlay = false, loop = true, className = '', seekToSecond, rounded = true, small: forceSmall, maxH }: {
@@ -31,13 +32,29 @@ export default function LivePreview({ settings, props: rawProps, autoPlay = fals
     q(); window.addEventListener('resize', q)
     return () => window.removeEventListener('resize', q)
   }, [])
-  // Before any rooms are picked, the project's own look plays on the example photos.
-  const example = !rawProps && !!settings && !settings.photos.some(p => !p.hidden)
+  // Before any rooms are picked, the project's own look plays on THIS home's own photos (owner 11/17:
+  // "can't it show the property you're using") - the best-scored ones, the outside first. Only a project
+  // with no photos at all falls back to the example home.
+  const unpicked = !rawProps && !!settings && !settings.photos.some(p => !p.hidden)
+  const ownPhotos = useMemo<MotionPhoto[]>(() => {
+    if (!unpicked || !settings) return []
+    const pool = (settings.pool || []).filter(p => p.room !== 'skip')
+    const outside = (k: string) => (k === 'exterior' || k === 'aerial' ? 0 : 1)
+    const best = [...pool].sort((a, b) => outside(a.kind) - outside(b.kind) || (b.score || 0) - (a.score || 0))
+    const n = Math.max(3, Math.min(6, targetPhotosFor(settings.length)))
+    return best.slice(0, n).map((ph, i) => ({
+      id: `own-${i}`, src: sized(ph.clean || ph.source, 1200, 80) || ph.source, depth: sized(ph.depth, 1080, 90),
+      kind: ph.kind, label: ph.analyzed ? ph.label : '', kicker: ph.analyzed ? ph.kicker : '', showLabel: !!(ph.analyzed && ph.label), move: 'auto',
+      focusX: ph.focusX ?? 0.5, lights: ph.lights, water: ph.water, sky: ph.sky, trees: ph.trees,
+    } as MotionPhoto))
+  }, [unpicked, settings])
+  const example = unpicked && ownPhotos.length < 2
   const props = useMemo(() => {
     if (rawProps) return { ...rawProps, preview: true }
     const p = previewProps(settings!)
-    return example ? { ...p, photos: [...SAMPLE_PHOTOS, ...SAMPLE_EXTRA].slice(0, Math.max(3, Math.min(6, targetPhotosFor(settings!.length)))) } : p
-  }, [rawProps, settings, example])
+    if (!unpicked) return p
+    return { ...p, photos: example ? [...SAMPLE_PHOTOS, ...SAMPLE_EXTRA].slice(0, Math.max(3, Math.min(6, targetPhotosFor(settings!.length)))) : ownPhotos }
+  }, [rawProps, settings, unpicked, example, ownPhotos])
   const frames = useMemo(() => buildTimeline(props).frames, [props])
   const { w, h } = previewSize(props.format, forceSmall ?? phone)
 

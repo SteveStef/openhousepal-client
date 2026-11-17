@@ -1,13 +1,40 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 import { Bath, Bed, Home, Loader2, MapPin, Maximize, Search, Tag, Upload, X } from 'lucide-react'
 import api from '@/lib/api-service'
 import { getEligibleSales } from '@/lib/agentSales'
 import type { LinkedProperty, MyListingItem } from '@/types'
 import { tidyAllCaps } from '@/lib/cheatSheetContent'  // keeps state codes: "Exton, PA", not "Pa"
 
-type RecentSale = { id: string; address: string; city?: string; state?: string; price?: number; status?: string; image?: string; sold_date?: string }
+// Homes rise in one after another; while they load, shimmering stand-in tiles hold their place.
+const LPS_CSS = `
+  @keyframes lpsIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+  .lps-in{animation:lpsIn .5s cubic-bezier(.2,.8,.2,1) backwards}
+  @keyframes lpsShim{0%{background-position:-160% 0}100%{background-position:260% 0}}
+  .lps-shim{background-image:linear-gradient(100deg,transparent 30%,rgba(201,162,77,.16) 50%,transparent 70%);background-size:60% 100%;background-repeat:no-repeat;animation:lpsShim 1.4s ease-in-out infinite}
+  @media (prefers-reduced-motion:reduce){.lps-in,.lps-shim{animation:none!important}}
+`
+
+function SkeletonTiles({ label }: { label: string }) {
+  return (
+    <>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="lps-in overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#151517]" style={{ animationDelay: `${i * 60}ms` }} aria-hidden>
+          <div className="lps-shim aspect-[4/3] bg-gray-100 dark:bg-gray-800/70" />
+          <div className="space-y-1.5 p-2">
+            <div className="lps-shim h-2.5 w-4/5 rounded bg-gray-100 dark:bg-gray-800/70" />
+            <div className="lps-shim h-2 w-1/2 rounded bg-gray-100 dark:bg-gray-800/70" />
+          </div>
+        </div>
+      ))}
+      <p className="sr-only">{label}</p>
+    </>
+  )
+}
+
+type RecentSale = { id: string; address: string; city?: string; state?: string; zipcode?: string; source?: string; price?: number; status?: string; image?: string; sold_date?: string }
 
 export type PhotoSearchTab = 'mine' | 'sales' | 'search' | 'upload'
 
@@ -46,6 +73,9 @@ function statusBadgeClass(status?: string | null): string {
   if (label.includes('pending') || label.includes('contract')) return 'border-yellow-300 bg-yellow-100 text-yellow-800 dark:border-yellow-300 dark:bg-yellow-500 dark:text-[#111827]'
   return 'border-gray-300 bg-gray-100 text-gray-600 dark:border-gray-500 dark:bg-gray-700 dark:text-white'
 }
+
+const tileCls = (pending: boolean) => `lps-in group overflow-hidden rounded-xl border bg-white text-left transition hover:-translate-y-0.5 hover:border-[#C9A24D] hover:shadow-[0_14px_30px_-18px_rgba(201,162,77,0.7)] disabled:cursor-default disabled:hover:translate-y-0 dark:bg-[#151517] ${
+  pending ? 'border-[#C9A24D] ring-2 ring-[#C9A24D]/40' : 'border-gray-200 dark:border-gray-700'}`
 
 function formatPrice(price?: number | string | null): string {
   const n = typeof price === 'string' ? parseFloat(price) : price
@@ -148,7 +178,7 @@ export default function ListingPhotoSearch({
         return String(b.sold_date || '').localeCompare(String(a.sold_date || ''))
       })
       setSales(ordered.map(s => ({
-        id: s.id, address: s.address, city: s.city, state: s.state,
+        id: s.id, address: s.address, city: s.city, state: s.state, zipcode: s.zipcode, source: s.source,
         price: s.price, status: s.status, image: s.image, sold_date: s.sold_date,
       })))
       setLoadingSales(false)
@@ -189,9 +219,13 @@ export default function ListingPhotoSearch({
 
   // By the listing's own MLS id whenever we have it - looking it up by its address text picked a
   // different unit in the same condo building (owner, 11/01: chose #605, got #205).
-  const pick = async (address: string, listingKey?: string | null) => {
+  // A past sale: by its MLS id, and if that id isn't on file, by its FULL address (street, town, zip) -
+  // the street alone picked a different home (owner 11/17: tapped 26 Old Gulph Rd, got 26 S Old Glebe Rd).
+  const pick = async (address: string, listingKey?: string | null, fullAddress?: string) => {
     setLookingUp(true); setPendingAddr(address); setError(''); setShowSuggestions(false)
-    const { success, data, error: e } = await api.properties.lookup(listingKey ? { listingKey } : address)
+    let res = await api.properties.lookup(listingKey ? { listingKey } : (fullAddress || address))
+    if (!res.success && listingKey && fullAddress) res = await api.properties.lookup(fullAddress)
+    const { success, data, error: e } = res
     if (success && data) {
       onChange(toLinkedProperty(data, address))
       setQuery(''); setSuggestions([])
@@ -226,19 +260,22 @@ export default function ListingPhotoSearch({
 
   return (
     <div ref={wrapRef} className="space-y-3">
-      {!currentListingsOnly && <div className="flex flex-wrap gap-1 rounded-xl border border-gray-200 bg-[#fbfaf7] p-1 dark:border-gray-700 dark:bg-[#151517]">
+      <style>{LPS_CSS}</style>
+      {!currentListingsOnly && <div className="flex gap-1 overflow-x-auto rounded-xl border border-gray-200 bg-[#fbfaf7] p-1 [scrollbar-width:none] dark:border-gray-700 dark:bg-[#0f0f11]">
         {((uploadSlot ? ['mine', 'sales', 'search', 'upload'] : ['mine', 'sales', 'search']) as PhotoSearchTab[]).map(t => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className={`rounded-lg px-3.5 py-2 text-xs font-black uppercase tracking-wide transition-colors ${
-              tab === t
-                ? 'bg-white text-[#111827] shadow-sm ring-1 ring-black/5 dark:bg-[#1A1A1C] dark:text-white dark:ring-white/10'
-                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+            className={`relative shrink-0 whitespace-nowrap rounded-lg px-3.5 py-2 text-xs font-black uppercase tracking-wide transition-colors ${
+              tab === t ? 'text-[#111827] dark:text-white' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
             }`}
           >
-            {t === 'mine' ? 'My Listings' : t === 'sales' ? 'My Sales' : t === 'search' ? 'Search Any Address' : 'Upload Photos'}
+            {tab === t && (
+              <motion.span layoutId="lps-tab" transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                className="absolute inset-0 rounded-lg bg-white shadow-sm ring-1 ring-[#C9A24D]/35 dark:bg-[#1A1A1C] dark:ring-[#C9A24D]/40" />
+            )}
+            <span className="relative">{t === 'mine' ? 'My Listings' : t === 'sales' ? 'My Sales' : t === 'search' ? 'Search Any Address' : 'Upload Photos'}</span>
           </button>
         ))}
       </div>}
@@ -291,28 +328,26 @@ export default function ListingPhotoSearch({
 
       {tab === 'mine' && (
         <div className={`grid auto-rows-max gap-2 grid-cols-3 sm:grid-cols-4 md:grid-cols-5 ${fullHeight ? '' : 'max-h-[300px] overflow-y-auto pr-1'}`}>
-          {loadingMine && (
-            <div className="col-span-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 p-4 text-xs font-bold text-gray-400 dark:border-gray-700">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading your listings...
-            </div>
-          )}
+          {loadingMine && <SkeletonTiles label="Loading your listings" />}
           {!loadingMine && myListings.length === 0 && (
             <div className="col-span-full rounded-lg border border-dashed border-gray-300 p-4 text-center text-xs font-bold text-gray-400 dark:border-gray-700">
               {currentListingsOnly ? 'No current listings found under your MLS ID. When you list a home it shows up here.' : 'No listings found. Use "Search Any Address" instead.'}
             </div>
           )}
-          {myListings.map(listing => (
+          {!loadingMine && myListings.map((listing, i) => (
             <button
               key={listing.listing_key}
               onClick={() => pick(listing.address, listing.listing_key)}
               disabled={lookingUp}
-              className="group overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition-colors hover:border-[#C9A24D] disabled:cursor-default dark:border-gray-700 dark:bg-[#151517]"
+              style={{ animationDelay: `${Math.min(i, 14) * 45}ms` }}
+              className={tileCls(pendingAddr === listing.address)}
             >
               <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-800">
                 {listing.image ? <img src={listing.image} alt={listing.address} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : <div className="flex h-full w-full items-center justify-center"><Home className="h-5 w-5 text-gray-300" /></div>}
                 {pendingAddr === listing.address && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-[#151517]/70">
-                    <Loader2 className="h-5 w-5 animate-spin text-[#C9A24D]" />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/45 text-white">
+                    <Loader2 className="h-5 w-5 animate-spin text-[#e8c97a]" />
+                    <span className="text-[9px] font-black uppercase tracking-wide">Opening</span>
                   </div>
                 )}
               </div>
@@ -327,29 +362,28 @@ export default function ListingPhotoSearch({
 
       {tab === 'sales' && (
         <div className={`grid auto-rows-max gap-2 grid-cols-3 sm:grid-cols-4 md:grid-cols-5 ${fullHeight ? '' : 'max-h-[300px] overflow-y-auto pr-1'}`}>
-          {loadingSales && (
-            <div className="col-span-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 p-4 text-xs font-bold text-gray-400 dark:border-gray-700">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading your recent sales...
-            </div>
-          )}
+          {loadingSales && <SkeletonTiles label="Loading your recent sales" />}
           {!loadingSales && sales.length === 0 && (
             <div className="col-span-full rounded-lg border border-dashed border-gray-300 p-4 text-center text-xs font-bold text-gray-400 dark:border-gray-700">
               No recent sales found. Add your license number in Agent Hub settings, or use another tab.
             </div>
           )}
-          {sales.map(sale => (
+          {!loadingSales && sales.map((sale, i) => (
             <button
               key={sale.id}
-              onClick={() => pick(sale.address)}
+              onClick={() => pick(sale.address, sale.source !== 'manual' ? sale.id : null,
+                [sale.address.split(',')[0], sale.city, [sale.state, sale.zipcode].filter(Boolean).join(' ')].filter(Boolean).join(', '))}
               disabled={lookingUp}
-              className="group overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition-colors hover:border-[#C9A24D] disabled:cursor-default dark:border-gray-700 dark:bg-[#151517]"
+              style={{ animationDelay: `${Math.min(i, 14) * 45}ms` }}
+              className={tileCls(pendingAddr === sale.address)}
             >
               <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-800">
                 {sale.image ? <img src={sale.image} alt={sale.address} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" /> : <div className="flex h-full w-full items-center justify-center"><Tag className="h-5 w-5 text-gray-300" /></div>}
                 <span className="absolute left-1 top-1 rounded bg-red-600/90 px-1 py-0.5 text-[8px] font-black uppercase tracking-wide text-white">Sold</span>
                 {pendingAddr === sale.address && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-[#151517]/70">
-                    <Loader2 className="h-5 w-5 animate-spin text-[#C9A24D]" />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/45 text-white">
+                    <Loader2 className="h-5 w-5 animate-spin text-[#e8c97a]" />
+                    <span className="text-[9px] font-black uppercase tracking-wide">Opening</span>
                   </div>
                 )}
               </div>

@@ -228,7 +228,7 @@ function MediaLabListPage() {
                         index={i}
                         downloading={downloadingId === p.id}
                         justDone={justDone.has(p.id)}
-                        onOpen={() => router.push(`/studio/media/${p.id}`)}
+                        onOpen={() => router.push(p.action === 'motion' ? `/studio/media/motion/${p.id}` : `/studio/media/${p.id}`)}
                         onDownload={() => downloadAsset(p)}
                         onDelete={() => setPendingDelete(p)}
                       />

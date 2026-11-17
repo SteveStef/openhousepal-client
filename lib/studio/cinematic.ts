@@ -322,7 +322,10 @@ export function addPhoto(s: MotionSettings, it: MotionPoolPhoto): MotionPhotoSet
   const r = rankOf(it.room)
   const photos = [...s.photos]
   let at = -1
-  photos.forEach((p, i) => { if (rankOf(p.room) <= r) at = i })
+  // its room is already in the video: right after that room's last photo (the agent may have moved rooms
+  // around on "Your video, in order" - owner 11/17); else where its room sits in the walk-through
+  photos.forEach((p, i) => { if (!p.hidden && it.room && p.room === it.room) at = i })
+  if (at < 0) photos.forEach((p, i) => { if (rankOf(p.room) <= r) at = i })
   photos.splice(at + 1, 0, add)
   return photos
 }

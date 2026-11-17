@@ -58,38 +58,41 @@ export const MINI_CSS = `
 @media (prefers-reduced-motion: reduce) { .cvm img, .cvm .cvm-leak { animation: none !important; } .cvs img:first-child, .cvm img.a { opacity: 1 !important; } }
 `
 
-export function TransitionMini({ id, className = '' }: { id: TransitionId; className?: string }) {
+// `photos`: the home's own photos (owner 11/17: the previews should show the property being used) -
+// the example home's only when the project has none.
+export function TransitionMini({ id, className = '', photos }: { id: TransitionId; className?: string; photos?: string[] }) {
   return (
     <div className={`cvm cvt-${id} ${className}`}>
-      <div className="absolute inset-0 cvm-drift"><img className="a" src={SM('front')} alt="" loading="lazy" /></div>
-      <div className="absolute inset-0"><img className="b" src={SM('living')} alt="" loading="lazy" /></div>
+      <div className="absolute inset-0 cvm-drift"><img className="a" src={photos?.[0] || SM('front')} alt="" loading="lazy" /></div>
+      <div className="absolute inset-0"><img className="b" src={photos?.[1] || SM('living')} alt="" loading="lazy" /></div>
       {id === 'light' && <div className="cvm-leak" />}
     </div>
   )
 }
 
 const STYLE_SECONDS: Record<MotionStyleId, number> = { cinematic: 6.6, glide: 7.8, bold: 3.6 }
-export function StyleMini({ id, className = '' }: { id: MotionStyleId; className?: string }) {
+export function StyleMini({ id, className = '', photos }: { id: MotionStyleId; className?: string; photos?: string[] }) {
   const total = STYLE_SECONDS[id]
+  const three = photos && photos.length >= 3 ? photos.slice(0, 3) : ['facade', 'living', 'aerial'].map(SM)
   return (
     <div className={`cvm cvs cvs-${id} ${className}`}>
-      {['facade', 'living', 'aerial'].map((n, i) => (
-        <img key={n} src={SM(n)} alt="" loading="lazy" style={{ animationDelay: `${-((3 - i) % 3) * (total / 3)}s, 0s` }} />
+      {three.map((src, i) => (
+        <img key={src + i} src={src} alt="" loading="lazy" style={{ animationDelay: `${-((3 - i) % 3) * (total / 3)}s, 0s` }} />
       ))}
     </div>
   )
 }
 
 /** A still of the opening title in each look. */
-export function ThemeMini({ theme, accent, metal, address = '847 Lesley Road', kicker = 'Just listed', luxeKicker = 'Introducing', className = '' }: {
-  theme: MotionTheme; accent: string; metal: MotionMetal; address?: string; kicker?: string; luxeKicker?: string; className?: string
+export function ThemeMini({ theme, accent, metal, address = '847 Lesley Road', kicker = 'Just listed', luxeKicker = 'Introducing', className = '', photo }: {
+  theme: MotionTheme; accent: string; metal: MotionMetal; address?: string; kicker?: string; luxeKicker?: string; className?: string; photo?: string | null
 }) {
   const m = LUXE_METALS[metal] || LUXE_METALS.gold
   const luxe = theme === 'luxe'
   const metalText: React.CSSProperties = { backgroundImage: `linear-gradient(100deg, ${m.base}, ${m.light} 30%, ${m.pale} 48%, ${m.light} 62%, ${m.base})`, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }
   return (
     <div className={`cvm ${className}`} style={{ containerType: 'inline-size' } as React.CSSProperties}>
-      <img src={SM('front')} alt="" loading="lazy" style={{ filter: luxe ? 'brightness(0.62)' : 'brightness(0.82)' }} />
+      <img src={photo || SM('front')} alt="" loading="lazy" style={{ filter: luxe ? 'brightness(0.62)' : 'brightness(0.82)' }} />
       {luxe && <div className="absolute inset-[7%] border" style={{ borderColor: `${m.base}aa` }} />}
       <div className="absolute inset-0 flex flex-col items-center justify-center px-[8%] text-center" style={{ background: 'radial-gradient(ellipse 60% 50% at 50% 50%, rgba(0,0,0,.45), rgba(0,0,0,0) 72%)' }}>
         <div style={{ fontFamily: MOTION_SANS, fontWeight: 600, fontSize: 'max(7px, 3.4cqw)', letterSpacing: '0.4em', color: '#f6f1e7', ...(luxe ? metalText : {}) }}>
