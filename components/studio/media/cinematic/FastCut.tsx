@@ -97,24 +97,34 @@ export function SpeedPicker({ s, up, fast }: { s: MotionSettings; up: (fn: (d: M
   const speed = s.speed === 'now' ? 'now' : 'save'
   const n = Math.max(1, s.photos.filter(p => !p.hidden).length)
   const seconds = fast ? ((s.length || 30) >= 45 ? 57 : 30) : (s.length || 30)
-  const [use, setUse] = useState<{ lo: number; hi: number; now: number } | null>(null)
+  const [use, setUse] = useState<{ lo: number; hi: number; now: number; readySave?: number | null; readyNow?: number | null; aheadSave: number; aheadNow: number } | null>(null)
   useEffect(() => {
     let alive = true
-    api.mediaLab.motion.estimate(n, true, seconds, fast).then(r => {
+    const load = () => api.mediaLab.motion.estimate(n, true, seconds, fast).then(r => {
       const d = r.data
       if (!alive || !r.success || !d || d.speed_save_percent == null || d.speed_now_percent == null) return
-      setUse({ lo: d.speed_save_percent, hi: d.speed_save_percent_max ?? d.speed_save_percent, now: d.speed_now_percent })
+      setUse({ lo: d.speed_save_percent, hi: d.speed_save_percent_max ?? d.speed_save_percent, now: d.speed_now_percent,
+        readySave: d.speed_save_ready_minutes, readyNow: d.speed_now_ready_minutes, aheadSave: d.speed_save_ahead || 0, aheadNow: d.speed_now_ahead || 0 })
     })
-    return () => { alive = false }
+    load()
+    const t = setInterval(load, 60000)   // the line changes: keep the ready times current while the page is open
+    return () => { alive = false; clearInterval(t) }
   }, [n, seconds, fast])
   const same = !!use && use.now - use.lo < 0.05
   // how much less Save usage uses (rounded to 5: "about 50% less") and how much faster Make it now spends it ("2x")
   const less = use && !same && use.now > 0 ? Math.round(((use.now - use.lo) / use.now) * 20) * 5 : 0
   const times = use && !same && use.lo > 0 ? Math.round((use.now / use.lo) * 2) / 2 : 0
+  // the real wait right now, the line ahead included (the server works it out); before it answers, the usual times
+  const readyText = (min: number | null | undefined, usual: number, ahead: number) => {
+    const m = min ?? usual
+    const t = m >= 90 ? `about ${Math.round(m / 30) / 2} hours` : `about ${m} minutes`
+    return `Ready in ${t}${ahead > 0 ? ` · ${ahead} ${ahead === 1 ? 'video' : 'videos'} ahead of yours` : ''}`
+  }
+  const long = (s.length || 30) >= 45
   const opts = [
-    { id: 'save' as const, label: 'Save usage', tag: 'Recommended', ready: fast ? 'Ready in about 25 minutes' : 'Ready a few minutes later',
+    { id: 'save' as const, label: 'Save usage', tag: 'Recommended', ready: fast ? readyText(use?.readySave, long ? 33 : 25, use?.aheadSave || 0) : 'Ready a few minutes later',
       pct: use ? use.lo : null, note: less >= 10 ? `Uses about ${less}% less` : '', good: true },
-    { id: 'now' as const, label: 'Make it now', tag: '', ready: fast ? 'Ready in about 15 minutes' : 'Ready soonest',
+    { id: 'now' as const, label: 'Make it now', tag: '', ready: fast ? readyText(use?.readyNow, long ? 21 : 15, use?.aheadNow || 0) : 'Ready soonest',
       pct: use ? use.now : null, note: times >= 1.3 ? `Spends your AI usage ${times}x faster` : '', good: false },
   ]
   return (
@@ -380,7 +390,7 @@ export function FastPlanCard({ id, s, up, flush }: {
             <Loader2 className="mx-auto h-6 w-6 animate-spin text-gray-400" />
             <p className="mt-3 text-sm font-black text-[#111827] dark:text-white">The AI editor is looking at every photo</p>
             {slow ? (
-              <p className="mx-auto mt-1 max-w-md text-xs font-semibold text-gray-500" data-testid="fast-plan-slow">You picked <b>Save usage</b>, so it is looking the slower way for about half the AI - usually 3 to 6 minutes, {slow.cap} at most. Wait here to check the order, or go on and make it: the video will use the AI editor's order.</p>
+              <p className="mx-auto mt-1 max-w-md text-xs font-semibold text-gray-500" data-testid="fast-plan-slow">You picked <b>Save usage</b>, so this takes a few minutes (usually 3 to 6) and uses about half as much of your AI. Wait here to check the order, or go on and make it - the video will use the AI editor's order.</p>
             ) : (
               <p className="mt-1 text-xs font-semibold text-gray-500">It picks the order and finds what each photo is showing off. About a minute, once{usePct != null ? ` - about ${usePct < 1 ? 'less than 1' : Math.round(usePct)}% of your monthly AI` : ''}.</p>
             )}
