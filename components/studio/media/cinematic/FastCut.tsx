@@ -93,8 +93,6 @@ export function FastExample({ format }: { format?: string }) {
 
 const pctText = (v: number) => (v < 0.1 ? 'less than 0.1%' : `${v < 10 ? Math.max(0.1, Math.round(v * 10) / 10) : Math.round(v)}%`)
 
-const about = (v: number) => (v < 0.1 ? 'Less than 0.1%' : `About ${pctText(v)}`)
-
 export function SpeedPicker({ s, up, fast }: { s: MotionSettings; up: (fn: (d: MotionSettings) => MotionSettings) => void; fast: boolean }) {
   const speed = s.speed === 'now' ? 'now' : 'save'
   const n = Math.max(1, s.photos.filter(p => !p.hidden).length)
@@ -110,34 +108,57 @@ export function SpeedPicker({ s, up, fast }: { s: MotionSettings; up: (fn: (d: M
     return () => { alive = false }
   }, [n, seconds, fast])
   const same = !!use && use.now - use.lo < 0.05
-  // how much less Save usage uses, rounded to 5 (e.g. "about 50% less")
+  // how much less Save usage uses (rounded to 5: "about 50% less") and how much faster Make it now spends it ("2x")
   const less = use && !same && use.now > 0 ? Math.round(((use.now - use.lo) / use.now) * 20) * 5 : 0
+  const times = use && !same && use.lo > 0 ? Math.round((use.now / use.lo) * 2) / 2 : 0
   const opts = [
-    { id: 'save' as const, label: 'Save usage', tag: 'Recommended',
-      blurb: fast ? 'Ready in about 25 minutes. The AI and the video maker wait in the cheaper line.' : 'The video maker takes the slower, cheaper line. Usually a few minutes longer.',
-      use: use ? `${about(use.lo)} of your monthly AI` : '', save: less >= 10 ? `Uses about ${less}% less` : '' },
-    { id: 'now' as const, label: 'Make it now', tag: '',
-      blurb: fast ? 'Ready in about 15 minutes, at the full price.' : 'The fastest way, start to finish.',
-      use: use ? `${about(use.now)} of your monthly AI` : '', save: '' },
+    { id: 'save' as const, label: 'Save usage', tag: 'Recommended', ready: fast ? 'Ready in about 25 minutes' : 'Ready a few minutes later',
+      pct: use ? use.lo : null, note: less >= 10 ? `Uses about ${less}% less` : '', good: true },
+    { id: 'now' as const, label: 'Make it now', tag: '', ready: fast ? 'Ready in about 15 minutes' : 'Ready soonest',
+      pct: use ? use.now : null, note: times >= 1.3 ? `Spends your AI usage ${times}x faster` : '', good: false },
   ]
   return (
     <div className={card} data-testid="speed-picker">
-      <Title title="How soon do you need it?" sub="The exact same video and quality either way. Save usage just takes a little longer, and uses much less of your monthly AI" />
-      <div className="grid grid-cols-2 gap-2.5">
-        {opts.map(o => (
-          <button key={o.id} type="button" onClick={() => up(d => ({ ...d, speed: o.id }))} aria-pressed={speed === o.id} data-testid={`speed-${o.id}`} className={`${pickCls(speed === o.id)} p-3`}>
-            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="text-sm font-black text-[#111827] dark:text-white">{o.label}</span>
-              {o.tag && <span className="rounded-full bg-[#C9A24D]/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] text-[#8b7355] dark:text-[#d7b974]">{o.tag}</span>}
-            </span>
-            <span className="mt-1 block text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400">{o.blurb}</span>
-            {o.use && <span className={`mt-1.5 block text-[10.5px] font-black leading-tight ${gold}`} data-testid={`speed-${o.id}-use`}>{o.use}</span>}
-            {o.save && <span className="mt-1 block text-[10.5px] font-black leading-tight text-emerald-700 dark:text-emerald-400" data-testid="speed-save-less">{o.save}</span>}
-          </button>
-        ))}
+      <Title title="How soon do you need it?" sub="The exact same video and quality either way - Save usage just takes a little longer" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {opts.map(o => {
+          const on = speed === o.id
+          return (
+            <button key={o.id} type="button" onClick={() => up(d => ({ ...d, speed: o.id }))} aria-pressed={on} data-testid={`speed-${o.id}`}
+              className={`relative flex flex-col rounded-2xl border-2 p-4 text-left transition ${on
+                ? 'border-[#C9A24D] bg-[#fbf7ee] shadow-[0_6px_22px_-10px_rgba(201,162,77,0.55)] dark:border-[#d7b974] dark:bg-[#d7b974]/10'
+                : 'border-gray-200 bg-white hover:border-gray-300 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-white/25'}`}>
+              <span className="flex items-center gap-2.5">
+                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${on ? 'border-[#C9A24D] bg-[#C9A24D] dark:border-[#d7b974] dark:bg-[#d7b974]' : 'border-gray-300 dark:border-white/25'}`}>
+                  {on && <svg viewBox="0 0 12 12" className="h-3 w-3 text-white dark:text-[#151517]" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 6.2l2.3 2.3 4.7-4.9" /></svg>}
+                </span>
+                <span className="text-[15px] font-black text-[#111827] dark:text-white">{o.label}</span>
+                {o.tag && <span className="ml-auto rounded-full bg-[#C9A24D] px-2.5 py-1 text-[9.5px] font-black uppercase tracking-[0.1em] text-white dark:bg-[#d7b974] dark:text-[#151517]">{o.tag}</span>}
+              </span>
+              <span className="mt-3 flex items-baseline gap-1.5" data-testid={`speed-${o.id}-use`}>
+                {o.pct == null
+                  ? <span className="h-7 w-16 animate-pulse rounded-md bg-gray-100 dark:bg-white/10" />
+                  : <><span className={`text-[28px] font-black leading-none tracking-tight ${gold}`}>{o.pct < 0.1 ? '<0.1%' : pctText(o.pct)}</span>
+                    <span className="text-[11.5px] font-bold text-gray-500 dark:text-gray-400">of your monthly AI</span></>}
+              </span>
+              {o.note && (
+                <span data-testid={o.good ? 'speed-save-less' : 'speed-now-faster'}
+                  className={`mt-2.5 inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black ${o.good
+                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300'
+                    : 'bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300'}`}>
+                  {o.good ? '↓' : '↑'} {o.note}
+                </span>
+              )}
+              <span className="mt-2.5 flex items-center gap-1.5 text-[12px] font-semibold text-gray-500 dark:text-gray-400">
+                <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="8" cy="8" r="6.2" /><path d="M8 4.6V8l2.3 1.5" /></svg>
+                {o.ready}
+              </span>
+            </button>
+          )
+        })}
       </div>
-      <p className="mt-3 text-[11px] font-semibold text-gray-400">
-        {same ? 'Right now both use the same amount for this video. ' : ''}{fast ? 'That covers everything this video uses: the AI editor, getting the photos ready, the twilight ending and making it. If a cheaper line is busy, Save usage does that part the normal way - never more than Make it now.' : 'That is for making the video.'}
+      <p className="mt-3 text-[11.5px] font-semibold leading-snug text-gray-400">
+        {same ? 'Right now both use the same amount for this video. ' : ''}{fast ? 'This counts everything that goes into the video, start to finish. Save usage never uses more than Make it now.' : 'That is for making the video.'}
       </p>
     </div>
   )
