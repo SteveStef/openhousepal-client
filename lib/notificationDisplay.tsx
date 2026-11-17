@@ -1,7 +1,7 @@
 import { SlidersHorizontal, MousePointerClick,
   Calendar, CalendarClock, Eye, Home, FileText, FileCheck, Inbox, CheckCircle2, XCircle, MessageSquareText,
   MessageCircle, Megaphone, UserCheck, Mail, TrendingUp, ThumbsUp, ThumbsDown, Send, UserPlus, HelpCircle, Film,
-  MailOpen, MailX, Star, Newspaper, Bell, CreditCard, ClipboardList, AlertTriangle, Sparkles, Ticket,
+  MailOpen, MailX, Star, Newspaper, Bell, CreditCard, ClipboardList, AlertTriangle, Sparkles, Ticket, Calculator,
 } from 'lucide-react'
 
 // Shared per-type display metadata for Notification.type - used by both the bell dropdown
@@ -67,6 +67,9 @@ export const NOTIFICATION_META: Record<string, { icon: React.ComponentType<{ cla
   // The AI blog writer finished (or couldn't finish) an article in the background - blog_routes._run_blog_ai_job.
   BLOG_AI_READY: { icon: Newspaper, label: 'Article Ready', className: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800' },
   BLOG_AI_FAILED: { icon: XCircle, label: 'Article Not Finished', className: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/30' },
+  // A CMA's AI analysis made in Save usage mode finished (or couldn't finish) - cma_save_usage.tell_agent (11/17).
+  CMA_AI_READY: { icon: Calculator, label: 'CMA Ready', className: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800' },
+  CMA_AI_FAILED: { icon: XCircle, label: 'CMA Not Finished', className: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/30' },
   // A client opened / clicked one of your emails (one row per person per day - client_email_service).
   EMAIL_ACTIVITY: { icon: MailOpen, label: 'Email Opened', className: 'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30' },
   // A lead without an agent opened / clicked the same email again - worth a check-in (lead_interest_service, 11/13).
@@ -90,6 +93,8 @@ export const NOTIFICATION_META: Record<string, { icon: React.ComponentType<{ cla
 // out like every other notification type (see NotificationBell.tsx / app/activity/page.tsx /
 // app/studio/media/page.tsx for the three "seen" triggers that mark these read).
 export const AUTO_HIDE_WHEN_READ_TYPES = new Set(['STUDIO_MEDIA_VIDEO_READY', 'STUDIO_MEDIA_VIDEO_FAILED', 'BLOG_AI_READY', 'BLOG_AI_FAILED'])
+// CMA_AI_READY / CMA_AI_FAILED are deliberately NOT here (11/17): opening the bell marks these types read and the
+// bell then hides read ones at once, so a notice in this set disappears the moment the bell is opened.
 
 export function visibleNotifications<T extends { type: string; isRead: boolean }>(list: T[]): T[] {
   return list.filter(n => !(AUTO_HIDE_WHEN_READ_TYPES.has(n.type) && n.isRead))

@@ -1,4 +1,4 @@
-import type { MarketingMoments, SiteSeo, ShowingStatus, ShowcaseInbox, EmailPerson, ClientEmailRow, BrandUsage, ShowcaseInviteStatus, AdminGradingItem, ContactLogEntry } from '@/types'
+import type { CmaAiEstimate, MarketingMoments, SiteSeo, ShowingStatus, ShowcaseInbox, EmailPerson, ClientEmailRow, BrandUsage, ShowcaseInviteStatus, AdminGradingItem, ContactLogEntry } from '@/types'
 import type { DomainContact, DomainSearch, DomainShop, OneClick, PurchasedDomain } from '@/lib/domainShop'
 import type { HomeSend } from '@/lib/sendHome'
 
@@ -2481,8 +2481,8 @@ class ApiService {
     share: (id: string) => this.request<CmaShareResponse>(`/api/cma/${id}/share`, { method: 'POST' }),
 
     /** What one AI analysis usually uses of the monthly AI allowance (shown by the button). */
-    aiEstimate: () => this.request<{ usd: number; percent: number | null; max_percent: number | null }>('/api/cma/ai-estimate'),
-    generateAiAnalysis: (id: string, payload: { max_photos_per_property?: number, include_map_images?: boolean, force_regenerate?: boolean, background?: boolean } = {}) =>
+    aiEstimate: () => this.request<CmaAiEstimate>('/api/cma/ai-estimate'),
+    generateAiAnalysis: (id: string, payload: { max_photos_per_property?: number, include_map_images?: boolean, force_regenerate?: boolean, background?: boolean, save_usage?: boolean } = {}) =>
       this.request<CmaReport>(`/api/cma/${id}/generate-ai-analysis`, { method: 'POST', body: JSON.stringify(payload) }),
 
     // Re-runs the deterministic evidence/confidence/value-drivers pipeline plus one lightweight

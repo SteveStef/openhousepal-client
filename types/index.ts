@@ -3704,6 +3704,8 @@ export interface CmaReport {
   // app/studio/cma/[id]/page.tsx's resumed-generation effect.
   generation_status?: 'generating' | 'complete' | 'failed' | null;
   generation_started_at?: string | null;
+  /** How the AI run was asked for (11/17): "save_usage" = the slower, half-price line; "now" = made right away. */
+  generation_mode?: 'save_usage' | 'now' | null;
   /** Why the last AI run did not finish (a usage limit, an error). */
   generation_error?: string | null;
   created_at: string;
@@ -3727,6 +3729,8 @@ export interface CmaReportListItem {
   qa_blocking_count?: number;
   generation_status?: 'generating' | 'complete' | 'failed' | null;
   generation_started_at?: string | null;
+  /** How the AI run was asked for (11/17): "save_usage" = the slower, half-price line; "now" = made right away. */
+  generation_mode?: 'save_usage' | 'now' | null;
   generation_error?: string | null;
   updated_at?: string | null;
   created_at: string;
@@ -4738,4 +4742,16 @@ export interface ContactLogEntry {
   via: 'text' | 'email' | 'call' | null
   /** What it was: "Showcase pitch", "Open house sign-in follow-up"... null = a plain text / email. */
   what: string | null
+}
+
+/** GET /cma/ai-estimate - what one "Create AI Analysis" uses, as a share of the agent's monthly AI (11/17: both ways). */
+export interface CmaAiEstimate {
+  usd: number;
+  percent: number | null;
+  max_percent: number | null;
+  now?: { usd: number; percent: number | null; minutes: number } | null;
+  save_usage?: {
+    usd: number; percent: number | null; usd_max: number; percent_max: number | null;
+    typical_minutes: number; likely_at: string; cap_minutes: number; max_minutes: number; latest_at: string;
+  } | null;
 }

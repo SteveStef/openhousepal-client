@@ -12,8 +12,9 @@ import { smartBackClick } from '@/lib/navHistory'
 import {
   AlertTriangle, ArrowLeft, ArrowUpDown, Bath, Bed, Building2, Calculator, Calendar, Car, Check, ChevronLeft, Clock,
   ChevronRight, ChevronsLeft, ChevronsRight, DollarSign, Download, Droplets, ExternalLink, GraduationCap, GripVertical, Home, LandPlot, Layers,
-  Image as ImageIcon, Loader2, Lock, MapPin, Moon, Plus, RefreshCw, Ruler, Scale, Search, Share2, ShieldAlert, Sparkles, Sun, Trash2, Waves, X,
+  Image as ImageIcon, Leaf, Loader2, Lock, MapPin, Moon, Plus, RefreshCw, Ruler, Scale, Search, Share2, ShieldAlert, Sparkles, Sun, Trash2, Waves, X, Zap,
 } from 'lucide-react'
+import { readyClock, usageRange } from '@/lib/blogOvernight'
 import { usePdfFile } from '@/lib/pdfFile'
 import SubjectAddressSearch from '@/components/cma/SubjectAddressSearch'
 import CurrentCompetition from '@/components/cma/CurrentCompetition'
@@ -3502,7 +3503,22 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
   // the page can never turn a finished report into "Network error". If even the start request is
   // lost, the report itself says whether it's running.
   const [genError, setGenError] = useState<string | null>(null)
-  const [aiEstimate, setAiEstimate] = useState<{ usd: number; percent: number | null; max_percent: number | null } | null>(null)
+  const [aiEstimate, setAiEstimate] = useState<CmaAiEstimate | null>(null)
+  // Save usage (the default, like articles and Fast Cut) or Make it now - owner, 11/17. The choice only shows once
+  // the server has sent both figures; without them the run is made now, as before.
+  const [when, setWhen] = useState<'save_usage' | 'now'>('save_usage')
+  const saveChoice = when === 'save_usage' && !!aiEstimate?.save_usage
+  // A run in the slower line: no progress bar (it would sit at 90% for most of 20 minutes) - a calm card instead.
+  const [saveRun, setSaveRun] = useState(false)
+  // the server's start time from the answer to the button (the report on screen only catches up when the run ends)
+  const [saveStartedAt, setSaveStartedAt] = useState<string | null>(null)
+  const inSaveRun = generating && (saveRun || report.generation_mode === 'save_usage')
+  const saveReadyAt = (() => {
+    const startIso = (report.generation_status === 'generating' && report.generation_started_at) || saveStartedAt
+    const start = startIso ? new Date(startIso).getTime() : NaN
+    const mins = aiEstimate?.save_usage?.typical_minutes ?? 15
+    return Number.isFinite(start) ? new Date(start + mins * 60_000).toISOString() : (aiEstimate?.save_usage?.likely_at ?? null)
+  })()
   useEffect(() => { api.cma.aiEstimate().then(r => { if (r.success && r.data) setAiEstimate(r.data) }) }, [])
   // One check at a time, each given up after 15 s, and an extra check the moment the tab is back in
   // front (user, 10/25: came back to a finished report still "running" at 17 min until a refresh -
@@ -3555,14 +3571,20 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
     setGenerating(true)
     setGenError(null)
     setJustGenerated(false)
-    startProgressSimulation(Date.now())
-    const response = await api.cma.generateAiAnalysis(report.id, { force_regenerate: false, include_map_images: true, background: true })
-    if (!response.success && (response.status === 429 || response.status === 403 || response.status === 404)) {
+    const slow = saveChoice
+    setSaveRun(slow)
+    if (!slow) startProgressSimulation(Date.now())
+    const response = await api.cma.generateAiAnalysis(report.id, { force_regenerate: false, include_map_images: true, background: true, ...(slow ? { save_usage: true } : {}) })
+    // 409 = this agent already has an AI run going (the server says which); 400 = something about this report.
+    if (!response.success && (response.status === 429 || response.status === 403 || response.status === 404 || response.status === 409 || response.status === 400)) {
       stopProgressSimulation()
+      setGenerating(false)
+      setSaveRun(false)
       setGenError(response.error || 'Could not start the AI analysis.')
       showToast(response.error || 'Could not start the AI analysis.', 'error')
       return
     }
+    if (slow) setSaveStartedAt(response.data?.generation_started_at || new Date().toISOString())
     // Started (or the answer got lost on the way back) - either way, follow the report itself.
     pollUntilDone()
   }
@@ -3577,7 +3599,8 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
     if (report.generation_status !== 'generating' || generating) return
     setGenerating(true)
     const startedAtMs = report.generation_started_at ? new Date(report.generation_started_at).getTime() : Date.now()
-    startProgressSimulation(startedAtMs)
+    if (report.generation_mode === 'save_usage') setSaveRun(true)
+    else startProgressSimulation(startedAtMs)
     pollUntilDone()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [report.id, report.generation_status])
@@ -3792,15 +3815,53 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
                 className={`cma-btn cma-btn-gold ${generating ? 'cma-btn-working' : ''} inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A24D] to-[#e0b85f] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#C9A24D]/40 transition hover:shadow-xl hover:shadow-[#C9A24D]/50 disabled:cursor-progress sm:py-3.5 sm:text-[15px]`}
               >
                 {generating ? <Sparkles className="h-4 w-4 animate-[spin_2.4s_linear_infinite]" /> : <Sparkles className="h-4 w-4" />}
-                {generating ? 'Analyzing…' : genError ? 'Try again' : 'Create AI Analysis'}
+                {inSaveRun ? 'Being made…' : generating ? 'Analyzing…' : genError ? 'Try again' : 'Create AI Analysis'}
               </button>
-              {!generating && aiEstimate?.percent != null && (
+              {!generating && aiEstimate?.percent != null && !aiEstimate.save_usage && (
                 <span className="text-center text-[10.5px] font-bold text-[#8b7355] dark:text-[#d7b974]">
                   Uses about {aiEstimate.percent < 1 ? '<1' : Math.round(aiEstimate.percent)}% of your monthly AI{aiEstimate.max_percent != null && aiEstimate.max_percent > (aiEstimate.percent || 0) + 0.5 ? ` (never over ${Math.round(aiEstimate.max_percent)}%)` : ''}
                 </span>
               )}
             </div>
           </div>
+          {/* How soon (owner, 11/17): Save usage (the default) or Make it now - the same report either way. Same
+              look and wording as the article writer's choice (BlogAiWriter), figures from GET /cma/ai-estimate. */}
+          {!generating && aiEstimate?.save_usage && (
+            <div data-cma-speed className="relative mt-3">
+              <p className="mb-2 text-xs font-black text-[#111827] dark:text-white">How soon do you need it?</p>
+              <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="How soon do you need it?">
+                {([
+                  { id: 'save_usage' as const, Icon: Leaf, title: 'Save usage',
+                    line: `Same report, made slower so it costs less. Likely ready by ${readyClock(aiEstimate.save_usage.likely_at)}${aiEstimate.save_usage.max_minutes ? `, ${aiEstimate.save_usage.max_minutes} minutes at most` : ''} - we'll alert you`,
+                    use: usageRange(aiEstimate.save_usage.percent, aiEstimate.save_usage.percent_max) },
+                  { id: 'now' as const, Icon: Zap, title: 'Make it now',
+                    line: `Ready in about ${aiEstimate.now?.minutes ?? 3} minutes`,
+                    use: usageRange(aiEstimate.now?.percent ?? aiEstimate.percent) },
+                ]).map(o => {
+                  const on = when === o.id
+                  return (
+                    <button key={o.id} type="button" role="radio" aria-checked={on} onClick={() => setWhen(o.id)}
+                      className={`flex min-h-[84px] items-start gap-2.5 rounded-2xl border bg-white/70 p-3 text-left transition-[border-color,background-color,transform] duration-200 active:scale-[0.99] dark:bg-black/20 ${on ? 'border-[#C9A24D] !bg-[#C9A24D]/10 shadow-sm' : 'border-gray-200 hover:border-[#C9A24D]/60 dark:border-gray-800'}`}>
+                      <span className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl ${on ? 'bg-[#C9A24D] text-[#111827]' : 'bg-gray-100 text-gray-500 dark:bg-white/[0.06] dark:text-gray-300'}`}><o.Icon className="h-4 w-4" /></span>
+                      <span className="min-w-0">
+                        <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] font-black text-[#111827] dark:text-white">
+                          {o.title}
+                          {o.id === 'save_usage' && <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">Usually half the AI</span>}
+                        </span>
+                        <span className="mt-0.5 block text-[11px] font-semibold text-gray-500 dark:text-gray-400">{o.line}</span>
+                        {o.use && <span className="mt-0.5 block text-[11px] font-black text-[#8b7355] dark:text-[#e8c97a]">About {o.use} of your monthly AI</span>}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="mt-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                {when === 'save_usage'
+                  ? `Save usage is the same report - same photo reading, same ratings, same value and write-up. It is made in a slower line, which is why it usually uses about half the AI (the lower figure).${aiEstimate.save_usage.cap_minutes ? ` If that line is busy, we finish it the fast way after ${aiEstimate.save_usage.cap_minutes} minutes, and the steps finished that way use the normal amount - the higher figure is the most it can use.` : ''} You pay for what it really used. Your bell and an email tell you when it is ready.`
+                  : 'Not in a hurry? Save usage makes the very same report and usually uses about half the AI.'}
+              </p>
+            </div>
+          )}
           {/* The last chance to change the comps: they lock once the AI writes the report (owner, 11/16). */}
           {!generating && !cmaCompsLocked(report) && (
             <p data-cma-lock-warning className="relative mt-3 flex items-start gap-2 rounded-xl border border-[#C9A24D]/35 bg-white/70 px-3 py-2 text-xs font-bold leading-snug text-[#111827] dark:bg-black/25 dark:text-white">
@@ -3813,7 +3874,19 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {genError}
             </p>
           )}
-          {generating && <AiGenerationProgress pct={progressPct} label={progressLabel} stage={progressStage} elapsedSec={progressElapsedSec} />}
+          {generating && !inSaveRun && <AiGenerationProgress pct={progressPct} label={progressLabel} stage={progressStage} elapsedSec={progressElapsedSec} />}
+          {inSaveRun && (
+            <div data-cma-save-run className="relative mt-3 flex items-start gap-3 rounded-2xl border border-emerald-300/60 bg-emerald-50/80 p-3.5 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+              <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white"><Leaf className="h-4 w-4" /></span>
+              <div className="min-w-0 text-[13px] font-semibold leading-snug text-gray-700 dark:text-gray-200">
+                <p className="font-black text-[#111827] dark:text-white">
+                  Being made in Save usage mode{saveReadyAt ? <> - likely ready by <span className="text-emerald-700 dark:text-emerald-300">{readyClock(saveReadyAt)}</span></> : ''}
+                </p>
+                <p className="mt-1">You can leave this page. We'll send you a bell alert and an email when it's ready.{aiEstimate?.save_usage?.max_minutes ? ` If the slower line is busy, it is finished the fast way - ${aiEstimate.save_usage.max_minutes} minutes at most.` : ''}</p>
+                <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">The comps and ratings are locked while it is being made.</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

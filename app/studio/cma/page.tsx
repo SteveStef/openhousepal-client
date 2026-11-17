@@ -18,6 +18,7 @@ import StudioPageHeader from '@/components/studio/StudioPageHeader'
 import { LuxeTabs } from '@/components/ui/LuxeHero'
 import { AlertTriangle, CheckCircle2, LayoutGrid, PenLine, Sparkles } from 'lucide-react'
 import { estimatedProgress, estimatedTimeLeft } from '@/lib/cmaProgress'
+import { readyClock } from '@/lib/blogOvernight'
 import { isTouchPhone, saveFile } from '@/lib/mobileShare'
 import { tidyAllCaps } from '@/lib/cheatSheetContent'
 
@@ -89,6 +90,14 @@ function CmaDashboardInner() {
   // its server start time (user, 10/21: two CMAs at once, watched from this list). Both stop as
   // soon as nothing is generating.
   const anyGenerating = reports.some(r => r.generation_status === 'generating')
+  // A report in a Save usage run (11/17) reads as being made, with its likely ready time - never as stuck. The ready
+  // time = its start + the typical Save usage time measured from real runs (the estimate; 15 minutes until it has some).
+  const anySaveRun = reports.some(r => r.generation_status === 'generating' && r.generation_mode === 'save_usage')
+  const [saveMinutes, setSaveMinutes] = useState(15)
+  useEffect(() => {
+    if (!anySaveRun) return
+    api.cma.aiEstimate().then(r => { if (r.success && r.data?.save_usage?.typical_minutes) setSaveMinutes(r.data.save_usage.typical_minutes) })
+  }, [anySaveRun])
   const [nowMs, setNowMs] = useState(() => Date.now())
   useEffect(() => {
     if (!anyGenerating) return
@@ -356,6 +365,8 @@ function CmaDashboardInner() {
             const hasFairValue = report.fair_value != null
             const compactFairValue = formatMoney(report.fair_value, { compact: true })
             const isGenerating = report.generation_status === 'generating'
+            const isSaveRun = isGenerating && report.generation_mode === 'save_usage'
+            const saveReady = isSaveRun && Number.isFinite(startedMs(report)) ? readyClock(new Date(startedMs(report) + saveMinutes * 60_000).toISOString()) : ''
             const genElapsedMs = Number.isFinite(startedMs(report)) ? Math.max(0, nowMs - startedMs(report)) : 0
             const genProgress = isGenerating ? estimatedProgress(genElapsedMs, report.comparable_count) : null
             const genPct = genProgress ? Math.round(genProgress.pct) : 0
@@ -396,6 +407,13 @@ function CmaDashboardInner() {
                       {/* Estimated, paced like the editor's progress bar (lib/cmaProgress). Sits between
                           the status pills and the address so neither is covered, even on a phone card. */}
                       <div className="absolute inset-x-0 bottom-[52px] top-9 flex flex-col items-center justify-center px-4 text-center">
+                        {isSaveRun ? (
+                          <>
+                            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#e8c97a]">Save usage</p>
+                            <p className="mt-1 font-serif text-base font-black leading-tight text-white drop-shadow sm:text-lg">{saveReady ? `Likely ready by ${saveReady}` : 'Being made'}</p>
+                            <p className="mt-1 hidden text-[10px] font-bold text-white/85 sm:block">We'll alert you when it's ready</p>
+                          </>
+                        ) : (<>
                         <p className="flex items-baseline gap-1.5">
                           <span className="hidden text-[9px] font-black uppercase tracking-[0.16em] text-[#e8c97a] sm:inline">AI analysis</span>
                           <span className="font-serif text-2xl font-black tabular-nums leading-none text-white drop-shadow">{genPct}%</span>
@@ -404,6 +422,7 @@ function CmaDashboardInner() {
                           <div className="h-full rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] transition-[width] duration-1000 ease-linear" style={{ width: `${genPct}%` }} />
                         </div>
                         <p className="mt-1 hidden text-[10px] font-bold text-white/85 sm:block">{estimatedTimeLeft(genElapsedMs)}</p>
+                        </>)}
                       </div>
                     </div>
                   )}
@@ -473,7 +492,7 @@ function CmaDashboardInner() {
                       <p className="text-[8px] font-black uppercase tracking-wide text-gray-400">Fair Value</p>
                       {isGenerating ? (
                         <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs font-black text-[#8b7355] dark:text-[#d7b974]">
-                          <Loader2 className="h-3 w-3 shrink-0 animate-spin" /> Analyzing… {genPct}%
+                          <Loader2 className="h-3 w-3 shrink-0 animate-spin" /> {isSaveRun ? (saveReady ? `Ready by ${saveReady}` : 'Being made…') : `Analyzing… ${genPct}%`}
                         </p>
                       ) : finishedNow && !hasFairValue ? (
                         <p className="mt-0.5 truncate text-xs font-black text-emerald-600 dark:text-emerald-400">Ready to review</p>
