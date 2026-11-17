@@ -149,7 +149,7 @@ export default function VideoOrder({ s, cols, onMove, onOpenWith }: {
                 {opening && <span className="pointer-events-none absolute left-2 top-9 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-0.5 text-[9.5px] font-black uppercase tracking-wider text-white"><Type className="h-2.5 w-2.5" /> Opening title</span>}
               </div>
               <div className="px-2.5 pb-2.5 pt-2">
-                <p className="truncate text-xs font-black text-[#111827] dark:text-white">{run.label}<span className="font-bold text-gray-400"> · {run.photos.length} photo{run.photos.length === 1 ? '' : 's'}</span></p>
+                <p className="truncate text-xs font-black text-[#111827] dark:text-white">{run.label}{run.photos.length > 1 && <span className="font-bold text-gray-400"> · {run.photos.length} photos</span>}</p>
                 {run.photos.length > 1 && (
                   <div className="mt-1.5 flex gap-1 overflow-x-auto" data-nodrag>
                     {run.photos.map((p, k) => (
