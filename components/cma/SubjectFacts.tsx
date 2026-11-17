@@ -18,8 +18,9 @@ import { CmaLocatedAddress, CmaSubjectArea, CmaSubjectProperty } from '@/types'
 
 type SetSubject = (fn: (s: CmaSubjectProperty) => CmaSubjectProperty) => void
 
-const inputClass = 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white'
-const sectionLabelClass = 'mb-1.5 text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]'
+const inputClass = 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold outline-none transition-[border-color,box-shadow] duration-200 focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/10 dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white'
+const sectionLabelClass = 'mb-2.5 flex items-center gap-2.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] after:h-px after:flex-1 after:bg-[#C9A24D]/25 dark:text-[#d7b974]'
+const groupClass = 'rounded-2xl border border-gray-100 bg-[#fbfaf7] p-3.5 dark:border-gray-800 dark:bg-white/[0.02] sm:p-4'
 
 // ---------------------------------------------------------------------------------------------
 // Option lists - values are what Bright itself writes, so comps and a manual subject compare.
@@ -629,7 +630,7 @@ export function SubjectFactsEditor({ reportId, subject, setSubject, area }: {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-[15rem_1fr]">
-      <div className="space-y-3">
+      <div className="space-y-3 sm:sticky sm:top-4 sm:self-start">
         <SubjectPhoto reportId={reportId} subject={subject} setSubject={setSubject} />
         <div className="rounded-2xl border border-gray-100 bg-[#fbfaf7] p-3 dark:border-gray-800 dark:bg-[#0B0B0B]">
           <p className={sectionLabelClass}>{manual ? 'Listing & Sale History' : 'Market Status'}</p>
@@ -658,14 +659,14 @@ export function SubjectFactsEditor({ reportId, subject, setSubject, area }: {
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="cma-groups-in space-y-4">
         {missing.length > 0 && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
             Still missing: {missing.join(', ')}. The value is only as good as these facts.
           </div>
         )}
 
-        <div>
+        <div className={groupClass}>
           <p className={sectionLabelClass}>Location</p>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             <div className="col-span-2 sm:col-span-4"><Labeled label="Street Address"><input className={inputClass} value={subject.street_address || ''} onChange={e => set({ street_address: e.target.value })} /></Labeled></div>
@@ -688,7 +689,7 @@ export function SubjectFactsEditor({ reportId, subject, setSubject, area }: {
           )}
         </div>
 
-        <div>
+        <div className={groupClass}>
           <p className={sectionLabelClass}>Size & Layout</p>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
             <SelectField label="Property Type" value={subject.property_type || ''} options={PROPERTY_TYPES} onChange={v => set({ property_type: v || null })} />
@@ -724,7 +725,7 @@ export function SubjectFactsEditor({ reportId, subject, setSubject, area }: {
           {subject.sqft ? <p className="mt-1.5 text-[11px] font-semibold text-gray-400">Total finished: {Number(subject.sqft).toLocaleString()} sq ft</p> : null}
         </div>
 
-        <div>
+        <div className={groupClass}>
           <p className={sectionLabelClass}>Systems & Costs</p>
           <div className="grid grid-flow-row-dense grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
             {/* Sewer gets two columns (its values are long - "On Site Septic"); the order + spans
@@ -744,7 +745,7 @@ export function SubjectFactsEditor({ reportId, subject, setSubject, area }: {
           </div>
         </div>
 
-        <div>
+        <div className={groupClass}>
           {/* No condition / recent-updates questions (user, 10/20): the analysis reads condition and
               updates from the description and the photos, so the agent isn't asked to type them. */}
           <p className={sectionLabelClass}>Description</p>

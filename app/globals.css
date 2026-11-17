@@ -1251,6 +1251,40 @@ input:-webkit-autofill:active {
   }
 }
 
+/* CMA Review step - typing on the report itself (components/cma/report/Editable). A spot the agent can type in
+   gets a gold outline on hover / while typing; on touch screens (no hover) a faint dashed one says "tap to edit". */
+.cma-edit-spot { outline: 1.5px solid transparent; outline-offset: 4px; transition: outline-color 0.15s ease, background-color 0.15s ease; }
+.cma-edit-spot:empty::before { content: attr(data-placeholder); opacity: 0.45; pointer-events: none; }
+@media (hover: hover) { .cma-edit-spot:hover { outline-color: rgba(201, 162, 77, 0.6); } }
+@media (hover: none) { .cma-edit-spot { outline: 1px dashed rgba(201, 162, 77, 0.5); outline-offset: 3px; } }
+.cma-edit-spot:focus { outline: 2px solid #C9A24D; background-color: rgba(201, 162, 77, 0.08); }
+
+/* CMA builder cards (11/16): every step's cards share one look - a fine gold line along the top edge, like the
+   report's own header - and rise into place one after another when a step opens. Transform + opacity only. */
+.cma-card { position: relative; }
+.cma-card::before { content: ''; position: absolute; top: 0; left: 1.25rem; right: 1.25rem; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, rgba(201, 162, 77, 0.8), transparent); pointer-events: none; }
+@keyframes cma-card-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.cma-card-in { animation: cma-card-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.cma-card-in:nth-child(2) { animation-delay: 70ms; }
+.cma-card-in:nth-child(3) { animation-delay: 140ms; }
+.cma-card-in:nth-child(4) { animation-delay: 210ms; }
+.cma-card-in:nth-child(n + 5) { animation-delay: 280ms; }
+/* the groups of a form (Subject step) follow one another in */
+.cma-groups-in > * { animation: cma-card-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.cma-groups-in > *:nth-child(2) { animation-delay: 60ms; }
+.cma-groups-in > *:nth-child(3) { animation-delay: 120ms; }
+.cma-groups-in > *:nth-child(4) { animation-delay: 180ms; }
+.cma-groups-in > *:nth-child(n + 5) { animation-delay: 240ms; }
+@media (prefers-reduced-motion: reduce) { .cma-card-in, .cma-groups-in > * { animation: none; } }
+
+/* CMA report: a home's details window. Rises from the bottom edge on a phone (a sheet), eases up and in on a
+   computer. Transform + opacity only. */
+@keyframes cma-pop-in { from { opacity: 0; transform: translateY(18px) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes cma-sheet-in { from { transform: translateY(100%); } to { transform: none; } }
+.cma-pop-in { animation: cma-pop-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@media (max-width: 639px) { .cma-pop-in { animation: cma-sheet-in 0.3s cubic-bezier(0.2, 0.9, 0.25, 1) both; } }
+@media (prefers-reduced-motion: reduce) { .cma-pop-in { animation: none; } }
+
 /* Hover-to-cycle photo progress bar (useHoverPhotoCycle) - a thin fill across the top of the
    photo that runs out just as the next photo swaps in. scaleX (GPU-composited) rather than width;
    duration is set inline per slot, and the element is keyed on index+duration so it restarts on
@@ -1302,7 +1336,7 @@ input:-webkit-autofill:active {
   .cma-touch select,
   .cma-touch textarea { font-size: 16px !important; }
   .cma-touch,
-  .cma-touch :is(button, a, label, input, select, textarea, img, [role='button'], .overflow-auto, .overflow-y-auto, .overflow-x-auto) { touch-action: manipulation; }
+  .cma-touch :is(button, a, label, input, select, textarea, img, [role='button'], .overflow-auto, .overflow-y-auto, .overflow-x-auto):not(.touch-none, .touch-pan-x, .touch-pan-y) { touch-action: manipulation; }
 }
 .cma-touch button, .cma-touch a { -webkit-tap-highlight-color: transparent; }
 
@@ -2045,9 +2079,13 @@ div[role="button"]:active {
 .ohp-reveal > *:nth-child(24) { animation-delay: 900ms; }
 @media (prefers-reduced-motion: reduce) { .ohp-reveal > * { animation: none; } }
 
-/* Site-wide (10/24): a quick double tap on a button or link never zooms the page on a phone. */
+/* Site-wide (10/24): a quick double tap on a button or link never zooms the page on a phone.
+   Not on an element that sets its own touch behaviour (11/16): this rule came later in the file than the
+   touch-none / touch-pan-* classes and beat them, so every drag handle that is a button - the blog editor's
+   "Drag to move", the arrange lists - lost its "don't scroll while I drag" on phones: a finger drag scrolled
+   the page and the drag was cancelled. */
 @media (pointer: coarse) {
-  :is(button, a, label, input, select, textarea, [role='button']) { touch-action: manipulation; }
+  :is(button, a, label, input, select, textarea, [role='button']):not(.touch-none, .touch-pan-x, .touch-pan-y) { touch-action: manipulation; }
 }
 /* iPhone zooms the whole page into any typing box under 16px (owner, 11/05: "we can never have this").
    The viewport in app/layout.tsx asks it not to, but that only works when the browser reads it the

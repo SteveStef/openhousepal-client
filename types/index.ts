@@ -2907,6 +2907,14 @@ export interface CmaSimilarityDensityContext {
   subject_snapshot_sha256?: string;
 }
 
+export interface CmaMatchPriceLevel {
+  points_off?: number | null;
+  match_before?: number | null;
+  held_under_district?: boolean;
+  comp_price_per_sqft?: number | null;
+  asking_price_per_sqft?: number | null;
+}
+
 export interface CmaSimilarityDetails {
   version?: string;
   display_calibration_version?: string;
@@ -2935,6 +2943,11 @@ export interface CmaSimilarityDetails {
   valuation_eligible?: boolean;
   // A sale outside the automatic price band: shown with the reason, never auto-picked (10/24).
   outside_price_band?: { pct_vs_asking?: number | null; note?: string } | null;
+  // Only on a result whose Match % was changed by price level (a subject WITH an asking price, 11/17): the points
+  // already taken off match_score, the score before, and the two $/sq ft figures. `held_under_district` = a sale
+  // from another school district kept just under the in-district sales it used to trail.
+  price_level?: CmaMatchPriceLevel | null;
+  match_before_price_level?: number | null;
   proposed_role?: 'strong' | 'supporting' | 'weak' | string;
 }
 
@@ -2943,6 +2956,9 @@ export interface CmaSubjectProperty {
   source: CmaCompSource;
   photo_url?: string | null;
   photos?: string[];
+  /** Which room each photo shows, one entry per photo in `photos` (same order): a room name, or null for a photo
+   *  that was not labelled. Written by the AI run (11/16); missing on older reports and before the run. */
+  photo_rooms?: (string | null)[] | null;
   street_address?: string | null;
   city?: string | null;
   state?: string | null;
@@ -3023,6 +3039,11 @@ export interface CmaLocatedAddress {
 export interface CmaQualityAssessment {
   finish_quality?: CmaSimpleRating | null;
   interior?: CmaSimpleRating | null;
+  // The comp's kitchen / bathrooms against the subject's, from the photos (11/16). DESCRIPTIVE ONLY: never part
+  // of the value, the adjustment table or a weight. Always optional - blank when the photos of either home don't
+  // show the room, and absent on older reports; a blank row is left off the client report and the PDF.
+  kitchen?: CmaSimpleRating | null;
+  bathrooms?: CmaSimpleRating | null;
   exterior?: CmaSimpleRating | null;
   lot?: CmaSimpleRating | null;
   amenities?: CmaSimpleRating | null;
@@ -3047,6 +3068,9 @@ export interface CmaComparable {
 
   photo_url?: string | null;
   photos?: string[];
+  /** Which room each photo shows, one entry per photo in `photos` (same order): a room name, or null for a photo
+   *  that was not labelled. Written by the AI run (11/16); missing on older reports and before the run. */
+  photo_rooms?: (string | null)[] | null;
   street_address?: string | null;
   city?: string | null;
   state?: string | null;
@@ -3084,6 +3108,9 @@ export interface CmaComparable {
   basement?: string | null;
   price_per_sqft?: number | null;
   annual_taxes?: number | null;
+  /** HOA + condo fee per month, from the MLS record (written on the AI run). 0 = looked up, none on record;
+   *  null / missing = a report made before 11/16, never looked up. Nothing in the value reads it. */
+  monthly_fee?: number | null;
   school_district?: string | null;
   water_source?: string[] | string | null;
   sewer?: string[] | string | null;
@@ -3099,6 +3126,9 @@ export interface CmaComparable {
   road_context_note?: string | null;
 
   quality: CmaQualityAssessment;
+  // What the AI itself rated each dimension before the record checks (which may clear one they can't
+  // confirm). Agent-only: shown on a blank rating row as "AI's read"; never sent to a client page.
+  ai_quality_read?: Partial<Record<keyof CmaQualityAssessment, string>> | null;
   strength?: CmaCompStrength | null;
   ai_strength?: CmaCompStrength | null;
   valuation_weight?: number | null;
@@ -3631,6 +3661,27 @@ export interface CmaPresentationSettings {
   // for test accounts (@example.com), off for everyone else. To be removed at launch.
   review_sheet?: boolean | null;
   review_notes?: string | null;
+  // ---- Edit-on-the-report (Review step). Read ONLY through lib/cmaReport.ts, which the client page, the
+  // Review editor and the PDF all share - so an edit can never show in one and not the others.
+  /** Section keys in the order shown (an agent's own note is "note:<id>"). Unset = the standard order. */
+  section_order?: string[] | null;
+  /** Sections the agent added by hand, placed by section_order. */
+  notes?: CmaPresentationNote[];
+  /** The agent's wording by text key. Absent = the report's own text; '' = cleared by the agent. */
+  text?: Record<string, string>;
+  /** The agent's numbers by figure key. Absent = the report's own number. */
+  figures?: Record<string, number | null>;
+  /** Which photo leads for a home: "subject" or a comp id -> photo url. */
+  photo_picks?: Record<string, string>;
+  /** Comp ids in the order the report's wording numbers them, from before the agent first changed the comps. */
+  comp_numbering?: string[] | null;
+  comp_numbering_at?: string | null;
+}
+
+export interface CmaPresentationNote {
+  id: string;
+  title?: string | null;
+  body?: string | null;
 }
 
 export interface CmaReport {

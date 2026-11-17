@@ -12,7 +12,7 @@ import { smartBackClick } from '@/lib/navHistory'
 import {
   AlertTriangle, ArrowLeft, ArrowUpDown, Bath, Bed, Building2, Calculator, Calendar, Car, Check, ChevronLeft, Clock,
   ChevronRight, ChevronsLeft, ChevronsRight, DollarSign, Download, Droplets, ExternalLink, GraduationCap, GripVertical, Home, LandPlot, Layers,
-  Image as ImageIcon, Loader2, MapPin, Moon, Plus, RefreshCw, Ruler, Scale, Search, Share2, ShieldAlert, Sparkles, Sun, Trash2, Waves, X,
+  Image as ImageIcon, Loader2, Lock, MapPin, Moon, Plus, RefreshCw, Ruler, Scale, Search, Share2, ShieldAlert, Sparkles, Sun, Trash2, Waves, X,
 } from 'lucide-react'
 import { usePdfFile } from '@/lib/pdfFile'
 import SubjectAddressSearch from '@/components/cma/SubjectAddressSearch'
@@ -26,7 +26,7 @@ import api from '@/lib/api-service'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
 import {
-  CmaAiEstimate, CmaComparable, CmaCompCandidate, CmaCompStatus, CmaCompStrength, CmaMode,
+  CmaAiEstimate, CmaComparable, CmaCompCandidate, CmaCompStatus, CmaCompStrength, CmaMatchPriceLevel, CmaMode,
   CmaLocatedAddress, CmaPricing, CmaQualityAssessment, CmaReport, CmaRoadContext, CmaSubjectArea, CmaSubjectProperty, CmaValuationTrace, MyListingItem, Site, SiteDomain,
 } from '@/types'
 import {
@@ -41,7 +41,6 @@ import { acresToSqft, MatchScoreDetails, sameDistrict, sqftToAcres } from '@/lib
 import { normalizeImageUrl } from '@/lib/utils'
 import { useHoverPhotoCycle } from '@/lib/useHoverPhotoCycle'
 import CompsMapView from '@/components/CompsMapView'
-import CmaHowWeGotThere from '@/components/cma/CmaHowWeGotThere'
 import Pager from '@/components/Pager'
 import MultiSelectDatabaseInput from '@/components/MultiSelectDatabaseInput'
 import WarningConfirmModal from '@/components/WarningConfirmModal'
@@ -51,106 +50,15 @@ import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
 import { ManualAddressPicker, SubjectFactsEditor, applyAreaSuggestions, subjectFromAddress } from '@/components/cma/SubjectFacts'
+import CmaSheet from '@/components/cma/CmaSheet'
+import CmaReportEditor from '@/components/cma/report/CmaReportEditor'
+import PhotoFlip, { PhotoThumbs, usePhotoList } from '@/components/cma/report/PhotoFlip'
+import PhotoMapPane, { CmaMapRefContext } from '@/components/cma/PhotoMapPane'
+import { cmaQaBlocking, cmaQaReview, isStaleArtifactOnly } from '@/lib/cmaQa'
+import { CMA_ROOM_FILTERS, CmaRoomFilter, CmaRoomView, cmaHomeHasRooms, cmaNoRoomPhotoText, cmaRoomPhotos } from '@/lib/cmaPhotoRooms'
+import { CmaFigureKey, cmaAdoptSavedRatings, cmaCompsLocked, cmaDefaultFigure, cmaFigure, cmaFigureEdited, cmaFigurePatch } from '@/lib/cmaReport'
 
 type StepId = 'subject' | 'comps' | 'analysis' | 'pricing' | 'summary'
-
-function cmaQaBlocking(report: CmaReport): string[] {
-  const estimate = report.pricing?.ai_estimate
-  const qa = estimate?.qa_result
-  const blocking = [
-    ...(estimate?.qa_blocking || []),
-    ...(qa?.blocking_errors || []),
-  ].filter(Boolean)
-  if (qa?.export_allowed === false && blocking.length === 0) {
-    blocking.push('Deterministic final QA has not approved this report for export.')
-  }
-  return Array.from(new Set(blocking))
-}
-
-// Matches only the handful of blocking messages that mean "the saved report no longer matches
-// what was last checked" (comps/pricing/scoring edited, or the artifact hash is simply stale) -
-// recompute-valuation reruns the same deterministic pass against the CURRENT data and genuinely
-// clears these. Anything else (e.g. "Comp #3 describes a system as original without supporting
-// property data") is a real factual/reasoning problem the generation pass itself flagged in the
-// comp notes or methodology text - recompute does not rewrite that prose (see handleRecompute's
-// own comment: "no comp notes rewritten"), so it would just spend an AI call re-checking the exact
-// same unchanged text and fail again. Auto-fixing must be limited to the former; the latter needs
-// a real regenerate or a manual edit, so it's surfaced to the agent immediately instead of stalling
-// on a recompute that can never resolve it.
-const STALE_ARTIFACT_PATTERNS = [
-  /changed after (deterministic )?final[- ]artifact qa/i,
-  /changed after final qa/i,
-  /has not passed deterministic final-artifact qa/i,
-  /did not approve this report for export/i,
-  /deterministic final qa has not approved this report for export/i,
-  // The live hash-mismatch message from the backend's own _report_qa_blocking ("The saved
-  // client artifact changed after deterministic final QA.") - "deterministic" sits between
-  // "after" and "final" here, which none of the patterns above match, and this is the single
-  // most common staleness signal (fires on any post-generation save that hasn't re-stamped).
-  /client artifact changed after/i,
-]
-function isStaleArtifactOnly(blockers: string[]): boolean {
-  return blockers.length > 0 && blockers.every(b => STALE_ARTIFACT_PATTERNS.some(re => re.test(b)))
-}
-
-function plainCmaQaIssue(raw: string): string {
-  const text = String(raw || '').replace(/\s+/g, ' ').trim()
-  const lower = text.toLowerCase()
-  if (/offer/.test(lower) && /(stale|older|mismatch|does not match|inconsistent)/.test(lower)) {
-    return 'The offer section is using a value that does not match the final report.'
-  }
-  if (/(system|mechanical|renovation)/.test(lower) && /(missing|unknown|unverified|unsupported|age)/.test(lower)) {
-    return 'A condition statement relies on missing information instead of a confirmed fact.'
-  }
-  if (/(range)/.test(lower) && /(stale|mismatch|does not match|authoritative|final)/.test(lower)) {
-    return 'A displayed valuation range does not match the final approved range.'
-  }
-  if (/(list price|asking price)/.test(lower) && /(stale|mismatch|does not match|incorrect)/.test(lower)) {
-    return 'A report section is using the wrong current list price.'
-  }
-  if (/(fmv|fair market value|final value)/.test(lower) && /(stale|mismatch|does not match|authoritative|incorrect)/.test(lower)) {
-    return 'A report section is using a value that does not match the final valuation.'
-  }
-  if (/(artifact|report)/.test(lower) && /(changed after|fingerprint|final qa|revalidat)/.test(lower)) {
-    return 'The report changed after its final check and needs to be checked again.'
-  }
-  if (/(qa|consistency check)/.test(lower) && /(not approved|has not approved|not run|incomplete)/.test(lower)) {
-    return 'The final consistency check has not approved this report yet.'
-  }
-  if (/(comp|subject|property)/.test(lower) && /(unsupported|unmatching|not found|wrong entity|does not match)/.test(lower)) {
-    return 'A property or comp contains a number that is not supported by its saved record.'
-  }
-  if (/(raw.*id|unresolved|property id|mls id)/.test(lower)) {
-    return 'A comp reference needs to be replaced with its property name.'
-  }
-  const firstSentence = text.replace(/([.!?])\s+/g, '$1\u0000').split('\u0000')[0] || text
-  const cleaned = firstSentence
-    .replace(/^[A-Z0-9_ -]{3,40}:\s*/i, '')
-    .replace(/\b(comp_inferred|model_judgment|signals?|beta|fallback heuristic|audit fmv)\b/gi, 'internal check')
-  return cleaned.length > 170 ? `${cleaned.slice(0, 167).trimEnd()}...` : cleaned
-}
-
-function cmaQaReview(report: CmaReport) {
-  const estimate = report.pricing?.ai_estimate
-  const qa = estimate?.qa_result
-  const blockers = cmaQaBlocking(report)
-  const warnings = [
-    ...(qa?.warnings || []).filter(Boolean),
-    ...(!qa ? ['The final consistency check has not run yet.'] : []),
-  ]
-  const activeRaw = [...blockers, ...warnings]
-  const issues = Array.from(new Set(activeRaw.map(plainCmaQaIssue).filter(Boolean)))
-  return {
-    status: blockers.length > 0 ? 'Blocked' as const : warnings.length > 0 ? 'Warning' as const : 'Passed' as const,
-    issues,
-    blockers,
-    warnings,
-    corrections: (qa?.corrections || []).filter(Boolean),
-    flags: (estimate?.qa_flags || []).filter(Boolean),
-    checks: qa?.checks_run || [],
-    checkedAt: qa?.checked_at,
-  }
-}
 
 function shortReadableSentence(value: string): string {
   const cleaned = value.replace(/[*_`#]/g, '').replace(/\s+/g, ' ').trim()
@@ -373,6 +281,10 @@ function CmaWorkspacePageInner() {
   const [compsMounted, setCompsMounted] = useState(false)
   useEffect(() => { if (step === 'analysis') setAnalysisMounted(true) }, [step])
   useEffect(() => { if (step === 'comps') setCompsMounted(true) }, [step])
+  // The AI is writing the report right now (the Analysis step says so the moment the agent starts it). The
+  // comps are locked from that moment, not only once the finished report comes back - a comp taken off in the
+  // minutes the run takes would leave a write-up about a home that is no longer on the report.
+  const [aiRunning, setAiRunning] = useState(false)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -460,6 +372,7 @@ function CmaWorkspacePageInner() {
 
   return (
     // cma-touch (globals.css): no zoom-in on phones when a box is tapped or the page double-tapped.
+    <CmaMapRefContext.Provider value={report.id}>
     <div className="cma-touch min-h-screen overflow-x-clip bg-[#faf9f7] pb-24 dark:bg-[#0B0B0B] sm:pb-0">
       {/* Nice arrival instead of the whole workspace just popping in - same entrance keyframe the
           step content below already reuses on every step change (see key={step} further down). */}
@@ -522,20 +435,25 @@ function CmaWorkspacePageInner() {
         >
           {step === 'subject' && <SubjectStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('comps')} />}
           {step === 'pricing' && <PricingStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('summary')} onBack={() => setStep('analysis')} />}
-          {step === 'summary' && <SummaryStep report={report} onSave={save} onReportUpdated={applyReport} onJump={setStep} onDeleted={() => router.push('/studio/cma')} />}
+          {step === 'summary' && <ReviewStep report={report} onSave={save} onReportUpdated={applyReport} onJump={setStep} onDeleted={() => router.push('/studio/cma')} />}
         </motion.div>
         {(compsMounted || step === 'comps') && (
           <div className={step === 'comps' ? 'mt-4 animate-step-in sm:mt-6' : 'hidden'}>
-            <CompsStep report={report} visible={step === 'comps'} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('analysis')} onBack={() => setStep('subject')} />
+            {/* Comps are chosen BEFORE the AI writes the report (owner, 11/16). After that this step only shows
+                them: no search, no add, no remove - different comps means a new CMA. */}
+            {cmaCompsLocked(report) || aiRunning || report.generation_status === 'generating'
+              ? <LockedCompsStep report={report} visible={step === 'comps'} writing={!cmaCompsLocked(report)} onNext={() => setStep('analysis')} onBack={() => setStep('subject')} />
+              : <CompsStep report={report} visible={step === 'comps'} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('analysis')} onBack={() => setStep('subject')} />}
           </div>
         )}
         {(analysisMounted || step === 'analysis') && (
           <div className={step === 'analysis' ? 'mt-4 animate-step-in sm:mt-6' : 'hidden'}>
-            <AnalysisStep report={report} visible={step === 'analysis'} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('pricing')} onBack={() => setStep('comps')} />
+            <AnalysisStep report={report} visible={step === 'analysis'} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('pricing')} onBack={() => setStep('comps')} onRunningChange={setAiRunning} />
           </div>
         )}
       </div>
     </div>
+    </CmaMapRefContext.Provider>
   )
 }
 
@@ -662,10 +580,10 @@ function SegmentedControl<T extends string>({ options, value, onChange }: { opti
 
 function SectionCard({ title, subtitle, children, right }: { title: string, subtitle?: string, children: React.ReactNode, right?: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
+    <div className="cma-card cma-card-in rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_16px_40px_-32px_rgba(17,24,39,0.5)] dark:border-gray-800 dark:bg-[#151517] sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-serif text-lg font-black text-[#111827] dark:text-white">{title}</h2>
+          <h2 className="font-serif text-xl font-black text-[#111827] dark:text-white">{title}</h2>
           {subtitle && <p className="mt-0.5 text-xs font-semibold text-gray-400">{subtitle}</p>}
         </div>
         {right}
@@ -910,6 +828,38 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
       showToast("This is a rental listing - a CMA is for sales. Pick the home's sale listing or enter it by hand as a sale.", 'error')
       return
     }
+    // No lot size on record for a house or townhouse: ask for it once, here, BEFORE anything is worked
+    // out (owner 11/15: "ask agent for lot before calculation as that is important"). It is a question,
+    // not a wall - Skip carries on and the report simply doesn't compare lot sizes.
+    if (!subject.lot_size && !isCondoSubject(subject) && !lotAlreadyAsked()) {
+      setLotDraft('')
+      setLotAsk(true)
+      return
+    }
+    await goToComps(subject)
+  }
+
+  const lotAskKey = `cma-lot-asked-${report.id}`
+  const lotAlreadyAsked = () => { try { return sessionStorage.getItem(lotAskKey) === '1' } catch { return false } }
+  const [lotAsk, setLotAsk] = useState(false)
+  const [lotDraft, setLotDraft] = useState('')
+  const [lotUnit, setLotUnit] = useState<'acres' | 'sqft'>('acres')
+  const lotDraftNumber = Number(lotDraft.replace(/,/g, ''))
+  const lotDraftSqft = lotDraftNumber > 0 ? Math.round(lotUnit === 'acres' ? lotDraftNumber * 43560 : lotDraftNumber) : null
+  // 200 sq ft .. 2,000 acres - anything outside is a typo, not a lot
+  const lotDraftValid = lotDraftSqft != null && lotDraftSqft >= 200 && lotDraftSqft <= 2000 * 43560
+  const answerLotAsk = async (useValue: boolean) => {
+    try { sessionStorage.setItem(lotAskKey, '1') } catch { /* private mode - it just asks again next visit */ }
+    setLotAsk(false)
+    let next = subject
+    if (useValue && lotDraftValid && lotDraftSqft) {
+      next = { ...subject, lot_size: lotDraftSqft }
+      setSubject(next)
+    }
+    await goToComps(next)
+  }
+
+  const goToComps = async (subject: CmaSubjectProperty) => {
     // Must actually wait for the save - the next step reads fresh subject data (e.g. list_price
     // for its default price range) the instant it mounts, and onNext() switching steps
     // synchronously used to race ahead of this PATCH landing in the parent's report state.
@@ -1015,6 +965,53 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
         </motion.div>
       )}
       </AnimatePresence>
+
+      {/* Asked once, before the comps are searched, when a house or townhouse has no lot size on record. */}
+      <CmaSheet
+        open={lotAsk}
+        onClose={() => setLotAsk(false)}
+        title="Do you know the lot size?"
+        maxWidth="sm:max-w-md"
+        footer={
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => answerLotAsk(false)} className="h-11 flex-1 rounded-xl border border-gray-200 text-[13px] font-black text-gray-600 transition hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-300">
+              Skip
+            </button>
+            <button type="button" disabled={!lotDraftValid} onClick={() => answerLotAsk(true)} className="cma-btn h-11 flex-[2] rounded-xl bg-[#111827] text-[13px] font-black text-white shadow-sm transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-[#111827]">
+              Save and find comps
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3 px-4 py-4 sm:px-6 sm:py-5">
+          <p className="text-[13px] font-semibold leading-relaxed text-gray-600 dark:text-gray-300">
+            The record for this home has no lot size. The lot is part of the value, so add it if you know it.
+            If you skip, the report just won&apos;t compare lot sizes.
+          </p>
+          <div className="flex items-stretch gap-2">
+            <input
+              autoFocus
+              inputMode="decimal"
+              value={lotDraft}
+              onChange={e => setLotDraft(e.target.value.replace(/[^0-9.,]/g, ''))}
+              onKeyDown={e => { if (e.key === 'Enter' && lotDraftValid) answerLotAsk(true) }}
+              placeholder={lotUnit === 'acres' ? '0.25' : '10,890'}
+              aria-label="Lot size"
+              className="h-11 min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3.5 text-[16px] font-bold text-[#111827] outline-none transition focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/10 dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white"
+            />
+            <div className="w-36 shrink-0 sm:w-auto">
+              <SegmentedControl options={[{ value: 'acres', label: 'Acres' }, { value: 'sqft', label: 'Sq Ft' }]} value={lotUnit} onChange={setLotUnit} />
+            </div>
+          </div>
+          {lotDraftSqft != null && (
+            <p className={`text-xs font-bold ${lotDraftValid ? 'text-[#8b7355] dark:text-[#d7b974]' : 'text-red-500'}`}>
+              {lotDraftValid
+                ? `That is ${Number((lotDraftSqft / 43560).toFixed(3)).toLocaleString()} acres (${lotDraftSqft.toLocaleString()} sq ft).`
+                : `That is ${Number((lotDraftSqft / 43560).toFixed(3)).toLocaleString()} acres - check the number, or switch between Acres and Sq Ft.`}
+            </p>
+          )}
+        </div>
+      </CmaSheet>
     </div>
   )
 }
@@ -1538,10 +1535,15 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
     setSearching(true)
     setSearched(true)
     const seq = ++searchSeqRef.current
+    // ONE set of subject facts for both searches. The server scores "same area" from the state / ZIP / street and,
+    // for a listed home, puts each sale's price level inside the Match % from the asking price - so a search the
+    // agent changes must send what the automatic one sends, or the same home shows two different scores (it did:
+    // a changed search left these four out and "same area" scored lower, 11/17).
+    const searchSubject = { ...scoreSubject, state: report.subject.state, list_price: report.subject.list_price, street_address: report.subject.street_address, zipcode: report.subject.zipcode }
     if (autoRadiusRef.current && autoSoldDaysRef.current && statuses.length === 1 && statuses[0] === 'sold') {
       api.cma.autoSearchComparables({
         listing_key: report.subject.listing_key || undefined,
-        subject: { ...scoreSubject, state: report.subject.state, list_price: report.subject.list_price, street_address: report.subject.street_address, zipcode: report.subject.zipcode },
+        subject: searchSubject,
         latitude: report.subject.latitude,
         longitude: report.subject.longitude,
         subject_sqft: report.subject.above_grade_finished_area || report.subject.sqft,
@@ -1578,7 +1580,7 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
       : undefined
     api.cma.searchComparables({
       listing_key: report.subject.listing_key || undefined,
-      subject: scoreSubject,
+      subject: searchSubject,
       latitude: report.subject.latitude,
       longitude: report.subject.longitude,
       subject_sqft: report.subject.above_grade_finished_area || report.subject.sqft,
@@ -1738,6 +1740,9 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
     // % is or where it ranks - see _continuous_relevance's structurally_incompatible_property_type
     // gate. It stays visible in the grid/map for the agent to add manually if they choose to.
     const autoPickEligible = sortedResults.filter(isAutoPickable)
+    // Owner, 11/16: the picked comps are the highest Match % ones, top down - the same order the list shows. (For
+    // a home with an asking price the server puts each sale's price level INSIDE the Match %, 11/17 - one score,
+    // so the list order and the pick always agree.)
     const picks = autoPickEligible.filter((c, i) => i < 3 || (i < MAX_COMPS && scoreFor(c) >= AUTO_PICK_EXTRA_MIN_SCORE))
     const pickKeys = picks.map(c => c.listing_key).join(',')
     // Only replace `comparables` when the auto-pick set actually changed - returning the same
@@ -1842,7 +1847,7 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
   return (
     <div className="space-y-5 pb-24 sm:pb-0">
       {/* Phones (user, 10/17): the home on one line, then results / added / Refine as one even row. */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-white p-3 dark:border-gray-800 dark:bg-[#151517] sm:gap-4 sm:p-4">
+      <div className="cma-card cma-card-in flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-[0_16px_40px_-32px_rgba(17,24,39,0.5)] dark:border-gray-800 dark:bg-[#151517] sm:gap-4 sm:p-4">
         <button type="button" onClick={() => setPopup({ type: 'subject' })} className="flex w-full min-w-0 items-center gap-3 text-left sm:w-auto">
           <div className="h-12 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800 sm:h-14 sm:w-16">
             {subjectPhotos.length > 0 ? <img src={normalizeImageUrl(subjectPhotos[0])} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Home className="h-5 w-5 text-gray-300" /></div>}
@@ -1873,10 +1878,10 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
           viewports (scrollbar/address-bar quirks routinely cause horizontal overflow with this
           trick), so mobile just stays in the normal contained column instead. */}
       <div className="lg:relative lg:left-1/2 lg:right-1/2 lg:-mx-[50vw] lg:w-screen lg:px-8">
-        <div className="rounded-2xl border border-gray-200 bg-[#f1f3f5] p-4 shadow-inner dark:border-gray-800 dark:bg-transparent sm:p-5">
+        <div className="cma-card cma-card-in rounded-2xl border border-gray-200 bg-[#f6f4ef] p-4 shadow-[0_16px_40px_-32px_rgba(17,24,39,0.5)] [animation-delay:90ms] dark:border-gray-800 dark:bg-[#111113] sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h3 className="text-lg font-black text-gray-900 dark:text-white">Property Selection</h3>
+              <h3 className="font-serif text-xl font-black text-[#111827] dark:text-white">Property Selection</h3>
               <p className="text-xs font-semibold text-gray-400">Top matches auto-selected. Add or remove as you see fit.</p>
             </div>
             {/* Phones get the Continue bar pinned to the bottom instead (below). */}
@@ -2270,6 +2275,94 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
   )
 }
 
+// Step 2 once the AI has written the report (or is writing it): the comps, to look at only (owner, 11/16:
+// "you can only change comps before you click the AI button"). No search runs, nothing here saves, and there
+// is no add, remove or switch-off - the server refuses those too (cma_service.comps_locked). Different comps
+// means a new CMA, so the one thing this step offers is the way to start one.
+function LockedCompsStep({ report, visible = true, writing = false, onNext, onBack }: {
+  report: CmaReport, visible?: boolean,
+  /** The AI is still writing the report (the comps are already fixed for that run). */
+  writing?: boolean,
+  onNext: () => void, onBack?: () => void,
+}) {
+  const all = useMemo(() => sortComparables(report.comparables || []), [report.comparables])
+  const comps = all.filter(c => c.is_included)
+  const leftOut = all.filter(c => !c.is_included)
+  const [open, setOpen] = useState<string | null>(null)
+  const openComp = open ? all.find(c => c.id === open) || null : null
+  const openAt = openComp ? comps.findIndex(c => c.id === openComp.id) : -1
+  const subject = report.subject
+  const card = (c: CmaComparable, n: number | null) => {
+    const price = compDisplayPrice(c)
+    const sqft = agSqft(c)
+    const facts = [c.beds != null && `${c.beds} bd`, c.baths != null && `${c.baths} ba`, sqft && `${Math.round(sqft).toLocaleString()} sf`, c.distance_miles != null && `${c.distance_miles} mi`].filter(Boolean).join(' · ')
+    return (
+      <button key={c.id} type="button" onClick={() => setOpen(c.id)} data-cma-locked-comp
+        className={`group flex w-full items-stretch gap-3 overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 text-left transition hover:border-[#C9A24D]/70 hover:shadow-md active:scale-[0.99] dark:border-gray-800 dark:bg-[#151517] sm:flex-col sm:gap-0 sm:p-0 ${n == null ? 'opacity-60' : ''}`}>
+        <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-gray-800 sm:h-auto sm:w-full sm:rounded-none">
+          {c.photo_url
+            ? <img src={normalizeImageUrl(c.photo_url)} alt="" className="h-full w-full object-cover transition-transform duration-500 [@media(hover:hover)]:group-hover:scale-[1.04] sm:aspect-[4/3]" />
+            : <div className="flex h-full w-full items-center justify-center sm:aspect-[4/3]"><Home className="h-5 w-5 text-gray-300" /></div>}
+          <span className={`absolute left-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-black text-white shadow ${n == null ? 'bg-gray-500' : 'bg-[#C9A24D]'}`}>{n == null ? '–' : n}</span>
+          <span className={`absolute bottom-1.5 left-1.5 hidden rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow sm:inline-flex ${COMP_STATUS_BADGE_STYLE[c.status] || 'bg-gray-500'}`}>{COMP_STATUS_LABEL[c.status] || c.status}</span>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col justify-center sm:p-3">
+          <p className="truncate text-sm font-black text-[#111827] dark:text-white">{c.street_address}</p>
+          <p className="truncate text-[10px] font-black uppercase tracking-wide text-gray-400">{[c.city, c.state].filter(Boolean).join(', ') || '—'}<span className="sm:hidden"> · {COMP_STATUS_LABEL[c.status] || c.status}</span></p>
+          <p className="mt-1 flex flex-wrap items-baseline gap-x-2 text-sm font-black text-[#8b7355] dark:text-[#d7b974]">
+            {formatMoney(price.value)}
+            {typeof c.match_score === 'number' && <span className="text-[10px] font-black uppercase tracking-wide text-gray-400">{Math.round(c.match_score)}% match</span>}
+          </p>
+          {facts && <p className="mt-0.5 truncate text-[11px] font-bold text-gray-500 dark:text-gray-400">{facts}</p>}
+          {n == null && <p className="mt-0.5 truncate text-[10px] font-black uppercase tracking-wide text-red-600 dark:text-red-400">Left out{c.override_reason ? `: ${c.override_reason}` : ''}</p>}
+        </div>
+      </button>
+    )
+  }
+  return (
+    <div className="space-y-5">
+      {visible && <FlowDock step={2} total={5} onBack={onBack} onContinue={onNext} note={`${comps.length} ${comps.length === 1 ? 'comp' : 'comps'} · locked`} />}
+      <SectionCard
+        title="The Comps on This Report"
+        subtitle={`${comps.length} ${comps.length === 1 ? 'home' : 'homes'} compared with ${subject.street_address || 'the subject'}. Tap one to see it.`}
+        right={
+          <button onClick={onNext} className="cma-btn hidden items-center gap-1.5 rounded-xl bg-[#111827] px-4 py-2 text-xs font-black text-white shadow-sm hover:bg-black dark:bg-white dark:text-[#111827] sm:inline-flex">
+            Continue <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+          </button>
+        }
+      >
+        <div data-cma-comps-locked className="flex flex-col gap-3 rounded-2xl border border-[#C9A24D]/35 bg-[#C9A24D]/[0.06] p-3.5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="flex items-start gap-2.5 text-[13px] font-semibold leading-snug text-gray-600 dark:text-gray-300">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-[#C9A24D]" />
+            <span>
+              {writing
+                ? 'The AI is writing the report with these comps, so they are locked.'
+                : 'Comps are locked once the AI has written the report.'}{' '}
+              To use different comps or ratings, start a new CMA. You can still change your notes and the wording on this one.
+            </span>
+          </p>
+          <Link href="/studio/cma?new=1" className="cma-btn inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#C9A24D]/60 bg-white px-4 py-2.5 text-xs font-black text-[#8b7355] shadow-sm transition hover:border-[#C9A24D] hover:bg-[#C9A24D]/10 dark:bg-transparent dark:text-[#d7b974]">
+            <Plus className="h-3.5 w-3.5" /> Start a new CMA
+          </Link>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))] sm:gap-4">
+          {comps.map((c, i) => card(c, i + 1))}
+          {leftOut.map(c => card(c, null))}
+        </div>
+      </SectionCard>
+      <PropertyPopupModal
+        open={!!openComp}
+        onClose={() => setOpen(null)}
+        data={openComp ? buildAnalysisPopupData('comp', subject, openComp, report.pricing?.ai_estimate?.subject_road_context ?? null) : null}
+        navIndex={openAt >= 0 ? openAt : undefined}
+        navTotal={openAt >= 0 ? comps.length : undefined}
+        onPrev={openAt > 0 ? () => setOpen(comps[openAt - 1].id) : undefined}
+        onNext={openAt >= 0 && openAt < comps.length - 1 ? () => setOpen(comps[openAt + 1].id) : undefined}
+      />
+    </div>
+  )
+}
+
 // Hover breakdown of the backend Match % - one line per scored component (backend snake_case keys;
 // the old text read camelCase keys that never existed, so most parts showed "-").
 const MATCH_COMPONENT_LABELS: Record<string, string> = {
@@ -2277,14 +2370,37 @@ const MATCH_COMPONENT_LABELS: Record<string, string> = {
   age: "age", style: "style / levels", recency: "how recent", data_reliability: "data quality",
   bedrooms: "bedroom count", building: "same building",
 }
-function matchBreakdownTitle(d: MatchScoreDetails): string {
+// Price level inside the Match % (a home WITH an asking price, 11/17): the server has already taken these points off
+// the score, so the parts above no longer add up to it. One wording for the hover breakdown (`full`, with the
+// points) and for the short note on a changed row (`chip`, no points - only when the price is the reason and the
+// change is big enough for an agent to wonder about: PRICE_LEVEL_NOTE_MIN_POINTS).
+const PRICE_LEVEL_NOTE_MIN_POINTS = 5
+const PRICE_LEVEL_FREE_GAP = 0.10   // the server's: the first 10% of $/sq ft gap costs nothing
+function priceLevelNote(pl?: CmaMatchPriceLevel | null): { full: string, chip: string | null, chipTitle: string } | null {
+  const points = Math.round(Number(pl?.points_off) || 0)
+  if (!pl || points <= 0) return null
+  const comp = Number(pl.comp_price_per_sqft) || 0
+  const ask = Number(pl.asking_price_per_sqft) || 0
+  const priceCounts = comp > 0 && ask > 0 && Math.abs(Math.log(comp / ask)) > PRICE_LEVEL_FREE_GAP
+  const price = priceCounts ? `sold at $${Math.round(comp).toLocaleString()} a sq ft, this home asks $${Math.round(ask).toLocaleString()} a sq ft` : null
+  const district = pl.held_under_district ? "another school district, kept below the sales in this home's district" : null
+  const reason = [price, district].filter(Boolean).join('; ') || 'adjusted for this home’s asking price'
+  const before = typeof pl.match_before === 'number' ? ` (${pl.match_before}% before)` : ''
+  return {
+    full: `${price ? 'Price level' : 'School district'}: ${reason}: −${points} point${points === 1 ? '' : 's'}${before}.`,
+    chip: priceCounts && points >= PRICE_LEVEL_NOTE_MIN_POINTS ? `$${Math.round(comp).toLocaleString()}/sf · this home asks $${Math.round(ask).toLocaleString()}` : null,
+    chipTitle: price ? `${price.charAt(0).toUpperCase()}${price.slice(1)}. The Match % takes that into account.` : '',
+  }
+}
+function matchBreakdownTitle(d: MatchScoreDetails, priceLevel?: CmaMatchPriceLevel | null): string {
   const parts = Object.entries(d.componentPoints).map(([k, pts]) => {
     const score = d.componentScores[k]
     const max = score ? pts / score : null
     return `${MATCH_COMPONENT_LABELS[k] || k} ${pts.toFixed(1)}${max ? "/" + Math.round(max) : ""}`
   })
   const dist = d.candidateDistanceMiles != null ? ` at ${d.candidateDistanceMiles.toFixed(2)} mi` : ""
-  return `Underlying relevance ${(d.rawRelevanceScore * 100).toFixed(1)}%${dist}: ${parts.join("; ")}.`
+  const pl = priceLevelNote(priceLevel)
+  return `Underlying relevance ${(d.rawRelevanceScore * 100).toFixed(1)}%${dist}: ${parts.join("; ")}.${pl ? " " + pl.full : ""}`
 }
 
 // "Finding the best comparables" while the first search widens itself (shown/hidden by CompsStep's
@@ -2398,7 +2514,7 @@ function CompCandidateCard({ candidate, subject, matchScore, matchDetails, added
           </div>
         )}
         {typeof matchScore === 'number' && (
-          <div title={matchDetails ? matchBreakdownTitle(matchDetails) : undefined} className={`absolute left-2 top-2 rounded-full px-2.5 py-1.5 text-xs font-black uppercase tracking-wide text-white shadow-lg ${matchScore >= 70 ? 'bg-emerald-600' : 'bg-gray-500'}`}>
+          <div title={matchDetails ? matchBreakdownTitle(matchDetails, candidate.similarity_details?.price_level) : undefined} className={`absolute left-2 top-2 rounded-full px-2.5 py-1.5 text-xs font-black uppercase tracking-wide text-white shadow-lg ${matchScore >= 70 ? 'bg-emerald-600' : 'bg-gray-500'}`}>
             {matchScore}% Match
           </div>
         )}
@@ -2443,7 +2559,7 @@ function CompCandidateCard({ candidate, subject, matchScore, matchDetails, added
           return vs.length > 0 ? (
             <div className="mt-1.5 flex flex-nowrap gap-1 overflow-hidden [mask-image:linear-gradient(to_right,black_88%,transparent)]">
               {vs.map(v => (
-                <span key={v.text} className={`shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9.5px] font-black ${v.tone === 'same' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-[#C9A24D]/12 text-[#7a5a1e] dark:text-[#e8c97a]'}`}>{v.text}</span>
+                <span key={v.text} title={v.title} className={`shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9.5px] font-black ${v.tone === 'same' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-[#C9A24D]/12 text-[#7a5a1e] dark:text-[#e8c97a]'}`}>{v.text}</span>
               ))}
             </div>
           ) : null
@@ -2476,8 +2592,16 @@ function CompCandidateCard({ candidate, subject, matchScore, matchDetails, added
 
 // How a candidate differs from the subject, as short chips - school first (the one agents look for),
 // then size and age. Shared by the phone rows and the desktop cards.
-function compVsSubject(candidate: CmaCompCandidate, subject: CmaSubjectProperty, sameSchool: boolean): { text: string, tone: 'same' | 'diff' }[] {
-  const vs: { text: string, tone: 'same' | 'diff' }[] = []
+function compVsSubject(candidate: CmaCompCandidate, subject: CmaSubjectProperty, sameSchool: boolean): { text: string, tone: 'same' | 'diff', title?: string }[] {
+  const vs: { text: string, tone: 'same' | 'diff', title?: string }[] = []
+  // First, because it is the answer to "why is this one scored so low?" (a twin next door at 66%): its price level.
+  // The chips share one line that fades at the edge, so only the first one or two are sure to be read on a phone -
+  // a sale from ANOTHER school district keeps "Other school" in front of it (the bigger reason of the two).
+  const pl = priceLevelNote(candidate.similarity_details?.price_level)
+  // (Rows without the price note keep the order they always had.)
+  const schoolLeads = !!pl?.chip && !!candidate.school_district && !sameSchool
+  if (schoolLeads) vs.push({ text: 'Other school', tone: 'diff' })
+  if (pl?.chip) vs.push({ text: pl.chip, tone: 'diff', title: pl.chipTitle })
   // same street name + ZIP (612 / 660 Radnor Valley Dr, grader 10/23) and the price-band reason a sale wasn't auto-picked
   const street = (a?: string | null) => (a || '').toLowerCase().replace(/^\s*[\d-]+\s+/, '').replace(/\s*(#|\bunit\b|\bapt\b).*$/, '').trim()
   if (street(candidate.street_address) && street(candidate.street_address) === street(subject.street_address)
@@ -2486,7 +2610,7 @@ function compVsSubject(candidate: CmaCompCandidate, subject: CmaSubjectProperty,
   }
   const band = (candidate.similarity_details as { outside_price_band?: { pct_vs_asking?: number | null } } | undefined)?.outside_price_band
   if (band) vs.push({ text: band.pct_vs_asking != null ? `${band.pct_vs_asking > 0 ? '+' : '−'}${Math.abs(band.pct_vs_asking)}% vs asking · not auto-picked` : 'Not auto-picked', tone: 'diff' })
-  if (candidate.school_district) vs.push(sameSchool ? { text: 'Same school', tone: 'same' } : { text: 'Other school', tone: 'diff' })
+  if (candidate.school_district && !schoolLeads) vs.push(sameSchool ? { text: 'Same school', tone: 'same' } : { text: 'Other school', tone: 'diff' })
   if (agSqft(subject) && agSqft(candidate)) {
     const d = Math.round((agSqft(candidate) as number) - (agSqft(subject) as number))
     vs.push(Math.abs(d) < 50 ? { text: 'Same size', tone: 'same' } : { text: `${d > 0 ? '+' : '−'}${Math.abs(d).toLocaleString()} sf`, tone: 'diff' })
@@ -2542,7 +2666,7 @@ function CompCandidateRow({ candidate, subject, matchScore, added, sameSchool, o
         {vs.length > 0 && (
           <div className="mt-auto flex flex-nowrap gap-1 overflow-hidden [mask-image:linear-gradient(to_right,black_88%,transparent)]">
             {vs.map(v => (
-              <span key={v.text} className={`shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9.5px] font-black ${v.tone === 'same' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-[#C9A24D]/12 text-[#7a5a1e] dark:text-[#e8c97a]'}`}>{v.text}</span>
+              <span key={v.text} title={v.title} className={`shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9.5px] font-black ${v.tone === 'same' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-[#C9A24D]/12 text-[#7a5a1e] dark:text-[#e8c97a]'}`}>{v.text}</span>
             ))}
           </div>
         )}
@@ -2636,75 +2760,7 @@ function PropertyLocationMap({ lat, lng, label, road }: { lat: number, lng: numb
   )
 }
 
-// A CMA builder window with the Showcase sheet mechanics (components/ui/windowMotion): on a phone
-// a sheet that slides up, pulls down to close (from anywhere that isn't a text box or a scrolled
-// list) and keeps a pinned footer; on a wide screen a centred window that springs into place. The
-// page behind is pinned while it's open. Used by Refine Your Search.
-function CmaSheet({ open, onClose, title, subtitle, headerRight, footer, children, maxWidth = 'sm:max-w-4xl' }: {
-  open: boolean, onClose: () => void, title: string, subtitle?: React.ReactNode, headerRight?: React.ReactNode,
-  footer?: React.ReactNode, children: React.ReactNode, maxWidth?: string,
-}) {
-  const phone = useIsPhone()
-  const reduce = useReducedMotion()
-  const sheetMotion = useSheetMotion()
-  const { sheetRef, y } = useSwipeToClose(onClose, phone && open)
-  const releasePagePin = usePagePin(open)
-  useEscapeToClose(onClose, open)
-  if (typeof document === 'undefined') return null
-  return createPortal(
-    <AnimatePresence onExitComplete={releasePagePin}>
-      {open && (
-        <motion.div key="cma-sheet" data-scroll-lock="off" className="cma-touch fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-6" onClick={onClose}>
-          <motion.div
-            aria-hidden
-            className="absolute inset-0 bg-[#0B0B0B]/75"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1, transition: { duration: 0.2, ease: 'easeOut' } }}
-            exit={{ opacity: 0, transition: { duration: 0.22 } }}
-          />
-          <motion.div
-            ref={sheetRef}
-            {...sheetMotion}
-            style={{ y: phone && !reduce ? y : undefined }}
-            role="dialog"
-            aria-modal="true"
-            aria-label={title}
-            onClick={e => e.stopPropagation()}
-            className={`relative flex max-h-[calc(100%-2.5rem)] w-full flex-col overflow-hidden rounded-t-[26px] bg-white shadow-2xl dark:bg-[#151517] sm:max-h-[88vh] sm:rounded-[28px] ${maxWidth}`}
-          >
-            <div className="z-10 border-b border-gray-100 bg-white px-4 pb-3 pt-1.5 dark:border-gray-800 dark:bg-[#151517] sm:px-6 sm:py-4">
-              <div aria-hidden className="mx-auto mb-2 h-[5px] w-10 rounded-full bg-gray-200 dark:bg-gray-700 sm:hidden" />
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="font-serif text-xl font-black tracking-tight text-gray-900 dark:text-white sm:text-2xl">{title}</h2>
-                  {subtitle && <div className="mt-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400">{subtitle}</div>}
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  {headerRight}
-                  <motion.button
-                    whileTap={{ scale: 0.88 }}
-                    whileHover={{ rotate: 90 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 26 }}
-                    onClick={onClose}
-                    aria-label="Close"
-                    className="grid h-9 w-9 place-items-center rounded-full bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 hover:text-[#111827] dark:bg-gray-800 dark:text-gray-400 dark:hover:text-white"
-                  >
-                    <X className="h-4 w-4" />
-                  </motion.button>
-                </div>
-              </div>
-            </div>
-            <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">{children}</div>
-            {footer && (
-              <div className="border-t border-gray-100 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 dark:border-gray-800 dark:bg-[#151517] sm:px-6 sm:py-4">{footer}</div>
-            )}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>,
-    document.body,
-  )
-}
+// (CmaSheet, the builder's slide-up window, lives in components/cma/CmaSheet - the Review editor uses it too.)
 
 // A titled group of Refine fields (What sold / Where / The home).
 function RefineGroup({ title, icon: Icon, children }: { title: string, icon: React.ComponentType<{ className?: string }>, children: React.ReactNode }) {
@@ -2941,19 +2997,13 @@ function PropertyPopupModal({ open, onClose, data, onPrev, onNext, compAdded, on
                 <AnimatePresence mode="wait" initial={false} custom={move} onExitComplete={() => scrollRef.current?.scrollTo({ top: 0 })}>
                   <motion.div key={homeKey} custom={move} variants={reduce ? FADE_HOME : SLIDE_HOME} initial="enter" animate="center" exit="exit">
                     <div className="relative aspect-[4/3] max-h-[440px] w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
-                      {hasGeo && showMap ? (
-                        <iframe
-                          title={d.address ? `Map of ${d.address}` : 'Property location'}
-                          src={`https://www.google.com/maps?q=${d.lat},${d.lng}&z=18&t=h&output=embed`}
-                          className="h-full w-full border-0"
-                          loading="lazy"
-                          referrerPolicy="no-referrer-when-downgrade"
-                        />
-                      ) : pics.length > 0 ? (
-                        <SwipePhotos photos={pics} resetKey={homeKey} onIndex={setPhotoIndex} goRef={photoGoRef} />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center"><Home className="h-10 w-10 text-gray-300" /></div>
-                      )}
+                      <PhotoMapPane showMap={showMap} lat={hasGeo ? d.lat : null} lng={hasGeo ? d.lng : null} label={d.address || 'this home'} className="h-full w-full" mapClassName="inset-0">
+                        {pics.length > 0 ? (
+                          <SwipePhotos photos={pics} resetKey={homeKey} onIndex={setPhotoIndex} goRef={photoGoRef} />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center"><Home className="h-10 w-10 text-gray-300" /></div>
+                        )}
+                      </PhotoMapPane>
                       {!showMap && d.status && (
                         <span className={`absolute left-3 top-3 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-white shadow-lg ${COMP_STATUS_BADGE_STYLE[d.status] || 'bg-gray-800'}`}>
                           {COMP_STATUS_LABEL[d.status] || d.status}
@@ -3113,6 +3163,9 @@ const REQUIRED_QUALITY_KEYS: { key: keyof CmaQualityAssessment, label: string }[
   { key: 'area', label: 'Area' },
   { key: 'street_context', label: 'Street' },
 ]
+// Kitchen and Bathrooms (11/16): the comp's rooms against the subject's, from the photos. Descriptive only -
+// they never touch the value - and NEVER required, on an AI report or a hand-made one. A blank one is not part of
+// the "left blank by the AI" stop either (owner, 11/16): the row just says it is optional.
 // A condo / unit has no lot of its own (HOA land) - its comps' Lot rating is N/A, never required
 // (10/21: "Finish rating each comp: #1 Lot ... #5 Lot" on 1813 Spruce St #4R).
 function isCondoSubject(subject?: CmaSubjectProperty | null): boolean {
@@ -3120,16 +3173,28 @@ function isCondoSubject(subject?: CmaSubjectProperty | null): boolean {
   return /condo|unit|flat|apartment|penthouse/.test(t)
 }
 
-function compAnalysisMissing(comp: CmaComparable, subject?: CmaSubjectProperty | null): string[] {
+// What a comp still lacks before Pricing. `required` stops the agent; `optional` is only pointed out.
+// Once the AI analysis has run, a rating it left blank is a SUGGESTION (owner 11/15: "have that be a
+// suggestion, ask the agent for it, maybe show the agent what it thinks if anything") - the value is
+// already worked out, a blank row is simply left off the client report, and stopping a finished report
+// on "Finish rating each comp: #3: Layout" is homework. With no AI analysis the agent is the only rater,
+// so every rating is still required there. Comp Weight is always required.
+function compAnalysisMissing(comp: CmaComparable, subject?: CmaSubjectProperty | null, aiDone = false): { required: string[], optional: string[] } {
   const missing: string[] = []
-  if (!comp.strength) missing.push('Comp Weight')
+  const required: string[] = []
+  if (!comp.strength) required.push('Comp Weight')
   const q = comp.quality || {}
   const condo = isCondoSubject(subject)
+  // Neither home has a lot size on record (a new-construction townhouse community: 11/15, "Finish rating each
+  // comp: #1 Lot ... #5 Lot" stopped the agent after a finished analysis) - there is nothing to compare, so the
+  // Lot rating is not required. The agent can still set it.
+  const noLot = (v: unknown) => !(typeof v === 'number' && v > 0)
+  const lotUnknown = noLot((subject as { lot_size?: number | null } | null | undefined)?.lot_size) && noLot((comp as { lot_size?: number | null }).lot_size)
   for (const { key, label } of REQUIRED_QUALITY_KEYS) {
-    if (key === 'lot' && condo) continue
+    if (key === 'lot' && (condo || lotUnknown)) continue
     if (!q[key]) missing.push(label)
   }
-  return missing
+  return aiDone ? { required, optional: missing } : { required: [...required, ...missing], optional: [] }
 }
 
 function normalizeAnalysisComparables(comparables: CmaComparable[]) {
@@ -3214,9 +3279,11 @@ function buildAnalysisPopupData(kind: 'subject' | 'comp', subject: CmaSubjectPro
   }
 }
 
-function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext, onBack }: {
+function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext, onBack, onRunningChange }: {
   report: CmaReport, visible?: boolean, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>,
   onReportUpdated: (r: CmaReport) => void, onNext: () => void, onBack?: () => void,
+  /** Told the moment an AI run starts and when it ends, so the Comps step locks for the minutes it takes. */
+  onRunningChange?: (running: boolean) => void,
 }) {
   const { showToast } = useToast()
   const [comparables, setComparables] = useState<CmaComparable[]>(() => normalizeAnalysisComparables(report.comparables))
@@ -3257,6 +3324,7 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
   // this same render pass instead of depending on the parent's setReport -> re-render round trip
   // landing before the user looks back at the button.
   const [justGenerated, setJustGenerated] = useState(false)
+  useEffect(() => { onRunningChange?.(generating) }, [generating])   // eslint-disable-line react-hooks/exhaustive-deps
   const [recomputing, setRecomputing] = useState(false)
   // Holds the staged-progress interval id so it's always cleared if this step unmounts mid-run
   // (e.g. the agent leaves the whole CMA while a generation is going), not just on the happy path.
@@ -3286,6 +3354,15 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
     if (!comparables.some(c => c.id === activeId)) setActiveId(comparables[0]?.id || null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comparables])
+  // This step stays mounted while the agent is on another one. Shown again, it takes the saved comps - a note
+  // typed or an order changed on the report in Review must not be put back by the next rating tapped here (every
+  // save from this step sends its whole list). Only on coming back into view, never mid-edit, never mid-run.
+  const wasVisible = useRef(visible)
+  useEffect(() => {
+    if (visible && !wasVisible.current && !generating) setComparables(normalizeAnalysisComparables(report.comparables))
+    wasVisible.current = visible
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible])
 
   // Merges the AI's per-comp results into the local comparables copy (rather than replacing it
   // wholesale from the server response) so any commentary the agent already typed this session,
@@ -3540,9 +3617,24 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
 
   const included = useMemo(() => comparables.filter(c => c.is_included), [comparables])
   const hasCompleteAi = hasCompletedAiAnalysis(report) || justGenerated
+  // Which comps are on the report is fixed from the moment the AI starts writing it (owner, 11/16) - and so are
+  // their ratings and Comp Weight (owner, 11/17: "the entire report is built around" them; the server answers 409
+  // to a save that changes one). The note stays open; the order is changed in Review.
+  const compsLocked = cmaCompsLocked(report) || generating || justGenerated
+  // Nothing can be rated on a written report, so nothing about ratings may stop or nag the agent there. (Not while
+  // the AI is still writing: the step's own gate stays as it is until the run is done.)
+  const ratingsDone = cmaCompsLocked(report) || justGenerated
+  // ... and this step's own copy of the comps never holds a rating the saved report does not (an AI run that
+  // ended while the page was elsewhere, a refresh from another screen): one stale rating would get the next
+  // note save refused whole.
+  useEffect(() => {
+    if (!cmaCompsLocked(report)) return
+    setComparables(cs => cmaAdoptSavedRatings(cs, report.comparables))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [report.comparables, report.ai_analysis])
 
   const reorder = (draggedId: string, targetId: string) => {
-    if (draggedId === targetId) return
+    if (draggedId === targetId || compsLocked) return
     setComparables(cs => {
       const next = [...cs]
       const fromIndex = next.findIndex(c => c.id === draggedId)
@@ -3575,12 +3667,14 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
   // (Calling onSave inside a setState updater fires a parent setState during React's render
   // phase -> "Cannot update a component while rendering a different component".)
   const updateStrength = (id: string, value: string) => {
+    if (compsLocked) return   // locked with the comps - see above
     const next = comparables.map(c => c.id === id ? { ...c, strength: value as CmaCompStrength } : c)
     setComparables(next)
     onSave({ comparables: next }, { silent: true })
   }
 
   const updateQuality = (id: string, key: keyof CmaQualityAssessment, value: string) => {
+    if (compsLocked) return
     const next = comparables.map(c => c.id === id ? { ...c, quality: { ...c.quality, [key]: value } } : c)
     setComparables(next)
     onSave({ comparables: next }, { silent: true })
@@ -3589,12 +3683,14 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
   // Every comp must be fully rated (Comp Weight + all 8 dimensions) before Pricing. The warning
   // banner only appears AFTER a blocked Continue click (it was eating a lot of vertical space
   // sitting there permanently), and clears itself once everything's filled.
-  const incompleteComps = useMemo(
-    () => comparables
-      .map((c, i) => ({ i, id: c.id, missing: compAnalysisMissing(c, report.subject) }))
-      .filter(x => x.missing.length > 0),
-    [comparables, report.subject],
+  const compGaps = useMemo(
+    () => comparables.map((c, i) => ({ i, id: c.id, ...(ratingsDone ? { required: [] as string[], optional: [] as string[] } : compAnalysisMissing(c, report.subject, hasCompleteAi)) })),
+    [comparables, report.subject, hasCompleteAi, ratingsDone],
   )
+  const incompleteComps = useMemo(() => compGaps.filter(x => x.required.length > 0).map(x => ({ i: x.i, id: x.id, missing: x.required })), [compGaps])
+  // Ratings the AI left blank: pointed out once, never a wall (see compAnalysisMissing).
+  const optionalComps = useMemo(() => compGaps.filter(x => x.optional.length > 0).map(x => ({ i: x.i, id: x.id, missing: x.optional })), [compGaps])
+  const [optionalAsked, setOptionalAsked] = useState(false)
   const [continueBlocked, setContinueBlocked] = useState(false)
   useEffect(() => { if (incompleteComps.length === 0) setContinueBlocked(false) }, [incompleteComps.length])
   // Bumped only when a validation message jumps the agent to a specific comp - tells
@@ -3602,16 +3698,28 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
   // it. Plain Prev/Next and generate-time cycling never touch this.
   const [compareFocusSignal, setCompareFocusSignal] = useState(0)
 
-  const handleContinue = async () => {
+  const handleContinue = () => goOn(false)
+  const goOn = async (withoutOptional: boolean) => {
     if (incompleteComps.length > 0) {
       const first = incompleteComps[0]
       setActiveId(first.id)
       setCompareFocusSignal(n => n + 1)
       setContinueBlocked(true)
       showToast(
-        `Comp #${first.i + 1} still needs: ${first.missing.join(', ')}. Fill in every comparison field before pricing.`,
+        `Comp #${first.i + 1} still needs: ${first.missing.join(', ')}. Fill ${hasCompleteAi ? 'that' : 'in every comparison field'} before pricing.`,
         'error',
       )
+      return
+    }
+    // Blank ratings after the AI analysis: shown once with the AI's own read, then the agent decides.
+    // The second tap on Pricing (or "Continue without them") goes on.
+    if (optionalComps.length > 0 && !optionalAsked && !withoutOptional) {
+      const first = optionalComps[0]
+      const count = optionalComps.reduce((n, x) => n + x.missing.length, 0)
+      setActiveId(first.id)
+      setCompareFocusSignal(n => n + 1)
+      setOptionalAsked(true)
+      showToast(`The AI left ${count === 1 ? 'one rating' : `${count} ratings`} blank. Set ${count === 1 ? 'it' : 'them'} if you know, or tap Pricing again to carry on.`, 'info')
       return
     }
     // See SubjectStep's handleContinue - the next step reads fresh report data on mount, so this
@@ -3693,6 +3801,13 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
               )}
             </div>
           </div>
+          {/* The last chance to change the comps: they lock once the AI writes the report (owner, 11/16). */}
+          {!generating && !cmaCompsLocked(report) && (
+            <p data-cma-lock-warning className="relative mt-3 flex items-start gap-2 rounded-xl border border-[#C9A24D]/35 bg-white/70 px-3 py-2 text-xs font-bold leading-snug text-[#111827] dark:bg-black/25 dark:text-white">
+              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#C9A24D]" />
+              <span>Check your comps and ratings first. They lock once the AI writes the report.{onBack && <> <button type="button" onClick={onBack} className="font-black text-[#8b7355] underline underline-offset-2 hover:text-[#111827] dark:text-[#d7b974] dark:hover:text-white">Back to comps</button></>}</span>
+            </p>
+          )}
           {genError && !generating && (
             <p className="relative mt-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {genError}
@@ -3719,12 +3834,36 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
         </div>
       )}
 
+      {optionalAsked && optionalComps.length > 0 && incompleteComps.length === 0 && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-xl border border-[#C9A24D]/40 bg-[#C9A24D]/[0.07] px-3 py-2 text-xs dark:border-[#C9A24D]/30">
+          <span className="inline-flex items-center gap-1.5 font-black text-[#8b7355] dark:text-[#d7b974]">
+            <Sparkles className="h-3.5 w-3.5 shrink-0" /> Left blank by the AI. Set them if you know, or carry on:
+          </span>
+          {optionalComps.map(x => (
+            <button
+              key={x.id}
+              onClick={() => { setActiveId(x.id); setCompareFocusSignal(n => n + 1) }}
+              className="rounded-lg border border-[#C9A24D]/50 bg-white px-2 py-0.5 text-[11px] font-black text-[#8b7355] hover:bg-[#C9A24D]/10 dark:bg-transparent dark:text-[#d7b974]"
+            >
+              #{x.i + 1}: {x.missing.join(', ')}
+            </button>
+          ))}
+          <button
+            onClick={() => goOn(true)}
+            className="cma-btn ml-auto rounded-lg bg-[#111827] px-3 py-1.5 text-[11px] font-black text-white hover:bg-black dark:bg-white dark:text-[#111827]"
+          >
+            Continue without them
+          </button>
+        </div>
+      )}
+
       <CompOrderRail
         comparables={comparables}
         activeId={active?.id || null}
         onSelect={setActiveId}
         onReorder={reorder}
         scanStage={generating ? scanStage : -1}
+        canReorder={!compsLocked}
       />
 
       {active && (
@@ -3744,6 +3883,8 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
           onOpenSubjectDetails={() => setPopup({ pos: 0 })}
           onOpenCompDetails={() => setPopup({ pos: activeIndex + 1 })}
           focusSignal={compareFocusSignal}
+          aiDone={hasCompleteAi}
+          compsLocked={compsLocked}
         />
       )}
 
@@ -3929,7 +4070,7 @@ function AiAnalysisComplete({ report, monthlyLimitUsd, celebrate }: { report: Cm
           </div>
           <div className="min-w-0">
             <p className="text-sm font-black text-emerald-700 dark:text-emerald-300 sm:text-base">AI Analysis Complete</p>
-            <p className="text-xs font-semibold leading-snug text-emerald-700/70 dark:text-emerald-300/60">Comp ratings and a value estimate are filled in below - edit anything by hand as needed.</p>
+            <p className="text-xs font-semibold leading-snug text-emerald-700/70 dark:text-emerald-300/60">Comp ratings and a value estimate are filled in below. The comps and ratings are locked now; your notes can still be edited.</p>
           </div>
         </div>
         {/* Done is done - no re-run from here: the full bar, then what the run used. */}
@@ -3996,9 +4137,12 @@ function useCountUp(target: number, jump = false): number {
   return shown
 }
 
-function CompOrderRail({ comparables, activeId, onSelect, onReorder, scanStage = -1 }: {
+function CompOrderRail({ comparables, activeId, onSelect, onReorder, scanStage = -1, canReorder = true }: {
   comparables: CmaComparable[], activeId: string | null, onSelect: (id: string) => void,
   onReorder: (draggedId: string, targetId: string) => void,
+  // false once the AI is writing / has written the report: the write-up says "Comp #3", so the order is changed
+  // only in the Review step, which keeps those numbers pointing at the right homes (lib/cmaReport).
+  canReorder?: boolean,
   // -1 = idle. Otherwise the 1-based rail position the AI analysis is scanning right now;
   // lower-positioned comps show a "done" check, this one shows the scan line.
   scanStage?: number,
@@ -4019,7 +4163,7 @@ function CompOrderRail({ comparables, activeId, onSelect, onReorder, scanStage =
   useEffect(() => { if (activeIndex >= 0 && scanStage < 0) centerItem(activeIndex) }, [activeIndex, scanStage, centerItem])
 
   return (
-    <SectionCard title="Comparable Order" subtitle="Tap one to compare it with the subject. On a computer, drag to reorder.">
+    <SectionCard title="Comparable Order" subtitle={canReorder ? 'Tap one to compare it with the subject. On a computer, drag to reorder.' : 'Tap one to compare it with the subject. The order is set by the report now - to change it, use the arrows on each comp in Review.'}>
       <div ref={railRef} className="scrollbar-hide -mx-1 flex snap-x gap-2.5 overflow-x-auto px-1 pb-2 pt-1 sm:gap-3">
         {comparables.map((c, i) => {
           const isActive = c.id === activeId
@@ -4030,26 +4174,34 @@ function CompOrderRail({ comparables, activeId, onSelect, onReorder, scanStage =
               key={c.id}
               ref={el => { itemRefs.current[i] = el }}
               type="button"
-              draggable
-              onDragStart={() => setDraggedId(c.id)}
+              draggable={canReorder}
+              onDragStart={() => { if (canReorder) setDraggedId(c.id) }}
               onDragOver={event => {
+                if (!canReorder) return
                 event.preventDefault()
                 if (draggedId && draggedId !== c.id) onReorder(draggedId, c.id)
               }}
               onDragEnd={() => setDraggedId(null)}
               onClick={() => onSelect(c.id)}
-              className={`group flex w-36 shrink-0 snap-start flex-col overflow-hidden rounded-2xl border-2 bg-white text-left transition-[border-color,box-shadow,transform] duration-300 dark:bg-[#151517] sm:w-48 sm:cursor-grab sm:active:cursor-grabbing ${
+              className={`group flex w-36 shrink-0 snap-start flex-col overflow-hidden rounded-2xl border-2 bg-white text-left transition-[border-color,box-shadow,transform] duration-300 dark:bg-[#151517] sm:w-48 ${canReorder ? 'sm:cursor-grab sm:active:cursor-grabbing' : ''} ${
                 isActive
                   ? '-translate-y-0.5 border-[#C9A24D] shadow-[0_14px_28px_-16px_rgba(201,162,77,0.9)]'
                   : 'border-gray-200 dark:border-gray-800 [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:hover:border-gray-300 [@media(hover:hover)]:hover:shadow-md dark:[@media(hover:hover)]:hover:border-gray-600'
               } ${scanning ? 'border-[#C9A24D] shadow-[0_0_0_4px_rgba(201,162,77,0.18)]' : ''} ${!c.is_included ? 'opacity-50' : ''}`}
             >
-              {/* own compositing layer (isolate + translateZ) so the zoomed photo and its dark city
-                  shading stay clipped together while the card lifts - without it a hairline
-                  showed at the photo's bottom edge on hover and the shading dropped out (10/21) */}
-              <div className="relative isolate overflow-hidden [transform:translateZ(0)]">
+              {/* The photo and its dark city shading are ONE piece that zooms together (11/15). They used to be
+                  two: the zooming photo on a layer of its own and the shading painted over it - when the card
+                  lifted on hover the two landed a fraction of a pixel apart (125% / 150% screens) and a line
+                  of the photo showed under the town name. Now nothing can come between them; only the town
+                  name itself stays still on top. */}
+              <div className="relative isolate overflow-hidden bg-[#0b0b0b] [transform:translateZ(0)]">
                 {c.photo_url
-                  ? <img src={normalizeImageUrl(c.photo_url || undefined)} alt="" draggable={false} className="block aspect-[4/3] w-full object-cover transition-transform duration-500 will-change-transform [@media(hover:hover)]:group-hover:scale-[1.04]" />
+                  ? (
+                    <div className="relative transition-transform duration-500 will-change-transform [@media(hover:hover)]:group-hover:scale-[1.04]">
+                      <img src={normalizeImageUrl(c.photo_url || undefined)} alt="" draggable={false} className="block aspect-[4/3] w-full object-cover" />
+                      {c.city && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />}
+                    </div>
+                  )
                   : <div className="flex aspect-[4/3] w-full items-center justify-center bg-gray-100 dark:bg-gray-800"><Home className="h-5 w-5 text-gray-300" /></div>}
                 {scanning && <span className="ohp-comp-scan-line" />}
                 {scanning && <span className="pointer-events-none absolute inset-0 bg-[#C9A24D]/10" />}
@@ -4059,14 +4211,14 @@ function CompOrderRail({ comparables, activeId, onSelect, onReorder, scanStage =
                   </span>
                 )}
                 <span className={`absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black shadow transition-colors ${isActive ? 'bg-[#C9A24D] text-white' : 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]'}`}>{i + 1}</span>
-                <GripVertical className="absolute right-1.5 top-1.5 hidden h-4 w-4 text-white drop-shadow sm:block" />
+                {canReorder && <GripVertical className="absolute right-1.5 top-1.5 hidden h-4 w-4 text-white drop-shadow sm:block" />}
                 {!c.is_included && (
                   <span title={c.override_reason || undefined} className="absolute left-1.5 top-7 rounded-full bg-red-600 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white shadow">Irrelevant</span>
                 )}
                 {/* Same bottom-center city overlay pattern as OpenHouseCard.tsx - gradient,
                     MapPin icon, bold white uppercase text. */}
                 {c.city && (
-                  <div className="pointer-events-none absolute inset-x-0 -bottom-px z-[1] flex items-center justify-center gap-1 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-1.5 pb-[7px] pt-6">
+                  <div className={`pointer-events-none absolute inset-x-0 bottom-0 z-[1] flex items-center justify-center gap-1 px-1.5 pb-[7px] pt-6 ${c.photo_url ? '' : 'bg-gradient-to-t from-black/80 via-black/40 to-transparent'}`}>
                     <MapPin className="h-2.5 w-2.5 shrink-0 text-white" />
                     <span className="max-w-[80%] truncate text-[9px] font-black uppercase tracking-wide text-white">{c.city}</span>
                   </div>
@@ -4092,105 +4244,42 @@ function CompOrderRail({ comparables, activeId, onSelect, onReorder, scanStage =
 // viewer, reused here so subject vs. comp photos behave consistently across the app - but with
 // object-contain instead of that pattern's object-cover, since here the point is judging real
 // condition/quality from the photo, so nothing should be cropped out of frame.
-function PropertyPhotoCarousel({ resetKey, photos, fallbackUrl, onIndexChange, onPhotoClick }: { resetKey: string, photos?: string[] | null, fallbackUrl?: string | null, onIndexChange?: (index: number, total: number) => void, onPhotoClick?: () => void }) {
-  const list = photos && photos.length ? photos : fallbackUrl ? [fallbackUrl] : []
-  const [index, setIndex] = useState(0)
-  useEffect(() => { setIndex(0) }, [resetKey])
-  const safeIndex = Math.min(index, Math.max(list.length - 1, 0))
-  const thumbRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const thumbStripRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    // Slide the filmstrip only - scrollIntoView would also scroll the page (it jumped the page down
-    // to the thumbnails whenever a comp opened, fighting the scroll-to-top on every step change).
-    const strip = thumbStripRef.current, thumb = thumbRefs.current[safeIndex]
-    if (strip && thumb) {
-      const left = thumb.offsetLeft // the strip is relative, so this is measured from its left edge
-      if (left < strip.scrollLeft || left + thumb.offsetWidth > strip.scrollLeft + strip.clientWidth) strip.scrollTo({ left: Math.max(0, left - 8), behavior: 'smooth' })
-    }
-  }, [safeIndex, resetKey])
-  // Lets the parent header line show the live "current / total" position instead of a static
-  // photo count - PropertyPhotoCarousel still owns the index itself, this just reports it out.
-  useEffect(() => { onIndexChange?.(safeIndex, list.length) }, [safeIndex, list.length, onIndexChange])
-
-  if (list.length === 0) {
-    return <div className="flex h-72 w-full items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800"><Home className="h-6 w-6 text-gray-300" /></div>
-  }
-
+// A side of the viewer when the chip that is on has nothing to show for this home ("No kitchen photo in this
+// listing") - calm, and the same height as the photos so the two sides stay lined up.
+function RoomEmptyState({ text, className = '' }: { text: string, className?: string }) {
   return (
-    <div>
-      {/* Fixed HEIGHT (not a fixed aspect ratio) so the subject and comp columns always line up
-          row-for-row no matter what dimensions Bright happens to give a particular photo -
-          object-contain still means nothing is ever cropped, it just can't grow past this height.
-          The total photo count lives on the header line above (SideBySidePanel), not here, so
-          there's no duplicate count competing with it. */}
-      <div className="relative flex h-72 w-full items-center justify-center overflow-hidden rounded-xl bg-gray-100 dark:bg-[#0B0B0B]">
-        {/* key={safeIndex} forces a remount on every photo change (arrow click or thumbnail
-            select), which replays the same instant-switch/slight-zoom animation used on the
-            public-facing report (.cma-comp-photo, globals.css) instead of an abrupt snap. */}
-        <img
-          key={safeIndex}
-          src={normalizeImageUrl(list[safeIndex])}
-          alt=""
-          onClick={onPhotoClick}
-          className={`cma-comp-photo h-full w-auto max-w-full object-contain ${onPhotoClick ? 'cursor-pointer' : ''}`}
-        />
-        {list.length > 1 && (
-          <>
-            {/* Arrows live on the photo itself now (not a separate row below it) - solid black so
-                there's never a stray native mobile tap-highlight flash showing through, same as
-                the "View Details" popup's overlay arrows. */}
-            <button
-              type="button"
-              onClick={() => setIndex(i => (i - 1 + list.length) % list.length)}
-              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white outline-none [-webkit-tap-highlight-color:transparent] hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-[#C9A24D]"
-              aria-label="Previous photo"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setIndex(i => (i + 1) % list.length)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white outline-none [-webkit-tap-highlight-color:transparent] hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-[#C9A24D]"
-              aria-label="Next photo"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </>
-        )}
-      </div>
-      {list.length > 1 && (
-        <div ref={thumbStripRef} className="scrollbar-hide relative mt-1.5 flex gap-1 overflow-x-auto scroll-smooth">
-          {list.map((url, i) => (
-            <button
-              type="button"
-              key={i}
-              ref={el => { thumbRefs.current[i] = el }}
-              onClick={() => setIndex(i)}
-              className={`h-9 w-12 shrink-0 overflow-hidden rounded-lg border-2 outline-none [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-[#C9A24D] ${i === safeIndex ? 'border-[#C9A24D]' : 'border-transparent opacity-60 hover:opacity-100'}`}
-            >
-              <img src={normalizeImageUrl(url)} alt="" className="h-full w-full object-cover" />
-            </button>
-          ))}
-        </div>
-      )}
+    <div data-cma-room-empty className={`flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 text-center dark:border-gray-700 dark:bg-white/[0.03] ${className}`}>
+      <ImageIcon className="h-6 w-6 text-gray-300 dark:text-gray-600" />
+      <p className="text-xs font-bold leading-snug text-gray-500 dark:text-gray-400">{text}</p>
     </div>
   )
 }
 
-// Keyless Google Maps embed sized to match PropertyPhotoCarousel's fixed height, so a pane can
-// swap cleanly between its photos and its location without the row jumping. Hybrid (satellite +
-// road labels) at a tight zoom so the agent can read the actual lot shape and whether the home
-// fronts a busy through-street vs. a quiet interior street.
-function PaneMap({ lat, lng, label }: { lat: number, lng: number, label: string }) {
+// A home whose photos were never sorted by room (an older report): all its photos show, with this small tag.
+function RoomUnsortedTag({ short = false }: { short?: boolean }) {
   return (
-    <div className="h-72 w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-[#0B0B0B]">
-      <iframe
-        title={`Map of ${label}`}
-        src={`https://www.google.com/maps?q=${lat},${lng}&z=18&t=h&output=embed`}
-        className="h-full w-full border-0"
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-      />
+    <span data-cma-room-unsorted className="pointer-events-none absolute left-2 top-2 z-[3] rounded-full bg-black/65 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-white shadow">
+      {short ? 'All photos · not sorted' : 'Rooms not sorted for this home · all photos'}
+    </span>
+  )
+}
+
+function PropertyPhotoCarousel({ resetKey, photos, fallbackUrl, onIndexChange, onPhotoClick }: { resetKey: string, photos?: string[] | null, fallbackUrl?: string | null, onIndexChange?: (index: number, total: number) => void, onPhotoClick?: () => void }) {
+  // The flip the whole CMA flow shares (components/cma/report/PhotoFlip): the next photos are fetched ahead and
+  // the one showing stays up until the next has arrived, so paging through a gallery never waits or blinks.
+  const list = usePhotoList(photos, fallbackUrl)
+  const [index, setIndex] = useState(0)
+  useEffect(() => { setIndex(0) }, [resetKey])
+  const safeIndex = Math.min(index, Math.max(list.length - 1, 0))
+  // Lets the parent header line show the live "current / total" position instead of a static photo count.
+  useEffect(() => { onIndexChange?.(safeIndex, list.length) }, [safeIndex, list.length, onIndexChange])
+  return (
+    <div>
+      {/* Fixed HEIGHT (not a fixed aspect ratio) so the subject and comp columns always line up row-for-row
+          whatever shape a photo is - `contain` means nothing is ever cropped (the point here is judging real
+          condition from the photo). The count lives on the header line above, not here. */}
+      <PhotoFlip photos={list} index={safeIndex} onIndex={i => setIndex(i)} fit="contain" onOpen={onPhotoClick} className="h-72 w-full rounded-xl" />
+      <PhotoThumbs photos={list} index={safeIndex} onPick={setIndex} size="sm" className="mt-1.5" />
     </div>
   )
 }
@@ -4212,28 +4301,28 @@ function faceOffDelta(row: FaceOffRow): { text: string, up: boolean } | null {
   return { text: `${shown}${row.unit ? ` ${row.unit}` : ''}`, up: d > 0 }
 }
 
-function PhoneFaceOffTile({ who, address, price, photos, fallback, mapMode, lat, lng, onOpen, accent }: {
+function PhoneFaceOffTile({ who, address, price, photos, fallback, mapMode, lat, lng, onOpen, accent, room = 'all', view }: {
   who: string, address?: string | null, price?: number | null, photos?: string[] | null, fallback?: string | null,
   mapMode: boolean, lat?: number | null, lng?: number | null, onOpen: () => void, accent: 'ink' | 'gold',
+  // The Kitchen / Baths chip that is on, and this home's photos for it (lib/cmaPhotoRooms).
+  room?: CmaRoomFilter, view?: CmaRoomView,
 }) {
-  const list = photos && photos.length ? photos : fallback ? [fallback] : []
+  const filtered = !!view && (view.state === 'room' || view.state === 'none')
+  const list = filtered ? view!.photos : photos && photos.length ? photos : fallback ? [fallback] : []
   const hasGeo = typeof lat === 'number' && typeof lng === 'number'
   return (
     <div className="relative min-w-0">
       <div onClick={onOpen} className="relative aspect-[4/5] w-full cursor-pointer overflow-hidden rounded-2xl bg-gray-100 shadow-[0_18px_34px_-22px_rgba(17,24,39,0.7)] ring-1 ring-black/5 dark:bg-gray-800 dark:ring-white/10">
-        {mapMode && hasGeo ? (
-          <iframe
-            title={`Map of ${address || who}`}
-            src={`https://www.google.com/maps?q=${lat},${lng}&z=17&t=h&output=embed`}
-            className="pointer-events-none h-full w-full border-0"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-          />
-        ) : list.length > 0 ? (
-          <SwipePhotos photos={list} resetKey={`${who}-${address}`} />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center"><Home className="h-7 w-7 text-gray-300" /></div>
-        )}
+        <PhotoMapPane showMap={mapMode} lat={lat} lng={lng} label={address || who} zoom={17} interactive={false} className="h-full w-full" mapClassName="inset-0">
+          {list.length > 0 ? (
+            <SwipePhotos photos={list} resetKey={`${who}-${address}-${room}`} />
+          ) : view?.state === 'none' ? (
+            <RoomEmptyState text={cmaNoRoomPhotoText(room)} className="h-full w-full rounded-none border-0 pb-10" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center"><Home className="h-7 w-7 text-gray-300" /></div>
+          )}
+        </PhotoMapPane>
+        {!mapMode && view?.state === 'unsorted' && <span data-cma-room-unsorted className="pointer-events-none absolute right-2 top-2 z-[3] rounded-full bg-black/65 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-white shadow">Not sorted</span>}
         <span className={`pointer-events-none absolute left-2 top-2 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] shadow ${accent === 'gold' ? 'bg-[#C9A24D] text-white' : 'bg-[#111827] text-white'}`}>{who}</span>
         <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-2.5 pb-2 pt-8">
           <p className="truncate text-[11px] font-black leading-tight text-white">{address || '—'}</p>
@@ -4244,8 +4333,9 @@ function PhoneFaceOffTile({ who, address, price, photos, fallback, mapMode, lat,
   )
 }
 
-function PhoneCompare({ subject, comp, comps, index, total, showMaps, onSelectIndex, onOpenSubjectDetails, onOpenCompDetails }: {
+function PhoneCompare({ subject, comp, comps, index, total, showMaps, room = 'all', onSelectIndex, onOpenSubjectDetails, onOpenCompDetails }: {
   subject: CmaSubjectProperty, comp: CmaComparable, comps: CmaComparable[], index: number, total: number, showMaps: boolean,
+  room?: CmaRoomFilter,
   onSelectIndex: (i: number) => void, onOpenSubjectDetails: () => void, onOpenCompDetails: () => void,
 }) {
   const reduce = useReducedMotion()
@@ -4307,7 +4397,7 @@ function PhoneCompare({ subject, comp, comps, index, total, showMaps, onSelectIn
     <div className="sm:hidden">
       <div className="relative grid grid-cols-2 gap-2.5 p-3">
         <PhoneFaceOffTile who="Subject" accent="ink" address={subject.street_address} price={subjectPrice} photos={subject.photos} fallback={subject.photo_url}
-          mapMode={showMaps} lat={subject.latitude} lng={subject.longitude} onOpen={onOpenSubjectDetails} />
+          mapMode={showMaps} lat={subject.latitude} lng={subject.longitude} onOpen={onOpenSubjectDetails} room={room} view={cmaRoomPhotos(subject, room)} />
         <AnimatePresence mode="popLayout" initial={false} custom={dir}>
           <motion.div
             key={comp.id}
@@ -4317,7 +4407,7 @@ function PhoneCompare({ subject, comp, comps, index, total, showMaps, onSelectIn
             exit={reduce ? { opacity: 0 } : { opacity: 0, x: -dir * 40, scale: 0.96, transition: { duration: 0.16 } }}
           >
             <PhoneFaceOffTile who={`Comp #${index + 1}`} accent="gold" address={comp.street_address} price={compPrice} photos={comp.photos} fallback={comp.photo_url}
-              mapMode={showMaps} lat={comp.latitude} lng={comp.longitude} onOpen={onOpenCompDetails} />
+              mapMode={showMaps} lat={comp.latitude} lng={comp.longitude} onOpen={onOpenCompDetails} room={room} view={cmaRoomPhotos(comp, room)} />
           </motion.div>
         </AnimatePresence>
         {/* the "VS" medallion where the two photos meet */}
@@ -4377,7 +4467,13 @@ function PhoneCompare({ subject, comp, comps, index, total, showMaps, onSelectIn
 // The side-by-side panel's prev/next comp arrows - gold-outlined so they read as the way through the comps.
 const COMP_ARROW_CLS = 'flex h-9 w-9 items-center justify-center rounded-xl border-2 border-[#C9A24D]/60 bg-[#C9A24D]/10 text-[#8b7355] shadow-sm transition hover:border-[#C9A24D] hover:bg-[#C9A24D] hover:text-white active:scale-95 disabled:pointer-events-none disabled:opacity-30 dark:text-[#d7b974] dark:hover:text-white'
 
-function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, onUpdate, onUpdateStrength, onUpdateQuality, onPrev, onNext, onContinueClick, onOpenSubjectDetails, onOpenCompDetails, focusSignal = 0 }: {
+function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, onUpdate, onUpdateStrength, onUpdateQuality, onPrev, onNext, onContinueClick, onOpenSubjectDetails, onOpenCompDetails, focusSignal = 0, aiDone = false, compsLocked = false }: {
+  // aiDone: the AI analysis has run - a rating it left blank shows the AI's own read (if it had one)
+  // and reads as optional (see compAnalysisMissing).
+  aiDone?: boolean,
+  // compsLocked: the AI is writing (or has written) the report - a comp can no longer be marked irrelevant or
+  // restored, because that changes which comps are on the report (cmaCompsLocked).
+  compsLocked?: boolean,
   subject: CmaSubjectProperty, comp: CmaComparable, comps: CmaComparable[], onSelectIndex: (i: number) => void, index: number, total: number, onUpdate: (p: Partial<CmaComparable>) => void,
   onUpdateStrength: (value: string) => void,
   onUpdateQuality: (key: keyof CmaQualityAssessment, value: string) => void,
@@ -4401,11 +4497,36 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
   // flips through comps with the maps open to compare each comp's location against the subject and
   // the last comp; clicking the button again is the only thing that puts photos back.
   const [showMaps, setShowMaps] = useState(false)
+  // Kitchen / Baths (owner, 11/16): one chip filters BOTH sides to that room's photos, and - like the map switch -
+  // it is NOT reset on comp change, so the agent goes comp to comp looking only at kitchens. Shown only when the
+  // AI run has sorted at least one home's photos by room; otherwise the viewer is exactly as it was.
+  const [roomPick, setRoomPick] = useState<CmaRoomFilter>('all')
+  const roomsOn = useMemo(() => cmaHomeHasRooms(subject) || comps.some(c => cmaHomeHasRooms(c)), [subject, comps])
+  const room: CmaRoomFilter = roomsOn ? roomPick : 'all'
+  const subjectView = useMemo(() => cmaRoomPhotos(subject, room), [subject, room])
+  const compView = useMemo(() => cmaRoomPhotos(comp, room), [comp, room])
+  const panelRef = useRef<HTMLDivElement>(null)
+  // From the Kitchen / Bathrooms rating rows: tap the row's name to see just that room, both homes.
+  const showRoom = (r: CmaRoomFilter) => {
+    setRoomPick(r)
+    setShowMaps(false)
+    panelRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }
   const compHasGeo = typeof comp.latitude === 'number' && typeof comp.longitude === 'number'
   const subjectHasGeo = typeof subject.latitude === 'number' && typeof subject.longitude === 'number'
   const [showIrrelevantForm, setShowIrrelevantForm] = useState(false)
   const [irrelevantReason, setIrrelevantReason] = useState('')
   useEffect(() => { setShowIrrelevantForm(false); setIrrelevantReason('') }, [comp.id])
+  // A rating the AI analysis left blank: say it's optional and show the AI's own read when it had one.
+  // `locked`: the AI has written (or is writing) the report - every rating row and Comp Weight is shown, not editable.
+  const blankRow = (key: keyof CmaQualityAssessment) => ({
+    locked: compsLocked,
+    ...(aiDone && !comp.quality[key] ? { blankNote: true, aiRead: comp.ai_quality_read?.[key] || null } : {}),
+  })
+  // Kitchen / Bathrooms are optional even with no AI analysis: say so on a blank row either way.
+  const optionalRow = (key: keyof CmaQualityAssessment) => (
+    aiDone ? blankRow(key) : { locked: compsLocked, ...(!comp.quality[key] ? { optionalNote: true } : {}) }
+  )
 
   // ONLY when a validation message points the agent at a specific comp (focusSignal bump): bring
   // the "Comp #N — Compared With the Subject" block into view and pulse it, so it's obvious which
@@ -4428,7 +4549,7 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
   }, [focusSignal])
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-[#151517]">
+    <div ref={panelRef} className="scroll-mt-20 overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-[#151517]">
       {/* Phones: title + Pricing, then Photos/Map and the comp arrows on the row under it. Computers
           (user, 10/21): one row - the title, the comp arrows in the middle, Photos/Map + Continue on the right. */}
       <div className="grid grid-cols-[auto_1fr] items-center gap-2 border-b border-gray-100 px-3 py-3 dark:border-gray-800 sm:grid-cols-[1fr_auto_1fr] sm:gap-3 sm:px-4">
@@ -4473,8 +4594,29 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
         </div>
       </div>
 
+      {roomsOn && !showMaps && (
+        <div data-cma-room-chips className="flex items-center gap-2 border-b border-gray-100 px-3 py-2 dark:border-gray-800 sm:px-4">
+          <span className="hidden shrink-0 text-[10px] font-black uppercase tracking-wide text-gray-400 sm:inline">Photos of</span>
+          <div role="group" aria-label="Show photos of one room" className="scrollbar-hide flex min-w-0 items-center gap-1.5 overflow-x-auto">
+            {CMA_ROOM_FILTERS.map(f => {
+              const on = room === f.key
+              return (
+                <button key={f.key} type="button" aria-pressed={on} onClick={() => setRoomPick(f.key)}
+                  title={f.key === 'all' ? 'Every photo' : `Only the ${f.noun} photos of both homes - stays on as you go from comp to comp`}
+                  className={`inline-flex h-8 shrink-0 items-center rounded-full px-3.5 text-[11px] font-black uppercase tracking-wide outline-none transition focus-visible:ring-2 focus-visible:ring-[#C9A24D] active:scale-95 ${
+                    on ? 'bg-[#111827] text-white shadow-sm dark:bg-white dark:text-[#111827]' : 'border border-gray-200 text-gray-500 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-400 dark:hover:text-[#d7b974]'
+                  }`}>
+                  {f.label}
+                </button>
+              )
+            })}
+          </div>
+          {room !== 'all' && <span className="ml-auto hidden shrink-0 text-[10px] font-bold text-gray-400 lg:inline">Stays on as you go from comp to comp</span>}
+        </div>
+      )}
+
       <PhoneCompare
-        subject={subject} comp={comp} comps={comps} index={index} total={total} showMaps={showMaps}
+        subject={subject} comp={comp} comps={comps} index={index} total={total} showMaps={showMaps} room={room}
         onSelectIndex={onSelectIndex} onOpenSubjectDetails={onOpenSubjectDetails} onOpenCompDetails={onOpenCompDetails}
       />
 
@@ -4484,13 +4626,18 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
             <p className="min-w-0 truncate text-sm font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">
               Subject · {subject.street_address}{subject.city ? `, ${subject.city}` : ''}
             </p>
-            {!showMaps && subjectPhotoPos.total > 1 && <span className="shrink-0 text-[10px] font-semibold text-gray-500 dark:text-gray-400">{subjectPhotoPos.index + 1} / {subjectPhotoPos.total}</span>}
+            {!showMaps && subjectView.state !== 'none' && subjectPhotoPos.total > 1 && <span className="shrink-0 text-[10px] font-semibold text-gray-500 dark:text-gray-400">{subjectPhotoPos.index + 1} / {subjectPhotoPos.total}</span>}
           </div>
-          {showMaps && subjectHasGeo ? (
-            <PaneMap lat={subject.latitude as number} lng={subject.longitude as number} label={subject.street_address || 'subject'} />
-          ) : (
-            <PropertyPhotoCarousel resetKey="subject" photos={subject.photos} fallbackUrl={subject.photo_url} onIndexChange={onSubjectIndexChange} onPhotoClick={onOpenSubjectDetails} />
-          )}
+          <PhotoMapPane showMap={showMaps} lat={subject.latitude} lng={subject.longitude} label={subject.street_address || 'subject'}>
+            {subjectView.state === 'none'
+              ? <RoomEmptyState text={cmaNoRoomPhotoText(room)} className="h-72" />
+              : (
+                <div className="relative">
+                  {subjectView.state === 'unsorted' && <RoomUnsortedTag />}
+                  <PropertyPhotoCarousel resetKey={`subject:${room}`} photos={subjectView.state === 'room' ? subjectView.photos : subject.photos} fallbackUrl={subjectView.state === 'room' ? null : subject.photo_url} onIndexChange={onSubjectIndexChange} onPhotoClick={onOpenSubjectDetails} />
+                </div>
+              )}
+          </PhotoMapPane>
           <div className="mt-auto grid grid-flow-row-dense grid-cols-6 gap-1 pt-3">
             <CmaFactChip compact icon={DollarSign} value={formatMoney(subject.list_price, { compact: true })} label="Price" />
             <CmaFactChip compact icon={Calculator} value={subjectPsf ? `$${Math.round(subjectPsf)}` : '—'} label="$/Sqft" />
@@ -4511,13 +4658,18 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
             <p className="min-w-0 truncate text-sm font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">
               Comp #{index + 1} · {comp.street_address}{comp.city ? `, ${comp.city}` : ''}
             </p>
-            {!showMaps && compPhotoPos.total > 1 && <span className="shrink-0 text-[10px] font-semibold text-gray-500 dark:text-gray-400">{compPhotoPos.index + 1} / {compPhotoPos.total}</span>}
+            {!showMaps && compView.state !== 'none' && compPhotoPos.total > 1 && <span className="shrink-0 text-[10px] font-semibold text-gray-500 dark:text-gray-400">{compPhotoPos.index + 1} / {compPhotoPos.total}</span>}
           </div>
-          {showMaps && compHasGeo ? (
-            <PaneMap lat={comp.latitude as number} lng={comp.longitude as number} label={comp.street_address || 'comp'} />
-          ) : (
-            <PropertyPhotoCarousel resetKey={comp.id} photos={comp.photos} fallbackUrl={comp.photo_url} onIndexChange={onCompIndexChange} onPhotoClick={onOpenCompDetails} />
-          )}
+          <PhotoMapPane showMap={showMaps} lat={comp.latitude} lng={comp.longitude} label={comp.street_address || 'comp'}>
+            {compView.state === 'none'
+              ? <RoomEmptyState text={cmaNoRoomPhotoText(room)} className="h-72" />
+              : (
+                <div className="relative">
+                  {compView.state === 'unsorted' && <RoomUnsortedTag />}
+                  <PropertyPhotoCarousel resetKey={`${comp.id}:${room}`} photos={compView.state === 'room' ? compView.photos : comp.photos} fallbackUrl={compView.state === 'room' ? null : comp.photo_url} onIndexChange={onCompIndexChange} onPhotoClick={onOpenCompDetails} />
+                </div>
+              )}
+          </PhotoMapPane>
           <div className="mt-auto grid grid-flow-row-dense grid-cols-6 gap-1 pt-3">
             <CmaFactChip compact icon={DollarSign} value={formatMoney(comp.sale_price ?? comp.list_price, { compact: true })} label="Price" vs={chipVs(subject.list_price, comp.sale_price ?? comp.list_price, { money: true })} />
             <CmaFactChip compact icon={Calculator} value={psf ? `$${Math.round(psf)}` : '—'} label="$/Sqft" vs={chipVs(subjectPsf, psf, { money: true })} />
@@ -4552,7 +4704,7 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
           </div>
           <span aria-hidden className="hidden sm:block" />
         </div>
-        <p className="mb-3 mt-1 hidden text-[11px] font-semibold text-gray-500 dark:text-gray-400 sm:block">Each row describes this comp relative to the subject — "Comp Superior" means Comp #{index + 1} is the better one in that category; "Comp Inferior" means the subject is. Ratings are weighed in the final value review, not added as dollar lines.</p>
+        <p className="mb-3 mt-1 hidden text-[11px] font-semibold text-gray-500 dark:text-gray-400 sm:block">Each row describes this comp relative to the subject — "Comp Superior" means Comp #{index + 1} is the better one in that category; "Comp Inferior" means the subject is. Ratings are weighed in the final value review, not added as dollar lines. Kitchen and Bathrooms describe those rooms only: optional, and never part of the value.</p>
         <p className="mb-3 mt-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 sm:hidden">How Comp #{index + 1} compares — "Superior" means the comp is the better one.</p>
         {/* Comp Weight is a different kind of question from everything below it - it's asking how
             much analytical weight to give this comp overall, not how one attribute compares to
@@ -4566,7 +4718,7 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
               Comp Weight
             </span>
             <div className="min-w-0 flex-1">
-              <OptionGrid options={STRENGTH_OPTIONS} value={normalizeStrength(comp.strength)} onChange={onUpdateStrength} tones={STRENGTH_TIER_STYLES} />
+              <OptionGrid options={STRENGTH_OPTIONS} value={normalizeStrength(comp.strength)} onChange={onUpdateStrength} tones={STRENGTH_TIER_STYLES} readOnly={compsLocked} />
             </div>
           </div>
         </div>
@@ -4579,15 +4731,23 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-wide text-red-600 dark:text-red-400">Marked Irrelevant</p>
               {comp.override_reason && <p className="mt-0.5 truncate text-xs font-semibold text-red-700 dark:text-red-300">{comp.override_reason}</p>}
+              {compsLocked && <p className="mt-0.5 text-[11px] font-semibold text-red-700/80 dark:text-red-300/80">It was left out before the AI wrote the report, so it is not part of it.</p>}
             </div>
-            <button
-              type="button"
-              onClick={() => onUpdate({ is_included: true, override_reason: null })}
-              className="shrink-0 rounded-lg border border-red-300 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-red-700 hover:bg-red-100 dark:border-red-500/40 dark:text-red-300 dark:hover:bg-red-500/10"
-            >
-              Restore
-            </button>
+            {!compsLocked && (
+              <button
+                type="button"
+                onClick={() => onUpdate({ is_included: true, override_reason: null })}
+                className="shrink-0 rounded-lg border border-red-300 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-red-700 hover:bg-red-100 dark:border-red-500/40 dark:text-red-300 dark:hover:bg-red-500/10"
+              >
+                Restore
+              </button>
+            )}
           </div>
+        ) : compsLocked ? (
+          <p data-cma-comps-locked className="mb-3 flex items-start gap-1.5 text-[11px] font-semibold leading-snug text-gray-400">
+            <Lock className="mt-0.5 h-3 w-3 shrink-0 text-[#C9A24D]" />
+            <span>Comps and ratings are locked once the AI has written the report. To change them, <Link href="/studio/cma?new=1" className="font-black text-[#8b7355] underline underline-offset-2 hover:text-[#111827] dark:text-[#d7b974] dark:hover:text-white">start a new CMA</Link>. Your note can still be changed.</span>
+          </p>
         ) : showIrrelevantForm ? (
           <div className="mb-3 rounded-xl border border-gray-200 bg-gray-50 p-2.5 dark:border-gray-700 dark:bg-white/5">
             <input
@@ -4616,16 +4776,18 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
         )}
 
         <div className="divide-y divide-gray-200 dark:divide-gray-800">
-          <QualityRow label="Finish Quality" options={QUALITY_3} value={comp.quality.finish_quality} onChange={v => onUpdateQuality('finish_quality', v)} colorCoded />
-          <QualityRow label="Interior Quality" options={QUALITY_3} value={comp.quality.interior} onChange={v => onUpdateQuality('interior', v)} colorCoded />
-          <QualityRow label="Exterior Quality" options={QUALITY_3} value={comp.quality.exterior} onChange={v => onUpdateQuality('exterior', v)} colorCoded />
+          <QualityRow label="Finish Quality" options={QUALITY_3} value={comp.quality.finish_quality} onChange={v => onUpdateQuality('finish_quality', v)} colorCoded {...blankRow('finish_quality')} />
+          <QualityRow label="Interior Quality" options={QUALITY_3} value={comp.quality.interior} onChange={v => onUpdateQuality('interior', v)} colorCoded {...blankRow('interior')} />
+          <QualityRow label="Kitchen" options={QUALITY_3} value={comp.quality.kitchen} onChange={v => onUpdateQuality('kitchen', v)} colorCoded {...optionalRow('kitchen')} onLabelTap={roomsOn ? () => showRoom('kitchen') : undefined} labelTapHint="See the kitchen photos of both homes" />
+          <QualityRow label="Bathrooms" options={QUALITY_3} value={comp.quality.bathrooms} onChange={v => onUpdateQuality('bathrooms', v)} colorCoded {...optionalRow('bathrooms')} onLabelTap={roomsOn ? () => showRoom('bath') : undefined} labelTapHint="See the bathroom photos of both homes" />
+          <QualityRow label="Exterior Quality" options={QUALITY_3} value={comp.quality.exterior} onChange={v => onUpdateQuality('exterior', v)} colorCoded {...blankRow('exterior')} />
           {comp.quality.lot === 'n_a' || isCondoSubject(subject)
             ? <QualityRowLayout label="Lot"><span className="rounded-lg bg-gray-100 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-gray-400 dark:bg-gray-800">N/A - condo</span></QualityRowLayout>
-            : <QualityRow label="Lot" options={QUALITY_3} value={comp.quality.lot} onChange={v => onUpdateQuality('lot', v)} colorCoded />}
-          <QualityRow label="Amenities" options={QUALITY_3} value={comp.quality.amenities} onChange={v => onUpdateQuality('amenities', v)} colorCoded />
-          <QualityRow label="Layout" options={QUALITY_3} value={comp.quality.layout} onChange={v => onUpdateQuality('layout', v)} colorCoded />
-          <QualityRow label="Area" options={AREA_3} value={comp.quality.area} onChange={v => onUpdateQuality('area', v)} colorCoded />
-          <QualityRow label="Street" options={QUALITY_3} value={comp.quality.street_context} onChange={v => onUpdateQuality('street_context', v)} colorCoded />
+            : <QualityRow label="Lot" options={QUALITY_3} value={comp.quality.lot} onChange={v => onUpdateQuality('lot', v)} colorCoded {...blankRow('lot')} />}
+          <QualityRow label="Amenities" options={QUALITY_3} value={comp.quality.amenities} onChange={v => onUpdateQuality('amenities', v)} colorCoded {...blankRow('amenities')} />
+          <QualityRow label="Layout" options={QUALITY_3} value={comp.quality.layout} onChange={v => onUpdateQuality('layout', v)} colorCoded {...blankRow('layout')} />
+          <QualityRow label="Area" options={AREA_3} value={comp.quality.area} onChange={v => onUpdateQuality('area', v)} colorCoded {...blankRow('area')} />
+          <QualityRow label="Street" options={QUALITY_3} value={comp.quality.street_context} onChange={v => onUpdateQuality('street_context', v)} colorCoded {...blankRow('street_context')} />
         </div>
 
         {/* Auto-filled from the AI note the moment it's generated (see handleGenerate) - no manual
@@ -4676,12 +4838,20 @@ function AutoGrowTextarea({ value, onChange, placeholder, className = '' }: { va
   return <textarea ref={ref} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={5} className={className} />
 }
 
-function QualityRowLayout({ label, children }: { label: string, children: React.ReactNode }) {
+function QualityRowLayout({ label, children, onLabelTap, labelTapHint }: { label: string, children: React.ReactNode, onLabelTap?: () => void, labelTapHint?: string }) {
   // Phones: the label on its own line above the choices (a 6rem label column squeezed the three
   // choices into two-line pills). Wider screens: label column on the left, like before.
   return (
     <div className="flex flex-col gap-1.5 py-2.5 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:gap-3">
-      <p className="shrink-0 text-[10px] font-black uppercase leading-tight tracking-wide text-gray-700 dark:text-gray-400 sm:w-24">{label}</p>
+      {onLabelTap ? (
+        // Kitchen / Bathrooms: the row's name opens that room's photos in the viewer above (both homes).
+        <button type="button" onClick={onLabelTap} title={labelTapHint} aria-label={labelTapHint || label}
+          className="group inline-flex shrink-0 items-center gap-1 self-start text-left text-[10px] font-black uppercase leading-tight tracking-wide text-gray-700 underline decoration-[#C9A24D]/60 decoration-dotted underline-offset-4 transition hover:text-[#8b7355] dark:text-gray-400 dark:hover:text-[#d7b974] sm:w-24 sm:self-auto">
+          {label} <ImageIcon className="h-3 w-3 shrink-0 text-[#C9A24D]" />
+        </button>
+      ) : (
+        <p className="shrink-0 text-[10px] font-black uppercase leading-tight tracking-wide text-gray-700 dark:text-gray-400 sm:w-24">{label}</p>
+      )}
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   )
@@ -4708,15 +4878,19 @@ const SHORT_OPTION_LABEL: Record<string, string> = {
 }
 
 // One segmented row of equal-width choices; the picked one's colour slides across to the next pick.
-function OptionGrid({ options, value, onChange, colorCoded, tones }: {
+function OptionGrid({ options, value, onChange, colorCoded, tones, suggested, readOnly = false }: {
   options: { value: string, label: string }[], value?: string | null, onChange: (v: string) => void, colorCoded?: boolean,
+  /** Shown, not editable (a rating on a report the AI has written): same look, no hover or press, nothing to tap. */
+  readOnly?: boolean,
   /** Per-value colour classes for the picked choice (defaults to the quality-tier colours / gold). */
-  tones?: Record<string, string>
+  tones?: Record<string, string>,
+  /** A choice to point at while nothing is picked (the AI's unconfirmed read) - a dashed gold outline. */
+  suggested?: string | null,
 }) {
   const groupId = useId()
   const reduce = useReducedMotion()
   return (
-    <div className="grid gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-800/70" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+    <div data-cma-rating-locked={readOnly ? '' : undefined} className="grid gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-800/70" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
       {options.map(opt => {
         const on = value === opt.value
         const tone = (tones && tones[opt.value]) || (colorCoded ? AGENT_QUALITY_TIER_STYLES[opt.value] : '') || 'bg-[#C9A24D] text-white'
@@ -4726,11 +4900,12 @@ function OptionGrid({ options, value, onChange, colorCoded, tones }: {
           <button
             key={opt.value}
             type="button"
-            onClick={() => onChange(opt.value)}
+            onClick={readOnly ? undefined : () => onChange(opt.value)}
+            disabled={readOnly}
             aria-pressed={on}
-            className={`relative min-h-[36px] rounded-lg px-1.5 py-2 text-center text-[10px] font-black uppercase leading-tight tracking-wide transition-colors duration-200 active:scale-[0.97] ${
-              on ? toneText : 'text-gray-600 hover:bg-white/80 dark:text-gray-400 dark:hover:bg-gray-700/60'
-            }`}
+            className={`relative min-h-[36px] rounded-lg px-1.5 py-2 text-center text-[10px] font-black uppercase leading-tight tracking-wide transition-colors duration-200 ${readOnly ? 'cursor-default' : 'active:scale-[0.97]'} ${
+              on ? toneText : readOnly ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 hover:bg-white/80 dark:text-gray-400 dark:hover:bg-gray-700/60'
+            } ${!readOnly && !value && suggested === opt.value ? 'outline-dashed outline-2 -outline-offset-2 outline-[#C9A24D]' : ''}`}
           >
             {on && (
               <motion.span
@@ -4750,10 +4925,53 @@ function OptionGrid({ options, value, onChange, colorCoded, tones }: {
   )
 }
 
-function QualityRow({ label, options, value, onChange, colorCoded }: { label: string, options: { value: string, label: string }[], value?: string | null, onChange: (v: string) => void, colorCoded?: boolean }) {
+function QualityRow({ label, options, value, onChange, colorCoded, blankNote, aiRead, optionalNote, onLabelTap, labelTapHint, locked = false }: {
+  /** The AI has written the report: the rating is shown, not editable (the row's name still opens the room's photos). */
+  locked?: boolean,
+  /** Kitchen / Bathrooms, when photos are sorted by room: tapping the row's name shows that room in the viewer. */
+  onLabelTap?: () => void, labelTapHint?: string,
+  label: string, options: { value: string, label: string }[], value?: string | null, onChange: (v: string) => void, colorCoded?: boolean,
+  /** The AI analysis ran and left this one blank - say so, and that it is optional. */
+  blankNote?: boolean,
+  /** What the AI itself rated it before the record checks cleared it (shown with a one-tap "Use it"). */
+  aiRead?: string | null,
+  /** A row that is never required (Kitchen, Bathrooms), blank on a report with no AI analysis - say it's optional. */
+  optionalNote?: boolean,
+}) {
+  const readOption = !value && aiRead ? options.find(o => o.value === aiRead) : undefined
   return (
-    <QualityRowLayout label={label}>
-      <OptionGrid options={options} value={value} onChange={onChange} colorCoded={colorCoded} />
+    <QualityRowLayout label={label} onLabelTap={onLabelTap} labelTapHint={labelTapHint}>
+      <OptionGrid options={options} value={value} onChange={onChange} colorCoded={colorCoded} suggested={readOption?.value} readOnly={locked} />
+      {optionalNote && !value && !locked && (
+        <p className="mt-1.5 text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400">Optional. It describes the room only and does not change the value. A blank row is left off the report.</p>
+      )}
+      {blankNote && !value && locked && (
+        // a written report: the AI's read as plain words, nothing to tap
+        <p data-cma-rating-blank className="mt-1.5 text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400">
+          {readOption ? (
+            <>
+              <Sparkles className="mr-1 inline h-3 w-3 text-[#C9A24D]" />
+              AI&apos;s read: <span className="font-black text-[#8b7355] dark:text-[#d7b974]">{readOption.label}</span>, but the records couldn&apos;t confirm it, so this row is left off the report.
+            </>
+          ) : (
+            <>The AI couldn&apos;t tell this one from the photos and records, so this row is left off the report.</>
+          )}
+        </p>
+      )}
+      {blankNote && !value && !locked && (
+        <p className="mt-1.5 text-[11px] font-semibold leading-snug text-gray-500 dark:text-gray-400">
+          {readOption ? (
+            <>
+              <Sparkles className="mr-1 inline h-3 w-3 text-[#C9A24D]" />
+              AI&apos;s read: <span className="font-black text-[#8b7355] dark:text-[#d7b974]">{readOption.label}</span>, but the records couldn&apos;t confirm it.{' '}
+              <button type="button" onClick={() => onChange(readOption.value)} className="font-black text-[#8b7355] underline underline-offset-2 hover:text-[#111827] dark:text-[#d7b974] dark:hover:text-white">Use it</button>
+              {' '}or pick another. Optional.
+            </>
+          ) : (
+            <>The AI couldn&apos;t tell this one from the photos and records. Optional: a blank row is left off the report.</>
+          )}
+        </p>
+      )}
     </QualityRowLayout>
   )
 }
@@ -4918,6 +5136,37 @@ function MoneyField({ label, value, onChange }: { label: string, value?: number 
   )
 }
 
+// Every agent-only "check this before sending" note the engine left on a report, in the order shown. One list:
+// the Pricing step shows them, the Review step's bar counts them. Never in the PDF or the client link.
+type AgentReviewNote = { text: string; values: { comps_value?: number | null; final_value?: number | null } | null; ownListing?: boolean }
+function agentReviewNotes(report: CmaReport): AgentReviewNote[] {
+  const est = report.pricing?.ai_estimate as (CmaReport['pricing']['ai_estimate'] & {
+    current_competition?: { review?: string | null }
+    missed_sales?: { message?: string | null } | null
+    data_freshness?: { message?: string | null } | null
+    subject_status_review?: { message?: string | null } | null
+    audit_review?: { message?: string | null } | null
+    spread_review?: { message?: string | null } | null
+  }) | null | undefined
+  const notes: AgentReviewNote[] = []
+  const note = est?.agent_review
+  // (10/25: a recent same-community sale left out of the report got its own note, and the old banner showed only one.)
+  if (note?.message) notes.push({ text: note.message, values: note })
+  if (est?.current_competition?.review) notes.push({ text: est.current_competition.review, values: null })
+  if (est?.missed_sales?.message) notes.push({ text: est.missed_sales.message, values: null })
+  // The final read of the finished report (the in-site grader, 11/14): what it could not fix by itself
+  if (est?.audit_review?.message) notes.push({ text: est.audit_review.message, values: null })
+  // One or two sales sit far from the rest after adjusting and carry the figure (11/14)
+  if (est?.spread_review?.message) notes.push({ text: est.spread_review.message, values: null })
+  // MLS data more than a day old when this report was made (grader audit 11/13)
+  if (est?.data_freshness?.message) notes.unshift({ text: est.data_freshness.message, values: null })
+  // The subject's listing left the MLS only days ago - confirm with the owner before sending (grader audit 11/14)
+  if (est?.subject_status_review?.message) notes.unshift({ text: est.subject_status_review.message, values: null })
+  // A buyer CMA on the agent's own listing (10/24): lowball offer advice in a PDF meant for their seller
+  if (est?.audience_review?.message) notes.unshift({ text: est.audience_review.message, values: null, ownListing: true })
+  return notes
+}
+
 // Agent-only (grader, 10/21): the asking-price check moved the value 5%+ away from what the comps say -
 // both numbers, so the agent decides before it goes out. Never in the PDF or the client link.
 function AgentReviewBanner({ report }: { report: CmaReport }) {
@@ -4966,21 +5215,7 @@ function AgentValueReviewBanner({ report }: { report: CmaReport }) {
       </div>
     </div>
   ) : null
-  // Every agent-only review note at once (10/25: a recent same-community sale left out of the report
-  // got its own note, and the old banner showed only one of them).
-  type ReviewNote = { text: string; values: { comps_value?: number | null; final_value?: number | null } | null }
-  const notes: ReviewNote[] = []
-  if (note?.message) notes.push({ text: note.message, values: note })
-  if (est?.current_competition?.review) notes.push({ text: est.current_competition.review, values: null })
-  if (est?.missed_sales?.message) notes.push({ text: est.missed_sales.message, values: null })
-  // The final read of the finished report (the in-site grader, 11/14): what it could not fix by itself
-  if (est?.audit_review?.message) notes.push({ text: est.audit_review.message, values: null })
-  // One or two sales sit far from the rest after adjusting and carry the figure (11/14)
-  if (est?.spread_review?.message) notes.push({ text: est.spread_review.message, values: null })
-  // MLS data more than a day old when this report was made (grader audit 11/13)
-  if (est?.data_freshness?.message) notes.unshift({ text: est.data_freshness.message, values: null })
-  // The subject's listing left the MLS only days ago - confirm with the owner before sending (grader audit 11/14)
-  if (est?.subject_status_review?.message) notes.unshift({ text: est.subject_status_review.message, values: null })
+  const notes = agentReviewNotes(report).filter(n => !n.ownListing)
   if (!notes.length) return evidence
   return (
     <div className="space-y-2">
@@ -5003,232 +5238,155 @@ function AgentValueReviewBanner({ report }: { report: CmaReport }) {
   )
 }
 
+// Step 4 - Pricing: where the agent is INFORMED before anything goes out (11/15). Everything only the agent
+// should see lives here and nowhere a client can reach: how strong the evidence is, what to check before
+// sending, why the value landed where it did, the adjusted sales against the final value, the homes on the
+// market with their match scores, and the checks the report went through. The numbers are set here (or right
+// on the report); the wording is typed on the report itself in the Review step.
 function PricingStep({ report, onSave, onReportUpdated, onNext, onBack }: { report: CmaReport, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>, onReportUpdated: (r: CmaReport) => void, onNext: () => void, onBack?: () => void }) {
-  // Mode is fixed at CMA creation (see the picker in studio/cma/page.tsx's CreateCmaModal) - no
-  // in-wizard way to change it, so it's a plain derived read, not stateful. Letting it change here
-  // used to leave stale/blank pricing fields behind (generated under one mode, then switched to
-  // the other's empty fields) since a mode flip never retroactively re-filled anything.
+  // Mode is fixed at CMA creation (see the picker in studio/cma/page.tsx's CreateCmaModal).
   const mode = report.mode
-  const [pricing, setPricing] = useState<CmaPricing>(report.pricing)
-
-  // Re-seed from the server ONLY on a genuine report switch - NOT on report.pricing,
-  // which get a fresh reference on every silent save echo and would revert a field mid-edit (and
-  // with saves overlapping keystrokes, re-save it - the autosave "glitch"). The useState
-  // initializers seed the first mount; the setters below own local state after that.
-  const seededPricingReportId = useRef(report.id)
+  const [local, setLocal] = useState<{ pricing: CmaPricing, presentation: CmaReport['presentation'] }>({ pricing: report.pricing, presentation: report.presentation })
+  // Re-seed ONLY on a genuine report switch - not on every save coming back, which would undo a number mid-edit.
+  const seededReportId = useRef(report.id)
   useEffect(() => {
-    if (seededPricingReportId.current === report.id) return
-    seededPricingReportId.current = report.id
-    setPricing(report.pricing)
+    if (seededReportId.current === report.id) return
+    seededReportId.current = report.id
+    setLocal({ pricing: report.pricing, presentation: report.presentation })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [report.id])
+  const working = useMemo<CmaReport>(() => ({ ...report, ...local }), [report, local])
+  const [competitionHome, setCompetitionHome] = useState<CmaCompetitionHome | null>(null)
 
-  // Debounced from each setter directly (not a watch-effect on `pricing`) - a
-  // round-trip reset never calls one of these setters again on its own.
+  const pendingSave = useRef<Partial<CmaReport>>({})
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current) }, [])
-  const scheduleSave = (nextPricing: CmaPricing) => {
+  const flush = async (): Promise<CmaReport | null> => {
+    if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null }
+    const patch = pendingSave.current
+    pendingSave.current = {}
+    if (Object.keys(patch).length === 0) return null
+    // A number changed here is the agent finishing the report - a shared report keeps its link live.
+    if ('pricing' in patch && (report.status === 'READY' || report.status === 'SHARED')) patch.status = report.status
+    return onSave(patch, { silent: true })
+  }
+  useEffect(() => () => { void flush() }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+  // The agent's number wins on the report, the client link and the PDF (lib/cmaReport cmaFigure). A report
+  // with an analysis keeps it beside the engine's number, so "back to the report's own" is one tap.
+  const setFigure = (key: CmaFigureKey, value: number | null) => {
+    const patch = cmaFigurePatch(working, key, value)
+    setLocal(l => ({ ...l, ...patch }))
+    Object.assign(pendingSave.current, patch)
     if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => { onSave({ pricing: nextPricing }, { silent: true }) }, 700)
+    saveTimer.current = setTimeout(() => { void flush() }, 700)
   }
-
-  const patch = (p: Partial<CmaPricing>) => {
-    const next = { ...pricing, ...p }
-    setPricing(next)
-    scheduleSave(next)
-  }
-  const buyerGuidance = useMemo(() => splitCmaBuyerGuidance(pricing), [pricing])
-  const inspectionConcernsValue = pricing.inspection_concerns ?? buyerGuidance.inspectionText
-  const offerSuggestionValue = pricing.inspection_concerns ? (pricing.offer_suggestion_notes || '') : (buyerGuidance.offerText || pricing.offer_suggestion_notes || '')
 
   const handleContinue = async () => {
-    const pricingToSave = mode === 'buyer' && !pricing.inspection_concerns && buyerGuidance.inspectionText
-      ? { ...pricing, inspection_concerns: buyerGuidance.inspectionText, offer_suggestion_notes: buyerGuidance.offerText || pricing.offer_suggestion_notes }
-      : pricing
-    const saved = await onSave({ mode, pricing: pricingToSave })
-    // See AnalysisStep's handleContinue - an agent price edit after generation legitimately marks
-    // the stamped QA artifact stale; re-verify here so Summary never has to show that notice for a
-    // save that just happened as part of normal, expected step-by-step workflow.
-    if (saved && isStaleArtifactOnly(cmaQaBlocking(saved))) {
-      // Free re-stamp, not a paid recompute - nothing about the content needs re-checking here,
-      // just the artifact hash catching up to this save.
+    const saved = (await flush()) || report
+    // An agent's number after generation legitimately marks the stamped check stale; the free re-stamp
+    // (no AI, no cost) clears it so Review never has to mention it.
+    if (isStaleArtifactOnly(cmaQaBlocking(saved))) {
       const response = await api.cma.resyncQa(saved.id)
       if (response.success && response.data) onReportUpdated(response.data)
     }
     onNext()
   }
 
+  const est = report.pricing?.ai_estimate
+  const fv = est?.final_valuation
+  const confidenceRaw = String(fv?.confidence ?? est?.confidence ?? '').toLowerCase()
+  const confidence = confidenceRaw === 'medium' ? 'moderate' : confidenceRaw
+  const engineValue = fv?.value ?? est?.value ?? null
+  const engineMin = fv?.range_min ?? est?.range_min ?? null
+  const engineMax = fv?.range_max ?? est?.range_max ?? null
+  const fields: { key: CmaFigureKey, label: string }[] = mode === 'listing'
+    ? [
+        { key: 'range_min', label: 'Recommended Min' },
+        { key: 'range_max', label: 'Recommended Max' },
+        { key: 'most_likely_value', label: 'Most Likely Market Value' },
+        { key: 'recommended_list_price', label: 'Recommended List Price' },
+      ]
+    : [
+        { key: 'value', label: 'Estimated Fair Market Value' },
+        { key: 'offer_min', label: 'Suggested Offer Min' },
+        { key: 'offer_max', label: 'Suggested Offer Max' },
+        { key: 'strong_offer', label: 'Strong Offer' },
+      ]
+  const whyBullets = cmaWhyBullets(report)
+  const hasCompetition = !!(est as { current_competition?: unknown } | null | undefined)?.current_competition
+
   return (
     <div className="space-y-5">
       <FlowDock step={4} total={5} onBack={onBack} onContinue={handleContinue} continueLabel="Review" />
-      <AgentReviewBanner report={report} />
-      {mode === 'listing' ? (
-        <SectionCard title="Pricing Conclusion" subtitle="Auto-filled by AI once generated - your numbers always override it.">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <MoneyField label="Recommended Min" value={pricing.recommended_min} onChange={v => patch({ recommended_min: v })} />
-            <MoneyField label="Recommended Max" value={pricing.recommended_max} onChange={v => patch({ recommended_max: v })} />
-            <MoneyField label="Most Likely Market Value" value={pricing.most_likely_value} onChange={v => patch({ most_likely_value: v })} />
-            <MoneyField label="Recommended List Price" value={pricing.recommended_list_price} onChange={v => patch({ recommended_list_price: v })} />
-          </div>
-          {/* Auto-filled once by the AI (non-destructively) at generation time - see
-              cma_ai_service.py. Shows the gold "AI Generated" marker for as long as it still
-              matches the AI's own methodology summary verbatim; editing it reverts to the plain
-              look, since it's now the agent's own words. */}
-          {(() => {
-            const aiText = pricing.ai_estimate?.methodology_summary
-            const isAiText = !!aiText && pricing.pricing_commentary === aiText
+
+      <SectionCard
+        title={mode === 'listing' ? 'Pricing Conclusion' : 'Buyer Valuation / Offer Analysis'}
+        subtitle={est ? 'Filled in by the analysis. Change a number and yours is the one the report, the client link and the PDF show.' : 'Your numbers. They show on the report, the client link and the PDF.'}
+      >
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {fields.map(f => {
+            const edited = !!est && cmaFigureEdited(working, f.key)
+            const own = edited ? cmaDefaultFigure({ ...working, presentation: { ...working.presentation, figures: {} } }, f.key) : null
             return (
-              <div className="mt-4">
-                <FieldLabel>Agent Pricing Analysis</FieldLabel>
-                <div className={`mt-1.5 rounded-xl border transition ${isAiText ? 'border-[#C9A24D]/30 bg-[#C9A24D]/5 p-1.5' : 'border-transparent'}`}>
-                  {isAiText && (
-                    <p className="flex items-center gap-1.5 px-2 pb-1 pt-0.5 text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">
-                      <Sparkles className="h-3 w-3" /> AI Generated
-                    </p>
-                  )}
-                  <textarea
-                    value={pricing.pricing_commentary || ''}
-                    onChange={e => patch({ pricing_commentary: e.target.value })}
-                    placeholder="Where the property sits within the comp set, finish quality, renovations, scarcity, market conditions, which comps deserve more or less weight, risk of pricing too aggressively..."
-                    rows={5}
-                    className={`w-full rounded-xl px-3.5 py-2.5 text-sm font-medium outline-none focus:border-[#C9A24D] dark:text-white ${
-                      isAiText ? 'border border-transparent bg-transparent' : 'border border-gray-200 bg-white dark:border-gray-700 dark:bg-[#0B0B0B]'
-                    }`}
-                  />
-                </div>
-              </div>
-            )
-          })()}
-          {/* Seller mirror of the buyer's Offer Suggestion / Inspection Concerns - AI-filled once
-              (non-destructively), same "AI Generated" marker while it still matches verbatim. */}
-          {([
-            { key: 'listing_strategy_notes', aiKey: 'listing_strategy_considerations', label: 'Pricing Strategy', placeholder: 'Where the list price should sit and why, the competition a buyer will compare it to, the risk of overpricing, what to lead with at launch...' },
-            { key: 'listing_prep_notes', aiKey: 'listing_prep_concerns', label: 'Listing Prep', placeholder: "What to fix, document, or be ready to disclose before listing - systems, roof, septic/well, records and permits - so a buyer's inspection doesn't become a negotiation..." },
-          ] as const).map(({ key, aiKey, label, placeholder }) => {
-            const value = pricing[key] || ''
-            const aiText = pricing.ai_estimate?.[aiKey]
-            const isAiText = !!aiText && value === aiText
-            return (
-              <div key={key} className="mt-4">
-                <FieldLabel>{label}</FieldLabel>
-                <div className={`mt-1.5 rounded-xl border transition ${isAiText ? 'border-[#C9A24D]/30 bg-[#C9A24D]/5 p-1.5' : 'border-transparent'}`}>
-                  {isAiText && (
-                    <p className="flex items-center gap-1.5 px-2 pb-1 pt-0.5 text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">
-                      <Sparkles className="h-3 w-3" /> AI Generated
-                    </p>
-                  )}
-                  <textarea
-                    value={value}
-                    onChange={e => patch({ [key]: e.target.value })}
-                    placeholder={placeholder}
-                    rows={4}
-                    className={`w-full rounded-xl px-3.5 py-2.5 text-sm font-medium outline-none focus:border-[#C9A24D] dark:text-white ${
-                      isAiText ? 'border border-transparent bg-transparent' : 'border border-gray-200 bg-white dark:border-gray-700 dark:bg-[#0B0B0B]'
-                    }`}
-                  />
-                </div>
+              <div key={f.key}>
+                <MoneyField label={f.label} value={cmaFigure(working, f.key)} onChange={v => setFigure(f.key, v)} />
+                {edited && (
+                  <button type="button" onClick={() => setFigure(f.key, own)} className="mt-1 inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-gray-400 underline-offset-2 transition hover:text-[#8b7355] hover:underline">
+                    <RefreshCw className="h-2.5 w-2.5" /> {own != null ? `Back to ${formatMoney(own)}` : 'Clear my number'}
+                  </button>
+                )}
               </div>
             )
           })}
-        </SectionCard>
-      ) : (
-        <SectionCard title="Buyer Valuation / Offer Analysis" subtitle="Auto-filled by AI once generated - your numbers always override it.">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <MoneyField label="Estimated Fair Market Value" value={pricing.estimated_fair_value} onChange={v => patch({ estimated_fair_value: v })} />
-            <MoneyField label="Suggested Offer Min" value={pricing.suggested_offer_min} onChange={v => patch({ suggested_offer_min: v })} />
-            <MoneyField label="Suggested Offer Max" value={pricing.suggested_offer_max} onChange={v => patch({ suggested_offer_max: v })} />
-            <MoneyField label="Strong Offer" value={pricing.strong_offer} onChange={v => patch({ strong_offer: v })} />
+        </div>
+        {engineValue != null && (
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl bg-[#fbfaf7] px-3.5 py-2.5 text-xs font-bold text-gray-600 dark:bg-[#0B0B0B] dark:text-gray-300">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]"><Sparkles className="h-3 w-3" /> The analysis</span>
+            <span>Value <span className="font-black text-[#111827] dark:text-white">{formatMoney(engineValue)}</span></span>
+            {engineMin != null && engineMax != null && <span>Range <span className="font-black text-[#111827] dark:text-white">{formatMoneyRange(engineMin, engineMax)}</span></span>}
+            {confidence && <span>Confidence <span className="font-black capitalize text-[#111827] dark:text-white">{confidence}</span></span>}
+            <span className="font-semibold text-gray-400">· only you see the confidence</span>
           </div>
-          {/* Auto-filled once by the AI (non-destructively) at generation time - see
-              cma_ai_service.py. Shows the same gold "AI Generated" marker as comp notes for as
-              long as it still matches the AI's own methodology summary verbatim; editing it
-              reverts to the plain look, since it's now the agent's own words. */}
-          {(() => {
-            const aiText = pricing.ai_estimate?.methodology_summary
-            const isAiText = !!aiText && pricing.offer_strategy_commentary === aiText
-            return (
-              <div className="mt-4">
-                <FieldLabel>Buyer Valuation - Agent Notes</FieldLabel>
-                <div className={`mt-1.5 rounded-xl border transition ${isAiText ? 'border-[#C9A24D]/30 bg-[#C9A24D]/5 p-1.5' : 'border-transparent'}`}>
-                  {isAiText && (
-                    <p className="flex items-center gap-1.5 px-2 pb-1 pt-0.5 text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">
-                      <Sparkles className="h-3 w-3" /> AI Generated
-                    </p>
-                  )}
-                  <textarea
-                    value={pricing.offer_strategy_commentary || ''}
-                    onChange={e => patch({ offer_strategy_commentary: e.target.value })}
-                    placeholder="Why is this a fair value for the property - condition, comps, market conditions..."
-                    rows={5}
-                    className={`w-full rounded-xl px-3.5 py-2.5 text-sm font-medium outline-none focus:border-[#C9A24D] dark:text-white ${
-                      isAiText ? 'border border-transparent bg-transparent' : 'border border-gray-200 bg-white dark:border-gray-700 dark:bg-[#0B0B0B]'
-                    }`}
-                  />
-                </div>
-              </div>
-            )
-          })()}
-          {(() => {
-            const aiText = pricing.ai_estimate?.inspection_concerns
-            const isAiText = !!aiText && inspectionConcernsValue === aiText
-            return (
-              <div className="mt-4">
-                <FieldLabel>Inspection Concerns</FieldLabel>
-                <div className={`mt-1.5 rounded-xl border transition ${isAiText ? 'border-[#C9A24D]/30 bg-[#C9A24D]/5 p-1.5' : 'border-transparent'}`}>
-                  {isAiText && (
-                    <p className="flex items-center gap-1.5 px-2 pb-1 pt-0.5 text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">
-                      <Sparkles className="h-3 w-3" /> AI Generated
-                    </p>
-                  )}
-                  <textarea
-                    value={inspectionConcernsValue}
-                    onChange={e => patch({ inspection_concerns: e.target.value })}
-                    placeholder="Inspection and due-diligence concerns: utilities, septic, roof, exterior, foundation, mechanicals, water intrusion, condition risks..."
-                    rows={4}
-                    className={`w-full rounded-xl px-3.5 py-2.5 text-sm font-medium outline-none focus:border-[#C9A24D] dark:text-white ${
-                      isAiText ? 'border border-transparent bg-transparent' : 'border border-gray-200 bg-white dark:border-gray-700 dark:bg-[#0B0B0B]'
-                    }`}
-                  />
-                </div>
-              </div>
-            )
-          })()}
-          {/* AI-auto-fillable tactical negotiation guidance - kept separate from inspection
-              concerns so the client-facing PDF/site don't read like one giant paragraph. */}
-          {(() => {
-            const aiText = pricing.ai_estimate?.offer_strategy_considerations
-            const isAiText = !!aiText && offerSuggestionValue === aiText
-            return (
-              <div className="mt-4">
-                <FieldLabel>Offer Suggestion</FieldLabel>
-                <div className={`mt-1.5 rounded-xl border transition ${isAiText ? 'border-[#C9A24D]/30 bg-[#C9A24D]/5 p-1.5' : 'border-transparent'}`}>
-                  {isAiText && (
-                    <p className="flex items-center gap-1.5 px-2 pb-1 pt-0.5 text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">
-                      <Sparkles className="h-3 w-3" /> AI Generated
-                    </p>
-                  )}
-                  <textarea
-                    value={offerSuggestionValue}
-                    onChange={e => patch({ offer_suggestion_notes: e.target.value })}
-                    placeholder="How would you structure the offer: opening price, ceiling, negotiation leverage, seller psychology, contingencies, timing..."
-                    rows={4}
-                    className={`w-full rounded-xl px-3.5 py-2.5 text-sm font-medium outline-none focus:border-[#C9A24D] dark:text-white ${
-                      isAiText ? 'border border-transparent bg-transparent' : 'border border-gray-200 bg-white dark:border-gray-700 dark:bg-[#0B0B0B]'
-                    }`}
-                  />
-                </div>
-              </div>
-            )
-          })()}
+        )}
+      </SectionCard>
+
+      {/* How strong the evidence is + everything to check before this goes out. Agent only. */}
+      <AgentReviewBanner report={report} />
+
+      {whyBullets.length > 0 && (
+        <SectionCard title="Why This Value" subtitle="Only you see this. The report's own wording makes the case to your client.">
+          {whyBullets.length > 0 && (
+            <ul className="space-y-1.5">
+              {whyBullets.map((bullet, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm font-medium leading-relaxed text-gray-600 dark:text-gray-300">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#C9A24D]" />
+                  <span>{bullet}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </SectionCard>
       )}
 
-      {/* QA/Review is intentionally not shown to the agent - see CmaLookupPanel in the admin
-          dashboard, which an admin uses to view this via the report's own support code. */}
+      {/* The homes for sale and under contract, with their match scores and what the engine did with them. The
+          client's report shows these homes too (Review step) - without the scores. */}
+      {hasCompetition && <CurrentCompetition report={report} agentView onOpenHome={setCompetitionHome} />}
+      <PropertyPopupModal
+        open={!!competitionHome}
+        onClose={() => setCompetitionHome(null)}
+        data={competitionHome ? buildAnalysisPopupData('comp', report.subject, competitionHomeAsComparable(competitionHome)) : null}
+      />
 
-      <div className="hidden justify-end gap-2 sm:flex">
-        <button onClick={handleContinue} className="cma-btn inline-flex items-center gap-2 rounded-xl bg-[#111827] px-6 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
-          Continue to Summary <ArrowLeft className="h-4 w-4 rotate-180" />
+      {est && <CmaQaReviewPanel report={report} />}
+
+      <div className="flex flex-col items-stretch gap-3 rounded-2xl border border-[#C9A24D]/40 bg-[#C9A24D]/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-black text-[#111827] dark:text-white">The wording is on the report itself</p>
+          <p className="mt-0.5 text-xs font-semibold leading-relaxed text-gray-500 dark:text-gray-400">
+            {mode === 'listing' ? 'Your pricing analysis, pricing strategy and listing prep' : 'Your valuation notes, inspection concerns and offer suggestion'} are typed right where your client reads them, in the Review step.
+          </p>
+        </div>
+        <button onClick={handleContinue} className="cma-btn inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#111827] px-6 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
+          Open the report <ArrowLeft className="h-4 w-4 rotate-180" />
         </button>
       </div>
     </div>
@@ -5239,511 +5397,155 @@ function PricingStep({ report, onSave, onReportUpdated, onNext, onBack }: { repo
 // Step 5: Summary & Share
 // ============================================================================
 
-function SummaryStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
+// The Review step IS the client's report, editable in place (components/cma/report/CmaReportEditor). The
+// summary cards, the Presentation chips and the Complete & Send card that used to be here are all on that one
+// page now: the report itself, its per-section Hide buttons, and the bar at the top.
+function ReviewStep({ report, onSave, onReportUpdated, onJump, onDeleted }: {
   report: CmaReport, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>, onReportUpdated: (r: CmaReport) => void, onJump: (s: StepId) => void, onDeleted: () => void,
 }) {
-  const [competitionHome, setCompetitionHome] = useState<CmaCompetitionHome | null>(null)
-  const { showToast } = useToast()
-  const router = useRouter()
-  const { user } = useAuth()
-  const [agent, setAgent] = useState<any>(null)
-  const [pdfBusy, setPdfBusy] = useState<'' | 'open' | 'download'>('')
-  // iPhones get the PDF built ahead of time so a tap can hand it over (lib/pdfFile)
-  const pdfFile = usePdfFile(
-    () => agent ? <CmaPresentationDocument report={report} agent={agent} /> : null,
-    `CMA-${(report.subject.street_address || 'Report').replace(/[^a-z0-9]+/gi, '-')}.pdf`,
-    `${report.id}:${report.updated_at ?? ''}`, !!agent,
-  )
-  const [showShare, setShowShare] = useState(false)
-  const [sharePath, setSharePath] = useState<string | null>(report.share_slug ? `/cma/${report.share_slug}` : null)
-  const [idxSite, setIdxSite] = useState<Site | null>(null)
-  const [idxDomains, setIdxDomains] = useState<SiteDomain[]>([])
-  const [shareLinks, setShareLinks] = useState<{ openHousePalUrl: string, websiteUrl: string | null } | null>(null)
-  const [sharing, setSharing] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [readyState, setReadyState] = useState<'idle' | 'saving' | 'done'>(() => (report.status === 'READY' || report.status === 'SHARED' ? 'done' : 'idle'))
-
-  useEffect(() => {
-    Promise.allSettled([api.studio.getBrandKit(), api.agentHub.getMine()]).then(([brandResult, hubResult]) => {
-      const brandRes = brandResult.status === 'fulfilled' ? brandResult.value : null
-      const hubRes = hubResult.status === 'fulfilled' ? hubResult.value : null
-      const brand = brandRes?.success ? brandRes.data : null
-      const hubConfig = hubRes?.success ? hubRes.data?.config : null
-      const profilePhotoUrl = hubConfig?.profilePhotoUrl || hubConfig?.profile_photo_url || user?.photo_url || null
-      setAgent({
-        name: user ? `${user.first_name} ${user.last_name}` : '',
-        headshot_url: profilePhotoUrl,
-        photo_url: profilePhotoUrl,
-        brokerage: user?.brokerage || null,
-        email: user?.email || null,
-        phone: hubConfig?.contact?.call || hubConfig?.contact?.phone || hubConfig?.contact?.mobile || (user as any)?.phone || null,
-        service_area: hubConfig?.profile?.market || user?.market || null,
-        logo_url: brand?.personal_logo_url || brand?.brokerage_logo_url || null,
-        primary_color: brand?.primary_color || '#111827',
-        secondary_color: brand?.secondary_color || '#C9A24D',
-      })
-    })
-  }, [user])
-
-  useEffect(() => {
-    // Only IDX plans have a website - asking on other plans just 403s (console noise).
-    if (!user || user.plan_tier !== 'IDX') return
-    Promise.all([api.sites.getMine(), api.sites.getDomains()])
-      .then(([siteResponse, domainsResponse]) => {
-        if (siteResponse.success && siteResponse.data) setIdxSite(siteResponse.data)
-        if (domainsResponse.success && domainsResponse.data) setIdxDomains(domainsResponse.data)
-      })
-      .catch(() => {})
-  }, [user?.plan_tier])
-
-  const included = report.comparables.filter(c => c.is_included)
-  const weighted = strongComps(report.comparables)
-  // Authoritative backend comp stats when the report has an AI estimate; computeMarketMetrics
-  // (inside resolveCmaMarketMetrics) is only the fallback for a report with no AI run yet.
-  const metrics = resolveCmaMarketMetrics(included, report.pricing.ai_estimate)
-  // Backend is the single authoritative valuation source (see ai_estimate.range_min/range_max) -
-  // this is a display fallback only, for when the agent hasn't filled in their own pricing yet
-  // and an AI analysis has run; no independent client-side estimate is computed anymore.
-  const aiEstimate = report.pricing.ai_estimate
-  const finalValuation = aiEstimate?.final_valuation
-  const authoritativeValue = finalValuation?.value ?? aiEstimate?.value ?? null
-  const suggested = {
-    min: finalValuation?.range_min ?? aiEstimate?.range_min ?? null,
-    max: finalValuation?.range_max ?? aiEstimate?.range_max ?? null,
-  }
-  const buyerGuidance = splitCmaBuyerGuidance({
-    ...report.pricing,
-    offer_strategy_commentary: aiEstimate?.methodology_summary ?? report.pricing.offer_strategy_commentary,
-    offer_suggestion_notes: aiEstimate?.offer_strategy_considerations ?? report.pricing.offer_suggestion_notes,
-  })
-  const [presentation, setPresentation] = useState(report.presentation)
-  const presentationRef = useRef(report.presentation)
-  useEffect(() => {
-    presentationRef.current = report.presentation
-    setPresentation(report.presentation)
-  }, [report.id, report.presentation])
-
-  const savePresentation = (next: CmaReport['presentation']) => {
-    presentationRef.current = next
-    setPresentation(next)
-    void onSave({ presentation: next }, { silent: true })
-  }
-
-  const toggleSection = (key: string) => {
-    const current = presentationRef.current
-    const hidden = new Set(current.hidden_sections)
-    hidden.has(key) ? hidden.delete(key) : hidden.add(key)
-    savePresentation({ ...current, hidden_sections: Array.from(hidden) })
-  }
-
-  // Which theme the public link opens in for a visitor by default - undefined/null means dark
-  // (the site's own default). Purely a default; the visitor can still flip it with their own
-  // toggle on the public page, and the IDX-embedded view ignores this entirely (always light).
-  const setDefaultTheme = (theme: 'light' | 'dark') => {
-    savePresentation({ ...presentationRef.current, default_theme: theme })
-  }
-  useEffect(() => {
-    if (report.share_slug) setSharePath(`/cma/${report.share_slug}`)
-  }, [report.share_slug])
-
-  // The report is always final and export-ready the moment generation completes - every fix runs
-  // automatically inside the generation pipeline itself, before this report is ever saved, so
-  // there is no separate "resolve QA" gate here: Mark Ready, Share, and Download all just work.
-  const markReady = async () => {
-    if (readyState !== 'idle') return
-    setReadyState('saving')
-    await onSave({ status: 'READY' }, { silent: true })
-    setReadyState('done')
-    showToast('CMA marked ready', 'success')
-    window.setTimeout(() => router.push('/studio/cma'), 900)
-  }
-
-  const ensureSharePath = async (): Promise<string | null> => {
-    setSharing(true)
-    const response = await api.cma.share(report.id)
-    setSharing(false)
-    if (response.success && response.data) {
-      await onSave({}, { silent: true })
-      setSharePath(response.data.public_path)
-      return response.data.public_path
-    }
-    showToast(response.error || 'Could not create a share link.', 'error')
-    return null
-  }
-
-  const handleShare = async () => {
-    const path = await ensureSharePath()
-    if (path) {
-      setShareLinks({
-        openHousePalUrl: openHousePalPublicUrl(path),
-        websiteUrl: websitePublicUrl(idxSite, idxDomains, path),
-      })
-      setShowShare(true)
-    }
-  }
-
-  const confirmDelete = async () => {
-    setIsDeleting(true)
-    const response = await api.cma.remove(report.id)
-    setIsDeleting(false)
-    if (response.success) onDeleted()
-    else { setShowDeleteConfirm(false); showToast(response.error || 'Could not delete this CMA.', 'error') }
-  }
-
   return (
-    <div className="space-y-5">
-      {/* Already marked ready / shared: nothing left to send from here - the bar takes them back
-          to the list instead (user, 10/24). */}
-      {readyState === 'done'
-        ? <FlowDock step={5} total={5} onBack={() => onJump('pricing')} continueLabel="Back to CMAs" onContinue={() => router.push('/studio/cma')} />
-        : <FlowDock step={5} total={5} onBack={() => onJump('pricing')} continueLabel="Send" onContinue={() => document.getElementById('cma-complete-send')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />}
-      <AgentReviewBanner report={report} />
-      <SectionCard title="Final Review" subtitle="Check the numbers, comps, and narrative before you mark the report ready.">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <button onClick={() => onJump('subject')} className="rounded-xl border border-gray-100 p-3 text-left hover:border-[#C9A24D]/40 dark:border-gray-800">
-            <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">Subject</p>
-            <p className="mt-1 text-sm font-black text-[#111827] dark:text-white">{report.subject.street_address}</p>
-            <p className="text-xs font-semibold text-gray-400">{report.subject.list_price ? formatMoney(report.subject.list_price) : 'No list price set'}</p>
-          </button>
-          <button onClick={() => onJump('comps')} className="rounded-xl border border-gray-100 p-3 text-left hover:border-[#C9A24D]/40 dark:border-gray-800">
-            <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">Comparable Set</p>
-            <p className="mt-1 text-sm font-black text-[#111827] dark:text-white">{included.length} comps ({weighted.length} carry weight)</p>
-            <p className="text-xs font-semibold text-gray-400">{formatMoneyRange(metrics.saleMin, metrics.saleMax)}</p>
-          </button>
-          <button onClick={() => onJump('analysis')} className="rounded-xl border border-gray-100 p-3 text-left hover:border-[#C9A24D]/40 dark:border-gray-800">
-            <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">Comparable $/Sqft Range</p>
-            <p className="mt-1 text-sm font-black text-[#111827] dark:text-white">{metrics.psfMin && metrics.psfMax ? `$${metrics.psfMin} – $${metrics.psfMax}` : '—'}</p>
-          </button>
-          <button onClick={() => onJump('pricing')} className="rounded-xl border border-[#C9A24D]/40 bg-[#C9A24D]/5 p-3 text-left">
-            <p className="text-[10px] font-black uppercase tracking-wide text-[#8b7355] dark:text-[#d7b974]">
-              {report.mode === 'buyer' ? 'Estimated Fair Value' : 'Recommended Value Range'}
-            </p>
-            <p className="mt-1 font-serif text-lg font-black text-[#111827] dark:text-white">
-              {report.mode === 'buyer'
-                ? (authoritativeValue != null ? formatMoney(authoritativeValue) : formatMoney(report.pricing.estimated_fair_value))
-                : (suggested.min != null && suggested.max != null
-                    ? formatMoneyRange(suggested.min, suggested.max)
-                    : formatMoneyRange(report.pricing.recommended_min, report.pricing.recommended_max))}
-            </p>
-          </button>
-        </div>
-
-        {(aiEstimate?.methodology_summary || report.pricing.pricing_commentary || report.pricing.offer_strategy_commentary) && (
-          <div className="mt-4 rounded-xl bg-[#fbfaf7] p-4 dark:bg-[#0B0B0B]">
-            <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">
-              {report.mode === 'buyer' ? 'Buyer Valuation' : 'Agent Conclusion'}
-            </p>
-            <p className="mt-1 whitespace-pre-line text-sm font-medium leading-relaxed text-gray-600 dark:text-gray-300">
-              {aiEstimate?.methodology_summary || report.pricing.pricing_commentary || report.pricing.offer_strategy_commentary}
-            </p>
-          </div>
-        )}
-        {cmaWhyBullets(report).length > 0 && (
-          <div className="mt-3 rounded-xl bg-[#fbfaf7] p-4 dark:bg-[#0B0B0B]">
-            <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">Why this value</p>
-            <ul className="mt-1.5 space-y-1.5">
-              {cmaWhyBullets(report).map((bullet, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm font-medium leading-relaxed text-gray-600 dark:text-gray-300">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#C9A24D]" />
-                  <span>{bullet}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {/* "How we got there" - the agent-only adjustment grid (10/20). The raw ValuationTracePanel
-            stays admin-only (CmaLookupPanel, via the report's support code). */}
-        <CmaHowWeGotThere estimate={report.pricing?.ai_estimate} />
-        {report.mode === 'buyer' && buyerGuidance.inspectionText && (
-          <div className="mt-3 rounded-xl bg-[#fbfaf7] p-4 dark:bg-[#0B0B0B]">
-            <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">Inspection Concerns</p>
-            <NarrativeText text={buyerGuidance.inspectionText} />
-          </div>
-        )}
-        {report.mode === 'buyer' && buyerGuidance.offerText && (
-          <div className="mt-3 rounded-xl bg-[#fbfaf7] p-4 dark:bg-[#0B0B0B]">
-            <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">Offer Suggestion</p>
-            <NarrativeText text={buyerGuidance.offerText} />
-          </div>
-        )}
-        {report.mode !== 'buyer' && ([
-          ['Pricing Strategy', report.pricing.listing_strategy_notes],
-          ['Listing Prep', report.pricing.listing_prep_notes],
-        ] as const).map(([label, text]) => text?.trim() ? (
-          <div key={label} className="mt-3 rounded-xl bg-[#fbfaf7] p-4 dark:bg-[#0B0B0B]">
-            <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">{label}</p>
-            <NarrativeText text={text} />
-          </div>
-        ) : null)}
-      </SectionCard>
-
-      {!presentation.hidden_sections.includes('competition') && <CurrentCompetition report={report} agentView onOpenHome={setCompetitionHome} />}
-      <PropertyPopupModal
-        open={!!competitionHome}
-        onClose={() => setCompetitionHome(null)}
-        data={competitionHome ? buildAnalysisPopupData('comp', report.subject, competitionHomeAsComparable(competitionHome)) : null}
-      />
-
-      {/* QA/Review is intentionally not shown to the agent - admin can view it via CmaLookupPanel
-          using the report's own support code (see the Report Code block further down this page). */}
-
-      <SectionCard title="Presentation" subtitle="Hide anything that shouldn't appear in the client-facing CMA. Saved changes update the live link immediately.">
-        <div className="flex flex-wrap gap-1.5">
-          {[
-            { key: 'subject', label: 'Subject Property' },
-            { key: 'comparison_table', label: 'Comparable Overview' },
-            { key: 'location', label: 'Location Context' },
-            { key: 'comparables', label: 'Individual Comparables' },
-            { key: 'market_context', label: 'Market Context' },
-            { key: 'charts', label: 'Market Analysis' },
-            { key: 'competition', label: 'Current Competition' },
-            { key: 'pricing', label: 'Agent Final Analysis' },
-          ].map(s => {
-            const isHidden = presentation.hidden_sections.includes(s.key)
-            return (
-              <button
-                key={s.key}
-                onClick={() => toggleSection(s.key)}
-                className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-wide transition ${isHidden ? 'bg-gray-100 text-gray-400 line-through dark:bg-gray-800' : 'bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#d7b974]'}`}
-              >
-                {s.label}
-              </button>
-            )
-          })}
-          {/* TESTING ONLY (owner, 11/14): the "Engine review sheet" at the end of the PDF - the engine's own logic and
-              checks, for whoever is grading reports. Only the admin and test accounts see this switch; it is on by
-              default for test accounts and off for everyone else. To be removed at launch. */}
-          {(user?.is_admin || /@example\.com$/i.test(user?.email || '')) && (() => {
-            const on = presentation.review_sheet ?? /@example\.com$/i.test(user?.email || '')
-            return (
-              <button
-                onClick={() => savePresentation({ ...presentationRef.current, review_sheet: !on })}
-                title="Testing only: adds the engine's review sheet to the end of the PDF"
-                className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-wide transition ${on ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-gray-100 text-gray-400 line-through dark:bg-gray-800'}`}
-              >
-                Engine review sheet (testing)
-              </button>
-            )
-          })()}
-        </div>
-
-      </SectionCard>
-
-      <div id="cma-complete-send" className="scroll-mt-20" />
-      <SectionCard title="Complete & Send" subtitle="Preview the PDF, copy the client link, or open the live CMA in a new tab.">
-        {/* Rearranged 10/21 (user: "nicer animations and clicks, rearrange for mobile and
-            desktop"). Mark Ready stays THE action (user, 10/17): a big gold button. Next to it on a
-            computer - under it on a phone - three equal tiles: Open PDF, Download, Share link.
-            Every press gives a squish, the icon nudges on hover, and a finished action flashes a
-            check. The small switches, report code and Delete sit on their own row under a line. */}
-        <div className="grid gap-2.5 sm:grid-cols-[minmax(12rem,15rem)_minmax(0,1fr)] sm:items-stretch">
-          <motion.button
-            onClick={markReady}
-            disabled={readyState !== 'idle'}
-            whileTap={readyState === 'idle' ? { scale: 0.96 } : undefined}
-            className={`group relative inline-flex h-14 w-full items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-2xl px-6 text-sm font-black uppercase tracking-wide shadow-lg transition-[background-color,box-shadow,transform] duration-300 disabled:cursor-default sm:h-auto sm:min-h-[4.5rem] ${
-              readyState === 'done'
-                ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-emerald-600/30'
-                : readyState === 'saving'
-                  ? 'bg-[#C9A24D]/70 text-white shadow-[#C9A24D]/20'
-                  : 'bg-gradient-to-r from-[#b8913f] via-[#C9A24D] to-[#e0b85f] text-white shadow-[#C9A24D]/40 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[#C9A24D]/50'
-            }`}
-          >
-            <span className={`absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 ${readyState === 'done' ? 'translate-x-full' : 'group-hover:translate-x-full'}`} />
-            {readyState === 'idle' && <span aria-hidden className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-[#C9A24D]/50 animate-pulse" />}
-            {readyState === 'saving' ? (
-              <Loader2 className="relative h-4 w-4 animate-spin" />
-            ) : readyState === 'done' ? (
-              <span key="ready-check" className="cma-check-pop relative flex h-6 w-6 items-center justify-center rounded-full bg-white/25"><Check className="h-4 w-4" strokeWidth={3} /></span>
-            ) : (
-              <Sparkles className="relative h-4 w-4 transition group-hover:rotate-12 group-hover:scale-110" />
-            )}
-            <span className="relative">{readyState === 'saving' ? 'Marking Ready...' : readyState === 'done' ? 'Ready to send' : 'Mark Ready'}</span>
-          </motion.button>
-
-          <div className="grid grid-cols-3 gap-2">
-            {/* Open in a new tab / save as a file - never replaces this page (user, 10/21) */}
-            {(['open', 'download'] as const).map(kind => (
-              <ExportTile
-                key={kind}
-                icon={kind === 'open' ? ExternalLink : Download}
-                label={pdfFile.iosHint === 'preparing' ? 'Preparing…' : pdfFile.iosHint === 'tap' ? 'Tap again' : kind === 'open' ? 'Open PDF' : 'Download'}
-                hint={kind === 'open' ? 'New tab' : 'Save the PDF'}
-                title={kind === 'open' ? 'Open the PDF in a new tab' : 'Save the PDF to this device'}
-                busy={pdfBusy === kind || pdfFile.iosHint === 'preparing'}
-                disabled={!agent || !!pdfBusy}
-                onClick={async () => {
-                  if (!agent) return false
-                  setPdfBusy(kind)
-                  try { await pdfFile.run(kind === 'open' ? 'tab' : 'share'); return true }
-                  catch { showToast("Couldn't make the PDF. Try again in a moment.", 'error'); return false }
-                  finally { setPdfBusy('') }
-                }}
-              />
-            ))}
-            <ExportTile
-              icon={Share2}
-              label="Share link"
-              hint="Copy or send"
-              title="Share Link"
-              dark
-              busy={sharing}
-              disabled={sharing}
-              onClick={async () => { await handleShare(); return false }}
-            />
-          </div>
-        </div>
-
-        {/* Once it's marked ready, a way out right here (user, 10/21: reopening a finished CMA meant
-            scrolling all the way back up to the back arrow to leave it). */}
-        {readyState === 'done' && (
-          <Link href="/studio/cma" className="cma-btn mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-black text-[#111827] shadow-sm transition hover:border-[#C9A24D] dark:border-gray-700 dark:bg-[#151517] dark:text-white">
-            <ArrowLeft className="h-4 w-4" /> Done - back to my CMAs
-          </Link>
-        )}
-
-        <div className="mt-4 flex flex-wrap items-center gap-2.5 border-t border-gray-100 pt-4 dark:border-gray-800">
-
-          {/* Web version only: end the shared page with the agent's Email Signature card instead of
-              the plain contact block (the PDF never changes). Plans with Email Signature only. */}
-          {hasEmailSignatureAccess(user?.plan_tier) && (
-            <button
-              type="button"
-              onClick={async () => { const next = report.use_signature_card === false; const saved = await onSave({ use_signature_card: next } as Partial<CmaReport>, { silent: true }); if (saved) onReportUpdated(saved) }}
-              title="On the web version of the shared link, your email signature card closes the report. The PDF keeps its own footer."
-              aria-pressed={report.use_signature_card !== false}
-              className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50/60 px-2.5 py-1 dark:border-gray-700 dark:bg-white/[0.03]"
-            >
-              <span className="text-[9px] font-black uppercase tracking-wide text-gray-400">My Signature</span>
-              <span className={`relative inline-flex h-4 w-8 shrink-0 items-center rounded-full transition-colors ${report.use_signature_card !== false ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${report.use_signature_card !== false ? 'translate-x-4' : 'translate-x-0.5'}`} />
-              </span>
-            </button>
-          )}
-
-          {/* Visitor default theme - purely a default for the public link (dark unless set to
-              light here); a visitor can still flip it themselves with their own toggle on the
-              page, and the IDX-embedded view always ignores this and stays light regardless. A
-              real sliding switch (track + thumb) instead of two small adjacent icon buttons -
-              which state is active reads at a glance instead of needing to compare two similarly-
-              weighted buttons against each other. */}
-          <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50/60 px-2.5 py-1 dark:border-gray-700 dark:bg-white/[0.03]">
-            <span className="text-[9px] font-black uppercase tracking-wide text-gray-400">Visitor Theme</span>
-            <button
-              type="button"
-              onClick={() => setDefaultTheme(presentation.default_theme === 'light' ? 'dark' : 'light')}
-              title={`Visitor default theme: ${presentation.default_theme === 'light' ? 'Ivory' : 'Midnight'} - click to switch`}
-              aria-pressed={presentation.default_theme !== 'light'}
-              className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-all duration-300 hover:shadow-md ${
-                presentation.default_theme === 'light' ? 'bg-gray-200 ring-1 ring-inset ring-black/5 dark:bg-gray-600 dark:ring-white/20' : 'bg-[#111827] ring-1 ring-inset ring-[#C9A24D]/40 dark:bg-[#C9A24D]/35 dark:ring-[#C9A24D]/60'
-              }`}
-            >
-              <span
-                className={`flex h-4 w-4 items-center justify-center rounded-full bg-white shadow-md transition-transform duration-300 ${
-                  presentation.default_theme === 'light' ? 'translate-x-0' : 'translate-x-4'
-                }`}
-              >
-                {presentation.default_theme === 'light' ? <Sun className="h-2.5 w-2.5 text-[#C9A24D]" /> : <Moon className="h-2.5 w-2.5 text-[#111827]" />}
-              </span>
-            </button>
-          </div>
-
-          {/* Agent-only support cluster - never shown on the public/guest report. Lets an agent
-              who hits a real problem (bad valuation, garbled prose, wrong comp data) hand support
-              something exact to pull up, since the QA review and "how this value was calculated"
-              trace are intentionally hidden from this page - see CmaLookupPanel in the admin
-              dashboard, which resolves this same code back to the full report. */}
-          <div
-            title="Give this code to OpenHousePal support if something looks wrong with this report - it lets us pull up this exact CMA to see what happened."
-            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50/60 px-2.5 py-1 dark:border-gray-700 dark:bg-white/[0.03]"
-          >
-            <span className="text-[9px] font-black uppercase tracking-wide text-gray-400">
-              Code: <span className="text-gray-600 dark:text-gray-300">{cmaSupportCode(report.id)}</span>
-            </span>
-            <Link
-              href={`/settings/help?compose=1&cma_code=${encodeURIComponent(cmaSupportCode(report.id))}`}
-              className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-md bg-white px-2 text-[9px] font-black uppercase tracking-wide text-gray-600 shadow-sm ring-1 ring-gray-200 transition-all duration-300 hover:-translate-y-0.5 hover:text-[#8b7355] hover:shadow-md hover:ring-[#C9A24D] dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700"
-            >
-              Submit Ticket
-            </Link>
-          </div>
-
-          <button onClick={() => setShowDeleteConfirm(true)} disabled={isDeleting} className="ml-auto inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-transparent px-3 text-[10px] font-black uppercase tracking-wide text-red-500 transition-all duration-300 hover:-translate-y-0.5 hover:border-red-200 hover:bg-red-50 hover:shadow-md disabled:hover:translate-y-0 dark:hover:bg-red-500/10">
-            {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Delete CMA
-          </button>
-        </div>
-        <p className="mt-3 text-[10px] font-semibold leading-relaxed text-gray-400">
-          Something look wrong with this report's numbers or wording? Submit a ticket with the Report Code above so OpenHousePal support can pull up this exact CMA.
-        </p>
-      </SectionCard>
-
-      <WarningConfirmModal
-        isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={confirmDelete}
-        title="Delete this CMA?"
-        message="This will permanently remove the report, including any comps, pricing, and analysis you've added. This can't be undone."
-        confirmText="Delete CMA"
-        isLoading={isDeleting}
-      />
-
-
-      <CmaShareLinksModal
-        isOpen={showShare && !!shareLinks}
-        onClose={() => setShowShare(false)}
-        openHousePalUrl={shareLinks?.openHousePalUrl || null}
-        websiteUrl={shareLinks?.websiteUrl || null}
-      />
-    </div>
+    <CmaReportEditor
+      report={report}
+      onSave={onSave}
+      onReportUpdated={onReportUpdated}
+      onBack={() => onJump('pricing')}
+      onGoToPricing={() => onJump('pricing')}
+      onDeleted={onDeleted}
+      reviewCount={agentReviewNotes(report).length}
+      // Comps lock once the AI has written the report: no add-a-comp window after that.
+      renderAddComp={cmaCompsLocked(report) ? undefined : p => <AddCompSheet report={report} {...p} />}
+    />
   )
 }
 
-// One export action on the last step (Open PDF / Download / Share link). Icon in a round badge over
-// the label on a phone, beside it on a computer. Squishes on press, the icon nudges up on hover,
-// and when `onClick` resolves true the badge flashes a check for a moment.
-function ExportTile({ icon: Icon, label, hint, title, busy, disabled, dark = false, onClick }: {
-  icon: React.ComponentType<{ className?: string }>, label: string, hint: string, title: string,
-  busy: boolean, disabled: boolean, dark?: boolean, onClick: () => Promise<boolean>,
+// Add a comp without leaving the report (Review step): the same search the Comps step starts with (it picks
+// its own distance and how far back to look), the same rows and the same details window. Sold homes first;
+// homes for sale or under contract are one tap away. Nothing here costs anything - it is a database search.
+const ADD_RADIUS_STEPS = [1, 2, 3, 5, 8]
+const ADD_SOLD_STEPS: { days: number, label: string }[] = [{ days: 200, label: '6 months' }, { days: 400, label: '1 year' }, { days: 750, label: '2 years' }]
+function AddCompSheet({ report, open, onClose, comparables, onAdd }: {
+  report: CmaReport, open: boolean, onClose: () => void, comparables: CmaComparable[], onAdd: (c: CmaComparable) => void,
 }) {
-  const reduce = useReducedMotion()
-  const [flash, setFlash] = useState(false)
-  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => () => { if (flashTimer.current) clearTimeout(flashTimer.current) }, [])
+  const { showToast } = useToast()
+  const subject = report.subject
+  const [status, setStatus] = useState<CmaCompStatus>('sold')
+  const [radius, setRadius] = useState<number | null>(null)       // null = let the search pick
+  const [soldDays, setSoldDays] = useState<number | null>(null)   // null = let the search pick
+  const [results, setResults] = useState<CmaCompCandidate[]>([])
+  const [searching, setSearching] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [details, setDetails] = useState<CmaCompCandidate | null>(null)
+  const seq = useRef(0)
+  const onReport = useMemo(() => new Set(comparables.filter(c => c.is_included).map(c => c.listing_key).filter(Boolean)), [comparables])
+  const offReport = useMemo(() => new Set(comparables.filter(c => !c.is_included).map(c => c.listing_key).filter(Boolean)), [comparables])
+  const full = comparables.filter(c => c.is_included).length >= MAX_COMPS
+
+  useEffect(() => {
+    if (!open) return
+    if (!subject.latitude || !subject.longitude) { setNote('This home has no map location, so nearby homes cannot be searched. Pick the address again in the Subject step.'); return }
+    const mine = ++seq.current
+    setSearching(true)
+    setNote(null)
+    const base = {
+      listing_key: subject.listing_key || undefined,
+      subject: subject as unknown as Record<string, unknown>,
+      latitude: subject.latitude, longitude: subject.longitude,
+      subject_sqft: subject.above_grade_finished_area || subject.sqft,
+      property_type: subject.property_type,
+      statuses: [status],
+    }
+    const done = (list: CmaCompCandidate[]) => {
+      if (mine !== seq.current) return
+      setResults(list.filter(c => typeof c.match_score === 'number').sort((a, b) => (b.match_score || 0) - (a.match_score || 0)))
+      setSearching(false)
+    }
+    const fail = (error?: string | null) => { if (mine !== seq.current) return; setSearching(false); setResults([]); setNote(error || 'The search did not go through. Try again.') }
+    if (status === 'sold' && radius == null && soldDays == null) {
+      api.cma.autoSearchComparables(base as never).then(r => {
+        if (!r.success || !r.data) return fail(r.error)
+        if (mine === seq.current && r.data.limited) setNote(r.data.limited_message || 'Not many similar sales nearby - widen the distance or look further back.')
+        done(r.data.results)
+      })
+    } else {
+      const days = soldDays ?? 400
+      api.cma.searchComparables({
+        ...base, radius_miles: radius ?? 2,
+        sale_date_from: status === 'sold' ? new Date(Date.now() - days * 86400000).toISOString().slice(0, 10) : undefined,
+      } as never).then(r => (r.success && r.data ? done(r.data) : fail(r.error)))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, status, radius, soldDays, report.id])
+
+  const add = (c: CmaCompCandidate) => {
+    if (onReport.has(c.listing_key)) { showToast('That home is already a comp on the report. To take it off, use Remove on its card.', 'info'); return }
+    if (full) { showToast(`A CMA holds up to ${MAX_COMPS} comps. Take one off the report first.`, 'error'); return }
+    if (offReport.has(c.listing_key)) { showToast('That home is already in your list, off the report. Use "Put it back" on its card.', 'info'); return }
+    onAdd(candidateToComparable(c))
+  }
+  const q = query.trim().toLowerCase()
+  const matching = q ? results.filter(c => `${c.street_address || ''} ${c.city || ''} ${c.zipcode || ''}`.toLowerCase().includes(q)) : results
+  const list = [...matching.filter(c => !onReport.has(c.listing_key)), ...matching.filter(c => onReport.has(c.listing_key))]
+  const chip = (on: boolean) => `h-9 shrink-0 rounded-full border px-3.5 text-[11px] font-black uppercase tracking-wide transition active:scale-95 ${on ? 'border-[#111827] bg-[#111827] text-white dark:border-white dark:bg-white dark:text-[#111827]' : 'border-gray-200 bg-white text-gray-600 hover:border-[#C9A24D] dark:border-gray-700 dark:bg-[#1b1b1e] dark:text-gray-300'}`
+  const di = details ? list.findIndex(c => c.listing_key === details.listing_key) : -1
+
   return (
-    <motion.button
-      type="button"
-      title={title}
-      disabled={disabled}
-      whileTap={disabled || reduce ? undefined : { scale: 0.94 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 28 }}
-      onClick={async () => {
-        if (await onClick()) {
-          setFlash(true)
-          if (flashTimer.current) clearTimeout(flashTimer.current)
-          flashTimer.current = setTimeout(() => setFlash(false), 1600)
-        }
-      }}
-      className={`group relative flex min-h-[4.5rem] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border px-2 py-2.5 text-center transition-[border-color,box-shadow,transform,background-color] duration-300 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-row sm:justify-start sm:gap-3 sm:px-3.5 sm:text-left [@media(hover:hover)]:hover:-translate-y-0.5 [@media(hover:hover)]:disabled:hover:translate-y-0 ${
-        dark
-          ? 'border-[#111827] bg-[#111827] text-white shadow-md shadow-black/20 [@media(hover:hover)]:hover:shadow-lg dark:border-white dark:bg-white dark:text-[#111827]'
-          : 'border-[#C9A24D]/30 bg-[#C9A24D]/[0.06] text-[#8b7355] [@media(hover:hover)]:hover:border-[#C9A24D]/60 [@media(hover:hover)]:hover:bg-[#C9A24D]/[0.12] [@media(hover:hover)]:hover:shadow-[0_12px_24px_-16px_rgba(201,162,77,0.9)] dark:text-[#d7b974]'
-      }`}
-    >
-      <span className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors duration-300 ${
-        flash ? 'bg-emerald-500 text-white' : dark ? 'bg-white/15 dark:bg-[#111827]/10' : 'bg-white shadow-sm dark:bg-black/30'
-      }`}>
-        {busy
-          ? <Loader2 className="h-4 w-4 animate-spin" />
-          : flash
-            ? <Check key="flash" className="cma-check-pop h-4 w-4" strokeWidth={3} />
-            : <Icon className="h-4 w-4 transition-transform duration-300 [@media(hover:hover)]:group-hover:-translate-y-0.5 [@media(hover:hover)]:group-hover:scale-110" />}
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-[10.5px] font-black uppercase tracking-wide sm:text-[11px]">{flash ? 'Done' : label}</span>
-        <span className={`hidden truncate text-[10.5px] font-semibold sm:block ${dark ? 'text-white/60 dark:text-[#111827]/55' : 'text-[#8b7355]/70 dark:text-[#d7b974]/60'}`}>{hint}</span>
-      </span>
-    </motion.button>
+    <>
+      <CmaSheet open={open} onClose={onClose} title="Add a comp" maxWidth="sm:max-w-3xl"
+        subtitle={<>Homes near <span className="font-black text-gray-900 dark:text-white">{subject.street_address || 'the subject'}</span>, best match first.</>}
+        headerRight={<span className="hidden rounded-full bg-[#C9A24D]/12 px-3 py-1.5 text-[11px] font-black text-[#8b7355] dark:text-[#d7b974] sm:inline-flex">{comparables.filter(c => c.is_included).length} of {MAX_COMPS} comps</span>}
+        footer={<button type="button" onClick={onClose} className="cma-btn h-11 w-full rounded-xl bg-[#111827] text-[13px] font-black text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">Done</button>}>
+        <div className="space-y-3 px-4 py-4 sm:px-6">
+          <div className="scrollbar-hide -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+            {([['sold', 'Sold'], ['active', 'For sale'], ['pending', 'Under contract']] as const).map(([value, label]) => (
+              <button key={value} type="button" aria-pressed={status === value} onClick={() => setStatus(value as CmaCompStatus)} className={chip(status === value)}>{label}</button>
+            ))}
+            <span className="mx-1 w-px shrink-0 self-stretch bg-gray-200 dark:bg-gray-700" />
+            <button type="button" aria-pressed={radius == null} onClick={() => setRadius(null)} className={chip(radius == null)}>Best distance</button>
+            {ADD_RADIUS_STEPS.map(r => <button key={r} type="button" aria-pressed={radius === r} onClick={() => setRadius(r)} className={chip(radius === r)}>{r} mi</button>)}
+            {status === 'sold' && (
+              <>
+                <span className="mx-1 w-px shrink-0 self-stretch bg-gray-200 dark:bg-gray-700" />
+                {ADD_SOLD_STEPS.map(s => <button key={s.days} type="button" aria-pressed={soldDays === s.days} onClick={() => setSoldDays(soldDays === s.days ? null : s.days)} className={chip(soldDays === s.days)}>Last {s.label}</button>)}
+              </>
+            )}
+          </div>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Find a street in these results" aria-label="Find a street in these results"
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-3 text-[16px] font-semibold text-[#111827] outline-none transition focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/10 dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white sm:text-sm" />
+          </div>
+          {full && <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-xs font-bold text-amber-800 dark:bg-amber-900/15 dark:text-amber-300">The report already has {MAX_COMPS} comps, the most it holds. Take one off the report to add another.</p>}
+          {note && <p className="rounded-xl bg-[#C9A24D]/10 px-3.5 py-2.5 text-xs font-bold text-[#8b7355] dark:text-[#d7b974]">{note}</p>}
+          {searching ? (
+            <div className="flex items-center justify-center gap-2 py-14 text-sm font-bold text-gray-400"><Loader2 className="h-4 w-4 animate-spin text-[#C9A24D]" /> Looking for similar homes…</div>
+          ) : list.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-gray-200 px-4 py-12 text-center text-sm font-bold text-gray-400 dark:border-gray-800">
+              {q ? 'No home on that street in these results. Try a wider distance.' : 'No similar homes found here. Try a wider distance or look further back.'}
+            </p>
+          ) : (
+            <div className="grid gap-3">
+              {list.slice(0, 40).map(candidate => (
+                <CompCandidateRow key={candidate.listing_key} candidate={candidate} subject={subject} matchScore={candidate.match_score ?? undefined}
+                  added={onReport.has(candidate.listing_key)} sameSchool={sameDistrict(candidate.school_district, subject.school_district) === true}
+                  onToggle={() => add(candidate)} onOpenDetails={() => setDetails(candidate)} />
+              ))}
+            </div>
+          )}
+        </div>
+      </CmaSheet>
+      <PropertyPopupModal
+        open={!!details}
+        onClose={() => setDetails(null)}
+        data={details ? buildAnalysisPopupData('comp', subject, candidateToComparable(details)) : null}
+        compAdded={details ? onReport.has(details.listing_key) : false}
+        onToggleComp={details ? () => add(details) : undefined}
+        navIndex={di >= 0 ? di : undefined}
+        navTotal={di >= 0 ? list.length : undefined}
+        onPrev={di > 0 ? () => setDetails(list[di - 1]) : undefined}
+        onNext={di >= 0 && di < list.length - 1 ? () => setDetails(list[di + 1]) : undefined}
+      />
+    </>
   )
 }
 
