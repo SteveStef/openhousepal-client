@@ -139,7 +139,9 @@ export default function AssistantPage() {
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setMobileSidebarOpen(false)} />
           <div className="absolute left-0 top-0 bottom-0 w-72 shadow-2xl">
+            {/* (11/16: the list is "hidden" below desktop width by default, so this phone drawer opened empty - it needs its own, visible, class) */}
             <ConversationSidebar
+              className="flex h-full w-full flex-col bg-white dark:bg-zinc-900"
               conversations={conversations}
               activeConversationId={activeConversation?.id ?? null}
               loading={conversationsLoading}

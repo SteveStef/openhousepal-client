@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowDown, ArrowLeft, ArrowUp, Check, ChevronDown, ChevronLeft, ChevronRight, Clapperboard, Download, Expand, Film, ImagePlus, Loader2,
-  Music2, Pause, Play, Plus, RefreshCw, Shuffle, Sparkles, Wand2, X,
+  Moon, Music2, Pause, Play, Plus, RefreshCw, Shuffle, Sparkles, Wand2, X, Zap,
 } from 'lucide-react'
 import FlowDock from '@/components/ui/FlowDock'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
@@ -25,7 +25,7 @@ import { saveFile } from '@/lib/mobileShare'
 import { SIGNATURE_COLORS } from '@/lib/studio/videoMotion'
 import { LUXE_METALS, LUXE_METAL_ORDER } from '@/lib/luxeMetals'
 import {
-  RENDER_ACTIVE, addPhoto, analysisOf, clock, cycleChoice, formatsOf, pct, photosForRooms, pickedIn, proxied, removePhoto, renderOf, sectionsOf, settingsOf, sized, suggestRooms,
+  RENDER_ACTIVE, addPhoto, analysisOf, clock, cycleChoice, formatsOf, pct, photosForFastCut, photosForRooms, pickedIn, proxied, removePhoto, renderOf, sectionsOf, settingsOf, sized, suggestRooms,
   swapPhoto, thumbOf, trimToCap, wantOf, type MotionPhotoSetting, type MotionPoolPhoto, type MotionSettings, type PhotoSection,
 } from '@/lib/studio/cinematic'
 import {
@@ -35,6 +35,8 @@ import {
 import { LENGTH_OPTIONS, buildTimeline, maxPhotosFor } from '@/motion-video/timeline'
 import { FORMAT_SIZE, musicFile, type MotionFormat, type PhotoKind, type TransitionId } from '@/motion-video/types'
 import type { StudioMediaAsset } from '@/types'
+
+import { FastExample, FastPhotos, FastPlanCard, FastSetup, KindPicker, SpeedPicker, FAST_MIN_PHOTOS } from '@/components/studio/media/cinematic/FastCut'
 
 const LivePreview = dynamic(() => import('@/components/studio/media/cinematic/LivePreview'), {
   ssr: false,
@@ -270,6 +272,74 @@ function MakingCard({ photos, aspect, title, stage, pct, etaAt, startedAt, ahead
   )
 }
 
+/** A small share of the month's AI, to one decimal below 10% ("0.7%", "3.2%", "12%"). */
+const finePct = (v?: number | null) => (v == null ? 'a little' : v < 0.05 ? 'under 0.1%' : v < 10 ? `${v.toFixed(1)}%` : `${Math.round(v)}%`)
+const readyClock = (iso?: string | null) => (iso ? new Date(Math.ceil(new Date(iso).getTime() / 900000) * 900000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Tonight')
+
+/** "by 6:45 AM tomorrow" - when an overnight video will be ready (rounded up to the quarter hour). */
+const readyBy = (iso?: string | null) => {
+  if (!iso) return 'by tomorrow morning'
+  const d = new Date(Math.ceil(new Date(iso).getTime() / 900000) * 900000)
+  const now = new Date()
+  const day = d.toDateString() === now.toDateString() ? 'today'
+    : d.toDateString() === new Date(now.getTime() + 86400000).toDateString() ? 'tomorrow' : d.toLocaleDateString([], { weekday: 'long' })
+  return `by ${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} ${day}`
+}
+
+/** Overnight mode (owner 11/14): "Now" or "Overnight" - what each uses and when it's ready. */
+function WhenPicker({ value, onChange, nowTime, nowUse, nowBlocked, readyAt, saves, compact }: {
+  value: 'now' | 'overnight'; onChange: (v: 'now' | 'overnight') => void; nowTime: string; nowUse: string; nowBlocked: boolean
+  readyAt?: string | null; saves: string; compact?: boolean
+}) {
+  const card = (on: boolean, off?: boolean) => `relative flex-1 rounded-2xl border-2 text-left transition ${compact ? 'px-3 py-2.5' : 'px-4 py-3.5'} ${
+    on ? 'border-[#C9A24D] bg-[#C9A24D]/[0.09] shadow-[0_0_24px_-12px_rgba(201,162,77,0.9)]' : 'border-gray-200 bg-white hover:border-[#C9A24D]/60 dark:border-gray-700 dark:bg-[#151517]'} ${off ? 'opacity-50' : ''}`
+  const dot = (on: boolean) => <span className={`absolute right-3 top-3 flex h-4 w-4 items-center justify-center rounded-full border-2 ${on ? 'border-[#C9A24D] bg-[#C9A24D]' : 'border-gray-300 dark:border-gray-600'}`}>{on && <Check className="h-2.5 w-2.5 text-white" strokeWidth={4} />}</span>
+  return (
+    <div data-testid="cine-when" className={`flex gap-2.5 ${compact ? '' : 'flex-col sm:flex-row'}`}>
+      <button type="button" data-testid="cine-when-now" aria-pressed={value === 'now'} disabled={nowBlocked} onClick={() => onChange('now')} className={card(value === 'now', nowBlocked)}>
+        {dot(value === 'now')}
+        <p className="flex items-center gap-1.5 text-sm font-black text-[#111827] dark:text-white"><Zap className="h-4 w-4 text-[#C9A24D]" /> Now</p>
+        <p className="mt-1 text-xs font-bold text-gray-700 dark:text-gray-200">Ready in {nowTime}</p>
+        <p className="mt-0.5 text-[11px] font-semibold text-gray-500">{nowBlocked ? 'Your AI limit is reached for now' : `Uses ${nowUse} of your monthly AI`}</p>
+      </button>
+      <button type="button" data-testid="cine-when-overnight" aria-pressed={value === 'overnight'} onClick={() => onChange('overnight')} className={card(value === 'overnight')}>
+        {dot(value === 'overnight')}
+        <p className="flex items-center gap-1.5 text-sm font-black text-[#111827] dark:text-white"><Moon className="h-4 w-4 text-[#C9A24D]" /> Overnight
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9.5px] font-black uppercase tracking-wider text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Saves {saves}</span></p>
+        <p className="mt-1 text-xs font-bold text-gray-700 dark:text-gray-200">Ready {readyBy(readyAt)}</p>
+        <p className="mt-0.5 text-[11px] font-semibold text-gray-500">Same video, same quality - making it uses none of your monthly AI</p>
+      </button>
+    </div>
+  )
+}
+
+/** A video waiting for tonight: when it'll be ready, how they'll hear, and "make it now instead". */
+function ScheduledCard({ photos, readyAt, nowUse, canNow, busy, onNow, compact }: {
+  photos: string[]; readyAt?: string | null; nowUse: string; canNow: boolean; busy: boolean; onNow: () => void; compact?: boolean
+}) {
+  return (
+    <div data-testid="cine-scheduled" className="ohp-reveal relative mx-auto w-full max-w-[820px] overflow-hidden rounded-2xl border-2 border-[#C9A24D]/50 bg-[#0b0b0d]"
+      style={{ minHeight: compact ? 260 : 340, boxShadow: '0 0 44px -10px rgba(201,162,77,0.5)' }}>
+      {photos[0] && <img src={photos[0]} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover" />}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0b1026]/85 via-[#0b0b0d]/80 to-[#0b0b0d]/90" />
+      <div className="relative z-10 flex h-full flex-col items-center justify-center gap-2.5 px-6 py-8 text-center" style={{ minHeight: compact ? 260 : 340 }}>
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#C9A24D]/25"><Moon className="h-6 w-6 text-[#f1d58b]" /></span>
+        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#f1d58b]">Scheduled for tonight</p>
+        <p className={`font-serif font-black leading-tight text-white ${compact ? 'text-2xl' : 'text-3xl'}`}>Ready {readyBy(readyAt)}</p>
+        <p className="max-w-[340px] text-xs font-semibold leading-snug text-white/80">Your photos are prepared and your video is in tonight&apos;s line. Making it this way uses none of your monthly AI.</p>
+        <p className="max-w-[340px] rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-[11px] font-semibold leading-snug text-white/80">
+          You can close this page or log out. When it&apos;s ready your bell rings and we email you a link.
+        </p>
+        <button type="button" data-testid="cine-make-now" onClick={onNow} disabled={!canNow || busy}
+          className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/10 px-4 py-2 text-[11.5px] font-black text-white transition hover:bg-white/20 disabled:opacity-50">
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5 text-[#f1d58b]" />}
+          {canNow ? `Make it now instead (uses ${nowUse} of your monthly AI)` : 'Your AI limit is reached, so it stays scheduled'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function ProgressBar({ value }: { value: number }) {
   return (
     <div className="h-2.5 overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
@@ -384,6 +454,10 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   const [workerUp, setWorkerUp] = useState<boolean | null>(null)
   const [speed, setSpeed] = useState<{ wait_seconds?: number; sec_per_frame?: number; start_seconds?: number; save_seconds?: number; queued?: number; busy?: boolean } | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
+  // Overnight mode (owner 11/14): the choice is remembered on this device for the next video.
+  const [when, setWhenState] = useState<'now' | 'overnight'>('now')
+  useEffect(() => { try { if (localStorage.getItem('ohp-video-when') === 'overnight') setWhenState('overnight') } catch { /* private mode */ } }, [])
+  const setWhen = (v: 'now' | 'overnight') => { setWhenState(v); try { localStorage.setItem('ohp-video-when', v) } catch { /* private mode */ } }
   // Laid out by the space it actually has (the full page, or a message in the chat) - not the window.
   const [width, setWidth] = useState(0)
   const [checkAt, setCheckAt] = useState(0)
@@ -481,7 +555,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
 
   // ---- polling while the AI sorts the photos, depth maps are made, or a video is being made
   const prepRunning = !!((asset?.options as any)?.prep?.running)
-  const missingDepth = !!s && s.photos.some(p => !p.hidden && !p.prep_failed && !(p.clean && p.depth))
+  const missingDepth = !!s && s.kind !== 'fastcut' && s.photos.some(p => !p.hidden && !p.prep_failed && !(p.clean && p.depth))
   const polling = analysis.status === 'running' || rendering || prepRunning || missingDepth
   useEffect(() => {
     if (!polling) return
@@ -542,6 +616,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   const sorted = !!s && (s.pool ?? []).length > 0 && (s.pool ?? []).every(it => it.analyzed)
   useEffect(() => {
     if (!s || !sorted || (s.want && s.want.length) || s.photos.length) return
+    if (s.kind === 'fastcut') { up(d => ({ ...d, photos: photosForFastCut(d) })); return }   // a Fast Cut starts with every good photo
     const want = suggestRooms(s.pool, s.length)
     up(d => { const photos = photosForRooms(d, want, d.length); return { ...d, want: wantOf(photos, d.pool), photos } })
   }, [sorted]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -587,7 +662,8 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
 
   const visible = useMemo(() => (s ? s.photos.filter(p => !p.hidden) : []), [s])
   const hiddenPhotos = useMemo(() => (s ? s.photos.filter(p => p.hidden) : []), [s])
-  const needsSharpen = useMemo(() => (s ? visible.filter(p => !p.sharp).length : 0), [s, visible])
+  // (a Fast Cut prepares and sharpens only the photos in the video: about 25, or 51 for a minute)
+  const needsSharpen = useMemo(() => (s ? Math.min(visible.filter(p => !p.sharp).length, s.kind === 'fastcut' ? ((s.length || 30) >= 45 ? 51 : 25) : 999) : 0), [s, visible])
 
 
   useEffect(() => {
@@ -613,7 +689,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
     if (!s) return
     let alive = true
     const n = Math.max(1, needsSharpen)
-    const t = setTimeout(() => api.mediaLab.motion.estimate(n, true, lengthBucket || 30).then(r => { if (alive && r.success && r.data) setEst(r.data) }), 300)
+    const t = setTimeout(() => api.mediaLab.motion.estimate(n, true, s.kind === 'fastcut' ? ((s.length || 30) >= 45 ? 57 : 30) : (lengthBucket || 30)).then(r => { if (alive && r.success && r.data) setEst(r.data) }), 300)
     return () => { alive = false; clearTimeout(t) }
   }, [needsSharpen, s?.sharpen, lengthBucket]) // eslint-disable-line react-hooks/exhaustive-deps
   // "To make": the video maker's measured speed + the line ahead right now (QA 11/12 - was a fixed
@@ -633,8 +709,11 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   const opts = (asset?.options || {}) as Record<string, any>
   const changesPending = asset?.status === 'succeeded' && (save !== 'saved' || (opts.current_hash && opts.rendered_hash && opts.current_hash !== opts.rendered_hash))
 
+  const fast = s?.kind === 'fastcut'
   const canNext = (k: number) => {
     if (!s) return false
+    if (fast && k === S.rooms) return analysisDone && visible.length >= FAST_MIN_PHOTOS
+    if (fast && k === S.check) return true
     if (k === S.rooms) return analysisDone && visible.length >= 2
     if (k === S.check) return visible.length >= 2 && allConfirmed
     if (k === S.situation) {
@@ -647,6 +726,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   }
   const nextBlockedReason = (k: number) => {
     if (!s) return ''
+    if (fast && k === S.rooms && analysisDone && visible.length < FAST_MIN_PHOTOS) return `A Fast Cut needs at least ${FAST_MIN_PHOTOS} photos`
     if (k === S.rooms) {
       if (!analysisDone) return 'Sorting your photos into rooms…'
       if (visible.length < 2) return 'Pick at least 2 photos'
@@ -661,7 +741,8 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
     return ''
   }
   const goStep = (k: number) => {
-    const to = Math.max(0, Math.min(STEPS.length - 1, k))
+    let to = Math.max(0, Math.min(STEPS.length - 1, k))
+    if (fast && to === S.check) to = k >= step ? S.situation : S.rooms   // a Fast Cut steps over "Check each photo"
     if (to === S.check && s) {
       const first = s.photos.filter(p => !p.hidden).findIndex(p => !p.confirmed)
       setCheckAt(Math.max(0, first))
@@ -672,11 +753,19 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   }
 
   // ---- make the video
+  const makeNow = async () => {
+    setError(''); setBusy('now')
+    const { success, data, error: e } = await api.mediaLab.motion.render(id, { overnight: false })
+    setBusy(null)
+    if (!success || !data) { setError(e || 'We couldn\'t switch it. Try again in a moment.'); return }
+    setAsset(data)
+  }
   const make = async (format?: MotionFormat) => {
     if (!s) return
     setError(''); setBusy(format ? `fmt-${format}` : 'make')
     if (!(await flush())) { setBusy(null); setError('Your latest changes didn\'t save - check your connection and try again.'); return }
-    const { success, data, error: e } = await api.mediaLab.motion.render(id, format ? { format } : { sharpen: true })
+    // overnight applies to the main video (its other shapes follow on the same free line by themselves)
+    const { success, data, error: e } = await api.mediaLab.motion.render(id, format ? { format } : { sharpen: true, overnight: overnightOn })
     setBusy(null)
     if (!success || !data) { setError(e || 'We couldn\'t start your video. Try again in a moment.'); return }
     setAsset(data)
@@ -715,6 +804,20 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   const ahead = render.state === 'queued' ? render.ahead || 0 : 0
   const usedPct = budget && asset.cost_usd ? (asset.cost_usd / budget) * 100 : null
   const sharpenPct = est?.sharpen_percent != null && est.photos ? (est.sharpen_percent * needsSharpen) / est.photos : null
+  // Making the video: a discounted Amazon machine first, the instant service only if none can be had -
+  // so it uses between the two (owner 11/14: "give them a range").
+  const renderUse = est?.render_percent_low != null && est?.render_percent != null && est.render_percent_low < est.render_percent - 0.05
+    ? `between ${finePct(est.render_percent_low)} and ${finePct(est.render_percent)}` : aboutPct(est?.render_percent)
+  // Overnight mode: offered while making a video uses AI and our own video maker is there for the slow line.
+  const paidBlocked = !!(est?.render_paid && est?.render_paused)
+  const canOvernight = !!(est?.render_paid && est?.overnight_available)
+  const overnightOn = canOvernight && (when === 'overnight' || paidBlocked)
+  const makeBlocked = paidBlocked && !overnightOn
+  const held = rendering && !!render.overnight && !!render.held
+  const whenPicker = (compact?: boolean) => canOvernight ? (
+    <WhenPicker compact={compact} value={overnightOn ? 'overnight' : 'now'} onChange={setWhen} nowTime={makeMinutes.replace('~', 'about ').replace('m', ' min')}
+      nowUse={finePct(est?.render_percent)} nowBlocked={paidBlocked} readyAt={est?.overnight_ready_at} saves={finePct(est?.overnight_saves_percent)} />
+  ) : null
 
   // Where the live preview sits: beside the options (left) on a wide space - the full page AND a wide
   // chat (owner 11/13: in the chat on a big screen the preview was huge and on top). Narrow spaces
@@ -722,7 +825,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   const tall = TALL.includes(s.format)
   // The check step shows each photo big, and while the video is being made the making screen
   // takes over - no preview on either.
-  const showPreview = step !== S.check && !(step === S.make && rendering)
+  const showPreview = step !== S.check && !(step === S.make && rendering) && !fast   // (the live preview draws a Cinematic Video)
   const sidePreview = wide && showPreview
   const previewMaxH = wide ? (tall ? (embedded ? '62vh' : '74vh') : '60vh') : tall ? '52vh' : '40vh'
   // The options' own width (beside a side preview, it's what's left) decides how many columns fit.
@@ -744,9 +847,20 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   // + the photo prep still to do. From the agent's own allowance, so it differs by plan.
   const perSecPct = est?.render_paid && est.render_percent != null ? est.render_percent / Math.max(5, lengthBucket || 30) : null
   const prepPct = (needsSharpen > 0 && !est?.sharpen_paused && est?.sharpen_percent != null && est.photos ? (est.sharpen_percent * needsSharpen) / est.photos : 0)
+  const setKind = (k: 'cinematic' | 'fastcut') => up(d => {
+    if ((d.kind || 'cinematic') === k) return d
+    if (k === 'fastcut') {
+      const photos = photosForFastCut(d)
+      return { ...d, kind: k, length: (d.length || 30) >= 45 ? 60 : 30, format: d.format === '16:9' ? '9:16' : d.format, photos: photos.length >= FAST_MIN_PHOTOS ? photos : d.photos }
+    }
+    return { ...withPhotos(d, trimToCap(d, maxPhotosFor(d.length || 30))), kind: k }
+  })
   const setupStep = (
     <div className="space-y-4">
-      <Card>
+      <KindPicker kind={fast ? 'fastcut' : 'cinematic'} onChange={setKind} />
+      {fast && <FastExample format={s.format} />}
+      {fast && <FastSetup s={s} up={up} usable={analysisDone ? (s.pool || []).filter(it => it.room && it.room !== 'skip').length : null} />}
+      {!fast && <Card>
         <CardTitle title="How long?" sub="The length decides how many photos fit - shorter is punchier" />
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {LENGTH_OPTIONS.map(o => (
@@ -758,7 +872,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
             </Pick>
           ))}
         </div>
-      </Card>
+      </Card>}
       <Card>
         <CardTitle title="Shape" sub="Where you'll post it first - you can add the other shapes once it's made" />
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
@@ -774,6 +888,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
         </div>
         <p className="mt-3 text-[11px] font-semibold text-gray-400">Every other shape is made fresh for its screen later (nothing gets cut off) - a few minutes each{est?.render_paid ? ', each a small share of your monthly AI' : ', no AI usage'}.</p>
       </Card>
+      {fast && <SpeedPicker s={s} up={up} fast={fast} />}{/* Fast Cut only (owner 11/16): a Cinematic Video is cheap, it is just made */}
     </div>
   )
 
@@ -1173,7 +1288,11 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
       title={render.main === false ? `Making the ${FORMAT_SIZE[target].label.toLowerCase()} version` : asset.result_url ? 'Updating your video' : 'Making your video'}
       stage={render.stage || 'Starting the cameras'} pct={p} etaAt={render.eta_at} startedAt={render.started_at} ahead={ahead} />
   )
-  const makeStep = rendering ? making : (
+  const scheduled = (compact?: boolean) => (
+    <ScheduledCard compact={compact} photos={makingPhotos} readyAt={render.ready_at} nowUse={finePct(est?.render_percent)}
+      canNow={!paidBlocked} busy={busy === 'now'} onNow={makeNow} />
+  )
+  const makeStep = held ? scheduled() : rendering ? making : (
     <div className="space-y-4">
       {render.state === 'failed' && asset.status !== 'succeeded' ? (
         <Card className="ohp-reveal">
@@ -1198,15 +1317,15 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
         <div className="grid grid-cols-3 gap-3 text-center">
           <div><p className="font-serif text-2xl font-black text-[#111827] dark:text-white">{visible.length}</p><p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Photos</p></div>
           <div><p className="font-serif text-2xl font-black text-[#111827] dark:text-white">{Math.round(length)}s</p><p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Long</p></div>
-          <div><p className="font-serif text-2xl font-black text-[#111827] dark:text-white">{makeMinutes}</p><p className="text-[10px] font-black uppercase tracking-wider text-gray-400">To make</p></div>
+          <div><p className={`font-serif font-black text-[#111827] dark:text-white ${overnightOn ? 'text-xl leading-8' : 'text-2xl'}`}>{overnightOn ? readyClock(est?.overnight_ready_at) : makeMinutes}</p><p className="text-[10px] font-black uppercase tracking-wider text-gray-400">{overnightOn ? 'Ready by' : 'To make'}</p></div>
         </div>
         <div className="mt-4 space-y-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300">
           <p className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} /> Rooms sorted &amp; captions written: done{usedPct != null ? ` (${aboutPct(usedPct)} of your monthly AI)` : ''}</p>
           <p className="flex items-center gap-2">
             {missingDepth ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#C9A24D]" /> : <Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} />}
-            3D depth for each photo: {missingDepth ? 'getting ready (free)' : 'ready (free)'}
+            {fast ? '3D depth: made for the photos in your video when you make it' : `3D depth for each photo: ${missingDepth ? 'getting ready (free)' : 'ready (free)'}`}
           </p>
-          <p className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} /> {est?.render_paid ? `Making the video: ${aboutPct(est.render_percent)} of your monthly AI (each update or extra shape is made again)` : 'Making the video itself uses no AI - edits and remakes are free'}</p>
+          <p className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} /> {overnightOn ? `Making the video overnight: none of your monthly AI (you save ${finePct(est?.overnight_saves_percent)})` : est?.render_paid ? `Making the video: ${renderUse} of your monthly AI (each update or extra shape is made again)` : 'Making the video itself uses no AI - edits and remakes are free'}</p>
           {!!speed?.busy && (
             <p className="flex items-center gap-2"><Clapperboard className="h-3.5 w-3.5 text-[#C9A24D]" />
               {`${(speed.queued || 0) + 1} ${(speed.queued || 0) + 1 === 1 ? 'video' : 'videos'} ahead of yours in line right now - that's included in the time`}</p>
@@ -1218,20 +1337,25 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
         </div>
         <MonthlyAiUsageMeter variant="inline" compact stretch className="mt-4" />
       </Card>
+      {whenPicker()}
+      {canOvernight && paidBlocked && <p className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-200">You&apos;ve reached your AI limit for now, but overnight videos don&apos;t use any - this one can still be made tonight.</p>}
       {workerUp === false && <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">The video maker is restarting - give it a minute. The button turns back on by itself.</p>}
-      {est?.render_paid && est?.render_paused && <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">You&apos;ve reached your AI limit for now, so new videos can&apos;t be made until it resets. Your finished videos still play and save.</p>}
+      {makeBlocked && <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">You&apos;ve reached your AI limit for now, so new videos can&apos;t be made until it resets. Your finished videos still play and save.</p>}
       {!est?.render_paid && (est?.sharpen_paused || est?.soft_capped) && needsSharpen > 0 && <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">You&apos;ve reached your AI limit for now, so this video is made without the extra sharpening. It still looks great, and you can update it later to add it.</p>}
       <div className={embedded ? '' : 'hidden sm:block'}>
-        <button type="button" onClick={() => make()} disabled={!!busy || rendering || workerUp === false || !!(est?.render_paid && est?.render_paused)}
+        <button type="button" data-testid="cine-make" onClick={() => make()} disabled={!!busy || rendering || workerUp === false || makeBlocked}
           className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#111827] to-[#2a2a2e] px-6 py-4 text-base font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl disabled:translate-y-0 disabled:opacity-50 dark:from-white dark:to-gray-200 dark:text-[#111827]">
-          {busy === 'make' || rendering ? <Loader2 className="h-5 w-5 animate-spin" /> : <Clapperboard className="h-5 w-5 text-[#C9A24D]" />}
-          {rendering ? 'Making your video…' : asset.result_url ? 'Update my video' : 'Make my video'}
+          {busy === 'make' || rendering ? <Loader2 className="h-5 w-5 animate-spin" /> : overnightOn ? <Moon className="h-5 w-5 text-[#C9A24D]" /> : <Clapperboard className="h-5 w-5 text-[#C9A24D]" />}
+          {rendering ? 'Making your video…' : overnightOn ? (asset.result_url ? 'Update my video overnight' : 'Make my video overnight') : asset.result_url ? 'Update my video' : 'Make my video'}
         </button>
       </div>
     </div>
   )
 
-  const stepBodies = [setupStep, roomsStep, checkStep, situationStep, lookStep, flowStep, detailsStep, makeStep]
+  const stepBodies = fast
+    ? [setupStep, <FastPhotos key="fast-photos" s={s} up={up} ready={analysisDone} failed={analysis.status === 'failed' ? (analysis.error || 'We couldn\'t look at those photos just now.') : null} onRetry={() => { analyzeKicked.current = true; startAnalysis() }} />, checkStep, situationStep, lookStep,
+       <FastPlanCard key="fast-plan" id={id} s={s} up={up} flush={flush} />, detailsStep, makeStep]
+    : [setupStep, roomsStep, checkStep, situationStep, lookStep, flowStep, detailsStep, makeStep]
 
   // ================================================================ the finished video
   const videoView = (
@@ -1239,9 +1363,9 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
       <div className="min-w-0 space-y-3">
         <div className="ohp-reveal mb-1">
           <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${gold}`}>{rendering ? 'Updating' : 'Your video is ready'}</p>
-          <h1 className="font-serif text-2xl font-black text-[#111827] dark:text-white sm:text-3xl">{sit.label} · {s.facts.address || 'Cinematic Video'}</h1>
+          <h1 className="font-serif text-2xl font-black text-[#111827] dark:text-white sm:text-3xl">{sit.label} · {s.facts.address || (fast ? 'Fast Cut' : 'Cinematic Video')}</h1>
           <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
-            {Math.round(Number(opts.duration_seconds) || length)} sec · {visible.length} photos · {s.theme === 'luxe' ? `Luxe ${s.metal}` : 'Default'} · {stylePreset(s.style).label} · {transitionPreset(s.transition).label}
+            {fast ? `${(s.length || 30) >= 45 ? 57 : 30} sec · Fast Cut · ${(s.song || 'skyline').replace(/^./, c => c.toUpperCase())} · ${s.theme === 'luxe' ? `Luxe ${s.metal}` : 'Default'}` : `${Math.round(Number(opts.duration_seconds) || length)} sec · ${visible.length} photos · ${s.theme === 'luxe' ? `Luxe ${s.metal}` : 'Default'} · ${stylePreset(s.style).label} · ${transitionPreset(s.transition).label}`}
           </p>
         </div>
         {changesPending && (
@@ -1262,7 +1386,8 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
               {asset.result_url && <video key={asset.result_url} src={asset.result_url} poster={opts.preview_frame_url || undefined} controls playsInline className="h-full w-full" />}
             </div>
           )}
-        {rendering && (
+        {held && scheduled(true)}
+        {rendering && !held && (
           <MakingCard compact embedded={embedded} photos={makingPhotos} aspect={16 / 10}
             title={render.main === false ? `Making the ${FORMAT_SIZE[target].label.toLowerCase()} version` : 'Updating your video'}
             stage={render.stage || 'Starting the cameras'} pct={p} etaAt={render.eta_at} startedAt={render.started_at} ahead={ahead} />
@@ -1285,7 +1410,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
                   <div className="ohp-dl-text min-w-0 flex-1">
                     <p className="text-xs font-black text-[#111827] dark:text-white">{f.label}{isMain && <span className={`ml-1.5 text-[9px] uppercase tracking-wider ${gold}`}>Main</span>}</p>
                     <p className="ohp-dl-where truncate text-[10.5px] font-semibold text-gray-500">{f.where}</p>
-                    {!ready && est?.render_paid && <p className="text-[10px] font-black text-[#8b7355] dark:text-[#d7b974]">Uses {aboutPct(est.render_percent)} of your monthly AI</p>}
+                    {!ready && est?.render_paid && <p className="text-[10px] font-black text-[#8b7355] dark:text-[#d7b974]">Uses {renderUse} of your monthly AI</p>}
                   </div>
                   {ready ? (
                     <button type="button" onClick={() => download(f.id)} disabled={!!downloading}
@@ -1294,7 +1419,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
                     </button>
                   ) : (
                     <button type="button" onClick={() => make(f.id)} disabled={rendering || !!busy || changesPending || workerUp === false || !!(est?.render_paid && est?.render_paused)}
-                      title={changesPending ? 'Update your video first' : est?.render_paid && est?.render_paused ? "You've reached your AI limit for now" : est?.render_paid ? `Uses ${aboutPct(est.render_percent)} of your monthly AI` : 'Free - no AI'}
+                      title={changesPending ? 'Update your video first' : est?.render_paid && est?.render_paused ? "You've reached your AI limit for now" : est?.render_paid ? `Uses ${renderUse} of your monthly AI` : 'Free - no AI'}
                       className="ohp-dl-btn inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[11px] font-black text-gray-700 hover:border-[#C9A24D] disabled:opacity-50 dark:border-gray-700 dark:text-gray-200">
                       {makingThis || busy === `fmt-${f.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Make it
                     </button>
@@ -1335,9 +1460,10 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
               <Card className="border-[#C9A24D]/50">
                 <p className="font-serif text-base font-black text-[#111827] dark:text-white">You have changes</p>
                 <p className="mt-0.5 text-xs font-semibold text-gray-500">Preview them above, then update your video. {est?.render_paid ? `Updating it uses ${aboutPct((est.render_percent || 0) + (needsSharpen > 0 && !est?.sharpen_paused ? (sharpenPct || 0) : 0))} of your monthly AI.` : <>No AI usage{needsSharpen > 0 && !est?.sharpen_paused ? ` (except sharpening ${needsSharpen} new photo${needsSharpen === 1 ? '' : 's'}, ${aboutPct(sharpenPct)})` : ''}.</>}</p>
-                <button type="button" onClick={() => make()} disabled={!!busy || workerUp === false || !!(est?.render_paid && est?.render_paused)}
+                {canOvernight && <div className="mt-3">{whenPicker(true)}</div>}
+                <button type="button" onClick={() => make()} disabled={!!busy || workerUp === false || makeBlocked}
                   className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#111827] to-[#2a2a2e] py-3 text-sm font-black text-white shadow-lg disabled:opacity-50 dark:from-white dark:to-gray-200 dark:text-[#111827]">
-                  {busy === 'make' ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4 text-[#C9A24D]" />} Update my video
+                  {busy === 'make' ? <Loader2 className="h-4 w-4 animate-spin" /> : overnightOn ? <Moon className="h-4 w-4 text-[#C9A24D]" /> : <RefreshCw className="h-4 w-4 text-[#C9A24D]" />} {overnightOn ? 'Update my video overnight' : 'Update my video'}
                 </button>
               </Card>
             </motion.div>
@@ -1375,7 +1501,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
               </Link>
             )}
             <div className="min-w-0 flex-1">
-              <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${gold}`}>Cinematic Video</p>
+              <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${gold}`}>{fast ? 'Fast Cut' : 'Cinematic Video'}</p>
               <p className="truncate font-serif text-base font-black text-[#111827] dark:text-white sm:text-lg">{title}</p>
             </div>
             {/* not inside the chat: the narrow panel needs the room for the address (QA 11/12: it showed "4…") */}
@@ -1395,9 +1521,10 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
           </div>
           {view === 'steps' && (
             <div className="px-4 pb-3 sm:px-5">
-              <p className="mb-1.5 text-[11px] font-black text-gray-500 md:hidden">Step {step + 1} of {STEPS.length} · <span className="text-[#111827] dark:text-white">{STEPS[step].title}</span></p>
-              <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${STEPS.length}, minmax(0,1fr))` }}>
+              <p className="mb-1.5 text-[11px] font-black text-gray-500 md:hidden">Step {step + 1 - (fast && step > S.check ? 1 : 0)} of {STEPS.length - (fast ? 1 : 0)} · <span className="text-[#111827] dark:text-white">{STEPS[step].title}</span></p>
+              <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${STEPS.length - (fast ? 1 : 0)}, minmax(0,1fr))` }}>
                 {STEPS.map((st, i) => {
+                  if (fast && i === S.check) return null   // a Fast Cut has no "Check each photo" step
                   // while the first video is being made nothing can be changed (owner 11/13)
                   const locked = rendering && !asset.result_url && i !== step
                   const reachable = !locked && (i <= step || STEPS.slice(0, i).every((_, k) => canNext(k)))
@@ -1424,15 +1551,15 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
             {sidePreview && <div className="min-w-0"><div className={embedded ? 'sticky top-3' : 'sticky top-36'}>{preview}</div></div>}
             <div className="min-w-0">
               <div className="mb-4">
-                <h1 className="font-serif text-2xl font-black text-[#111827] dark:text-white sm:text-3xl">{STEPS[step].title}</h1>
+                <h1 className="font-serif text-2xl font-black text-[#111827] dark:text-white sm:text-3xl">{fast && step === S.rooms ? 'Photos' : fast && step === S.flow ? 'Your shots' : STEPS[step].title}</h1>
                 <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">
                   {[
                     'How long it runs and where you\'ll post it first.',
-                    'Tap a room to see all of its photos, then tick the ones you want - we\'ve ticked our picks.',
+                    fast ? 'Every good photo is in. Take out any you do not want.' : 'Tap a room to see all of its photos, then tick the ones you want - we\'ve ticked our picks.',
                     'One photo at a time: is it the right room, and are the words right?',
                     'Pick the moment - it sets the opening words and the closing card.',
                     'Choose a theme, your color, and how the camera moves.',
-                    'The order of the rooms and how they flow into each other.',
+                    fast ? 'Check the order and the stats before it is made.' : 'The order of the rooms and how they flow into each other.',
                     'Every word on your video, your branding and the music.',
                     'Check the summary, then make it. You can change anything afterwards.',
                   ][step]}
@@ -1466,13 +1593,13 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
 
       {/* phones: the flow bar (inside the chat the buttons sit under the step instead) */}
       {view === 'steps' && !embedded && (
-        <FlowDock step={step + 1} total={STEPS.length}
+        <FlowDock step={step + 1 - (fast && step > S.check ? 1 : 0)} total={STEPS.length - (fast ? 1 : 0)}
           onBack={step > 0 && !(rendering && !asset.result_url) ? () => goStep(step - 1) : undefined}
           onContinue={step < STEPS.length - 1 ? () => goStep(step + 1) : () => make()}
-          disabled={step < STEPS.length - 1 ? !canNext(step) : (rendering || workerUp === false || !!(est?.render_paid && est?.render_paused))}
+          disabled={step < STEPS.length - 1 ? !canNext(step) : (rendering || workerUp === false || makeBlocked)}
           busy={busy === 'make' || (step === STEPS.length - 1 && rendering)}
           note={step < STEPS.length - 1 && !canNext(step) ? nextBlockedReason(step) : undefined}
-          continueLabel={step < STEPS.length - 1 ? 'Next' : rendering ? 'Making…' : asset.result_url ? 'Update video' : 'Make video'}
+          continueLabel={step < STEPS.length - 1 ? 'Next' : held ? 'Scheduled' : rendering ? 'Making…' : overnightOn ? 'Overnight' : asset.result_url ? 'Update video' : 'Make video'}
           icon={step === STEPS.length - 1 ? <Clapperboard /> : undefined} />
       )}
 

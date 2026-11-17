@@ -29,11 +29,16 @@ export type CineCam = {
   water: number; sky: number; sway: number; lights: number
   /** A lit fire: 0..1, and where its flames are ([left, top, right, bottom], 0-1 of the photo). */
   fire?: number; fireBox?: number[] | null
+  /** Fast Cut: seconds into this shot (clouds drift from where they are), day turning to dusk (0..1) and the
+   *  windows that glow then ([left, top, right, bottom], 0-1 of the photo). */
+  shotTime?: number; dusk?: number; windows?: number[][] | null; winGate?: number[] | null
   exposure: number
   focusX: number  // subject left-right, keeps tall formats framed on it
   streak: [number, number] // whip-pan blur, px at 1080
   radial: number  // zoom-through blur, px at 1080
   black: number   // 0..1 fade to black
+  /** Samples in the whip / zoom-through blur (12 unless set; Fast Cut uses 32 for its longer streaks). */
+  blurTaps?: number
   /** How far this shot's camera travels at most (scene units) - with the photo's own depth edges it
    *  sets the safe move (see SAFE_SHIFT). Unset = no limit. */
   travel?: number
@@ -327,6 +332,7 @@ uniform vec3 C; uniform vec3 rot; uniform float f; uniform float fOut;
 uniform float zN; uniform float zF; uniform float steps; uniform float gapMin;
 const bool USE_BEHIND = ${BEHIND_FILL ? 'true' : 'false'};
 uniform float t; uniform float lightsOn; uniform float flick; uniform vec4 fx; // lights, water, sky, trees
+uniform float st; uniform float dusk; uniform vec4 wins[24]; uniform vec2 wgate;
 uniform float fire; uniform vec4 fbox; // a lit fire and where its flames are (left, top, right, bottom)
 ${NOISE}
 // Depth, calmed near the left/right edges: things close to the lens at the sides of a photo (a lamp
@@ -346,6 +352,11 @@ vec2 proj(vec3 X){ return vec2(X.x/X.z*f + 0.5, X.y/X.z*f/imgAsp + 0.5); }
 vec3 soft(vec2 uv){ vec2 o = texel * 3.0;
   return (texture2D(img, uv).rgb*2.0 + texture2D(img, uv+vec2(o.x,0.)).rgb + texture2D(img, uv-vec2(o.x,0.)).rgb
         + texture2D(img, uv+vec2(0.,o.y)).rgb + texture2D(img, uv-vec2(0.,o.y)).rgb) / 6.0; }
+float skyAt(vec2 p){
+  vec3 h = hsv(texture2D(img, clamp(p, 0.001, 0.999)).rgb);
+  float g = band(h.x, 60.0, 170.0, 12.0) * smoothstep(0.18, 0.3, h.y);
+  return (1.0 - smoothstep(0.04, 0.12, disp(p))) * (1.0 - smoothstep(0.42, 0.56, p.y)) * smoothstep(0.3, 0.45, h.z) * (1.0 - g);
+}
 void main(){
   vec2 q = vec2(s.x - 0.5, (0.5 - s.y) * frameAsp);
   vec3 d = vec3(q / fOut, 1.0);
@@ -432,6 +443,24 @@ void main(){
     if (wm > 0.01) {
       vec2 w = vec2(fbm(uv*vec2(60.,90.)+vec2(t*0.6,t*0.4))-0.5, fbm(uv*vec2(90.,60.)-vec2(t*0.5,t*0.7))-0.5);
       uv += w*0.0032*wm*fx.y;
+      if (fx.y > 1.5) uv += w*0.004*wm;   // Fast Cut: short shots, so the water visibly moves
+    }
+  }
+  // Fast Cut (sky > 1) and the dusk ending: the open sky itself - far away, upper part, not treetops - so the
+  // clouds can drift a little and the sky can turn.
+  float skyM = 0.0;
+  if (fx.z > 1.5 || dusk > 0.0) {
+    float green = band(sc.x, 60.0, 170.0, 12.0) * smoothstep(0.18, 0.3, sc.y);
+    skyM = (1.0 - smoothstep(0.04, 0.12, D)) * (1.0 - smoothstep(0.42, 0.56, uv.y)) * smoothstep(0.3, 0.45, sc.z) * (1.0 - green);
+    if (fx.z > 1.5 && skyM > 0.5) {
+      // only well inside open sky: every point around must be sky too, so treetops and rooflines never smear
+      float open = skyM;
+      for (int i = 0; i < 8; i++) {
+        float a = float(i) * 0.7854;
+        open = min(open, skyAt(uv + vec2(cos(a), sin(a) * imgAsp) * 0.03));
+        open = min(open, skyAt(uv + vec2(cos(a + 0.39), sin(a + 0.39) * imgAsp) * 0.015));
+      }
+      uv.x = clamp(uv.x - st * 0.003 * smoothstep(0.55, 0.95, open), 0.001, 0.999);
     }
   }
   // a lit fire: only the bright flame colours inside the box the AI marked (a colour match alone would
@@ -449,6 +478,8 @@ void main(){
       float tip = 1.25 - clamp(c.y, 0.0, 1.0); // the tips (top) move most, the base least
       vec2 w = vec2(fbm(vec2(uv.x*38.0, uv.y*16.0 + t*2.4)) - 0.5, fbm(vec2(uv.x*28.0 + 7.0, uv.y*12.0 + t*3.0)) - 0.5);
       uv += vec2(w.x*0.004*bs.x*4.0, w.y*0.006*bs.y*4.0) * fm * fire * tip;
+      // Fast Cut (fire > 1): shots are short, so the flames must visibly dance, not just breathe
+      if (fire > 1.5) uv += vec2(w.x*0.07*bs.x, w.y*0.55*bs.y) * fm * tip;
     }
   }
   vec3 col = behind ? mix(texture2D(img, uvF).rgb, texture2D(bimg, uv).rgb, wB) : texture2D(img, uv).rgb;
@@ -460,7 +491,7 @@ void main(){
   }
   if (wm > 0.01) {
     float ca = pow(fbm(uv*vec2(140.,200.)+vec2(t*0.8,-t*0.6)), 3.0);
-    col += vec3(0.75,0.95,1.0)*ca*0.55*wm*fx.y;
+    col += vec3(0.75,0.95,1.0)*ca*0.55*wm*min(fx.y, 1.3);
   }
   // warm lights: coming on, a soft lantern flicker, a little glow
   if (fx.x > 0.0) {
@@ -478,8 +509,51 @@ void main(){
              * (1.0 - smoothstep(0.42, 0.58, uv.y)) * (1.0 - smoothstep(0.22, 0.34, D));
     if (km > 0.01) {
       float cl = fbm(uv*vec2(3.0,7.0)+vec2(t*0.035,0.0));
-      col = mix(col, col*(0.93+0.16*cl) + vec3(0.02,0.02,0.035)*cl, km*fx.z);
+      col = mix(col, col*(0.93+0.16*cl) + vec3(0.02,0.02,0.035)*cl, km*min(fx.z, 1.0));
+      if (fx.z > 1.5) {
+        // Fast Cut (owner 11/16: "no nice clouds and sky"): soft wisps of cloud drift across the open blue sky -
+        // drawn over it, nothing is moved, so rooflines and treetops can't smear. Thin where the sky is already busy.
+        vec2 cp = vec2(uv.x * 1.6 + st * 0.04, uv.y * 4.2 + st * 0.004);
+        float w = fbm(cp) * 0.65 + fbm(cp * 2.3 + vec2(3.1, 1.7)) * 0.35;
+        float wisp = smoothstep(0.36, 0.6, w) * (0.6 + 0.4 * smoothstep(0.05, 0.3, uv.y));
+        // only the open sky, the farthest thing in the photo - never the sky reflected in window glass
+        float far = 1.0 - smoothstep(0.04, 0.1, D);
+        if (far * wisp > 0.02) {   // and well inside it: how much of the sky around is open, as a soft fade (a hard
+          float open = 0.0;        // cut-off left angular light patches by rooflines)
+          for (int i = 0; i < 8; i++) {
+            float a = float(i) * 0.7854;
+            open += skyAt(uv + vec2(cos(a), sin(a) * imgAsp) * 0.03);
+            open += skyAt(uv + vec2(cos(a + 0.39), sin(a + 0.39) * imgAsp) * 0.07);
+          }
+          far *= smoothstep(0.6, 0.98, open / 16.0);
+        }
+        col = mix(col, mix(col, vec3(0.98, 0.98, 1.0), 0.8), km * far * wisp * 0.6);
+      }
     }
+  }
+  // day turns to dusk: the whole photo cools and dims a little (still easy to see), the sky turns, windows glow
+  if (dusk > 0.0) {
+    float lum = dot(col, vec3(0.299, 0.587, 0.114));
+    vec3 hc = hsv(col);
+    skyM = max(skyM, band(hc.x, 195.0, 240.0, 8.0) * smoothstep(0.28, 0.4, hc.y) * smoothstep(0.35, 0.5, hc.z)
+                     * (1.0 - smoothstep(0.42, 0.56, uv.y)) * (1.0 - smoothstep(0.4, 0.55, D)));
+    vec3 night = col * vec3(0.62, 0.70, 0.93) * 0.88;
+    float hgt = clamp(uv.y / 0.5, 0.0, 1.0);
+    vec3 skyc = mix(vec3(0.24, 0.28, 0.56), vec3(1.0, 0.62, 0.40), hgt * hgt);
+    vec3 dcol = mix(night, skyc * (0.5 + 0.75 * lum), skyM);
+    float wk = 0.0; float halo = 0.0;
+    for (int i = 0; i < 24; i++) {
+      vec4 b = wins[i];
+      if (b.z <= b.x) continue;
+      vec2 c = (uv - b.xy) / (b.zw - b.xy);
+      wk = max(wk, smoothstep(-0.01, 0.05, c.x) * (1.0 - smoothstep(0.95, 1.01, c.x)) * smoothstep(-0.01, 0.04, c.y) * (1.0 - smoothstep(0.96, 1.01, c.y)));
+      vec2 e = (c - 0.5) / 1.1;
+      halo += exp(-dot(e, e) * 2.5);
+    }
+    float fl = 1.0 + 0.05 * (n(vec2(t * 5.0, 3.1)) - 0.5);
+    dcol = mix(dcol, vec3(1.0, 0.76, 0.42) * (0.74 + 0.36 * lum) * fl, wk * 0.9);   // even light; frames and glazing bars stay a touch brighter
+    dcol += vec3(1.0, 0.6, 0.25) * min(halo, 1.0) * 0.07 * (1.0 - wk);
+    col = mix(col, dcol, dusk);
   }
   gl_FragColor = vec4(col, D);
 }`
@@ -487,7 +561,7 @@ void main(){
 const FS_LENS = `precision highp float;
 varying vec2 s;
 uniform sampler2D scene; uniform vec2 px; uniform float focus; uniform float ap; uniform float dpr;
-uniform float t; uniform float exposure; uniform float hq; uniform float gtaps; uniform vec2 streak; uniform float radial; uniform float black;
+uniform float t; uniform float exposure; uniform float hq; uniform float gtaps; uniform vec2 streak; uniform float radial; uniform float black; uniform float btaps;
 ${NOISE}
 float coc(float D){ return clamp(abs(D - focus) * ap, 0.0, 9.0) * dpr; }
 void main(){
@@ -516,13 +590,13 @@ void main(){
   float sl = length(streak);
   if (sl > 0.5) {
     vec3 a = vec3(0.0);
-    for (int i = 0; i < 12; i++) { float k = float(i) / 11.0 - 0.5; a += texture2D(scene, s + streak * dpr * px * k).rgb; }
-    col = mix(col, a / 12.0, clamp(sl / 6.0, 0.0, 1.0));
+    for (int i = 0; i < 32; i++) { if (float(i) >= btaps) break; float k = float(i) / (btaps - 1.0) - 0.5; a += texture2D(scene, s + streak * dpr * px * k).rgb; }
+    col = mix(col, a / btaps, clamp(sl / 6.0, 0.0, 1.0));
   }
   if (radial > 0.5) {
     vec2 dir = (s - 0.5); vec3 a = vec3(0.0);
-    for (int i = 0; i < 12; i++) { float k = float(i) / 11.0; a += texture2D(scene, s - dir * k * radial * dpr * px * 2.0).rgb; }
-    col = mix(col, a / 12.0, clamp(radial / 8.0, 0.0, 1.0));
+    for (int i = 0; i < 32; i++) { if (float(i) >= btaps) break; float k = float(i) / (btaps - 1.0); a += texture2D(scene, s - dir * k * radial * dpr * px * 2.0).rgb; }
+    col = mix(col, a / btaps, clamp(radial / 8.0, 0.0, 1.0));
   }
   // highlight glow only around small warm light sources (lanterns, lit windows) - not white walls
   vec3 glow = vec3(0.0);
@@ -769,6 +843,11 @@ export const CinePhoto: React.FC<{
     const fb = cam.fire && cam.fireBox && cam.fireBox.length === 4 ? cam.fireBox : null
     gl.uniform1f(u('fire'), fb ? cam.fire || 0 : 0)
     gl.uniform4f(u('fbox'), fb ? fb[0] : 0, fb ? fb[1] : 0, fb ? fb[2] : 0, fb ? fb[3] : 0)
+    gl.uniform1f(u('st'), cam.shotTime || 0); gl.uniform1f(u('dusk'), cam.dusk || 0)
+    const wins = new Float32Array(96)
+    ;(cam.windows || []).slice(0, 24).forEach((b, i) => { if (b && b.length === 4) wins.set(b, i * 4) })
+    gl.uniform4fv(u('wins'), wins)
+    gl.uniform2f(u('wgate'), cam.winGate ? cam.winGate[0] : 2, cam.winGate ? cam.winGate[1] : 2)
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null)
@@ -779,7 +858,7 @@ export const CinePhoto: React.FC<{
     gl.uniform2f(v('px'), 1 / cw, 1 / ch); gl.uniform1f(v('focus'), cam.focus); gl.uniform1f(v('ap'), cam.aperture)
     gl.uniform1f(v('dpr'), scale); gl.uniform1f(v('t'), cam.time); gl.uniform1f(v('exposure'), cam.exposure)
     gl.uniform1f(v('hq'), preview ? 0 : 1); gl.uniform1f(v('gtaps'), Math.min(32, perf?.glow || RENDER_GLOW)); gl.uniform2f(v('streak'), cam.streak[0], cam.streak[1])
-    gl.uniform1f(v('radial'), cam.radial); gl.uniform1f(v('black'), cam.black)
+    gl.uniform1f(v('radial'), cam.radial); gl.uniform1f(v('black'), cam.black); gl.uniform1f(v('btaps'), Math.min(32, Math.max(2, cam.blurTaps || 12)))
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
     if (!preview) gl.finish()
     else if (measure) {

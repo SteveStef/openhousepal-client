@@ -1771,11 +1771,13 @@ class ApiService {
         this.request<StudioMediaAsset>(`/studio/media-lab/motion/${assetId}/photos/${photoId}`, { method: 'DELETE' }),
       analyze: (assetId: string) =>
         this.request<StudioMediaAsset>(`/studio/media-lab/motion/${assetId}/analyze`, { method: 'POST' }),
-      render: (assetId: string, body: { sharpen?: boolean; format?: string }) =>
+      render: (assetId: string, body: { sharpen?: boolean; format?: string; overnight?: boolean }) =>
         this.request<StudioMediaAsset>(`/studio/media-lab/motion/${assetId}/render`, { method: 'POST', body: JSON.stringify(body) }),
-      estimate: (photos: number, sharpen: boolean, seconds = 30) =>
-        this.request<{ photos: number; analyze_usd: number; sharpen_usd: number; analyze_percent: number | null; sharpen_percent: number | null; month_percent: number | null; soft_capped: boolean; sharpen_paused?: boolean; render_usd?: number; render_percent?: number | null; render_paid?: boolean; render_paused?: boolean }>(
-          `/studio/media-lab/motion/estimate?photos=${photos}&sharpen=${sharpen ? 'true' : 'false'}&seconds=${Math.min(120, Math.max(5, Math.round(seconds || 30)))}`),
+      fastPlan: (assetId: string) =>
+        this.request<import('@/components/studio/media/cinematic/FastCut').FastPlan>(`/studio/media-lab/motion/${assetId}/fast-plan`, { method: 'POST' }),
+      estimate: (photos: number, sharpen: boolean, seconds = 30, fast = false) =>
+        this.request<{ speed_save_percent?: number | null; speed_save_percent_max?: number | null; speed_now_percent?: number | null; speed_save_cap_minutes?: number; fast_edit_usd?: number; fast_edit_percent?: number | null; photos: number; analyze_usd: number; sharpen_usd: number; analyze_percent: number | null; sharpen_percent: number | null; month_percent: number | null; soft_capped: boolean; sharpen_paused?: boolean; render_usd?: number; render_percent?: number | null; render_paid?: boolean; render_paused?: boolean; render_usd_low?: number; render_percent_low?: number | null; overnight_available?: boolean; overnight_ready_at?: string | null; overnight_held?: boolean; overnight_saves_usd?: number; overnight_saves_percent?: number | null }>(
+          `/studio/media-lab/motion/estimate?photos=${photos}&sharpen=${sharpen ? 'true' : 'false'}&seconds=${Math.min(120, Math.max(5, Math.round(seconds || 30)))}${fast ? '&fast=true' : ''}`),
       health: () => this.request<{ worker: boolean; wait_seconds?: number; sec_per_frame?: number; start_seconds?: number; save_seconds?: number; queued?: number; busy?: boolean }>('/studio/media-lab/motion/health'),
     },
 

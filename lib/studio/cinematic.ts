@@ -83,6 +83,14 @@ export type MotionSettings = {
   format: MotionFormat
   sharpen: boolean
   ordered_by_ai?: boolean
+  /** Which kind of AI Video: the calm Cinematic Video, or the beat-synced Fast Cut. */
+  kind?: 'cinematic' | 'fastcut'
+  /** Fast Cut: the song (every one is cut to the same beat pattern). */
+  song?: string
+  /** Fast Cut: the agent's own changes to the AI editor's plan (the editor's answer itself stays on the server). */
+  fast?: { order?: string[]; stats_off?: string[] }
+  /** How soon the agent needs it: 'save' (the default) = the slower, cheaper lines; 'now' = the fast ones. Same video. */
+  speed?: 'save' | 'now'
 }
 
 export type MotionRender = {
@@ -102,6 +110,12 @@ export type MotionRender = {
   eta_at?: string | null
   /** The video maker has timed real videos (false = still its first guess). */
   eta_learned?: boolean
+  /** Overnight mode (11/14): made on our own video maker in the quiet hours - no AI for making it. */
+  overnight?: boolean
+  /** Still waiting for tonight (not started yet). */
+  held?: boolean
+  /** About when an overnight video will be ready. */
+  ready_at?: string | null
 }
 
 /** "4:05" - a countdown clock. */
@@ -219,6 +233,15 @@ function fromPool(it: MotionPoolPhoto, keep?: MotionPhotoSetting): MotionPhotoSe
     lights: it.lights, water: it.water, sky: it.sky, trees: it.trees, fire: it.fire, fireBox: it.fireBox ?? null, transitionIn: null, hidden: false,
     analyzed: it.analyzed, sure: it.sure, confirmed: false, room: it.room,
   }
+}
+
+/** Fast Cut: every good photo of the home is in (the AI editor picks the order and leaves out near-duplicates) -
+ *  the 60 most striking when there are more, in the listing's own order. Photos already in are kept as they are. */
+export function photosForFastCut(s: MotionSettings, all = false): MotionPhotoSetting[] {
+  const good = (s.pool || []).filter(it => it.analyzed && it.room && it.room !== 'skip')
+  const keep = new Set([...good].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, all ? good.length : 60).map(it => it.source))
+  const have = new Map(s.photos.map(p => [p.source, p]))
+  return good.filter(it => keep.has(it.source)).map(it => ({ ...fromPool(it, have.get(it.source)), confirmed: true, hidden: false }))
 }
 
 /** The video's photos for these rooms and this length (our suggestion, and "Our pick"): the best photo

@@ -23,7 +23,7 @@ const TOOLS: [string, string, string, typeof Moon][] = [
   ['twilight', 'Twilight', 'Turns a day photo to dusk', Moon], ['lights_on', 'Lights on', 'Warms the house with its lights on', Lamp],
   ['virtual_staging', 'Virtual staging', 'Furnishes an empty room', Sofa], ['enhance', 'Enhance', 'Grass, sky, light and clean-up', Sparkles],
   ['video', 'AI video', 'Turns photos into a moving clip', Clapperboard],
-  ['cinematic', 'Cinematic Video', 'A film-style tour with room captions', Film],
+  ['cinematic', 'Cinematic or Fast Cut', 'A film-style tour, or quick cuts on the beat', Film],
 ]
 // Several photos, in order: AI video (up to 7). Cinematic Video uses every photo of the listing
 // (its editor - right in the chat - asks the length and the rooms); with uploads, up to 40 to choose from.
@@ -66,7 +66,7 @@ export function MediaPick({ payload, picks, onPicks }: { payload: Record<string,
   const u = (payload.usage || {}) as Record<string, number | null>
   const est = video ? u.video_est_usd : u.image_est_usd
   const pct = est && u.month_ai_budget_usd ? Math.max(1, Math.round((est / u.month_ai_budget_usd) * 100)) : null
-  const toolLine = cinematic ? 'Cinematic Video' : video ? 'AI video' : picks.effects.map(e => TOOLS.find(t => t[0] === e)?.[1]).join(' + ') || 'Pick one'
+  const toolLine = cinematic ? (payload?.video_kind === 'fast_cut' ? 'Fast Cut video' : 'Cinematic Video') : video ? 'AI video' : picks.effects.map(e => TOOLS.find(t => t[0] === e)?.[1]).join(' + ') || 'Pick one'
   const chosen = multi ? picks.photos : picks.photo ? [picks.photo] : []
   return (
     <PickShell testid="ai-media-pick" side={300} preview={
@@ -96,7 +96,7 @@ export function MediaPick({ payload, picks, onPicks }: { payload: Record<string,
         {!multi && picks.effects.length > 0 && <div className="mt-2"><StepDone onDone={() => steps.done('tool')} /></div>}
         {cineListing && (
           <p className="mt-2 rounded-lg bg-white px-2.5 py-2 text-[11px] font-semibold text-gray-600 ring-1 ring-black/5 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-white/10" data-testid="ai-media-cine-note">
-            Uses all {listing.length} photos of {payload.listing?.address || 'this home'}. Press <b>Make it</b> and its editor opens right here: pick the length and shape, tap the rooms to show, check each photo, then make it.
+            Uses all {listing.length} photos of {payload.listing?.address || 'this home'}. Press <b>Make it</b> and its editor opens right here: {payload?.video_kind === 'fast_cut' ? 'pick the length and the song, take out any photos you don\'t want, check the order of the shots, then make it.' : 'pick the length and shape, tap the rooms to show, check each photo, then make it.'}{' '}{payload?.video_kind !== 'fast_cut' ? null : payload?.video_speed === 'now' ? <>Set to <b>Make it now</b>, the fastest way.</> : <>Set to <b>Save usage</b>: a few minutes slower, less of your AI.</>}
           </p>
         )}
       </CardStep>
