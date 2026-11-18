@@ -71,9 +71,16 @@ export default function Header({ mode = 'app' }: HeaderProps) {
   const { showToast } = useToast()
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  // The phone menu opens with every section folded; tapping a section unfolds its pages (owner, 10/26).
+  // The phone menu opens with the section you're in already unfolded, its page lit up (owner, 11/18 -
+  // on a CMA, Tools is open with CMA highlighted); everything else is folded. Tapping a section
+  // unfolds its pages (owner, 10/26).
   const [openSection, setOpenSection] = useState<string | null>(null)
-  useEffect(() => { if (isMobileMenuOpen) setOpenSection(null) }, [isMobileMenuOpen])
+  const hereSection = useRef<string | null>(null)   // set below, once the menu's sections are built
+  useEffect(() => {
+    if (!isMobileMenuOpen) return
+    menuRestoreTop.current = 0
+    setOpenSection(hereSection.current)
+  }, [isMobileMenuOpen])
   // Opening a section glides the menu down just enough to show all of its pages - also when another
   // section above it is folding shut at the same time (Leads open, tap Tools); folding it back
   // glides up to where the menu was before (user, 10/27). Followed frame by frame for the length of
@@ -312,6 +319,9 @@ export default function Header({ mode = 'app' }: HeaderProps) {
   const menuSections: MobileSection[] = isAuthenticated
     ? [{ key: 'site', label: 'Home', icon: OhpHouse, href: homeHref(true), on: onSitePage, tiles: [{ href: homeHref(true), label: 'Homepage', icon: OhpHouse, on: pathname === '/', wide: true }, ...sitePageTiles] }, ...mobileSections]
     : [{ key: 'home', label: 'Home', icon: OhpHouse, href: '/', on: pathname === '/', tiles: [] }, ...sitePageTiles.map(t => ({ key: t.href, label: t.label, icon: t.icon, href: t.href, on: !!t.on, tiles: [] }))]
+  // The section the menu opens unfolded: the one holding this page's tile, else the one this page
+  // belongs to (a lead's own page sits under Leads with no tile of its own).
+  hereSection.current = (menuSections.find(s => s.tiles.some(t => t.on)) || menuSections.find(s => s.on && s.tiles.length > 0))?.key ?? null
 
   const handleLogout = async () => {
     setIsLoggingOut(true)

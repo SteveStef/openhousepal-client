@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   ArrowRight, BedDouble, Bath, Building2, CalendarClock, CheckCheck, CheckCircle2, ChevronDown, ChevronRight, Inbox, MousePointerClick, Ruler,
-  Sparkles, TrendingDown, X,
+  History, Sparkles, TrendingDown, X,
 } from 'lucide-react'
 import api from '@/lib/api-service'
 import { useAuth } from '@/contexts/AuthContext'
@@ -59,12 +59,26 @@ export type Rundown = {
   // Looked at today (opened here, or the briefing email opened / clicked) - the Dash card steps aside
   // for the header's "Briefing" button, which lights up with anything new since.
   seen?: { seen: boolean; seen_at: string | null; via: 'app' | 'email' | null; new_since: number }
+  /** The real number of today's bell items - the list stops at 120 (the rest are on the Activity page). */
+  happened_total?: number
+  /** "Since you last looked" (owner, 11/18) - the days between their last look in the app and today. */
+  catchup?: Catchup | null
 }
+type Group = { key: string; label: string; items: Happening[] }
+export type Catchup = {
+  since: string; from: string; capped: boolean; days_away: number; range_label: string
+  stats: Stat[]; count: number; unread: number
+  days: { date: string; label: string; count: number; unread: number; more: number; groups: Group[] }[]
+  showcase: { new: number; drops: number; clients: number; homes: Home[] } | null
+}
+
+/** Unread across today and the catch-up's days - what "Mark all as read" clears. */
+export const unreadAll = (d: Rundown) => d.unread_today + (d.catchup?.unread || 0)
 
 /** Nothing in today's Rundown yet: it stays small, the same as after it's been looked at, and the big
  * card comes back the moment something happens (owner, 11/06). */
 export const rundownIsEmpty = (d: Rundown) => !d.happened_count && !d.to_do_count && !d.briefing.sent
-  && !d.showcase?.new && !d.showcase?.drops && d.stats.every(s => !s.value)
+  && !d.showcase?.new && !d.showcase?.drops && d.stats.every(s => !s.value) && !d.catchup
 
 // The last Rundown fetched - a reopen shows it instantly while the fresh one loads.
 let cached: Rundown | null = null
@@ -130,9 +144,11 @@ export async function markRundownSeen(): Promise<void> {
 
 const markedSeen = (d: Rundown): Rundown => ({ ...d, seen: { seen: true, seen_at: new Date().toISOString(), via: 'app', new_since: 0 } })
 
+const allRead = (groups: Group[]): Group[] => groups.map(g => ({ ...g, items: g.items.map(i => ({ ...i, is_read: true })) }))
 const markedRead = (d: Rundown): Rundown => ({
   ...markedSeen(d), unread_today: 0,
-  happened: d.happened.map(g => ({ ...g, items: g.items.map(i => ({ ...i, is_read: true })) })),
+  happened: allRead(d.happened),
+  catchup: d.catchup ? { ...d.catchup, unread: 0, days: d.catchup.days.map(x => ({ ...x, unread: 0, groups: allRead(x.groups) })) } : d.catchup,
 })
 
 export function briefingStatus(d: Rundown): { text: string; tone: 'sent' | 'live' | 'quiet' } {
@@ -250,7 +266,7 @@ function RundownWindow({ onClose, leave }: { onClose: () => void; leave: () => v
   }
   // The big bottom button always ends the briefing (owner, 11/13): marks today read and closes, or
   // just closes once everything is read.
-  const bottomButton = () => { if (data && data.unread_today > 0) markAll(); else onClose() }
+  const bottomButton = () => { if (data && unreadAll(data) > 0) markAll(); else onClose() }
 
   return (
     <motion.div {...backdropMotion} data-scroll-lock="off" onClick={e => { if (e.target === e.currentTarget) onClose() }}
@@ -297,14 +313,14 @@ function RundownWindow({ onClose, leave }: { onClose: () => void; leave: () => v
             style={{ paddingBottom: phone ? 'max(0.75rem, env(safe-area-inset-bottom))' : undefined }}>
             <motion.button type="button" whileTap={{ scale: 0.96 }} onClick={bottomButton} disabled={marking} data-testid="rundown-mark-all"
               className={`relative flex ${short ? 'h-10' : 'h-12'} min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-2xl px-4 text-sm font-black transition ${
-                data.unread_today > 0
+                unreadAll(data) > 0
                   ? 'bg-gradient-to-r from-[#111827] to-[#2a2218] text-white shadow-lg shadow-black/15 dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827]'
                   : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'}`}>
               <AnimatePresence mode="wait" initial={false}>
-                <motion.span key={data.unread_today > 0 ? 'mark' : 'done'} className="flex items-center gap-2"
+                <motion.span key={unreadAll(data) > 0 ? 'mark' : 'done'} className="flex items-center gap-2"
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}>
-                  {data.unread_today > 0
-                    ? <><CheckCheck className="h-4 w-4" /> Mark all as read <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] tabular-nums dark:bg-black/10">{data.unread_today}</span></>
+                  {unreadAll(data) > 0
+                    ? <><CheckCheck className="h-4 w-4" /> Mark all as read <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] tabular-nums dark:bg-black/10">{unreadAll(data)}</span></>
                     : <><motion.span initial={justMarked ? { scale: 0.4, rotate: -30 } : false} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 14 }}><CheckCircle2 className="h-4 w-4" /></motion.span> {justMarked ? 'All caught up' : 'All caught up · Close'}</>}
                 </motion.span>
               </AnimatePresence>
@@ -392,10 +408,18 @@ function RundownBody({ data, setData, phone, short = false, go, settled = true, 
               <span className={`h-1.5 w-1.5 rounded-full ${status.tone === 'sent' ? 'bg-emerald-500' : status.tone === 'live' ? 'animate-pulse bg-[#C9A24D]' : 'bg-gray-400'}`} />
               {status.text}
             </span>
-            {data.unread_today > 0 && (
+            {unreadAll(data) > 0 && (
               <span className="inline-flex items-center gap-1 rounded-full bg-[#111827] px-2.5 py-1 text-[11px] font-black text-white dark:bg-[#e8c97a] dark:text-[#111827]">
-                {data.unread_today} unread
+                {unreadAll(data)} unread
               </span>
+            )}
+            {/* Days they missed - a tap jumps down to them (owner, 11/18). */}
+            {data.catchup && (
+              <button type="button" data-testid="rundown-catchup-jump"
+                onClick={() => document.getElementById('rundown-catchup')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })}
+                className="inline-flex items-center gap-1 rounded-full border border-[#C9A24D]/45 bg-[#C9A24D]/10 px-2.5 py-1 text-[11px] font-black text-[#8b7355] transition hover:bg-[#C9A24D]/20 dark:border-[#e8c97a]/30 dark:text-[#e8c97a]">
+                <History className="h-3 w-3" /> Since you last looked{data.catchup.count ? ` · ${data.catchup.count}` : ''} <ChevronDown className="h-3 w-3" />
+              </button>
             )}
           </motion.div>
 
@@ -521,47 +545,177 @@ function RundownBody({ data, setData, phone, short = false, go, settled = true, 
                     {fresh > 0 && <span className="rounded-full bg-[#C9A24D] px-1.5 py-px text-[9.5px] tracking-[0.08em] text-white">{fresh} new</span>}
                   </p>
                   <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white dark:border-white/[0.07] dark:bg-[#141416]">
-                    <ShowMore initial={Math.max(3, lastNew + 1)} divided items={g.items.map(n => {
-                      const { icon: Icon, className } = getNotificationMeta(n.type, n.message, n.title)
-                      const glow = isNew(n.at)
-                      return (
-                        <div key={n.id} role="button" tabIndex={0} onClick={() => go(n.link)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(n.link) } }} data-testid="rundown-happening"
-                          data-new={glow ? '' : undefined}
-                          className={`flex w-full min-w-0 cursor-pointer items-start gap-3 px-3.5 py-3 text-left transition hover:bg-[#faf9f7] active:bg-[#f4efe4] dark:hover:bg-white/[0.03] dark:active:bg-white/[0.05] ${glow ? 'ohp-new-glow bg-[#fdf6e4] dark:bg-[#C9A24D]/[0.08]' : ''}`}>
-                          <span className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full border ${className}`}><Icon className="h-4 w-4" /></span>
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-start gap-2">
-                              <span className={`min-w-0 flex-1 text-[13.5px] leading-snug text-[#111827] dark:text-white ${n.is_read ? 'font-bold' : 'font-black'}`}>{n.title}</span>
-                              {glow && <span className="shrink-0 rounded-full bg-[#C9A24D] px-1.5 py-px text-[9px] font-black uppercase tracking-[0.08em] text-white">New</span>}
-                              <span className="shrink-0 pt-0.5 text-[10.5px] font-bold tabular-nums text-gray-400">{clock(n.at)}</span>
-                            </span>
-                            {(n.message || n.address) && <span className="mt-0.5 line-clamp-2 block text-xs leading-relaxed text-gray-500 dark:text-gray-400">{n.message || n.address}</span>}
-                            {/* open house guests: agent or not, like the briefing email (owner, 11/01) */}
-                            {n.agent_status && (
-                              <span data-testid="rundown-agent-status" className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10.5px] font-black ${n.agent_status === 'No agent'
-                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
-                                : 'bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-white/60'}`}>{n.agent_status}</span>
-                            )}
-                            {n.showcase_link && <OpenShowcaseButton small href={n.showcase_link} onGo={go} className="mt-1.5" />}
-                          </span>
-                          <AnimatePresence initial={false}>
-                            {!n.is_read && <motion.span exit={{ scale: 0, opacity: 0 }} className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#C9A24D]" aria-label="Unread" />}
-                          </AnimatePresence>
-                        </div>
-                      )
-                    })} />
+                    <ShowMore initial={Math.max(3, lastNew + 1)} divided items={g.items.map(n => <HappeningRow key={n.id} n={n} glow={isNew(n.at)} go={go} />)} />
                   </div>
                 </div>
                 )
               })}
+              <MoreOnActivity more={(data.happened_total || 0) - data.happened_count} go={go} />
             </div>
           )}
         </Section>
+
+        {data.catchup && <CatchupSection cu={data.catchup} phone={phone} go={go} />}
+
         <p className="pb-2 text-center text-[10.5px] font-bold text-gray-400 dark:text-white/30">
           Updates on its own · same as your daily briefing email, with everything in it
         </p>
       </div>
       )}
+    </div>
+  )
+}
+
+function HappeningRow({ n, glow = false, go }: { n: Happening; glow?: boolean; go: (link: string) => void }) {
+  const { icon: Icon, className } = getNotificationMeta(n.type, n.message, n.title)
+  return (
+    <div role="button" tabIndex={0} onClick={() => go(n.link)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(n.link) } }} data-testid="rundown-happening"
+      data-new={glow ? '' : undefined}
+      className={`flex w-full min-w-0 cursor-pointer items-start gap-3 px-3.5 py-3 text-left transition hover:bg-[#faf9f7] active:bg-[#f4efe4] dark:hover:bg-white/[0.03] dark:active:bg-white/[0.05] ${glow ? 'ohp-new-glow bg-[#fdf6e4] dark:bg-[#C9A24D]/[0.08]' : ''}`}>
+      <span className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full border ${className}`}><Icon className="h-4 w-4" /></span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-start gap-2">
+          <span className={`min-w-0 flex-1 text-[13.5px] leading-snug text-[#111827] dark:text-white ${n.is_read ? 'font-bold' : 'font-black'}`}>{n.title}</span>
+          {glow && <span className="shrink-0 rounded-full bg-[#C9A24D] px-1.5 py-px text-[9px] font-black uppercase tracking-[0.08em] text-white">New</span>}
+          <span className="shrink-0 pt-0.5 text-[10.5px] font-bold tabular-nums text-gray-400">{clock(n.at)}</span>
+        </span>
+        {(n.message || n.address) && <span className="mt-0.5 line-clamp-2 block text-xs leading-relaxed text-gray-500 dark:text-gray-400">{n.message || n.address}</span>}
+        {/* open house guests: agent or not, like the briefing email (owner, 11/01) */}
+        {n.agent_status && (
+          <span data-testid="rundown-agent-status" className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10.5px] font-black ${n.agent_status === 'No agent'
+            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+            : 'bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-white/60'}`}>{n.agent_status}</span>
+        )}
+        {n.showcase_link && <OpenShowcaseButton small href={n.showcase_link} onGo={go} className="mt-1.5" />}
+      </span>
+      <AnimatePresence initial={false}>
+        {!n.is_read && <motion.span exit={{ scale: 0, opacity: 0 }} className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#C9A24D]" aria-label="Unread" />}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+/** A list that stopped short says so, and where the rest are (owner, 11/18) - never a silent cut. */
+function MoreOnActivity({ more, go }: { more: number; go: (link: string) => void }) {
+  if (more <= 0) return null
+  return (
+    <button type="button" onClick={() => go('/activity')} data-testid="rundown-more-on-activity"
+      className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-[#C9A24D]/40 py-2.5 text-xs font-black text-[#8b7355] transition hover:bg-[#C9A24D]/10 dark:border-white/15 dark:text-[#e8c97a]">
+      + {more} more on your Activity page <ChevronRight className="h-3.5 w-3.5" />
+    </button>
+  )
+}
+
+/** "Since you last looked" (owner, 11/18): the days between their last look in the app and today -
+ * that stretch's numbers, the Showcase news earlier briefings rolled up, and each day's activity
+ * folded up. It stays until midnight once seen, like the rest of today's Rundown. */
+function CatchupSection({ cu, phone, go }: { cu: Catchup; phone: boolean; go: (link: string) => void }) {
+  const busy = cu.stats.filter(s => s.value > 0)
+  const [openKey, setOpenKey] = useState<string | null>(null)
+  const openStat = busy.find(s => s.key === openKey) || null
+  const [openDay, setOpenDay] = useState<string | null>(cu.days.length === 1 ? cu.days[0].date : null)
+  const homes = cu.showcase?.homes || []
+  const news = [cu.showcase?.new ? `${cu.showcase.new} new` : '', cu.showcase?.drops ? `${cu.showcase.drops} price drop${cu.showcase.drops === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ')
+  return (
+    <div id="rundown-catchup" className="scroll-mt-24" data-testid="rundown-catchup">
+      <Section i={7} icon={<History className="h-4 w-4" />} title="Since you last looked" count={cu.count} note={cu.range_label}>
+        <div className="space-y-4">
+          {busy.length > 0 && (
+            <div>
+              <div className="flex flex-wrap gap-1.5">
+                {busy.map(s => {
+                  const on = openKey === s.key
+                  return (
+                    <button key={s.key} type="button" onClick={() => setOpenKey(k => (k === s.key ? null : s.key))} aria-expanded={on} data-testid={`rundown-catchup-stat-${s.key}`}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-black transition ${on
+                        ? 'border-[#111827] bg-[#111827] text-white dark:border-[#e8c97a] dark:bg-[#e8c97a] dark:text-[#111827]'
+                        : 'border-[#C9A24D]/30 bg-white text-[#111827] hover:border-[#C9A24D]/60 dark:border-white/10 dark:bg-white/[0.05] dark:text-white'}`}>
+                      <span className="font-serif text-[15px] tabular-nums">{s.value}</span>
+                      <span className={on ? '' : 'text-[#8b7355] dark:text-white/60'}>{s.value === 1 ? (ONE[s.key] || s.label.toLowerCase()) : s.label.toLowerCase().replace('guest pass', 'Guest Pass')}</span>
+                      <ChevronDown className={`h-3 w-3 transition-transform ${on ? 'rotate-180' : ''}`} />
+                    </button>
+                  )
+                })}
+              </div>
+              <AnimatePresence initial={false}>
+                {openStat && (
+                  <motion.div key="people" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 32 }} className="overflow-hidden">
+                    <StatPeople stat={openStat} go={go} onClose={() => setOpenKey(null)} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
+          {homes.length > 0 && (
+            <div>
+              <p className="mb-1.5 px-1 text-[10.5px] font-black uppercase tracking-[0.16em] text-gray-400 dark:text-white/40">Showcase news{news ? ` · ${news}` : ''}</p>
+              <div className={phone
+                ? '-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+                : 'grid grid-cols-2 gap-3 lg:grid-cols-3'} data-no-sheet-drag={phone ? '' : undefined}>
+                {homes.slice(0, HOMES_SHOWN).map((h, k) => <HomeCard key={k} home={h} index={k} phone={phone} go={go} />)}
+              </div>
+              {homes.length > HOMES_SHOWN && (
+                <button type="button" onClick={() => go('/showcases')} className="mt-2 inline-flex items-center gap-1 text-xs font-black text-[#8b7355] hover:underline dark:text-[#e8c97a]">
+                  See all {homes.length} homes in Showcases <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {cu.days.length > 0 && (
+            <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white dark:border-white/[0.07] dark:bg-[#141416]">
+              {cu.days.map((d, k) => {
+                const on = openDay === d.date
+                return (
+                  <div key={d.date} className={k ? 'border-t border-gray-100 dark:border-white/[0.06]' : ''}>
+                    <button type="button" onClick={() => setOpenDay(x => (x === d.date ? null : d.date))} aria-expanded={on} data-testid="rundown-catchup-day"
+                      className="flex w-full items-center gap-3 px-3.5 py-3 text-left transition hover:bg-[#faf9f7] dark:hover:bg-white/[0.03]">
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[13.5px] font-black text-[#111827] dark:text-white">{d.label}</span>
+                        <span className="block truncate text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">
+                          {d.count} {d.count === 1 ? 'thing' : 'things'}{d.groups.length ? ` · ${d.groups.map(g => g.label).join(', ')}` : ''}
+                        </span>
+                      </span>
+                      {d.unread > 0 && <span className="shrink-0 rounded-full bg-[#C9A24D] px-1.5 py-px text-[10px] font-black tabular-nums text-white">{d.unread} unread</span>}
+                      <motion.span animate={{ rotate: on ? 180 : 0 }} transition={{ type: 'spring', stiffness: 420, damping: 28 }} className="shrink-0 text-[#C9A24D]">
+                        <ChevronDown className="h-4 w-4" />
+                      </motion.span>
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {on && (
+                        <motion.div key="day" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                          transition={{ height: { type: 'spring', stiffness: 300, damping: 34 }, opacity: { duration: 0.2 } }} className="overflow-hidden">
+                          <div className="space-y-3 border-t border-gray-100 bg-[#fcfbf8] px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02]">
+                            {d.groups.map(g => (
+                              <div key={g.key}>
+                                <p className="mb-1.5 flex items-center gap-2 px-1 text-[10.5px] font-black uppercase tracking-[0.16em] text-gray-400 dark:text-white/40">
+                                  {g.label} <span className="rounded-full bg-gray-100 px-1.5 py-px text-[10px] tracking-normal text-gray-500 dark:bg-white/10 dark:text-white/60">{g.items.length}</span>
+                                </p>
+                                <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white dark:border-white/[0.07] dark:bg-[#141416]">
+                                  <ShowMore initial={3} divided items={g.items.map(n => <HappeningRow key={n.id} n={n} go={go} />)} />
+                                </div>
+                              </div>
+                            ))}
+                            <MoreOnActivity more={d.more} go={go} />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          {cu.capped && (
+            <p className="px-1 text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">
+              Showing your last 7 days. Older activity is on your{' '}
+              <button type="button" onClick={() => go('/activity')} className="font-black text-[#8b7355] underline-offset-2 hover:underline dark:text-[#e8c97a]">Activity page</button>.
+            </p>
+          )}
+        </div>
+      </Section>
     </div>
   )
 }
@@ -749,9 +903,10 @@ export function RundownDashCard({ className = '' }: { className?: string }) {
   const status = briefingStatus(data)
   const top = data.stats.filter(s => s.value > 0).slice(0, 3)
   const fresh = data.briefing.sent && data.unread_today > 0
+  const unread = unreadAll(data)
   const markAll = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (marking || !data.unread_today) return
+    if (marking || !unreadAll(data)) return
     setMarking(true)
     setData(markedRead(data))
     await markRundownRead()
@@ -781,19 +936,19 @@ export function RundownDashCard({ className = '' }: { className?: string }) {
           <span className="mt-0.5 line-clamp-2 font-serif text-[1.05rem] font-black leading-tight text-[#111827] dark:text-white sm:line-clamp-1 sm:text-lg">{data.headline}</span>
           <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] font-bold text-gray-500 dark:text-gray-400">
             <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${status.tone === 'sent' ? 'bg-emerald-500' : status.tone === 'live' ? 'animate-pulse bg-[#C9A24D]' : 'bg-gray-400'}`} />
-            <span className="truncate">{status.text}{top.length > 0 && <span className="hidden sm:inline"> · {top.map(s => `${s.value} ${s.value === 1 ? (ONE[s.key] || s.label.toLowerCase()) : s.label.toLowerCase().replace('guest pass', 'Guest Pass')}`).join(' · ')}</span>}</span>
+            <span className="truncate">{status.text}{data.catchup?.count ? ` · +${data.catchup.count} since you last looked` : ''}{top.length > 0 && <span className="hidden sm:inline"> · {top.map(s => `${s.value} ${s.value === 1 ? (ONE[s.key] || s.label.toLowerCase()) : s.label.toLowerCase().replace('guest pass', 'Guest Pass')}`).join(' · ')}</span>}</span>
           </span>
         </span>
         {/* Mark all read - right next to it */}
-        <motion.button type="button" whileTap={{ scale: 0.92 }} onClick={markAll} disabled={marking || !data.unread_today} data-testid="rundown-dash-mark"
-          title={data.unread_today ? `Mark today's ${data.unread_today} as read` : 'All read'} aria-label={data.unread_today ? 'Mark all as read' : 'All read'}
+        <motion.button type="button" whileTap={{ scale: 0.92 }} onClick={markAll} disabled={marking || !unread} data-testid="rundown-dash-mark"
+          title={unread ? `Mark these ${unread} as read` : 'All read'} aria-label={unread ? 'Mark all as read' : 'All read'}
           className={`relative z-10 flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-black transition ${
-            data.unread_today
+            unread
               ? 'border-[#C9A24D]/40 bg-white text-[#8b7355] hover:border-[#C9A24D] hover:bg-[#C9A24D]/10 dark:border-white/15 dark:bg-white/[0.06] dark:text-[#e8c97a]'
               : 'border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300'}`}>
-          {data.unread_today ? <CheckCheck className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
-          <span className="hidden sm:inline">{data.unread_today ? 'Mark all read' : 'All read'}</span>
-          {data.unread_today > 0 && <span className="tabular-nums sm:hidden">{data.unread_today > 99 ? '99+' : data.unread_today}</span>}
+          {unread ? <CheckCheck className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+          <span className="hidden sm:inline">{unread ? 'Mark all read' : 'All read'}</span>
+          {unread > 0 && <span className="tabular-nums sm:hidden">{unread > 99 ? '99+' : unread}</span>}
         </motion.button>
         <ChevronRight className="hidden h-5 w-5 shrink-0 text-[#C9A24D] transition group-hover:translate-x-0.5 sm:block" />
       </div>
