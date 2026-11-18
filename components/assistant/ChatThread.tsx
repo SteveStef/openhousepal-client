@@ -2,6 +2,7 @@
 
 import HomeCards from './HomeCards'
 import HostingCards from './HostingCards'
+import LeadCards, { type ChatLeadGroup } from './LeadCards'
 import ShowcaseHomesCard, { type ShowcaseCardRef } from './ShowcaseHomesCard'
 import HomeSearchCard, { type HomeSearchRef } from './HomeSearchCard'
 import { useEffect, useRef, useState } from 'react'
@@ -125,7 +126,7 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
         // A photo they dropped in is kept as a note in the message; here it's the picture.
         const photos = isUser ? Array.from(msg.content.matchAll(/\[Photo attached: (\S+?)\]/g)).map(m => m[1]) : []
         const words = isUser ? msg.content.replace(/\n?\[Photo attached: \S+?\]/g, '').trim() : msg.content
-        const extras = ['action', 'choices', 'link', 'made', 'homes', 'hosting']
+        const extras = ['action', 'choices', 'link', 'made', 'homes', 'hosting', 'leads']
         const refs = msg.tool_calls ? dedupeRefs(msg.tool_calls.filter((r) => !extras.includes(r.record_type))) : []
         const actions = (msg.tool_calls || []).filter((r) => r.record_type === 'action')
         const goLinks = (msg.tool_calls || []).filter((r) => r.record_type === 'link' && r.href)
@@ -135,7 +136,7 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
         // Homes to host take the chat's full width - the Discovery rows with their calendars were
         // squeezed into the reply bubble's width on a phone (owner, 11/01).
         // Every card with choices on it (a design, invite, Spotlight, form...) takes the chat's full width - on a computer the preview then sits beside the steps (owner, 11/03-11/04).
-        const wide = (msg.tool_calls || []).some((r) => r.record_type === 'hosting' || r.record_type === 'homes' || r.record_type === 'showcase_homes' || r.record_type === 'home_search' || (r.record_type === 'action' && !!((r as any).picker || (r as any).client_action)))
+        const wide = (msg.tool_calls || []).some((r) => r.record_type === 'hosting' || r.record_type === 'homes' || r.record_type === 'leads' || r.record_type === 'showcase_homes' || r.record_type === 'home_search' || (r.record_type === 'action' && !!((r as any).picker || (r as any).client_action)))
         return (
           <div key={msg.id} className={`flex ${isUser ? 'ohp-ai-msg-user justify-end' : 'ohp-ai-msg-bot justify-start'}`}>
             {/* Where a reply or card ENDS (owner, 11/08): in the full-screen window the helper's replies and
@@ -163,6 +164,9 @@ export default function ChatThread({ messages, isSending, autoSpeak, conversatio
                 )}
                 {(msg.tool_calls || []).filter((r) => r.record_type === 'homes' && (r as any).homes?.length).map((r) => (
                   <div key={r.record_id} className="chatwide:-ml-[42px]"><HomeCards homes={(r as any).homes} title={(r as any).title} /></div>
+                ))}
+                {(msg.tool_calls || []).filter((r) => r.record_type === 'leads' && (r as any).groups?.length).map((r) => (
+                  <div key={r.record_id} className="chatwide:-ml-[42px]"><LeadCards groups={(r as any).groups as ChatLeadGroup[]} /></div>
                 ))}
                 {(msg.tool_calls || []).filter((r) => r.record_type === 'showcase_homes' && (r as any).collection?.id).map((r) => (
                   <div key={r.record_id} className="chatwide:-ml-[42px]"><ShowcaseHomesCard card={r as unknown as ShowcaseCardRef} /></div>

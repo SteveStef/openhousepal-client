@@ -146,7 +146,7 @@ function AgentSheet({ agent, start, end, onClose }: { agent: D | null; start: st
           </div>
           <Note>
             {d.mode === 'normal' ? `Opening our emails. ${d.unopened_in_a_row ? `${d.unopened_in_a_row} unopened since their last open.` : ''}`
-              : d.mode === 'warned' ? `Warned ${when(d.since)} - ${d.unopened_in_a_row} of our emails unopened in a row. 5 more unopened and routine emails switch to weekly.`
+              : d.mode === 'warned' ? `Warned ${when(d.since)} - ${d.unopened_in_a_row} of our emails unopened in a row. Unopened on 3 different days and routine emails switch to weekly.`
               : `On weekly since ${when(d.since)}. ${d.held_now} update${d.held_now === 1 ? '' : 's'} waiting for their summary (${d.held_total} held in all).`}
           </Note>
           <Card title="By email type"><TypeTable rows={d.templates} /></Card>

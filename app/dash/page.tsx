@@ -170,8 +170,14 @@ export default function DashPage() {
   const [followupOpenCount, setFollowupOpenCount] = useState<number | null>(null)
   // Hidden entirely while the agent has Follow-ups switched off (null = still checking - keep it).
   const followupsOn = useFollowupsEnabled().enabled !== false
+  // Open follow-ups on tomorrow's (Eastern) day - the small "3 follow-ups tomorrow" button in the header.
+  const [followupTomorrow, setFollowupTomorrow] = useState(0)
   const refreshFollowupCount = useCallback(() => {
-    api.tasks.counts().then(r => { if (r.success && r.data) setFollowupOpenCount(r.data.overdue + r.data.today) })
+    api.tasks.counts().then(r => {
+      if (!r.success || !r.data) return
+      setFollowupOpenCount(r.data.overdue + r.data.today)
+      setFollowupTomorrow(r.data.tomorrow || 0)
+    })
   }, [])
   useEffect(() => { if (!user?.is_admin) refreshFollowupCount() }, [refreshFollowupCount, user?.is_admin])
 
@@ -432,6 +438,19 @@ export default function DashPage() {
       title="Follow-ups" icon={CalendarClock} viewHref="/leads/tasks" viewLabel="All follow-ups"
       status={followupOpenCount ? `${followupOpenCount} due` : 'All clear'} statusTone={followupOpenCount ? 'red' : 'green'}
       badgeCount={followupOpenCount ?? undefined} badgeExact
+      // Only when something's on tomorrow - straight to the Follow-ups page. Phones get the short
+      // label so it stays on the title's line.
+      headerMiddle={followupTomorrow > 0 ? (
+        <Link href="/leads/tasks" data-testid="followups-tomorrow"
+          title={`${followupTomorrow} follow-up${followupTomorrow === 1 ? '' : 's'} on tomorrow's list`}
+          className="group inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-[#C9A24D]/45 bg-[#C9A24D]/10 px-2.5 py-1 text-[11px] font-black text-[#7a6440] transition hover:border-[#C9A24D] hover:bg-[#C9A24D] hover:text-[#111827] dark:border-[#C9A24D]/35 dark:bg-[#C9A24D]/[0.12] dark:text-[#e0c486] dark:hover:text-[#111827]">
+          <CalendarClock className="h-3 w-3 shrink-0" />
+          <span className="tabular-nums">{followupTomorrow}</span>
+          <span className="max-sm:hidden">follow-up{followupTomorrow === 1 ? '' : 's'}</span>
+          <span>tomorrow</span>
+          <ArrowRight className="h-3 w-3 shrink-0 transition group-hover:translate-x-0.5 max-sm:hidden" />
+        </Link>
+      ) : undefined}
       headerExtra={<>
         <CalendarChip />
         <button type="button" onClick={() => setFollowupsHidden(h => !h)} aria-expanded={!followupsHidden}
@@ -636,7 +655,9 @@ export default function DashPage() {
   )
 }
 
-function DashPanel({ title, icon: Icon, children, viewHref, viewLabel, badgeCount, badgeExact, large, isEmpty, emptyLabel, emptyMinHeightClass = 'min-h-[430px]', headerExtra, status, statusTone }: {
+function DashPanel({ title, icon: Icon, children, viewHref, viewLabel, badgeCount, badgeExact, large, isEmpty, emptyLabel, emptyMinHeightClass = 'min-h-[430px]', headerExtra, headerMiddle, status, statusTone }: {
+  /** Small item centered between the title/status and the extras (see DashCardHeader's middle). */
+  headerMiddle?: React.ReactNode
   /** One line under the title saying where things stand ("1 needs a reply"). */
   status?: React.ReactNode
   statusTone?: DashStatusTone
@@ -665,7 +686,7 @@ function DashPanel({ title, icon: Icon, children, viewHref, viewLabel, badgeCoun
     <div className={`min-w-0 rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-[#fbf8f2] shadow-sm transition-shadow duration-300 hover:border-[#C9A24D]/40 hover:shadow-[0_18px_40px_-28px_rgba(201,162,77,.9)] dark:border-gray-800 dark:from-[#141416] dark:to-[#121110] ${large ? 'p-4 sm:p-6' : 'p-3 sm:p-5'}`}>
       <DashCardHeader
         icon={Icon} title={title} href={viewHref} badgeCount={badgeCount} badgeExact={badgeExact} large={large}
-        status={status} statusTone={statusTone} extra={headerExtra} viewHref={viewHref} viewLabel={viewLabel}
+        status={status} statusTone={statusTone} extra={headerExtra} middle={headerMiddle} viewHref={viewHref} viewLabel={viewLabel}
       />
       <div className="mt-3 min-w-0">
         {isEmpty ? (

@@ -1186,7 +1186,7 @@ class ApiService {
         body: JSON.stringify({ favorite }),
       }),
 
-    mailbox: (collectionId: string) => this.request<{ homes: import('@/components/showcases/MatchBits').MatchHome[]; activity: import('@/types').ShowcaseActivityItem[]; new_matches: number }>(`/collections/${collectionId}/mailbox`),
+    mailbox: (collectionId: string) => this.request<{ homes: import('@/components/showcases/MatchBits').MatchHome[]; activity: import('@/types').ShowcaseActivityItem[]; new_matches: number; client_email?: string | null }>(`/collections/${collectionId}/mailbox`),
     updateNotifications: (collectionId: string, notifyVisitor: boolean, notifyAgent: boolean) =>
       this.request<{ success: boolean; message: string; notify_visitor: boolean; notify_agent: boolean }>(`/collections/${collectionId}/notifications`, {
         method: 'PATCH',

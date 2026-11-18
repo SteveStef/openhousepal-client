@@ -13,7 +13,7 @@
 // "Not now" hides it for 30 days (Undo right there).
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { CalendarClock, Check, Clock, EyeOff, Loader2, PenLine, RefreshCw, Sparkles, Undo2, Zap } from 'lucide-react'
+import { CalendarClock, Check, Clock, EyeOff, Loader2, LogIn, PenLine, RefreshCw, Sparkles, Undo2, Zap } from 'lucide-react'
 import api from '@/lib/api-service'
 import type { CheckinItem, WrittenMessage } from '@/types'
 
@@ -117,6 +117,12 @@ export default function CheckinCard({ item, estimate, onAdded, onSkipped, showNa
             <p className="text-[14.5px] font-black leading-snug text-[#111827] dark:text-white" data-testid="checkin-title">
               {showName ? `Check in with ${item.name}` : `Check in with ${who}`}
             </p>
+            {/* How they first came in - always, from their own data (owner, 11/18). */}
+            {item.origin && (
+              <p className="mt-0.5 flex items-start gap-1 text-[11.5px] font-bold leading-snug text-[#8b7355] dark:text-[#d7b974]" data-testid="checkin-origin">
+                <LogIn className="mt-[2px] h-3 w-3 shrink-0" /> <span className="min-w-0 break-words">{item.origin}</span>
+              </p>
+            )}
             {item.tags?.length > 0 && <div className="mt-1 flex flex-wrap gap-1">{item.tags.map(t => <Tag key={t} label={t} />)}</div>}
           </div>
           {state === 'idle' && (

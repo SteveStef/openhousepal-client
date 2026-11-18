@@ -160,12 +160,12 @@ const LABELS: [string, string][] = [
 ]
 const labelFor = (p: string) => p === '/' ? 'Loading OpenHousePal' : LABELS.find(([prefix]) => p === prefix || p.startsWith(prefix + '/'))?.[1]
 
-// The homepage, when reached from inside the app (the logo, top left), opens like every app page:
-// the loader if it takes a moment, then it rises in - it used to just pop in with no animation
-// (owner, 10/27). Opened fresh (a search result, a typed address) it shows at once, as before.
-// The public pages too (owner, 11/05: going between them and the homepage just popped and jumped):
-// the old page holds still, then the new one rises in section by section, like every feature page.
-const gatesInApp = (path: string) => isGatedAppPage(path) || path === '/' || isMarketingPage(path)
+// The homepage and openhousepal.com's public pages (Pricing, All Tools, FAQ...) are never gated:
+// no loader, no held page, no rise - they just open, like any website (owner, 11/18: the top tabs
+// showed the house loader, which sometimes glitched and stopped before the page opened). Before
+// 11/18 they were gated once you'd moved off the first page (10/27 homepage, 11/05 public pages).
+// Signed-in app pages keep the loader exactly as before.
+const gatesInApp = (path: string) => isGatedAppPage(path) && path !== '/' && !isMarketingPage(path)
 
 // pending = page held back but no loader yet (the first GRACE_MS); loading = the loader is up.
 // waiting = a link was clicked: the old page stays as it is until the new one arrives.
@@ -181,18 +181,10 @@ export default function PageGate({ children }: { children: React.ReactNode }) {
   const root = useRef<HTMLDivElement>(null)
   const run = useRef(0)
   const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // The page this tab opened on; once we've moved away from it, every page is an in-app trip.
-  const startPath = useRef(pathname)
-  const moved = useRef(false)
-
   const open = useCallback(async (path: string) => {
     const id = ++run.current
     if (navTimer.current) { clearTimeout(navTimer.current); navTimer.current = null }
-    if (path !== startPath.current) moved.current = true
-    if (!(moved.current ? gatesInApp(path) : isGatedAppPage(path))) { setPhase('done'); return }
-    // The homepage waits on no data, so it never holds or shows the loader: it just rises in, starting
-    // here before its first paint (owner, 11/06: back to the homepage flashed, then loaded, then opened).
-    if (path === '/') { reveal(root.current); setPhase('done'); return }
+    if (!gatesInApp(path)) { setPhase('done'); return }
     setLabel(labelFor(path))
     const alive = () => run.current === id
     const started = Date.now()

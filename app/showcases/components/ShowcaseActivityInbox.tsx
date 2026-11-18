@@ -119,7 +119,7 @@ export default function ShowcaseActivityInbox({ isOpen, onClose, items, onOpenIt
                         {item.showcase_name || 'Client'} <span className="font-medium text-gray-500 dark:text-gray-400">· {k.label}</span>
                       </p>
                       <p className="text-[11px] text-[#6B7280] dark:text-gray-400 truncate">
-                        {item.type !== 'GUEST_PASS_ACTIVITY' && item.property_address ? activityStreet(item.property_address) : item.message}
+                        {item.email?.contents?.summary || (item.type !== 'GUEST_PASS_ACTIVITY' && item.property_address ? activityStreet(item.property_address) : item.message)}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">

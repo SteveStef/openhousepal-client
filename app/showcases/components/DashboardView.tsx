@@ -482,7 +482,7 @@ export const DashboardView = memo(function DashboardView({
         {tab === 'INACTIVE' && (
           <p className="-mt-2 mb-5 flex items-start gap-2 text-[12px] font-semibold leading-relaxed text-gray-500 dark:text-gray-400">
             <Moon size={13} className="mt-0.5 shrink-0 text-[#C9A24D]" />
-            Asleep: no new matches and no emails. A Showcase falls asleep when the client ignores 5 weekly emails in a row - unless they keep using their Showcase, you starred it, or in the last 2 weeks you opened it or worked that lead (opened the lead, a note, a follow-up) - or when you switch it off. It wakes up by itself if they open it again, or switch it back on (starring it wakes it too).
+            Asleep: no new matches and no emails. A Showcase falls asleep when the client leaves 5 emails unopened in a row (3 daily, then 2 weekly) - unless they keep using their Showcase, you starred it, or in the last 2 weeks you opened it or worked that lead (opened the lead, a note, a follow-up) - or when you switch it off. It wakes up by itself if they open it again, or switch it back on (starring it wakes it too).
           </p>
         )}
 
@@ -883,7 +883,7 @@ const ShowcaseCard = memo(forwardRef<HTMLElement, ShowcaseCardProps>(function Sh
           <div className="-mb-1 flex items-start gap-1.5 rounded-xl bg-gray-50 px-2.5 py-2 text-[10.5px] font-bold leading-snug text-gray-500 dark:bg-white/[0.04] dark:text-gray-400">
             <Moon size={11} className="mt-px shrink-0 text-[#C9A24D]" />
             <span>{collection.inactiveReason === 'no_response'
-              ? `Fell asleep ${collection.inactiveAt ? formatRelativeDay(collection.inactiveAt).toLowerCase() : 'recently'} - ${collection.customer.firstName} ignored 3 weekly emails. Wakes up if they open it.`
+              ? `Fell asleep ${collection.inactiveAt ? formatRelativeDay(collection.inactiveAt).toLowerCase() : 'recently'} - ${collection.customer.firstName} left 5 emails unopened (3 daily, then 2 weekly). Wakes up if they open it.`
               : collection.inactiveReason === 'agent'
                 ? `Switched off by you${collection.inactiveAt ? ' ' + formatRelativeDay(collection.inactiveAt).toLowerCase() : ''} - no new matches, no emails. Wakes up if ${collection.customer.firstName} opens it.`
                 : `Switched off - no new matches, no emails. Wakes up if ${collection.customer.firstName} opens it.`}</span>

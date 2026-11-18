@@ -15,8 +15,11 @@ const TONE: Record<DashStatusTone, string> = {
 }
 
 export default function DashCardHeader({
-  icon: Icon, title, href, badgeCount, badgeExact, status, statusTone = 'muted', extra, viewHref, viewLabel = 'View all', large = true,
+  icon: Icon, title, href, badgeCount, badgeExact, status, statusTone = 'muted', extra, middle, viewHref, viewLabel = 'View all', large = true,
 }: {
+  /** A small item centered in the free space between the title/status and the extras (Follow-ups'
+   *  "3 follow-ups tomorrow"). On a phone it shares the title's line. */
+  middle?: React.ReactNode
   icon: React.ComponentType<{ className?: string }>
   title: string
   href?: string
@@ -59,6 +62,10 @@ export default function DashCardHeader({
             ? <span className="inline-flex items-center rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-black text-white shadow-sm shadow-red-500/30">{status}</span>
             : <div className={`text-[11px] font-bold ${textStatus ? TONE[statusTone] : ''}`}>{status}</div>)}
         </div>
+        {/* Its own flex item that grows into the free space and centers its content: beside the
+            title on a phone (the extras wrap below), between title and extras on a computer.
+            No min-w-0 on purpose - its full width counts when the row decides what wraps. */}
+        {middle && <div className="flex flex-1 justify-center">{middle}</div>}
         {(extra || viewHref) && (
           <div className="flex shrink-0 items-center gap-2">
             {extra}

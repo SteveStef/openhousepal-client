@@ -91,95 +91,201 @@ export function deliveryState(e: ClientEmailRow): { tone: 'rose' | 'amber' | 'em
   if (e.status === 'failed') return { tone: 'rose', text: `Didn't go through${e.error || e.delivery_note ? ` - ${e.error || e.delivery_note}` : ''}` }
   if (e.delivery === 'delayed' && !e.opened_at) return { tone: 'amber', text: 'Delayed - their email server is slow, retrying' }
   if (e.opened_at) return null
-  return { tone: 'gray', text: e.delivery === 'delivered' ? 'Delivered - not opened yet' : 'Not opened yet' }
+  // The date is in the label itself (owner, 11/18): "Not opened yet" alone didn't say since when.
+  const at = emailDay(e.delivery_at || e.sent_at || e.created_at, false)
+  return { tone: 'gray', text: e.delivery === 'delivered' ? `Delivered ${at} - not opened yet` : `Not opened yet (sent ${at})` }
 }
 
 /** "3 times" / "twice" / "once". */
 const times = (n: number) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`)
 
-/** Opened up: the homes the email showed (or, for older emails, the homes they looked at after it),
- *  and how many times they opened / clicked it (owner, 11/13). */
-function EmailWhatItShowed({ e }: { e: ClientEmailRow }) {
+/** "Today, Nov 18 · 4:31 PM", "Yesterday, Nov 17", "Mon, Nov 16 · 4:31 PM", "Mon, Nov 16, 2025" - always the
+ *  real date, never just "Mon" (owner, 11/18). */
+export function emailDay(iso?: string | null, withTime = true): string {
+  if (!iso) return '-'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return '-'
+  const now = new Date()
+  const day0 = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+  const days = Math.round((day0(now) - day0(d)) / 864e5)
+  const md = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) })
+  const lead = days === 0 ? 'today' : days === 1 ? 'yesterday' : d.toLocaleDateString(undefined, { weekday: 'short' })
+  const time = withTime ? ` · ${d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : ''
+  return `${lead}, ${md}${time}`
+}
+const capDay = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
+// Smooth, no bounce (owner, 11/18): a plain ease-out that never passes its end point.
+const EASE = [0.22, 1, 0.36, 1] as const
+export const SMOOTH = { height: { duration: 0.28, ease: EASE }, opacity: { duration: 0.2, ease: EASE } }
+
+const KIND_TAG: Record<string, { text: string; cls: string }> = {
+  new: { text: 'New match', cls: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' },
+  price_drop: { text: 'Price drop', cls: 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300' },
+  price_change: { text: 'Price change', cls: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300' },
+  picked: { text: 'Picked for them', cls: 'bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#e8c97a]' },
+  sold: { text: 'Sold', cls: 'bg-gray-100 text-gray-700 dark:bg-white/[0.08] dark:text-gray-200' },
+  pending: { text: 'Under contract', cls: 'bg-gray-100 text-gray-700 dark:bg-white/[0.08] dark:text-gray-200' },
+  open_house: { text: 'Open house', cls: 'bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300' },
+}
+
+/** One home in an email: photo, street, what it was (new match / price drop $X → $Y). */
+function EmailHome({ h }: { h: EmailAboutHome }) {
+  const [ok, setOk] = useState(false)
+  const tag = KIND_TAG[h.kind || (h.is_price_drop ? 'price_drop' : '')]
+  const drop = h.kind === 'price_drop' || h.kind === 'price_change' || h.is_price_drop
+  return (
+    <span className="flex min-w-0 items-center gap-2 rounded-xl border border-gray-200/80 bg-white p-1.5 pr-2.5 dark:border-white/[0.08] dark:bg-white/[0.04]" data-testid="email-home">
+      <span className="relative h-10 w-14 shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-[#efe6d4] to-[#d9c7a3] dark:from-[#1d1a14] dark:to-[#2a2218]">
+        {h.image && <img src={h.image} alt="" loading="lazy" decoding="async" onLoad={() => setOk(true)}
+          className={`h-full w-full object-cover transition-opacity duration-300 ${ok ? 'opacity-100' : 'opacity-0'}`} />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[12px] font-black leading-tight text-[#111827] dark:text-white">{(h.street_address || '').split(',')[0]}</span>
+        <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10.5px] font-bold text-gray-500 dark:text-gray-400">
+          {tag && <span className={`rounded-full px-1.5 py-px text-[9px] font-black uppercase tracking-wide ${tag.cls}`}>{tag.text}</span>}
+          {drop && h.old_price && h.new_price ? <span><s className="opacity-60">{h.old_price}</s> → <span className="text-rose-600 dark:text-rose-400">{h.new_price}</span></span>
+            : drop && (h.new_price || h.price) ? <span className="text-rose-600 dark:text-rose-400">now {h.new_price || h.price}</span>
+              : h.price ? <span>{h.price}</span> : null}
+        </span>
+      </span>
+    </span>
+  )
+}
+
+/** Opened up: what the email had in it - its homes, which were new matches and which were price
+ *  changes, how many - for opened AND unopened emails, and how they treated it (owner, 11/13 + 11/18).
+ *  Older emails that kept nothing fall back to the homes they looked at after it. */
+export function EmailWhatItShowed({ e }: { e: ClientEmailRow }) {
   const [d, setD] = useState<(ClientEmailRow & { viewed_after: EmailAboutHome[] }) | null>(null)
   const [failed, setFailed] = useState(false)
+  const known = e.contents !== undefined   // the list already worked it out - no wait
   useEffect(() => {
+    if (known && (e.contents?.homes?.length || 0) > 0) return
     let live = true
     api.clientEmails.detail(e.id).then(r => { if (!live) return; if (r.success && r.data) setD(r.data); else setFailed(true) })
     return () => { live = false }
-  }, [e.id])
-  const about = d?.about?.length ? d.about : (e.about || [])
-  const viewed = !about.length ? (d?.viewed_after || []) : []
-  const homes = about.length ? about : viewed
+  }, [e.id, known, e.contents])
+  const c = d?.contents || e.contents || null
+  const homes: EmailAboutHome[] = c?.homes?.length ? c.homes : (e.about || [])
+  const viewed = !homes.length ? (d?.viewed_after || []) : []
+  const loading = !homes.length && !d && !failed
+  const counts = c ? [c.new_count ? `${c.new_count} new ${c.new_count === 1 ? 'match' : 'matches'}` : '', c.drop_count ? `${c.drop_count} price ${c.drop_count === 1 ? 'drop' : 'drops'}` : '',
+    !c.new_count && !c.drop_count && c.home_count > 1 ? `${c.home_count} homes` : ''].filter(Boolean) : []
+  const more = c && c.home_count > homes.length ? c.home_count - homes.length : 0
   return (
     <div className="mt-2 rounded-xl border border-gray-100 bg-[#faf9f7] p-2.5 dark:border-white/[0.06] dark:bg-white/[0.03]" data-testid="email-what-it-showed">
-      {(e.open_count > 0 || e.click_count > 0) && (
-        <p className="mb-2 text-[11.5px] font-bold text-[#5c4a2e] dark:text-[#e8c97a]/90">
-          {e.open_count > 0 && <>Opened {times(e.open_count)}</>}
-          {e.open_count > 0 && e.click_count > 0 && ' · '}
-          {e.click_count > 0 && <>clicked {times(e.click_count)}</>}
-          {e.last_engaged_at && <span className="font-semibold text-gray-500 dark:text-gray-400"> · last {timeAgo(e.last_engaged_at)}</span>}
-        </p>
-      )}
-      {!d && !failed && !about.length ? (
-        <div className="flex items-center gap-2 py-2 text-[11px] font-bold text-gray-400"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Looking it up…</div>
+      <dl className="mb-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] sm:grid-cols-3" data-testid="email-stats">
+        <Stat k="Sent" v={capDay(emailDay(e.sent_at || e.created_at))} />
+        <Stat k="Opened" v={e.opened_at ? `${capDay(times(e.open_count || 1))}, first ${emailDay(e.opened_at)}` : 'Not yet'} tone={e.opened_at ? 'emerald' : undefined} />
+        <Stat k="Clicked" v={e.clicked_at ? `${capDay(times(e.click_count || 1))}, first ${emailDay(e.clicked_at)}` : 'Not yet'} tone={e.clicked_at ? 'sky' : undefined} />
+        {e.last_engaged_at && (e.open_count + e.click_count > 1) && <Stat k="Last looked" v={capDay(emailDay(e.last_engaged_at))} />}
+        <Stat k="From" v={e.via === 'mailbox' ? 'Your email' : 'OpenHousePal'} />
+        <Stat k="Kind" v={e.kind === 'auto' ? 'Automatic' : 'Personal'} />
+      </dl>
+      {loading ? (
+        <div className="flex min-h-[56px] items-center gap-2 text-[11px] font-bold text-gray-400"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Looking it up…</div>
       ) : homes.length > 0 ? (
         <>
-          <p className="mb-1.5 text-[9.5px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#e8c97a]">
-            {about.length ? 'Homes in this email' : 'Homes they looked at after it'}
+          <p className="mb-1.5 flex flex-wrap items-baseline gap-x-2 text-[9.5px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#e8c97a]">
+            <span>{homes.length === 1 && (c?.home_count || 1) <= 1 ? 'The home in this email' : 'Homes in this email'}</span>
+            {counts.length > 0 && <span className="normal-case tracking-normal text-[11px] font-bold text-gray-500 dark:text-gray-400" data-testid="email-counts">{counts.join(' · ')}</span>}
           </p>
           <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {homes.slice(0, 6).map((h, k) => <HomeChip key={k} h={h} viewed={!about.length} />)}
+            {homes.slice(0, 6).map((h, k) => <EmailHome key={k} h={h} />)}
           </div>
-          {homes.length > 6 && <p className="mt-1 text-[10.5px] font-bold text-gray-400">+ {homes.length - 6} more</p>}
+          {(homes.length > 6 || more > 0) && <p className="mt-1 text-[10.5px] font-bold text-gray-400">+ {Math.max(homes.length - 6, 0) + more} more in their Showcase</p>}
+          {c?.source === 'rebuilt' && <p className="mt-1 text-[10px] font-semibold text-gray-400">An older email - these are the homes that came into their Showcase just before it went out.</p>}
+        </>
+      ) : c?.summary ? (
+        <p className="text-[11.5px] font-bold text-[#5c4a2e] dark:text-[#e8c97a]/90">{c.summary}</p>
+      ) : viewed.length > 0 ? (
+        <>
+          <p className="mb-1.5 text-[9.5px] font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#e8c97a]">Homes they looked at after it</p>
+          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">{viewed.slice(0, 6).map((h, k) => <HomeChip key={k} h={h} viewed />)}</div>
         </>
       ) : (
         <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
-          {e.opened_at ? 'This email didn’t list homes, and they haven’t looked at any homes since it went out.' : 'Not opened yet.'}
+          This older email didn&apos;t keep a copy of what it showed{e.opened_at ? ', and they haven’t looked at any homes since it went out' : ''}.
         </p>
       )}
     </div>
   )
 }
 
-/** One sent email: what, when, opened / clicked - tap it to see what it showed. */
+function Stat({ k, v, tone }: { k: string; v: string; tone?: 'emerald' | 'sky' }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[9px] font-black uppercase tracking-[0.14em] text-gray-400">{k}</dt>
+      <dd className={`break-words font-bold leading-snug ${tone === 'emerald' ? 'text-emerald-700 dark:text-emerald-300' : tone === 'sky' ? 'text-sky-700 dark:text-sky-300' : 'text-[#111827] dark:text-gray-200'}`} title={v}>{v}</dd>
+    </div>
+  )
+}
+
+/** The row's picture (owner, 11/18): a new match's photo, else the price-changed home, else the email icon. */
+function EmailThumb({ e }: { e: ClientEmailRow }) {
+  const [ok, setOk] = useState(false)
+  const photo = e.contents?.photo
+  const badge = e.clicked_at ? { cls: 'bg-sky-500', icon: MousePointerClick } : e.opened_at ? { cls: 'bg-emerald-500', icon: MailOpen }
+    : (e.status === 'failed' || e.delivery === 'spam') ? { cls: 'bg-rose-500', icon: MailX } : { cls: 'bg-gray-400 dark:bg-gray-500', icon: Mail }
+  const B = badge.icon
+  if (!photo) {
+    return (
+      <span className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${e.clicked_at ? 'bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300'
+        : e.opened_at ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300'
+          : (e.status === 'failed' || e.delivery === 'spam') ? 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300' : 'bg-gray-100 text-gray-400 dark:bg-white/[0.06]'}`}>
+        <B className="h-4 w-4" />
+      </span>
+    )
+  }
+  return (
+    <span className="relative mt-0.5 h-11 w-14 shrink-0" data-testid="email-row-photo">
+      <span className="block h-11 w-14 overflow-hidden rounded-lg bg-gradient-to-br from-[#efe6d4] to-[#d9c7a3] dark:from-[#1d1a14] dark:to-[#2a2218]">
+        <img src={photo} alt="" loading="lazy" decoding="async" onLoad={() => setOk(true)} className={`h-full w-full object-cover transition-opacity duration-300 ${ok ? 'opacity-100' : 'opacity-0'}`} />
+      </span>
+      <span className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-white ring-2 ring-white dark:ring-[#151517] ${badge.cls}`}><B className="h-2.5 w-2.5" /></span>
+    </span>
+  )
+}
+
+/** One sent email: what, when, opened / clicked - tap it to see what it had in it. */
 export function EmailRowLine({ e, showTo = false }: { e: ClientEmailRow; showTo?: boolean }) {
   const [open, setOpen] = useState(false)
   const canOpen = e.status !== 'failed'
+  const summary = e.contents?.summary
   return (
     <div className="min-w-0">
     <div role={canOpen ? 'button' : undefined} tabIndex={canOpen ? 0 : undefined} aria-expanded={canOpen ? open : undefined}
       onClick={canOpen ? () => setOpen(v => !v) : undefined}
       onKeyDown={canOpen ? ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setOpen(v => !v) } } : undefined}
       data-testid="email-row" className={`flex min-w-0 items-start gap-3 ${canOpen ? 'cursor-pointer' : ''}`}>
-      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${e.clicked_at ? 'bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300'
-        : e.opened_at ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300'
-          : (e.status === 'failed' || e.delivery === 'spam') ? 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300' : 'bg-gray-100 text-gray-400 dark:bg-white/[0.06]'}`}>
-        {e.clicked_at ? <MousePointerClick className="h-3.5 w-3.5" /> : e.opened_at ? <MailOpen className="h-3.5 w-3.5" /> : (e.status === 'failed' || e.delivery === 'spam') ? <MailX className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}
-      </span>
+      <EmailThumb e={e} />
       <div className="min-w-0 flex-1">
         <p className="line-clamp-2 text-[13px] font-black leading-snug text-[#111827] dark:text-white">{e.subject || e.label}</p>
-        <p className="mt-0.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+        <p className="mt-0.5 line-clamp-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400">
           {showTo && <>{e.name || e.to} · </>}
-          {sentence(e.label)} · {e.via === 'mailbox' ? 'from your email' : 'from OpenHousePal'}
+          {sentence(e.label)}{summary && summary !== e.subject ? <> · <span className="text-[#8b7355] dark:text-[#e8c97a]" data-testid="email-row-summary">{summary}</span></> : null}
         </p>
         <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] font-bold">
-          <span className="text-gray-400">{e.status === 'failed' ? 'Tried' : 'Sent'} {timeAgo(e.sent_at || e.created_at) || '-'}</span>
-          {e.opened_at && e.delivery !== 'spam' && <span className="text-emerald-600 dark:text-emerald-300">Opened {timeAgo(e.opened_at)}{e.open_count > 1 ? ` · ${e.open_count}×` : ''}</span>}
+          {(e.opened_at || e.status === 'failed' || e.delivery === 'spam' || e.delivery === 'delayed') && (
+            <span className="text-gray-400">{e.status === 'failed' ? 'Tried' : 'Sent'} {emailDay(e.sent_at || e.created_at)}</span>
+          )}
+          {e.opened_at && e.delivery !== 'spam' && <span className="text-emerald-600 dark:text-emerald-300">Opened {emailDay(e.opened_at)}{e.open_count > 1 ? ` · ${e.open_count}×` : ''}</span>}
           {(() => {
             const d = deliveryState(e)
             if (!d) return null
             const c = d.tone === 'rose' ? 'text-rose-600 dark:text-rose-300' : d.tone === 'amber' ? 'text-amber-600 dark:text-amber-300' : 'text-gray-400'
-            return <span className={c} title={e.delivery_note || e.error || undefined}>{d.text}</span>
+            return <span className={c} title={e.delivery_note || e.error || undefined}>{d.tone === 'gray' ? `Sent ${emailDay(e.sent_at || e.created_at)} · not opened yet` : d.text}</span>
           })()}
-          {e.clicked_at && <span className="text-sky-600 dark:text-sky-300">Clicked {timeAgo(e.clicked_at)}{e.click_count > 1 ? ` · ${e.click_count}×` : ''}</span>}
+          {e.clicked_at && <span className="text-sky-600 dark:text-sky-300">Clicked {emailDay(e.clicked_at)}{e.click_count > 1 ? ` · ${e.click_count}×` : ''}</span>}
         </p>
       </div>
-      {canOpen && <ChevronDown aria-hidden className={`mt-1 h-4 w-4 shrink-0 text-gray-300 transition-transform duration-200 dark:text-white/30 ${open ? 'rotate-180 text-[#C9A24D]' : ''}`} />}
+      {canOpen && <ChevronDown aria-hidden className={`mt-1 h-4 w-4 shrink-0 text-gray-300 transition-transform duration-300 dark:text-white/30 ${open ? 'rotate-180 text-[#C9A24D]' : ''}`} />}
     </div>
     <AnimatePresence initial={false}>
       {open && (
         <motion.div key="what" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 380, damping: 34 }} className="overflow-hidden pl-11">
+          transition={SMOOTH} className="overflow-hidden pl-[3.25rem] max-sm:pl-0">
           <EmailWhatItShowed e={e} />
         </motion.div>
       )}
@@ -215,9 +321,11 @@ export function LeadEmailCard({ email, initial }: { email?: string | null; initi
         </p>
       )}
       <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
-        {p.sent > 0 ? <EngagementLine p={p} /> : <span className="text-xs font-semibold text-gray-400">No emails sent to them yet.</span>}
+        {p.sent > 0 ? (p.stats_90 ? <span className="text-[11px] font-black text-gray-500 dark:text-gray-400">{p.sent} email{p.sent === 1 ? '' : 's'} in all</span> : <EngagementLine p={p} />)
+          : <span className="text-xs font-semibold text-gray-400">No emails sent to them yet.</span>}
         <PersonSwitch p={p} onChanged={setPerson} />
       </div>
+      {p.sent > 0 && p.stats_90 && <PersonStats p={p} className="mt-2.5" />}
       {rows && rows.length > 0 && (
         <div className="mt-3 space-y-3 border-t border-gray-100 pt-3 dark:border-white/[0.06]">
           {rows.map(e => <EmailRowLine key={e.id} e={e} />)}
@@ -226,7 +334,7 @@ export function LeadEmailCard({ email, initial }: { email?: string | null; initi
       <button type="button" onClick={() => setAllOpen(true)} data-testid="lead-all-emails" className="mt-3 inline-flex text-[11px] font-black text-[#8b7355] hover:underline dark:text-[#e8c97a]">
         All emails →
       </button>
-      <PersonEmailsSheet email={allOpen ? email : null} onClose={() => setAllOpen(false)} />
+      <PersonEmailsSheet email={allOpen ? email : null} person={p} onClose={() => setAllOpen(false)} />
     </section>
   )
 }
@@ -291,8 +399,52 @@ export function EmailFrequencySelect({ person, email, onChanged, className = '',
 
 const LOG_PAGE = 20
 
+/** Where someone is in the email rule (owner, 11/18): 3 unopened days -> weekly, then 2 more -> off. */
+export function ruleStep(p: EmailPerson): string | null {
+  if (p.code === 'chosen' || p.mode === 'off') return null
+  const days = p.unopened_days || 0
+  const weekly = p.weekly_unopened || 0
+  if (p.mode === 'weekly' && p.code === 'unopened_days') {
+    const left = Math.max(1, 2 - weekly)
+    return `${weekly} of 2 weekly emails unopened - ${left} more and automatic emails stop until they open one`
+  }
+  if (p.mode === 'daily' && days > 0) return `${days} of 3 days unopened in a row - at 3 they go to weekly`
+  return null
+}
+
+/** The detailed numbers for one person (owner, 11/18) - the same 90 days as the open rate. */
+export function PersonStats({ p, className = '' }: { p: EmailPerson; className?: string }) {
+  const s = p.stats_90
+  const step = ruleStep(p)
+  if (!s) return null
+  const cells: [string, string, string | null][] = [
+    ['Sent', String(s.sent), s.sent ? `${s.auto} automatic · ${s.personal} personal` : null],
+    ['Opened', String(s.opened), p.rate != null ? `${p.rate}% of them${s.opens_total > s.opened ? ` · ${s.opens_total} opens` : ''}` : null],
+    ['Clicked', String(s.clicked), s.click_rate != null ? `${s.click_rate}% of them${s.clicks_total > s.clicked ? ` · ${s.clicks_total} clicks` : ''}` : null],
+    ['Unopened', String(p.unopened_in_a_row || 0), 'in a row'],
+  ]
+  return (
+    <div className={className} data-testid="person-stats">
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+        {cells.map(([k, v, sub]) => (
+          <div key={k} className="min-w-0 rounded-xl bg-[#faf9f7] px-2.5 py-2 dark:bg-white/[0.04]">
+            <p className="font-serif text-lg font-black leading-none tabular-nums text-[#111827] dark:text-white">{v}</p>
+            <p className="mt-1 text-[9px] font-black uppercase tracking-wide text-gray-400">{k}</p>
+            {sub && <p className="mt-0.5 truncate text-[10px] font-semibold text-gray-500 dark:text-gray-400" title={sub}>{sub}</p>}
+          </div>
+        ))}
+      </div>
+      <p className="mt-1.5 text-[10.5px] font-semibold leading-relaxed text-gray-500 dark:text-gray-400">
+        Last 90 days{p.first_sent_at ? ` · first email ${emailDay(p.first_sent_at, false)}` : ''}{p.last_opened_at ? ` · last opened ${emailDay(p.last_opened_at)}` : ' · never opened yet'}
+        {p.last_clicked_at ? ` · last clicked ${emailDay(p.last_clicked_at)}` : ''}
+      </p>
+      {step && <p className="mt-1 text-[10.5px] font-bold text-amber-700 dark:text-amber-300" data-testid="person-rule-step">{step}</p>}
+    </div>
+  )
+}
+
 /** One person's emails, opened over the page you're on (owner, 11/07: no separate log page). */
-export function PersonEmailsSheet({ email, name, onClose }: { email: string | null; name?: string | null; onClose: () => void }) {
+export function PersonEmailsSheet({ email, name, person, onClose }: { email: string | null; name?: string | null; person?: EmailPerson | null; onClose: () => void }) {
   const [shownFor, setShownFor] = useState<string | null>(null)
   const [rows, setRows] = useState<ClientEmailRow[] | null>(null)
   const [total, setTotal] = useState(0)
@@ -312,14 +464,15 @@ export function PersonEmailsSheet({ email, name, onClose }: { email: string | nu
   return (
     <OhSheet open={!!email} onClose={onClose} width="max-w-xl" title="Their emails" subtitle={name || shownFor || undefined} icon={<Mail className="h-5 w-5" />}>
       <div data-testid="person-emails">
+        {person && person.email === shownFor && <PersonStats p={person} className="mb-3.5 border-b border-gray-100 pb-3.5 dark:border-white/[0.06]" />}
         {rows === null ? (
           <div className="flex min-h-[200px] items-center justify-center"><OhpSpinner size={28} label="Loading emails" /></div>
         ) : rows.length === 0 ? (
           <p className="py-12 text-center text-sm font-semibold text-gray-500 dark:text-gray-400">No emails sent to them yet.</p>
         ) : (
           <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={page} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6, transition: { duration: 0.1 } }}
-              transition={{ type: 'spring', stiffness: 420, damping: 34 }} className="space-y-3">
+            <motion.div key={page} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.16, ease: EASE }} className="space-y-3.5">
               {rows.map(e => <EmailRowLine key={e.id} e={e} />)}
             </motion.div>
           </AnimatePresence>

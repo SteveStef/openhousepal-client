@@ -7,9 +7,9 @@ import api from '@/lib/api-service'
 import type { EmailHealth } from '@/types'
 
 /** The agent's own emails (owner, 11/11; first built 10/24 - backend agent_email_health_service):
- *  - weekly: 4 of our emails in a row unopened -> "Your daily digest emails went to weekly" with
+ *  - weekly: our emails left unopened on 3 different days in a row -> "Your daily digest emails went to weekly" with
  *    That's fine / Make daily again.
- *  - off: then 3 weekly summaries unopened -> "Your digest emails are paused" with Turn back on.
+ *  - off: then 2 weekly summaries unopened -> "Your digest emails are paused" with Turn back on.
  *  Both say to check junk/spam. Closed while still paused, one small "Turn back on" line stays.
  *  Opening any of our emails puts them straight back to normal. Nothing at all when all is well. */
 export default function EmailHealthBanner({ className = '' }: { className?: string }) {
@@ -100,7 +100,7 @@ export default function EmailHealthBanner({ className = '' }: { className?: stri
                   <p className="mt-2 text-[13px] font-semibold leading-relaxed text-gray-600 dark:text-gray-300">
                     {off
                       ? <>You didn&apos;t open our last {h.second_strike} weekly summaries, so routine emails (your daily digest, round-ups) are paused until you open one of our emails or turn them back on.</>
-                      : <>You haven&apos;t opened our last {h.first_strike} emails, so routine ones (your daily digest, round-ups) now come as one weekly summary.{h.held > 0 && ` ${h.held} update${h.held === 1 ? ' is' : 's are'} waiting for it.`}</>}
+                      : <>You haven&apos;t opened our emails on {h.first_strike} different days, so routine ones (your daily digest, round-ups) now come as one weekly summary.{h.held > 0 && ` ${h.held} update${h.held === 1 ? ' is' : 's are'} waiting for it.`}</>}
                     {' '}<strong className="text-[#111827] dark:text-white">New leads, tour requests and account emails still arrive right away.</strong>
                     {' '}Not seeing our emails? Check your junk or spam folder{h.email ? <> for <strong className="text-[#111827] dark:text-white">{h.email}</strong></> : null} and move ours to your inbox.
                   </p>

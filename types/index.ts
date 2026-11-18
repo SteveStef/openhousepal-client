@@ -2490,6 +2490,12 @@ export interface EmailPerson {
   problem?: { delivery: EmailDelivery; note?: string | null; at?: string | null } | null;
   lead_id?: string | null;
   name?: string | null;
+  /** Last 90 days, the same window as `rate` (owner, 11/18). */
+  stats_90?: { sent: number; opened: number; clicked: number; click_rate: number | null; auto: number; personal: number; opens_total: number; clicks_total: number };
+  /** Where they are in the rule: 3 unopened days -> weekly, then 2 more -> off. */
+  unopened_days?: number;
+  weekly_unopened?: number;
+  first_sent_at?: string | null;
 }
 export interface ClientEmailRow {
   id: string;
@@ -2520,6 +2526,17 @@ export interface ClientEmailRow {
   last_engaged_at?: string | null;
   /** The homes this email was about (emails sent after 11/13). */
   about?: EmailAboutHome[];
+  /** What it had in it, worked out for every email incl. older + unopened ones (backend email_contents_service, 11/18). */
+  contents?: EmailContents | null;
+}
+
+/** One email's contents: its homes (new match / price change / ...), the counts, a one-line summary and the row's photo. */
+export interface EmailContents {
+  homes: EmailAboutHome[];
+  new_count: number; drop_count: number; home_count: number
+  summary: string; photo?: string | null
+  /** saved = recorded when it went out; copy = the queued copy; rebuilt = homes added to their Showcase just before it; subject = read from the subject. */
+  source?: 'saved' | 'copy' | 'rebuilt' | 'subject' | null
 }
 
 /** A home an email was about (or one the person looked at after it) - backend client_email_service.about_from. */
@@ -2528,6 +2545,8 @@ export interface EmailAboutHome {
   beds?: string | number | null; baths?: string | number | null; sqft?: string | number | null
   is_price_drop?: boolean; old_price?: string; new_price?: string
   liked?: boolean; views?: number; property_id?: string
+  /** new | price_drop | price_change | picked | sold | pending | open_house | home */
+  kind?: string
 }
 
 /** "Worth a check-in": a lead without an agent opening / clicking the same email again (backend lead_interest_service). */
@@ -2706,6 +2725,8 @@ export interface TaskCounts {
   upcoming: number;
   someday: number;
   open_total: number;
+  /** Open follow-ups on tomorrow's (Eastern) day - the Dash's "N follow-ups tomorrow" button. */
+  tomorrow?: number;
 }
 
 /** A lead worth a check-in (backend checkins_service - no AI): who, why (strongest reason first), how likely. */
@@ -2717,6 +2738,8 @@ export interface CheckinItem {
   headline: string;
   reasons: string[];
   gap: string;
+  /** How they first came in, from their own data: "Signed in at your 1330 N Avignon Dr open house on Oct 11". */
+  origin?: string;
   /** Short labels: "No agent", "Pre-approved", "Has an agent - your listing" ... */
   tags: string[];
   /** Nothing personal to work in - a one-tap plain check-in fits (no AI). */
@@ -4540,6 +4563,9 @@ export interface ShowcaseActivityItem {
   link?: string | null;
   is_read: boolean;
   created_at: string;
+  /** "Opened / clicked a Showcase email" rows: the email itself, so the row opens to what it had in it. */
+  email_id?: string | null;
+  email?: ClientEmailRow | null;
 }
 
 export interface ShowcaseInbox {
