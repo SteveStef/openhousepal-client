@@ -4,7 +4,8 @@ import { useMemo, useState } from 'react'
 import { ChevronDown, Search, X } from 'lucide-react'
 import { FAQ_GROUPS, type Faq } from '@/components/marketing/faqData'
 
-function Question({ faq, startOpen }: { faq: Faq; startOpen: boolean }) {
+/** One question, opened with a tap - also the Tools page's "Common questions" (owner 11/18: same look as the FAQ). */
+export function Question({ faq, startOpen }: { faq: Faq; startOpen: boolean }) {
   const [open, setOpen] = useState(startOpen)
   return (
     <div className={`mk-card relative overflow-hidden rounded-2xl border ${open ? 'border-[#C9A24D]/60 bg-gradient-to-br from-white to-[#fbf3df] shadow-[0_22px_44px_-30px_rgba(139,106,43,.7)] dark:from-[#17161a] dark:to-[#1f1a10]' : 'border-gray-200 bg-white hover:border-[#C9A24D]/50 dark:border-white/10 dark:bg-[#151517]'}`}>

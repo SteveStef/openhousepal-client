@@ -10,7 +10,7 @@
 // LinkDomainShortcut is the one-line version the website builder's Domain tab shows.
 import { ReactNode, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowUpRight, CheckCircle2, Globe, Link2, Loader2, Lock, PowerOff, Star } from 'lucide-react'
+import { ArrowUpRight, Globe, Link2, Loader2, Lock, PowerOff } from 'lucide-react'
 import api from '@/lib/api-service'
 import { useSaveTracker } from '@/components/ui/SaveStatus'
 import DomainHealthBanner from '@/components/DomainHealthBanner'
@@ -62,7 +62,21 @@ export function useLinkDomain() {
     setError("Couldn't save that - try again.")
     return false
   }
-  return { state, saving, error, setUseOwn, setSiteEnabled }
+  const setDomainForward = async (forward: boolean) => {
+    if (!state || saving) return false
+    setSaving(true)
+    setError(null)
+    const { success, data } = await tracked(async () => {
+      const r = await api.sites.setDomainForward(forward)
+      if (r.success && r.data) { setState(r.data); setError(null) }
+      return r
+    }, 'domain-forward')
+    setSaving(false)
+    if (success && data) return true
+    setError("Couldn't save that - try again.")
+    return false
+  }
+  return { state, saving, error, setUseOwn, setSiteEnabled, setDomainForward }
 }
 
 export type LinkDomainHook = ReturnType<typeof useLinkDomain>
@@ -84,35 +98,36 @@ function Switch({ on, disabled, onClick, label, saving }: { on: boolean; disable
   )
 }
 
-function ActiveChip() {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-500/30">
-      <CheckCircle2 className="h-2.5 w-2.5" /> Active
-    </span>
-  )
-}
-
-function DefaultChip() {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[#111827]">
-      <Star className="h-2.5 w-2.5" /> Default
-    </span>
-  )
-}
 
 export default function IdxDomainCard({ children, linkDomain }: { children?: ReactNode; linkDomain?: LinkDomainHook }) {
   const own = useLinkDomain()
-  const { state, saving, error, setUseOwn } = linkDomain || own
+  const { state, saving, error, setUseOwn, setDomainForward } = linkDomain || own
   const siteOff = state?.site_enabled === false
   const hasCustom = !!state?.has_custom_domain
   const on = !!state?.use_own_domain
-  // links really use the own domain right now (it opens) - then the free address forwards to it
-  const ownLive = on && !!state?.own_base_url && state?.current_base_url === state?.own_base_url
-  // Tapping the switch before a domain is connected points them to where they connect one.
-  const [needDomain, setNeedDomain] = useState(false)
+  const forwards = !!state?.domain_forwards
+  const [askForward, setAskForward] = useState(false)
+  const hubHost = (state?.hub_url || '').replace(/^https?:\/\//, '')
 
+  // One decision box, then the domain manager (owner, 11/18: the page had grown two "connect a
+  // domain" buttons, the addresses listed twice and "your links use" shown twice). The manager
+  // below already lists every address, marks the Default one and connects / buys domains, so this
+  // box only answers the one question that fits the moment:
+  //   website on + own domain   -> do my links use my domain?
+  //   website off + own domain  -> what does my domain do while the website is off?
+  //   no own domain             -> just which address links use (connecting is in the manager)
   return (
     <section id="idx-domain" className="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
+      <DomainWarningSheet open={askForward} onClose={() => setAskForward(false)} onConfirm={() => setDomainForward(true)}
+        title={`Turn ${state?.custom_domain || 'your domain'} off completely?`} subtitle="Your domain stays connected - nothing is deleted"
+        points={[
+          { text: <>Anyone who opens <b className="font-mono">{state?.custom_domain}</b> is sent to your Agent Hub on OpenHousePal{hubHub(hubHost)}.</> },
+          { text: <>Google stops listing <b className="font-mono">{state?.custom_domain}</b> over the next few weeks, and anything it had built up for your domain in search fades with it.</> },
+          { text: <>Business cards, signs and emails printed with your domain still open - they just land on your OpenHousePal page instead.</> },
+          { text: <>Your domain stays yours and stays connected here. Paying for the domain itself is between you and your domain company.</>, tone: 'ok' },
+          { text: <>Change your mind? Switch back to &quot;Shows my Agent Hub&quot; any time - visitors see it right away; Google takes a few weeks to list it again.</>, tone: 'ok' },
+        ]}
+        confirmLabel="Turn my domain off" cancelLabel="Keep showing my Hub" />
       <div className="flex items-center gap-2">
         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#d7b974]"><Globe className="h-4 w-4" /></span>
         <h2 className="font-serif text-lg font-black text-[#111827] dark:text-white">IDX Domain</h2>
@@ -123,84 +138,74 @@ export default function IdxDomainCard({ children, linkDomain }: { children?: Rea
       <DomainConfirmReminder inline className="mt-4" />
       <DomainHealthBanner inline className="mt-4" />
 
-      {/* The address list only earns its space once there's a domain of their own to compare -
-          before that, the domain manager below already shows the free address. */}
-      {state && hasCustom && (
-        <div className="mt-4 space-y-2">
-          {/* Default - free, automatic */}
-          {/* The agent's own, uploaded domain - shines as live; "Default" while links use it */}
-          <div className="relative overflow-hidden rounded-xl border border-emerald-300 bg-gradient-to-br from-white via-emerald-50/60 to-[#f3fbf6] px-3.5 py-2.5 shadow-[0_12px_30px_-22px_rgba(16,185,129,.6)] dark:border-emerald-500/35 dark:from-[#101814] dark:via-[#0f1a15] dark:to-emerald-500/[0.10]">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="flex min-w-0 items-center gap-1.5 font-mono text-xs font-bold text-[#111827] dark:text-white">
-                  <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-500" />
-                  <span className="truncate">{state.custom_domain}</span>
-                </p>
-                <p className="mt-0.5 text-[11px] font-semibold text-emerald-800/80 dark:text-emerald-200/80">Your own domain — connected and live.</p>
-              </div>
-              <span className="flex shrink-0 flex-wrap justify-end gap-1">
-                <ActiveChip />
-                {ownLive && <DefaultChip />}
-              </span>
-            </div>
+      {state && siteOff && hasCustom && (
+        <div className="mt-4 rounded-2xl border border-gray-200 p-4 dark:border-gray-800" data-testid="domain-when-off">
+          <p className="text-sm font-black text-[#111827] dark:text-white">While your website is off, <span className="font-mono">{state.custom_domain}</span>…</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="What your domain does while your website is off">
+            {([
+              { key: 'hub', active: !forwards, icon: Link2, title: 'Shows my Agent Hub', blurb: 'Your domain keeps working and shows your Agent Hub, with your name in Google.' },
+              { key: 'off', active: forwards, icon: PowerOff, title: 'Turned off completely', blurb: `Every visit goes to your OpenHousePal page${hubHost ? ` (${hubHost})` : ''}. Google drops your domain over a few weeks.` },
+            ] as const).map(o => (
+              <button key={o.key} type="button" role="radio" aria-checked={o.active} disabled={saving || o.active} data-testid={`domain-when-off-${o.key}`}
+                onClick={() => (o.key === 'off' ? setAskForward(true) : setDomainForward(false))}
+                className={`flex items-start gap-3 rounded-xl border p-3 text-left transition disabled:cursor-default ${o.active
+                  ? o.key === 'off' ? 'border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-900/10' : 'border-emerald-300 bg-emerald-50/70 dark:border-emerald-500/35 dark:bg-emerald-900/10'
+                  : 'border-gray-200 hover:border-[#C9A24D] dark:border-gray-800'}`}>
+                <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 ${o.active ? (o.key === 'off' ? 'border-amber-500' : 'border-emerald-500') : 'border-gray-300 dark:border-gray-600'}`}>
+                  {o.active && <span className={`h-2.5 w-2.5 rounded-full ${o.key === 'off' ? 'bg-amber-500' : 'bg-emerald-500'}`} />}
+                </span>
+                <span className="min-w-0">
+                  <span className="flex items-center gap-1.5 text-[13px] font-black text-[#111827] dark:text-white"><o.icon className="h-3.5 w-3.5 text-[#C9A24D]" /> {o.title}</span>
+                  <span className="mt-0.5 block text-xs font-semibold text-gray-500 dark:text-gray-400">{o.blurb}</span>
+                </span>
+              </button>
+            ))}
           </div>
-          {/* Default - free, automatic */}
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 px-3.5 py-2.5 dark:border-gray-800">
-            <div className="min-w-0">
-              <p className="truncate font-mono text-xs font-bold text-[#111827] dark:text-white">{hostOf(state.default_base_url)}</p>
-              <p className="mt-0.5 text-[11px] font-semibold text-gray-400">{ownLive
-                ? `Your free OpenHousePal address — still works and sends visitors to ${state.custom_domain}.`
-                : 'Your free OpenHousePal address — included with IDX, set up automatically.'}</p>
-            </div>
-            <span className="flex shrink-0 flex-wrap justify-end gap-1">
-              <ActiveChip />
-              {!ownLive && <DefaultChip />}
-            </span>
-          </div>
-          {/* The "Both links work..." note sits under the own domain in the domain manager below. */}
+          <LinksUse state={state} />
+          {error && <p className="mt-2 text-xs font-bold text-red-500">{error}</p>}
         </div>
       )}
 
-      {siteOff ? (
-        <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
-          <PowerOff className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-          <div>
-            <p className="text-sm font-black text-amber-900 dark:text-amber-200">Your IDX website is turned off</p>
-            <p className="mt-0.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
-              These addresses aren&apos;t served while it&apos;s off, so your QR codes and links use <span className="font-mono">{hostOf(state?.platform_base_url)}</span> instead. Turn it back on above any time.
-            </p>
-          </div>
-        </div>
-      ) : (
+      {state && !siteOff && hasCustom && (
         <div className="mt-4 flex items-start justify-between gap-4 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
           <div className="min-w-0">
             <p className="text-sm font-black text-[#111827] dark:text-white">Use my own domain for my links</p>
             <p className="mt-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
-              {hasCustom
-                ? 'New sign-in QR codes, Guest Passes, Showcases, forms and copied links use your own domain. Turn it off to keep them on openhousepal.com.'
-                : 'Have a domain like janesmithhomes.com? Connect it first - then switch this on and your new links use it. Until then they use openhousepal.com.'}
+              New sign-in QR codes, Guest Passes, Showcases, forms and copied links use your own domain. Turn it off to keep them on openhousepal.com.
             </p>
-            {!hasCustom && (
-              <Link href="/studio/website?tab=domains" className={`mt-2.5 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-[11px] font-black uppercase tracking-wide transition hover:-translate-y-0.5 ${needDomain ? 'bg-gradient-to-r from-[#C9A24D] to-[#e8c97a] text-[#111827] shadow-md shadow-[#C9A24D]/30' : 'border border-gray-200 text-gray-600 hover:border-[#C9A24D] dark:border-gray-700 dark:text-gray-300'}`}>
-                <Globe className="h-3.5 w-3.5" /> Connect my domain <ArrowUpRight className="h-3.5 w-3.5" />
-              </Link>
-            )}
-            {needDomain && !hasCustom && <p className="mt-2 text-xs font-bold text-[#8b6a2b] dark:text-[#e8c97a]">Connect your domain first - this switch turns on once it&apos;s connected.</p>}
-            {state && (
-              <p className="mt-2.5 inline-flex max-w-full items-center gap-1.5 rounded-lg bg-gray-50 px-2.5 py-1.5 text-xs font-bold text-gray-600 dark:bg-white/[0.04] dark:text-gray-300">
-                <Link2 className="h-3.5 w-3.5 shrink-0 text-[#C9A24D]" />
-                <span className="shrink-0">Your links use</span>
-                <span className="truncate font-mono text-[#8b7355] dark:text-[#d7b974]">{hostOf(state.current_base_url)}</span>
-              </p>
-            )}
+            <LinksUse state={state} />
             {error && <p className="mt-2 text-xs font-bold text-red-500">{error}</p>}
           </div>
-          <Switch on={on} saving={saving} disabled={!state || saving} onClick={() => (hasCustom ? setUseOwn(!on) : setNeedDomain(true))} label="Use my own domain for my links" />
+          <Switch on={on} saving={saving} disabled={saving} onClick={() => setUseOwn(!on)} label="Use my own domain for my links" />
+        </div>
+      )}
+
+      {state && !hasCustom && (
+        <div className="mt-4">
+          <LinksUse state={state} />
+          <p className="mt-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+            {siteOff
+              ? 'Your website is off, so everything you share uses openhousepal.com.'
+              : 'Connect a domain of your own below and your links can use it instead.'}
+          </p>
         </div>
       )}
 
       {children && <div className="mt-5">{children}</div>}
     </section>
+  )
+}
+
+const hubHub = (host: string) => (host ? <> (<span className="font-mono">{host}</span>)</> : null)
+
+/** "Your links use <address>" - the one place it's said on this page. */
+function LinksUse({ state }: { state: LinkDomainState }) {
+  return (
+    <p className="mt-2.5 inline-flex max-w-full items-center gap-1.5 rounded-lg bg-gray-50 px-2.5 py-1.5 text-xs font-bold text-gray-600 dark:bg-white/[0.04] dark:text-gray-300">
+      <Link2 className="h-3.5 w-3.5 shrink-0 text-[#C9A24D]" />
+      <span className="shrink-0">Your links use</span>
+      <span className="truncate font-mono text-[#8b7355] dark:text-[#d7b974]">{hostOf(state.current_base_url)}</span>
+    </p>
   )
 }
 
@@ -212,7 +217,9 @@ export function IdxFeatureSwitch() {
   return <div className="mb-3"><IdxSiteSwitch linkDomain={linkDomain} /></div>
 }
 
-export function IdxSiteSwitch({ linkDomain }: { linkDomain: LinkDomainHook }) {
+/** `embedded`: just the row, for the top of Settings' "Your website" card (owner 11/18: one card for
+ * the website's on/off, status and address instead of two). */
+export function IdxSiteSwitch({ linkDomain, embedded = false }: { linkDomain: LinkDomainHook; embedded?: boolean }) {
   const { state, saving, error, setSiteEnabled } = linkDomain
   const on = state?.site_enabled !== false
   const [askOff, setAskOff] = useState(false)
@@ -221,12 +228,14 @@ export function IdxSiteSwitch({ linkDomain }: { linkDomain: LinkDomainHook }) {
     await setSiteEnabled(true)
   }
   return (
-    <div className="flex items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
+    <div className={`flex items-start justify-between gap-4 ${embedded ? '' : 'rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6'}`}>
       <DomainWarningSheet open={askOff} onClose={() => setAskOff(false)} onConfirm={() => setSiteEnabled(false)}
         title="Turn off your IDX website?" subtitle="Nothing is deleted"
         points={[
           { text: <>Your IDX website stops opening - visitors to your free address see a &quot;not available&quot; page.</> },
-          ...(state?.custom_domain ? [{ text: <><b className="font-mono">{state.custom_domain}</b> keeps working and shows your Agent Hub by itself, with no website around it.</>, tone: 'ok' as const }] : []),
+          ...(state?.custom_domain ? [{ text: state.domain_forwards
+            ? <><b className="font-mono">{state.custom_domain}</b> sends visitors to your Agent Hub on OpenHousePal (you chose &quot;Turned off completely&quot;).</>
+            : <><b className="font-mono">{state.custom_domain}</b> keeps working and shows your Agent Hub by itself, with your name in Google. You can turn the domain off completely under IDX Domain.</>, tone: 'ok' as const }] : []),
           { text: <>Every new QR code, Guest Pass, Showcase, form and copied link uses <b>openhousepal.com</b> instead.</> },
           { text: <>Your Agent Hub, open houses, leads and the rest of your plan keep working as usual.</>, tone: 'ok' },
           { text: <>Your pages and settings are kept - switch it back on any time and it&apos;s back exactly as published.</>, tone: 'ok' },

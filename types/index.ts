@@ -4366,6 +4366,10 @@ export interface LinkDomainState {
   default_base_url: string
   platform_base_url: string
   current_base_url: string
+  /** While the website is off: true = the own domain forwards to hub_url ("Turn my domain off completely"). */
+  domain_forwards?: boolean
+  /** Their Agent Hub on openhousepal.com. */
+  hub_url?: string | null
 }
 
 // GET /agent-hub/me/marketing-moments - see agent_hub_routes.get_marketing_moments.

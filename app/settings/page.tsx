@@ -19,7 +19,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import RecentSalesPanel from '@/components/agent-hub/RecentSalesPanel'
 import SocialLinksEditor, { SocialLink, defaultSocialLinks, type WebsiteAuto } from '@/components/agent-hub/SocialLinksEditor'
 import DraggableAvatarPhoto from '@/components/agent-hub/DraggableAvatarPhoto'
-import { IdxDomainNotice } from '@/components/IdxDomainNotice'
 import DomainsPanel from '@/components/studio/website/DomainsPanel'
 import IdxDomainCard, { IdxSiteSwitch, useLinkDomain } from '@/components/settings/IdxDomainCard'
 import FollowupsSwitch, { useFollowupsEnabled } from '@/components/tasks/FollowupsSwitch'
@@ -46,7 +45,6 @@ import { SaveStatusBar, SaveStatusContext, useSaveStatus, useSaveTracker } from 
 // isn't a second implementation to drift out of sync - it's the same live manager, just reachable
 // from Settings too.
 function IdxTab() {
-  const [baseUrl, setBaseUrl] = useState<string | null>(null)
   const [site, setSite] = useState<Site | null>(null)
   const [siteLoading, setSiteLoading] = useState(true)
   // One shared link-domain state for the on/off switch AND the domain card, so flipping one
@@ -56,9 +54,6 @@ function IdxTab() {
   useEffect(() => {
     api.sites.getMine().then(({ success, data }) => { if (success && data) setSite(data); setSiteLoading(false) })
   }, [])
-  useEffect(() => {
-    api.sites.getPublicBaseUrl().then(({ success, data }) => { if (success && data) setBaseUrl(data.base_url) })
-  }, [linkDomain.state?.current_base_url])
 
   const isPublished = site?.status === 'PUBLISHED'
   // The website's own address (never the links base, which is openhousepal.com for most agents):
@@ -72,10 +67,11 @@ function IdxTab() {
 
   return (
     <div id="idx" className="scroll-mt-24 space-y-4">
-      <IdxSiteSwitch linkDomain={linkDomain} />
-
-      {/* Site status + address - the two things worth knowing at a glance before digging into DNS. */}
+      {/* One card for the website itself: on/off, status, address, view / edit (owner 11/18 - it was
+          two cards saying the same thing). Then IDX Domain, then shortcuts into the editor. */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-[#151517] sm:p-6">
+        <IdxSiteSwitch linkDomain={linkDomain} embedded />
+        <div className="my-4 h-px bg-gray-100 dark:bg-white/[0.06]" />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Your Website</p>
@@ -132,7 +128,7 @@ function IdxTab() {
       {/* IDX Domain - which address links use, plus the real domain manager (DNS/verification
           status and connect/check/primary/delete), all in one squared-off section. */}
       <IdxDomainCard linkDomain={linkDomain}>
-        {site && <DomainsPanel subdomainSlug={site.subdomain_slug} back="settings" changeHref="/studio/website?tab=domains&address=1" />}
+        {site && <DomainsPanel subdomainSlug={site.subdomain_slug} back="settings" changeHref="/studio/website?tab=domains&address=1" linkDomainState={linkDomain.state} />}
       </IdxDomainCard>
 
       {/* Settings keeps the basics; everything else lives in the website editor - one tap to each part. */}
@@ -146,7 +142,6 @@ function IdxTab() {
             ['featured', Star, 'Featured homes', 'Header homes and your Featured page'],
             ['areas', MapPin, 'Towns you serve', 'Town pages and local data'],
             ['search', Search, 'Google', 'Search titles and descriptions'],
-            ['domains', Globe, 'Domain', 'Connect a domain you own'],
           ] as const).map(([id, Icon, title, blurb]) => (
             <Link key={id} href={`/studio/website?tab=${id}`} className="group flex items-start gap-3 rounded-xl border border-gray-100 p-3 transition hover:-translate-y-0.5 hover:border-[#C9A24D]/60 dark:border-gray-800">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#d7b974]"><Icon className="h-4 w-4" /></span>
@@ -158,8 +153,6 @@ function IdxTab() {
           ))}
         </div>
       </div>
-
-      {siteOn && <IdxDomainNotice baseUrl={baseUrl} subtle />}
     </div>
   )
 }

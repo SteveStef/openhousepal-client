@@ -1957,6 +1957,9 @@ class ApiService {
     // IDX website on/off - off = the public site isn't served and links fall back to openhousepal.com.
     setSiteEnabled: (enabled: boolean) =>
       this.request<LinkDomainState>('/studio/sites/me/site-enabled', { method: 'PUT', body: JSON.stringify({ enabled }) }),
+    // While the website is off: the own domain shows the Agent Hub (false) or forwards to it on openhousepal.com (true).
+    setDomainForward: (forward: boolean) =>
+      this.request<LinkDomainState>('/studio/sites/me/domain-forward', { method: 'PUT', body: JSON.stringify({ forward }) }),
 
     agreeToIdxDomainMigration: () =>
       this.request<{ agreed_at: string }>('/studio/sites/me/idx-domain-migration/agree', { method: 'POST' }),

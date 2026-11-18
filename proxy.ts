@@ -1,5 +1,5 @@
 import { ARTICLE_SLUGS, TOOL_SLUGS } from '@/lib/marketingPaths'
-import { hubOnlyPath, hubOnlySlug } from '@/lib/hubOnlyDomain'
+import { hubOnlyDomain, hubOnlyPath } from '@/lib/hubOnlyDomain'
 import { NextRequest, NextResponse } from 'next/server'
 import { hubOwnDomainTarget } from './lib/hubOwnDomainRedirect'
 import { subdomainOwnDomainTarget } from './lib/subdomainOwnDomainRedirect'
@@ -62,6 +62,21 @@ function isHubPath(request: NextRequest): boolean {
 function isBlogPostPath(request: NextRequest): boolean {
   const segs = request.nextUrl.pathname.split('/').filter(Boolean)
   return segs.length === 3 && segs[1] === 'blogs' && isHubPath(request)
+}
+
+// On an agent's own domain showing just their Hub, the only OpenHousePal app pages that open are the
+// ones made for their clients (owner, 11/18) - anything else there would advertise OpenHousePal.
+const HUB_DOMAIN_CLIENT_PAGES = new Set(['showcase', 'property', 'cma', 'cash-needed', 'net-sheet', 'unsubscribe', 'i'])
+
+// A plain "not available" page: no OpenHousePal branding (it sits on an agent's domain), 404 + noindex
+// so Google drops the address instead of listing it.
+function notAvailable(): NextResponse {
+  return new NextResponse(
+    '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Page not available</title></head>'
+    + '<body style="margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui,-apple-system,sans-serif;background:#fafaf7;color:#111827;text-align:center;padding:24px">'
+    + '<div><h1 style="font-size:24px;margin:0 0 8px">This page isn&rsquo;t available</h1><p style="margin:0;color:#6b7280">The page you&rsquo;re looking for isn&rsquo;t here right now.</p></div></body></html>',
+    { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Robots-Tag': 'noindex', 'Cache-Control': 'no-store' } },
+  )
 }
 
 // Next.js 16 renamed Middleware to Proxy (filename proxy.ts, same functionality/API) - this
@@ -135,16 +150,34 @@ async function siteHostResponse(request: NextRequest, rawHost: string, hostWitho
   }
 
   // Their own domain with the IDX website switched off: the Agent Hub by itself, no website around it.
+  // An agent's domain advertises THEM, never OpenHousePal (owner, 11/18): our own pages (Pricing,
+  // FAQ, sign-in...) never open there, a domain with no live Hub is a plain 404 Google drops, and
+  // "Turn my domain off completely" forwards every visit to their openhousepal.com Hub address.
   if (!hostWithoutPort.endsWith(`.${OHP_BASE_DOMAIN}`)) {
-    const hubSlug = await hubOnlySlug(hostWithoutPort)
-    const first = request.nextUrl.pathname.split('/').filter(Boolean)[0]?.toLowerCase()
-    if (hubSlug && !/\.(txt|xml)$/.test(request.nextUrl.pathname)) {
+    const hub = await hubOnlyDomain(hostWithoutPort)
+    const path = request.nextUrl.pathname
+    const first = path.split('/').filter(Boolean)[0]?.toLowerCase()
+    if (hub.forwardTo) {
+      // A client's shared page keeps its own path on openhousepal.com; everything else goes to the Hub.
+      const target = first && HUB_DOMAIN_CLIENT_PAGES.has(first) ? `https://${OHP_BASE_DOMAIN}${path}${request.nextUrl.search}` : hub.forwardTo
+      const res = NextResponse.redirect(target, 308)
+      res.headers.set('Cache-Control', 'no-store')
+      return res
+    }
+    if (hub.dead) return notAvailable()
+    if (hub.slug && !/\.(txt|xml)$/.test(path)) {
       const hubHeaders = new Headers(request.headers)
       hubHeaders.set('x-ohp-public-site', '1')
-      // Shared Showcases, open houses, CMAs and the like are app pages: they open as they are.
-      if (first && RESERVED_APP_SEGMENTS.has(first)) return NextResponse.next({ request: { headers: hubHeaders } })
+      if (first && RESERVED_APP_SEGMENTS.has(first) && first !== 'about') {
+        // A client's shared Showcase, home, CMA or calculator opens as it is (never listed by Google);
+        // every other OpenHousePal page (Pricing, FAQ, sign-in, the dashboard...) isn't served here.
+        if (!HUB_DOMAIN_CLIENT_PAGES.has(first)) return notAvailable()
+        const res = NextResponse.next({ request: { headers: hubHeaders } })
+        res.headers.set('X-Robots-Tag', 'noindex')
+        return res
+      }
       const url = request.nextUrl.clone()
-      url.pathname = hubOnlyPath(url.pathname, hubSlug)
+      url.pathname = hubOnlyPath(url.pathname, hub.slug)
       return NextResponse.rewrite(url, { request: { headers: hubHeaders } })
     }
   }

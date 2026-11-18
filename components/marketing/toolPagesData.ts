@@ -52,7 +52,7 @@ export const TOOL_PAGES: ToolPage[] = [
       { title: 'Tour requests from any home', text: 'Clients request a tour right from the home they want to see.' },
       { title: 'Made for you after open houses', text: 'When Guest Showcases is on, one is created automatically for each guest who signs in without an agent.' },
     ],
-    steps: ['Set the towns, price and beds', 'Send your client their link', 'Watch their likes and comments come in', 'Confirm tours as they ask'],
+    steps: ['Add your client', 'Set the towns, price and beds', 'Watch their likes and comments come in', 'Confirm tours as they ask'],
     faqs: [
       { q: 'Does my client need an account?', a: 'No. They open their Showcase from the link you send them.' },
       { q: 'Can I turn off emails to a client?', a: 'Yes. You choose whether a client gets their emails, and you can stop them anytime.' },
@@ -155,7 +155,7 @@ export const TOOL_PAGES: ToolPage[] = [
     ],
     steps: ["Pick what you're marketing and where it goes", 'Pick the home', 'Pick a layout and color', 'Adjust, then download'],
     faqs: [
-      { q: 'Do I need design skills?', a: 'No. The designs are done for you and the property details fill in automatically. On No-MLS plans, they fill in from the details you enter.' },
+      { q: 'Do I need design skills?', a: 'No. The designs are done for you and the property details fill in automatically. On No-MLS Premium, they fill in from the details you enter.' },
     ],
   },
   {
@@ -179,7 +179,7 @@ export const TOOL_PAGES: ToolPage[] = [
     why: [
       { title: 'Researched for your towns', text: 'Blog Builder looks up your area before it writes a word.' },
       { title: 'In your voice', text: 'A complete, SEO-ready article from a few quick questions.' },
-      { title: 'Fact-checked', text: "It's fact-checked against real sources, and anything it can't confirm is flagged for you before you publish. You can end it with your sales or listings in that area." },
+      { title: 'Fact-checked', text: "It's fact-checked against real sources, and anything it can't confirm is reworded or left out for you. You can end it with your sales or listings in that area." },
     ],
     steps: ['Answer a few questions', 'Let it research and write', 'Read it over', 'Publish'],
     faqs: [

@@ -61,7 +61,7 @@ function StatusChip({ status }: { status: SiteDomain['status'] }) {
 /** `purchase`: bought here - its renewal line + Renew / options sit inside this same card (11/11:
  *  one card per domain, not a second "bought here" card). `siteOff`: the IDX website is switched
  *  off, so a connected domain only shows the Agent Hub - never call it "Active"/"Live" then. */
-function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHost, purchase, siteOff = false }: { domain: SiteDomain; partner?: SiteDomain; onChanged: () => void; back: string; bought: boolean; isDefault: boolean; ohpHost: string; purchase?: PurchasedDomain; siteOff?: boolean }) {
+function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHost, purchase, siteOff = false, forwards = false }: { domain: SiteDomain; partner?: SiteDomain; onChanged: () => void; back: string; bought: boolean; isDefault: boolean; ohpHost: string; purchase?: PurchasedDomain; siteOff?: boolean; forwards?: boolean }) {
   const [checking, setChecking] = useState(false)
   const [settingPrimary, setSettingPrimary] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -108,7 +108,7 @@ function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHos
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             {connected && siteOff ? (
               <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-600 ring-1 ring-gray-200 dark:bg-white/10 dark:text-white/70 dark:ring-white/15">
-                <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />Website off · shows your Agent Hub
+                <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />{forwards ? 'Website off · forwards to your Hub' : 'Website off · shows your Agent Hub'}
               </span>
             ) : bought && !connected ? (
               // Bought here: we set the records ourselves - never "waiting for DNS" at the agent.
@@ -145,7 +145,9 @@ function DomainRow({ domain, partner, onChanged, back, bought, isDefault, ohpHos
       )}
       {connected && siteOff && (
         <p className="relative mt-2.5 rounded-xl bg-[#FAFAF7] p-2.5 text-[12px] font-semibold leading-snug text-gray-600 dark:bg-white/[0.04] dark:text-white/65">
-          Your IDX website is turned off, so this domain opens your Agent Hub instead. Turn the IDX website back on (top of this page) to show your website here again.
+          {forwards
+            ? 'Your IDX website is off and you turned this domain off completely, so it sends visitors to your Agent Hub on OpenHousePal. Turn the IDX website back on (top of this page) to show your website here again.'
+            : 'Your IDX website is turned off, so this domain shows your Agent Hub instead. Turn the IDX website back on (top of this page) to show your website here again.'}
         </p>
       )}
       {live && isDefault && (
@@ -324,10 +326,12 @@ export function ChangeAddress({ slug, href, onSaved }: { slug: string; href?: st
   )
 }
 
-export default function DomainsPanel({ subdomainSlug, bare = false, back = 'website', startWith = 'have', hideFree = false, hideTabs = false, onChanged, changeHref }: {
+export default function DomainsPanel({ subdomainSlug, bare = false, back = 'website', startWith = 'have', hideFree = false, hideTabs = false, onChanged, changeHref, linkDomainState }: {
   subdomainSlug: string; bare?: boolean; back?: string; startWith?: 'have' | 'buy'; hideFree?: boolean
   /** Settings: "Change my link" opens the IDX feature's Domain tab instead of changing it here. */
   changeHref?: string
+  /** Settings passes its own live copy, so flipping a switch above updates these rows at once. */
+  linkDomainState?: LinkDomainState | null
   /** the setup step's own big cards already chose "have" or "buy" - no second set of tabs */
   hideTabs?: boolean; onChanged?: () => void
 }) {
@@ -351,7 +355,8 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
 
   // Which address links use right now - the own domain gets the "Default" badge only when it
   // really is the one we share (connected, primary, "use my own domain" on, opening).
-  const [linkState, setLinkState] = useState<LinkDomainState | null>(null)
+  const [fetchedLinkState, setLinkState] = useState<LinkDomainState | null>(null)
+  const linkState = linkDomainState || fetchedLinkState
   const load = () => {
     api.sites.getDomains().then(res => {
       if (res.success && res.data) setDomains(res.data)
@@ -461,7 +466,7 @@ export default function DomainsPanel({ subdomainSlug, bare = false, back = 'webs
         <div className="mt-2.5 space-y-2.5">
           {domains.filter(d => !(d.redirect_target_domain_id && domains.some(m => m.id === d.redirect_target_domain_id))).map(domain => (
             <DomainRow key={domain.id} domain={domain} partner={domains.find(d => d.redirect_target_domain_id === domain.id)} onChanged={refreshAll} back={back} bought={boughtHosts.has(domain.hostname)} isDefault={!!ownDefaultHost && ownDefaultHost === domain.hostname} ohpHost={ohpHost}
-              purchase={purchaseFor(domain.hostname)} siteOff={linkState?.site_enabled === false} />
+              purchase={purchaseFor(domain.hostname)} siteOff={linkState?.site_enabled === false} forwards={!!linkState?.domain_forwards} />
           ))}
         </div>
       )}
