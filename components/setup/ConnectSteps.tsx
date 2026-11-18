@@ -225,13 +225,19 @@ export function CrmStep({ ctx }: { ctx: StepCtx }) {
       setInfo(r.data); setKey('')
       if (!r.data.crm_push_enabled) { setMsg({ ok: false, text: 'Add a key or address first.' }); return false }
       const t = await api.integrations.testCrm()
+      // "Connected!" only when the test lead really got through - a rejected key used to read
+      // "Connected! Could not deliver..." and the step counted as done (deep audit, 11/18).
+      const delivered = !!t.data && [t.data.fub, t.data.webhook, t.data.email].some(v => v === 'ok')
+      if (t.success && t.data && !delivered) { setMsg({ ok: false, text: t.data.detail }); return false }
       setMsg({ ok: true, text: t.success && t.data ? `Connected! ${t.data.detail}` : 'Connected! New leads will be sent there.' })
       return true
     }
     setMsg({ ok: false, text: r.error || 'That didn’t work - please check and try again.' })
     return false
   }
-  const connected = !!info?.crm_push_enabled
+  // a saved key Follow Up Boss refused is not "connected" (same rule as Settings > Integrations)
+  const fubRejected = !!info?.crm_fub_connected && /rejected/i.test(info?.crm_fub_note || '')
+  const connected = !!info?.crm_push_enabled && (!fubRejected || !!info?.crm_webhook_url || !!info?.crm_parse_email)
   const hasInput = kind === 'fub' ? !!key.trim() : (!!hook.trim() || emailOk(email))
   useGate(ctx, {
     ok: !(kind === 'other' && email.trim() && !emailOk(email)),
@@ -243,7 +249,7 @@ export function CrmStep({ ctx }: { ctx: StepCtx }) {
     <div className="space-y-6">
       {connected && <p className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-[14px] font-black text-white"><Check className="h-4 w-4" /> Leads are being sent to your CRM</p>}
       <div className="grid gap-3 sm:grid-cols-2">
-        <ChoiceCard on={kind === 'fub'} onClick={() => setKind('fub')} title="Follow Up Boss" blurb={info.crm_fub_connected ? 'Connected.' : 'Paste one key and you’re done.'} />
+        <ChoiceCard on={kind === 'fub'} onClick={() => setKind('fub')} title="Follow Up Boss" blurb={fubRejected ? 'Key rejected - paste it again.' : info.crm_fub_connected ? 'Connected.' : 'Paste one key and you’re done.'} />
         <ChoiceCard on={kind === 'other'} onClick={() => setKind('other')} title="Another CRM" blurb="Lofty, kvCORE, BoomTown and more." />
       </div>
       {kind === 'fub' ? (
@@ -255,7 +261,7 @@ export function CrmStep({ ctx }: { ctx: StepCtx }) {
           <MoreOptions label="Have a webhook link instead?"><Field label="Webhook link" value={hook} onChange={setHook} placeholder="https://..." inputMode="url" /></MoreOptions>
         </>
       )}
-      {info.crm_fub_note && kind === 'fub' && <p className="rounded-2xl bg-amber-50 px-4 py-3 text-[14px] font-semibold text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">{info.crm_fub_note}</p>}
+      {info.crm_fub_note && kind === 'fub' && <p className={`rounded-2xl px-4 py-3 text-[14px] font-semibold ${fubRejected ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300' : 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300'}`}>{info.crm_fub_note}</p>}
       <button type="button" disabled={busy || !hasInput} onClick={save} className="inline-flex h-12 items-center gap-2 rounded-2xl bg-[#111827] px-6 text-[15px] font-black text-white disabled:opacity-40 dark:bg-gradient-to-r dark:from-[#C9A24D] dark:to-[#e8c97a] dark:text-[#111827]">{busy && <Loader2 className="h-4 w-4 animate-spin" />} Connect & send a test lead</button>
       {msg && <p className={`text-[14px] font-bold ${msg.ok ? 'text-emerald-600' : 'text-rose-600'}`}>{msg.text}</p>}
     </div>

@@ -159,7 +159,7 @@ export function BrandStep({ ctx }: { ctx: StepCtx }) {
         <BrandStepLook />
       </div>,
       <div key="color">
-        <SubHead sub="The color for headers and backgrounds on your reports, net sheets and designs.">Main color</SubHead>
+        <SubHead sub="The color for headers and backgrounds on your reports and designs.">Main color</SubHead>
         <Swatches label="Main color" colors={BRAND_MAIN_COLORS} value={kit.primary_color || '#111827'} onChange={setMain} />
         <div className="mt-4 overflow-hidden rounded-[22px] border-2 border-[#ece5d6] dark:border-white/10">
           <div className="flex flex-wrap items-center gap-4 px-5 py-5" style={{ background: kit.primary_color }}>

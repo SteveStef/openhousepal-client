@@ -14,6 +14,11 @@ import type { LinkDomainState } from '@/types'
 // site of their own says no and it's switched off (Settings -> IDX Website, editable any time).
 // Saying yes explains that their links move to their IDX address. Mounted globally in
 // app/layout.tsx next to AssistantWidget so it's impossible to dodge by navigating around it.
+// It comes FIRST and only once - see the effect below and IncompleteSettingsModal.
+
+/** sessionStorage: the IDX welcome was shown in this visit (the setup popup waits for the next one). */
+export const IDX_WELCOME_SHOWN_KEY = 'ohpIdxWelcomeShownThisVisit'
+
 export default function IdxDomainMigrationModal() {
   const { user, isAuthenticated, isLoading, refreshUser } = useAuth()
   const [state, setState] = useState<LinkDomainState | null>(null)
@@ -29,6 +34,12 @@ export default function IdxDomainMigrationModal() {
   useEffect(() => {
     if (!shouldShow) return
     api.sites.getLinkDomain().then(({ success, data }) => { if (success && data) setState(data) })
+    // Shown once (owner, 11/18): seeing it counts, answered or not. The server remembers it now,
+    // but this visit's user isn't refreshed, so it stays up until they answer or leave; the next
+    // visit shows the normal "finish your setup" prompt instead (the Website step in setup asks the
+    // same on/off question). The setup popup skips this visit so the two never stack.
+    try { sessionStorage.setItem(IDX_WELCOME_SHOWN_KEY, '1') } catch { /* private mode */ }
+    api.sites.agreeToIdxDomainMigration().catch(() => {})
   }, [shouldShow])
 
   if (!shouldShow) return null

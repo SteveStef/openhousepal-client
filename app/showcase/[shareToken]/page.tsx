@@ -31,6 +31,7 @@ import { SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
 import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
 import ClientEmailFrequency from '@/components/showcases/ClientEmailFrequency'
 import ClientEmailNotice from '@/components/showcases/ClientEmailNotice'
+import { replaceAddress } from '@/lib/historyAddress'
 
 export default function CustomerShowcasePage() {
   return (
@@ -160,7 +161,7 @@ function ShowcaseContent() {
     try {
       const url = new URL(window.location.href)
       url.searchParams.delete('ce')
-      window.history.replaceState(window.history.state, '', url.pathname + (url.search || '') + url.hash)
+      replaceAddress(url.pathname + (url.search || '') + url.hash)
     } catch { /* old browser - harmless */ }
   }, [emailMarker, showcase, ownerViewing])
 

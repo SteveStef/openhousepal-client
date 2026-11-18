@@ -6,6 +6,7 @@ import HubFormLauncher from '@/components/agent-hub/HubFormLauncher'
 import ListingFeatureCard from '@/components/agent-hub/ListingFeatureCard'
 import BlogCoverArt from '@/components/BlogCoverArt'
 import { HubLuxeDecor, HubLuxeIntro, HubLuxeStyles, HubSplitHeader, HubAgentPhoto, isHubPhotoSet, LUXE_BLOG_CARD, LUXE_HOME_CARD, LUXE_VIDEO_CARD, LuxeBlogCardBody, LuxeHomeCardBody, LuxeVideoCardBody, hubLuxeMetalClass } from '@/components/agent-hub/HubLuxeTheme'
+import { hubCompanyLine } from '@/lib/hubTeam'
 import { HUB_CLASSIC_DEFAULT_ACCENT, HubClassicStyles, hubAccentOf, hubAccentStyle, hubClassicClass } from '@/components/agent-hub/HubClassicTheme'
 import { pinnedFirst } from '@/lib/hubPins'
 import { applySalesDisplay, salesSortOf, type SalesSort } from '@/lib/agentSales'
@@ -245,6 +246,9 @@ export default function PublicAgentHubPage() {
   const [recentSales, setRecentSales] = useState<AgentSale[]>([])
   const [myListings, setMyListings] = useState<AgentSale[]>([])
   const [showSalesStats, setShowSalesStats] = useState(true)
+  // Team name beside the brokerage ("Brokerage · Team") unless switched off - lib/hubTeam.
+  const [showTeamOnHub, setShowTeamOnHub] = useState(true)
+  const companyLine = hubCompanyLine(profile, showTeamOnHub)
   // The agent's sales choices (setup flow's Sales step): hide sales under a price, and their order.
   const [salesMinPrice, setSalesMinPrice] = useState(0)
   const [salesSort, setSalesSort] = useState<SalesSort>('newest')
@@ -339,6 +343,7 @@ export default function PublicAgentHubPage() {
     if (Array.isArray(parsed.recentSales)) setRecentSales(getEligibleSales(parsed.recentSales))
     if (Array.isArray(parsed.myListings)) setMyListings(getEligibleListings(parsed.myListings))
     if (typeof parsed.showSalesStats === 'boolean') setShowSalesStats(parsed.showSalesStats)
+    setShowTeamOnHub(parsed.showTeamOnHub !== false)
     setSalesMinPrice(Number(parsed.salesMinPrice) > 0 ? Number(parsed.salesMinPrice) : 0)
     setSalesSort(salesSortOf(parsed.salesSort))
     setHubFormButtons(Array.isArray(parsed.hubFormButtons) ? parsed.hubFormButtons.filter((t: unknown) => typeof t === 'string') : null)
@@ -861,7 +866,7 @@ export default function PublicAgentHubPage() {
     <div className={hubDark ? 'dark' : ''}>
     <main data-page-edge className={`agent-hub-public relative min-h-screen overflow-hidden bg-[#f7f5f1] text-[#101827] dark:bg-[#0B0B0B] dark:text-[#F3F4F6] ${luxe ? `hub-luxe ${hubLuxeMetalClass(hubLuxeMetal)} ${luxeIntro ? 'hub-lx-intro-on' : ''}` : hubClassicClass(hubTheme, hubAccent)}${returning ? ' hub-returning' : ''}`} style={luxe ? undefined : hubAccentStyle(hubAccent)}>
       {luxe ? <><HubLuxeStyles /><HubLuxeDecor /></> : <HubClassicStyles />}
-      {luxe && luxeIntro && <HubLuxeIntro name={profile.name} kicker={[profile.title, profile.brokerage].filter(Boolean).join(' · ')} photoUrl={profilePhotoUrl} photoPosition={profilePhotoPosition} onDone={() => setLuxeIntro(false)} />}
+      {luxe && luxeIntro && <HubLuxeIntro name={profile.name} kicker={[profile.title, companyLine].filter(Boolean).join(' · ')} photoUrl={profilePhotoUrl} photoPosition={profilePhotoPosition} onDone={() => setLuxeIntro(false)} />}
       {/* Arrived straight from an open house sign-in (the sign-in link carries src=signin). */}
       <SignedInToast show={searchParams.get('src') === 'signin'} />
       {/* Form buttons open in a window over the hub, not a new page. */}
@@ -886,7 +891,7 @@ export default function PublicAgentHubPage() {
             <HubSplitHeader
               large
               className="hub-enter"
-              profile={profile}
+              profile={{ ...profile, brokerage: companyLine }}
               photoUrl={profilePhotoUrl}
               photoPosition={profilePhotoPosition}
               stats={showStats ? [['Sold', saleSummary.totalSold.toString()], ['Volume', formatCompactMoney(saleSummary.totalVolume)], ['Avg', formatCompactMoney(saleSummary.avgPrice)]] : null}
@@ -900,8 +905,8 @@ export default function PublicAgentHubPage() {
           <div className="mx-auto h-[92px] w-[92px] rounded-full border-2 border-[#cdaa64] bg-white p-1 shadow-sm dark:bg-[#0B0B0B]">
             <HubAgentPhoto url={profilePhotoUrl} position={profilePhotoPosition} name={profile.name} className="rounded-full" />
           </div>
-          <div className="-mt-5 inline-flex rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-wide text-[#8b7355] shadow-sm dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-[#d7b974]">
-            {profile.brokerage}
+          <div className="-mt-5 inline-flex max-w-full rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-wide text-[#8b7355] shadow-sm dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-[#d7b974]">
+            {companyLine}
           </div>
           <h1 className="hub-name mt-4 font-serif text-[30px] font-black leading-none tracking-tight text-[#111827] dark:text-white">{profile.name}</h1>
           <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-[#8b7355] dark:text-[#d7b974]">{profile.title}</p>

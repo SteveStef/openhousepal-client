@@ -30,6 +30,7 @@ import Pager from '@/components/ui/Pager'
 import { OhpSpinner } from '@/components/brand/OhpLoader'
 import { PopupPortal, useAnchoredStyle } from '@/components/ui/AnchoredPopup'
 import { contactLabel, contactWhen, lastContact } from '@/lib/contactLog'
+import { replaceAddress } from '@/lib/historyAddress'
 
 // The tabs (user, 10/17): what needs the agent, then everyone without an agent (the default -
 // plus anyone with an agent you left a note on), then the pipeline, then All next to the two side piles.
@@ -123,7 +124,7 @@ function LeadsPageInner() {
     try {
       const url = new URL(window.location.href)
       if (id) url.searchParams.set('lead', id); else url.searchParams.delete('lead')
-      window.history.replaceState(window.history.state, '', url.pathname + (url.search || '') + url.hash)
+      replaceAddress(url.pathname + (url.search || '') + url.hash)
     } catch { /* harmless */ }
   }, [])
   const [menuFor, setMenuFor] = useState<string | null>(null)

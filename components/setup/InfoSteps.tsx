@@ -11,6 +11,8 @@ import { AiWriteButton } from '@/components/ai/AiWriteButton'
 import { BIO_MAX_CHARS, fitBio } from '@/lib/agentBio'
 import { emailOk, Field, formatPhone, inputCls, LockedValue, MoreOptions, phoneOk, readyHeadshot, StepCtx, useGate, Reveal } from './SetupUi'
 import { PHOTO_ACCEPT } from '@/components/assistant/PhotoDrop'
+import OhpSwitch from '@/components/ui/OhpSwitch'
+import { hubTeamName } from '@/lib/hubTeam'
 
 const TITLE_SUGGESTIONS = ['REALTOR®', 'Real Estate Agent', 'Associate Broker', 'Broker', 'Team Leader']
 
@@ -23,8 +25,13 @@ export function AboutStep({ ctx }: { ctx: StepCtx }) {
   }
   const missing = ([['name', 'your name'], ['title', 'your title'], ['brokerage', 'your brokerage'], ['market', 'the area you serve']] as const).filter(([k]) => !v[k].trim()).map(([, l]) => l)
   useGate(ctx, { ok: missing.length === 0, message: missing.length ? `Please add ${missing.join(', ')}.` : undefined }, [missing.join()])
+  // Plans with an Agent Hub: the team name shows beside the brokerage there unless switched off
+  // (hub config showTeamOnHub, same switch as the Agent Hub editor's Profile tab - lib/hubTeam).
+  const hubPlan = ctx.data.steps.some(s => s.id === 'hub')
+  const [teamOnHub, setTeamOnHub] = useState(ctx.data.look?.showTeamOnHub !== false)
+  const setTeamShown = (on: boolean) => { setTeamOnHub(on); ctx.saveInfo({ look: { showTeamOnHub: on } }) }
   return (
-    <WithCard ctx={ctx} over={v}>
+    <WithCard ctx={ctx} over={{ ...v, team: hubPlan ? hubTeamName(v, teamOnHub) : v.team }}>
     <div className="space-y-6">
       <Field label="Your full name" required value={v.name} onChange={x => set('name', x)} placeholder="Jane Smith" autoComplete="name" hint="The way you'd like clients to see it." />
       <Field label="Your title" required value={v.title} onChange={x => set('title', x)} placeholder="REALTOR®">
@@ -37,6 +44,15 @@ export function AboutStep({ ctx }: { ctx: StepCtx }) {
       <Field label="Your brokerage" required value={v.brokerage} onChange={x => set('brokerage', x)} placeholder="Main Line Realty" autoComplete="organization" />
       <Field label="Area you serve" required value={v.market} onChange={x => set('market', x)} placeholder="Philadelphia & the Main Line" hint="A few words - the towns or region you work in." />
       <Field label="Team name" value={v.team} onChange={x => set('team', x)} placeholder="The Smith Group" hint="Only if you're on a team." />
+      {hubPlan && (
+        <div data-testid="setup-show-team" className="-mt-3 flex items-center gap-3 rounded-2xl border-2 border-[#ece5d6] bg-white px-4 py-3 dark:border-white/10 dark:bg-[#141416]">
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-bold text-[#111827] dark:text-white">Show it on my Agent Hub</span>
+            <span className="block text-[13px] font-medium leading-snug text-gray-500 dark:text-gray-400">Beside your brokerage, with a dot between them.</span>
+          </span>
+          <OhpSwitch on={teamOnHub} onChange={setTeamShown} label="Show my team name on my Agent Hub" />
+        </div>
+      )}
     </div>
     </WithCard>
   )
@@ -276,7 +292,8 @@ function YouCard({ ctx, over = {} }: { ctx: StepCtx; over?: CardOver }) {
   const socials = over.socialUrls
     ? Object.entries(over.socialUrls).filter(([, u]) => u.trim()).map(([id]) => id)
     : [...ctx.data.social_links.filter(l => l.enabled !== false && l.url).map(l => l.id), ...(i.linkedin ? ['linkedin'] : [])]
-  const line = [i.title, i.brokerage].filter(Boolean).join(' · ')
+  // Same order as the hub and the signature: title · brokerage · team (the team only when shown).
+  const line = [i.title, i.brokerage, i.team].filter(Boolean).join(' · ')
   const chip = (label: string, has: boolean, Icon: typeof Phone) => (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-black transition-all duration-300 ${has ? 'bg-[#111827] text-white dark:bg-white dark:text-[#111827]' : 'border border-dashed border-gray-300 text-gray-400 dark:border-white/15'}`}>
       <Icon className="h-3.5 w-3.5" />{label}
@@ -295,8 +312,7 @@ function YouCard({ ctx, over = {} }: { ctx: StepCtx; over?: CardOver }) {
           </span>
           <div className="min-w-0 flex-1">
             <p className={`truncate font-serif text-[21px] font-black leading-tight ${i.name ? 'text-[#111827] dark:text-white' : 'text-gray-300 dark:text-gray-600'}`}>{i.name || 'Your name'}</p>
-            <p className={`mt-1 truncate text-[10.5px] font-black uppercase tracking-[0.18em] ${line ? 'text-[#a8803a] dark:text-[#e8c97a]' : 'text-gray-300 dark:text-gray-600'}`}>{line || 'Title · Brokerage'}</p>
-            {i.team && <p className="mt-1 truncate text-[12.5px] font-bold text-gray-500 dark:text-gray-400">{i.team}</p>}
+            <p className={`mt-1 line-clamp-2 text-[10.5px] font-black uppercase tracking-[0.18em] ${line ? 'text-[#a8803a] dark:text-[#e8c97a]' : 'text-gray-300 dark:text-gray-600'}`}>{line || 'Title · Brokerage'}</p>
             {i.market && <p className="mt-1 flex items-center gap-1 truncate text-[12.5px] font-semibold text-gray-500 dark:text-gray-400 lg:justify-center"><MapPin className="h-3.5 w-3.5 shrink-0 text-[#C9A24D]" />{i.market}</p>}
           </div>
         </div>

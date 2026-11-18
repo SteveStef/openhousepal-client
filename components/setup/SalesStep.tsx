@@ -121,7 +121,8 @@ export function SalesStep({ ctx }: { ctx: StepCtx }) {
               onSave={o => { if (o?.recentSales) { const next = o.recentSales; saveHub({ recentSales: next }) } }} />
           </div>
         </HubPanelsOpen.Provider>
-        <GoogleVisibilityNote kind="sales" planTier={ctx.plan} className="mt-5" />
+        {/* No Agent Hub (No-MLS basic) = no Sales page for Google to see or not */}
+        {hubPlan && <GoogleVisibilityNote kind="sales" planTier={ctx.plan} className="mt-5" />}
       </div>
   )
 

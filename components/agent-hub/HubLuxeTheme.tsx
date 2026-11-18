@@ -258,7 +258,10 @@ export function HubSplitHeader({ profile, photoUrl, photoPosition, stats, classN
         <div className="flex min-w-0 flex-1 flex-col justify-center">
           {(profile.brokerage || rating) && (
             <div className="flex min-w-0 items-center gap-2">
-              <p className="min-w-0 flex-1 truncate text-[10px] font-black uppercase tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974]">{profile.brokerage}</p>
+              {/* Wraps to 2 lines instead of one cut-off line: a one-line (nowrap) brokerage can't
+                  shrink, so a long one - or "Brokerage · Team" - pushed the whole hub wider than a
+                  phone screen (deep audit 11/18: 390px phone laid out at 432-630px). */}
+              <p className="min-w-0 flex-1 line-clamp-2 break-words text-[10px] font-black uppercase leading-snug tracking-[0.2em] text-[#8b7355] dark:text-[#d7b974]">{profile.brokerage}</p>
               {rating && <span className="-my-1.5 flex shrink-0">{rating}</span>}
             </div>
           )}

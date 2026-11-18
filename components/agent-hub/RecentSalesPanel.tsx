@@ -8,7 +8,7 @@ import { AlertCircle, Check, ChevronDown, ChevronRight, DollarSign, Pencil, Tras
 import api, { resolveMediaUrl } from '@/lib/api-service'
 import { useSaveTracker } from '@/components/ui/SaveStatus'
 import { useOptionalAuth } from '@/contexts/AuthContext'
-import { hasMlsAccess } from '@/lib/navAccess'
+import { hasAgentHubAccess, hasMlsAccess } from '@/lib/navAccess'
 import QuickAddHomeSheet, { quickHomeToEntry, type QuickHome } from './QuickAddHomeSheet'
 import { AgentSale, formatSaleStatus, getEligibleSales, getSaleStatusClass, getStreetOnly, SALES_ROTATION_POOL_SIZE, shouldAutoShowSale } from '@/lib/agentSales'
 
@@ -216,6 +216,8 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
   // No-MLS plans: nothing to pull from Bright - every sale is added by hand (no Refresh button).
   const authUser = useOptionalAuth()?.user
   const noMls = !!authUser?.plan_tier && !hasMlsAccess(authUser.plan_tier)
+  // No-MLS (basic) has no Agent Hub or signature - its sales only fill the open house Brag Sheet.
+  const bragOnly = !!authUser?.plan_tier && !hasAgentHubAccess(authUser.plan_tier)
   const salesSubtitle = noMls
     ? "Add the homes you've sold by hand."
     : 'Pulled from your listing data based on your agent profile.'
@@ -469,7 +471,7 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
       <HubCollapse open={isOpen}>
         <div className={plain ? 'border-t border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-[#151517] sm:p-6' : 'border-t border-gray-100 bg-[#fbfaf7] p-5 dark:border-gray-700 dark:bg-gray-800'}>
           <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <p className="text-sm font-semibold text-gray-500 dark:text-gray-300">Choose which sales appear on your public Agent Hub and rotate through your email signature.</p>
+            <p className="text-sm font-semibold text-gray-500 dark:text-gray-300">{bragOnly ? 'Choose which sales appear on your open house Brag Sheet.' : 'Choose which sales appear on your public Agent Hub and rotate through your email signature.'}</p>
 
             {!compact && <div className="mt-3 space-y-2">
               <SettingToggleRow
@@ -565,7 +567,7 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
               page wouldn't scroll while hovering this list. Pagination (6 per page) keeps it short. */}
           <div className="mt-4 space-y-2 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             {isLoading ? (
-              <div className="rounded-2xl border border-gray-200 bg-[#fbfaf7] p-5 text-sm font-bold text-gray-500">Finding your recent sales...</div>
+              <div className="rounded-2xl border border-gray-200 bg-[#fbfaf7] p-5 text-sm font-bold text-gray-500 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-400">Finding your recent sales...</div>
             ) : eligibleAgentSales.length ? (
               pagedSales.map(sale => (
                 // Editing a manual sale expands the edit form right at this card's own position
@@ -653,8 +655,8 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
                 </AnimatePresence>
               ))
             ) : (
-              <div className="rounded-2xl border border-dashed border-gray-300 bg-[#fbfaf7] p-5 text-sm font-bold text-gray-500">
-                {noMls ? "No sales yet - tap + Add a sale to put your first one on your Agent Hub." : reLicenseNumber.trim() ? 'No matching sales or listings found for this RE License number yet.' : 'Add your RE License number first (Profile, or the License step in Setup) - then your sales and listings show up here.'}
+              <div className="rounded-2xl border border-dashed border-gray-300 bg-[#fbfaf7] p-5 text-sm font-bold text-gray-500 dark:border-white/15 dark:bg-white/[0.03] dark:text-gray-400">
+                {noMls ? `No sales yet - tap + Add a sale to put your first one on your ${bragOnly ? 'Brag Sheet' : 'Agent Hub'}.` : reLicenseNumber.trim() ? 'No matching sales or listings found for this RE License number yet.' : 'Add your RE License number first (Profile, or the License step in Setup) - then your sales and listings show up here.'}
               </div>
             )}
           </div>

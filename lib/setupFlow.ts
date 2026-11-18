@@ -90,7 +90,8 @@ export function stepCopy(id: SetupStepId, plan: string | null, hasMls: boolean):
       return {
         icon: Palette, label: 'Your brand', title: ['Your ', 'logo & colors'],
         intro: 'Your logo and brand colors, so everything we make for you looks like you.',
-        powers: where([], [[mls, 'CMA reports'], [true, 'Net sheets'], [studio, 'Designs & blogs'], [idx, 'Website & Spotlights']]),
+        // (Net sheets were retired in October - forms wear the Brand Kit look on every plan)
+        powers: where([], [[mls, 'CMA reports'], [true, 'Your forms'], [studio, 'Designs & blogs'], [idx, 'Website & Spotlights']]),
         skip: 'Your brokerage name shows as plain text and we use our standard colors.',
       }
     case 'hub':

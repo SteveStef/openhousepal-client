@@ -49,6 +49,7 @@ import { HUB_ICON, HUB_ICON_TILE, HUB_TOGGLE_OFF, HUB_TOGGLE_ON, HubCollapse, Hu
 import OhpSwitch from '@/components/ui/OhpSwitch'
 import MyListingsPanel from '@/components/agent-hub/MyListingsPanel'
 import { HUB_MOBILE_HEADERS, HUB_THEMES, HubLuxeDecor, HubLuxeIntro, HubLuxeStyles, HubSplitHeader, HubAgentPhoto, isHubPhotoSet, LUXE_BLOG_CARD, LUXE_HOME_CARD, LUXE_VIDEO_CARD, LuxeBlogCardBody, LuxeHomeCardBody, LuxeVideoCardBody, type HubMobileHeaderId, type HubThemeId, hubLuxeMetalClass } from '@/components/agent-hub/HubLuxeTheme'
+import { hubCompanyLine } from '@/lib/hubTeam'
 import { HUB_CLASSIC_ACCENTS, HUB_CLASSIC_DEFAULT_ACCENT, HubClassicStyles, hubAccentOf, hubAccentStyle, hubClassicClass } from '@/components/agent-hub/HubClassicTheme'
 import { pinnedFirst } from '@/lib/hubPins'
 import LuxeUpgradePitch from '@/components/ui/LuxeUpgradePitch'
@@ -159,6 +160,8 @@ type SavedAgentHubData = {
   myListings?: AgentSale[]
   salesMinPrice?: number
   showSalesStats?: boolean
+  /** Team name beside the brokerage on the hub (missing = on) - lib/hubTeam. */
+  showTeamOnHub?: boolean
   salesCarousel?: boolean
   listingsCarousel?: boolean
   videosCarousel?: boolean
@@ -958,7 +961,7 @@ function PublicPreview({
                 <div className="mx-auto h-[92px] w-[92px] rounded-full border-2 border-[#cdaa64] bg-white p-1 shadow-sm dark:bg-[#0B0B0B]">
                   <HubAgentPhoto url={profilePhotoUrl} position={profilePhotoPosition} name={profile.name} className="rounded-full" />
                 </div>
-                <div className="-mt-5 inline-flex rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-wide shadow-sm dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-[#d7b974]">{profile.brokerage}</div>
+                <div className="-mt-5 inline-flex max-w-full rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-wide shadow-sm dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-[#d7b974]">{profile.brokerage}</div>
                 <h2 className="mt-4 font-serif text-[30px] font-black leading-none text-[#111827] dark:text-white">{profile.name}</h2>
                 <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-[#8b7355] dark:text-[#d7b974]">{profile.title}</p>
                 {profile.market && <p className="mt-3 flex items-center justify-center gap-1 text-sm text-[#778093] dark:text-gray-300"><MapPin className="h-4 w-4 text-[#d0ad65]" /> {profile.market}</p>}
@@ -1067,7 +1070,7 @@ function PublicPreview({
         <div className="mx-auto h-[92px] w-[92px] rounded-full border-2 border-[#cdaa64] bg-white p-1 shadow-sm dark:bg-[#0B0B0B]">
           <HubAgentPhoto url={profilePhotoUrl} position={profilePhotoPosition} name={profile.name} className="rounded-full" />
         </div>
-        <div className="-mt-5 inline-flex rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-wide shadow-sm dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-[#d7b974]">{profile.brokerage}</div>
+        <div className="-mt-5 inline-flex max-w-full rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-wide shadow-sm dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-[#d7b974]">{profile.brokerage}</div>
         <h2 className="mt-4 font-serif text-[30px] font-black leading-none text-[#111827] dark:text-white">{profile.name}</h2>
         <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-[#8b7355] dark:text-[#d7b974]">{profile.title}</p>
         {profile.market && <p className="mt-3 flex items-center justify-center gap-1 text-sm text-[#778093] dark:text-gray-300"><MapPin className="h-4 w-4 text-[#d0ad65]" /> {profile.market}</p>}
@@ -1287,6 +1290,9 @@ function AgentHubContent() {
   // sales-volume effect below, which turns it on automatically once the agent has enough sold
   // volume to make bragging about it worthwhile.
   const [showSalesStats, setShowSalesStats] = useState(false)
+  const [showTeamOnHub, setShowTeamOnHub] = useState(true)
+  // The live preview shows the hub's "Brokerage · Team" line exactly as visitors will see it.
+  const previewProfile = { ...profile, brokerage: hubCompanyLine(profile, showTeamOnHub) }
   const [salesMinPrice, setSalesMinPrice] = useState(0)
   const [salesSort, setSalesSort] = useState<SalesSort>('newest')
   const [salesCarousel, setSalesCarousel] = useState(true)
@@ -1682,6 +1688,7 @@ function AgentHubContent() {
     if (Array.isArray(parsed.recentSales)) setRecentSales(getEligibleSales(parsed.recentSales))
     if (Array.isArray(parsed.myListings)) setMyListings(getEligibleListings(parsed.myListings))
     if (typeof parsed.showSalesStats === 'boolean') { setShowSalesStats(parsed.showSalesStats); hasExplicitSalesStatsRef.current = true }
+    setShowTeamOnHub(parsed.showTeamOnHub !== false)
     if (typeof parsed.salesMinPrice === 'number') setSalesMinPrice(parsed.salesMinPrice)
     if (typeof parsed.salesCarousel === 'boolean') setSalesCarousel(parsed.salesCarousel)
     if (typeof parsed.listingsCarousel === 'boolean') setListingsCarousel(parsed.listingsCarousel)
@@ -2489,7 +2496,7 @@ function AgentHubContent() {
     if ('include' in updates) requestSave()  // switches save right away; typed labels/values with Save
   }
 
-  const handleSaveAgentHubChanges = async (overrides?: Partial<Pick<SavedAgentHubData, 'recentSales' | 'myListings' | 'showSalesStats' | 'salesMinPrice' | 'salesCarousel' | 'listingsCarousel' | 'videosCarousel' | 'toursCarousel' | 'blogsCarousel' | 'salesAutoScroll' | 'listingsAutoScroll' | 'videosAutoScroll' | 'toursAutoScroll' | 'blogsAutoScroll' | 'reviewsCarousel' | 'reviewsAutoScroll' | 'reviewsOnProfile' | 'reviewsProfileButton' | 'videoLinks' | 'videoChannelUrl' | 'houseTourLinks' | 'houseTourUrl' | 'blogCards' | 'layoutSections' | 'visibleSectionIds'>>) => {
+  const handleSaveAgentHubChanges = async (overrides?: Partial<Pick<SavedAgentHubData, 'recentSales' | 'myListings' | 'showSalesStats' | 'showTeamOnHub' |'salesMinPrice' | 'salesCarousel' | 'listingsCarousel' | 'videosCarousel' | 'toursCarousel' | 'blogsCarousel' | 'salesAutoScroll' | 'listingsAutoScroll' | 'videosAutoScroll' | 'toursAutoScroll' | 'blogsAutoScroll' | 'reviewsCarousel' | 'reviewsAutoScroll' | 'reviewsOnProfile' | 'reviewsProfileButton' | 'videoLinks' | 'videoChannelUrl' | 'houseTourLinks' | 'houseTourUrl' | 'blogCards' | 'layoutSections' | 'visibleSectionIds'>>) => {
     // This function always sends the FULL current in-memory state as the new config (the backend
     // does a full replace, not a merge - see PUT /agent-hub/me/config). If it ran before the real
     // saved config has finished loading from the backend, profile/contact/etc. would still be at
@@ -2544,6 +2551,7 @@ function AgentHubContent() {
       recentSales: salesToSave,
       myListings: listingsToSave,
       showSalesStats: showSalesStatsToSave,
+      showTeamOnHub: overrides?.showTeamOnHub ?? showTeamOnHub,
       salesMinPrice: salesMinPriceToSave,
       salesCarousel: salesCarouselToSave,
       listingsCarousel: listingsCarouselToSave,
@@ -2663,6 +2671,7 @@ function AgentHubContent() {
     setRecentSales(lastSavedHub.recentSales || [])
     setMyListings(lastSavedHub.myListings || [])
     setShowSalesStats(lastSavedHub.showSalesStats ?? true)
+    setShowTeamOnHub(lastSavedHub.showTeamOnHub !== false)
     setSalesCarousel(lastSavedHub.salesCarousel ?? true)
     setListingsCarousel(lastSavedHub.listingsCarousel ?? true)
     setVideosCarousel(lastSavedHub.videosCarousel ?? false)
@@ -3923,7 +3932,7 @@ function AgentHubContent() {
                           {group.title !== 'Social Links' && group.title !== 'Contact Card' && (
                           <div className="grid gap-3 md:grid-cols-2">
                               {group.fields.map(([label, value]) => (
-                                (() => { const FieldWrap = label === 'Profile photo' ? 'div' : 'label'; return (<FieldWrap key={label} className={`block ${label === 'About me' || label === 'Market or service area' ? 'md:col-span-2' : ''} ${label === 'Profile photo' || label === 'RE License number' ? 'flex flex-col' : ''}`}>
+                                (() => { const FieldWrap = label === 'Profile photo' || label === 'Team name' ? 'div' : 'label'; return (<FieldWrap key={label} className={`block ${label === 'About me' || label === 'Market or service area' ? 'md:col-span-2' : ''} ${label === 'Profile photo' || label === 'RE License number' ? 'flex flex-col' : ''}`}>
                                   <span className="flex items-center gap-1 text-xs font-black uppercase tracking-widest text-gray-400">
                                     {label}
                                     {((group.title === 'Contact') || (group.title === 'Profile' && label !== 'About me' && label !== 'Team name')) && <span className="text-red-500">*</span>}
@@ -3978,8 +3987,15 @@ function AgentHubContent() {
                                       onChange={(event) => group.title === 'Profile' ? updateProfileField(label, event.target.value) : updateContactField(label, event.target.value)}
                                       placeholder={group.title === 'Profile' && (label === 'Agent name' || label === 'Brokerage name') ? 'Filled from your account when available' : label === 'Team name' ? 'Only if you are on a team' : 'Add details'}
                                       required={group.title === 'Contact' || (group.title === 'Profile' && label !== 'About me' && label !== 'Team name')}
+                                      aria-label={label === 'Team name' ? 'Team name' : undefined}
                                       className="mt-2 w-full rounded-xl border border-gray-200 bg-[#fbfaf7] px-4 py-3 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white"
                                     />
+                                  )}
+                                  {group.title === 'Profile' && label === 'Team name' && (
+                                    <div className="mt-2" data-testid="hub-show-team">
+                                      <SettingToggleRow label="Show it on my Agent Hub" hint="Beside your brokerage, with a dot between them."
+                                        checked={showTeamOnHub} onChange={next => { setShowTeamOnHub(next); handleSaveAgentHubChanges({ showTeamOnHub: next }) }} />
+                                    </div>
                                   )}
                                 </FieldWrap>) })()
                               ))}
@@ -4146,7 +4162,7 @@ function AgentHubContent() {
                 {/* View only (owner, 10/24) - scrolls, but nothing in it can be clicked; "Open" is for that. */}
                 <div className="mt-6 overflow-auto rounded-2xl bg-[#f2efe8] p-4">
                   <div inert className="pointer-events-none select-none" data-hub-preview-viewonly>
-                  <PublicPreview size={previewSize} salesMinPrice={salesMinPrice} salesSort={salesSort} socialLinks={socialLinks} contact={contact} profilePhotoUrl={profilePhotoUrl} profilePhotoPosition={profilePhotoPosition} layoutSections={layoutSections} profile={profile} recentSales={recentSales} showSalesStats={showSalesStats} salesCarousel={salesCarousel} salesAutoScroll={salesAutoScroll} myListings={myListings} listingsCarousel={listingsCarousel} listingsAutoScroll={listingsAutoScroll} visitorDarkMode={visitorDarkMode} hubTheme={shownHubTheme} hubLuxeMetal={hubLuxeMetal} hubAccent={hubAccent} mobileHeader={mobileHeader} introNonce={hubIntroNonce} videosCarousel={videosCarousel} videosAutoScroll={videosAutoScroll} toursCarousel={toursCarousel} toursAutoScroll={toursAutoScroll} blogsCarousel={blogsCarousel} blogsAutoScroll={blogsAutoScroll} videoLinks={videoLinks} videoChannelUrl={videoChannelUrl} houseTourLinks={houseTourLinks} houseTourUrl={houseTourUrl} blogCards={effectiveBlogCards} agentForms={agentForms} agentHubPublicPath={agentHubPublicPath} reviewsData={shownReviewsData} reviewsCarousel={reviewsCarousel} reviewsAutoScroll={reviewsAutoScroll} reviewsOnProfile={reviewsOnProfile} reviewsProfileButton={reviewsProfileButton} />
+                  <PublicPreview size={previewSize} salesMinPrice={salesMinPrice} salesSort={salesSort} socialLinks={socialLinks} contact={contact} profilePhotoUrl={profilePhotoUrl} profilePhotoPosition={profilePhotoPosition} layoutSections={layoutSections} profile={previewProfile} recentSales={recentSales} showSalesStats={showSalesStats} salesCarousel={salesCarousel} salesAutoScroll={salesAutoScroll} myListings={myListings} listingsCarousel={listingsCarousel} listingsAutoScroll={listingsAutoScroll} visitorDarkMode={visitorDarkMode} hubTheme={shownHubTheme} hubLuxeMetal={hubLuxeMetal} hubAccent={hubAccent} mobileHeader={mobileHeader} introNonce={hubIntroNonce} videosCarousel={videosCarousel} videosAutoScroll={videosAutoScroll} toursCarousel={toursCarousel} toursAutoScroll={toursAutoScroll} blogsCarousel={blogsCarousel} blogsAutoScroll={blogsAutoScroll} videoLinks={videoLinks} videoChannelUrl={videoChannelUrl} houseTourLinks={houseTourLinks} houseTourUrl={houseTourUrl} blogCards={effectiveBlogCards} agentForms={agentForms} agentHubPublicPath={agentHubPublicPath} reviewsData={shownReviewsData} reviewsCarousel={reviewsCarousel} reviewsAutoScroll={reviewsAutoScroll} reviewsOnProfile={reviewsOnProfile} reviewsProfileButton={reviewsProfileButton} />
                   </div>
                 </div>
               </div>
@@ -4193,7 +4209,7 @@ function AgentHubContent() {
                     <motion.div key="hub" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}
                       // View only (owner, 10/24): it scrolls, but no link or button inside works - "Open" does that.
                       inert className="pointer-events-none select-none" data-hub-preview-viewonly>
-                      <PublicPreview size="mobile" compact salesMinPrice={salesMinPrice} salesSort={salesSort} socialLinks={socialLinks} contact={contact} profilePhotoUrl={profilePhotoUrl} profilePhotoPosition={profilePhotoPosition} layoutSections={layoutSections} profile={profile} recentSales={recentSales} showSalesStats={showSalesStats} salesCarousel={salesCarousel} salesAutoScroll={salesAutoScroll} myListings={myListings} listingsCarousel={listingsCarousel} listingsAutoScroll={listingsAutoScroll} visitorDarkMode={visitorDarkMode} hubTheme={shownHubTheme} hubLuxeMetal={hubLuxeMetal} hubAccent={hubAccent} mobileHeader={mobileHeader} introNonce={hubIntroNonce} videosCarousel={videosCarousel} videosAutoScroll={videosAutoScroll} toursCarousel={toursCarousel} toursAutoScroll={toursAutoScroll} blogsCarousel={blogsCarousel} blogsAutoScroll={blogsAutoScroll} videoLinks={videoLinks} videoChannelUrl={videoChannelUrl} houseTourLinks={houseTourLinks} houseTourUrl={houseTourUrl} blogCards={effectiveBlogCards} agentForms={agentForms} agentHubPublicPath={agentHubPublicPath} reviewsData={shownReviewsData} reviewsCarousel={reviewsCarousel} reviewsAutoScroll={reviewsAutoScroll} reviewsOnProfile={reviewsOnProfile} reviewsProfileButton={reviewsProfileButton} />
+                      <PublicPreview size="mobile" compact salesMinPrice={salesMinPrice} salesSort={salesSort} socialLinks={socialLinks} contact={contact} profilePhotoUrl={profilePhotoUrl} profilePhotoPosition={profilePhotoPosition} layoutSections={layoutSections} profile={previewProfile} recentSales={recentSales} showSalesStats={showSalesStats} salesCarousel={salesCarousel} salesAutoScroll={salesAutoScroll} myListings={myListings} listingsCarousel={listingsCarousel} listingsAutoScroll={listingsAutoScroll} visitorDarkMode={visitorDarkMode} hubTheme={shownHubTheme} hubLuxeMetal={hubLuxeMetal} hubAccent={hubAccent} mobileHeader={mobileHeader} introNonce={hubIntroNonce} videosCarousel={videosCarousel} videosAutoScroll={videosAutoScroll} toursCarousel={toursCarousel} toursAutoScroll={toursAutoScroll} blogsCarousel={blogsCarousel} blogsAutoScroll={blogsAutoScroll} videoLinks={videoLinks} videoChannelUrl={videoChannelUrl} houseTourLinks={houseTourLinks} houseTourUrl={houseTourUrl} blogCards={effectiveBlogCards} agentForms={agentForms} agentHubPublicPath={agentHubPublicPath} reviewsData={shownReviewsData} reviewsCarousel={reviewsCarousel} reviewsAutoScroll={reviewsAutoScroll} reviewsOnProfile={reviewsOnProfile} reviewsProfileButton={reviewsProfileButton} />
                     </motion.div>
                   )}
                 </AnimatePresence>

@@ -6,6 +6,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { ArrowRight, Check, Sparkles } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useSettingsCompleteness } from '@/hooks/useSettingsCompleteness'
+import { IDX_WELCOME_SHOWN_KEY } from '@/components/IdxDomainMigrationModal'
 
 const DISMISSED_KEY = 'incompleteSettingsDismissedAt'
 const NEW_ACCOUNT_WINDOW_DAYS = 30
@@ -21,7 +22,8 @@ export default function IncompleteSettingsModal() {
   const [dismissed, setDismissed] = useState(true)
 
   useEffect(() => {
-    try { setDismissed(!!sessionStorage.getItem(DISMISSED_KEY)) } catch { setDismissed(false) }
+    // The IDX welcome had this visit (it comes first, once) - this popup waits for the next visit.
+    try { setDismissed(!!sessionStorage.getItem(DISMISSED_KEY) || !!sessionStorage.getItem(IDX_WELCOME_SHOWN_KEY)) } catch { setDismissed(false) }
   }, [])
 
   if (!isAuthenticated || !user || !loaded || !setup || setup.finished || dismissed) return null
@@ -29,6 +31,9 @@ export default function IncompleteSettingsModal() {
   if (user.is_admin) return null
   // One popup at a time: a new IDX agent answers "Do you want to use your IDX website?" first.
   if (user.plan_tier === 'IDX' && !user.idx_domain_migration_agreed_at) return null
+  // ...and not later in the same visit either, once they've answered it (read now, not at mount -
+  // the IDX welcome may have opened after this one first rendered).
+  try { if (sessionStorage.getItem(IDX_WELCOME_SHOWN_KEY)) return null } catch { /* private mode */ }
   // Never over the flow itself or a working surface.
   // ...nor over a page that IS one of the setup steps (they're already doing it there).
   // ...nor over the "waiting for Bright MLS" or plan pages - they have their own one next step (owner, 10/26).

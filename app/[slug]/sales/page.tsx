@@ -18,6 +18,7 @@ import { AgentSale, applySalesDisplay, isEligibleListing, isEligibleSale, salesS
 import { type MlsOpenHouse } from '@/lib/mlsOpenHouses'
 import { PublicFormSummary } from '@/types'
 import { OhpWordmark } from '@/components/brand/OhpBrand'
+import { hubCompanyLine } from '@/lib/hubTeam'
 
 // The agent's Sales page: what's on the market right now up top, everything they've sold below.
 // (There used to be a separate Listings page - one home on it looked like no experience at all.)
@@ -70,6 +71,7 @@ export default function AgentHubSalesPage() {
   const backHref = /^(https?:\/\/|\/(?!\/))/.test(idxReturn) ? idxReturn : ''
   const agentHubBasePath = `/${agentSlug}`
   const [profile, setProfile] = useState(defaultProfile)
+  const [showTeamOnHub, setShowTeamOnHub] = useState(true)
   const [contact, setContact] = useState(defaultContact)
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
   const [listings, setListings] = useState<HubListing[]>([])
@@ -100,6 +102,7 @@ export default function AgentHubSalesPage() {
         if (Array.isArray(config.recentSales)) setSales(config.recentSales)
         setSalesRules({ minPrice: Number(config.salesMinPrice) > 0 ? Number(config.salesMinPrice) : 0, sort: salesSortOf(config.salesSort), showStats: config.showSalesStats !== false })
         if (typeof config.visitorDarkMode === 'boolean') setVisitorDarkMode(config.visitorDarkMode)
+        setShowTeamOnHub(config.showTeamOnHub !== false)
         setLuxe(config.hubTheme === 'luxe')
         if (typeof config.hubLuxeMetal === 'string') setLuxeMetal(config.hubLuxeMetal)
         setHubAccent(hubAccentOf(config.hubAccent))
@@ -201,7 +204,7 @@ export default function AgentHubSalesPage() {
               <HubAgentPhoto url={profilePhotoUrl} name={profile.name} className="rounded-full bg-center" />
             </div>
             <div className="min-w-0">
-              <div className="inline-flex rounded-full border border-gray-200 bg-[#fbfaf7] px-3 py-1 text-[11px] font-black uppercase tracking-wide text-[#8b7355] dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-[#d7b974]">{profile.brokerage}</div>
+              <div className="inline-flex max-w-full rounded-full border border-gray-200 bg-[#fbfaf7] px-3 py-1 text-[11px] font-black uppercase tracking-wide text-[#8b7355] dark:border-gray-700 dark:bg-[#1A1A1C] dark:text-[#d7b974]">{hubCompanyLine(profile, showTeamOnHub)}</div>
               <h1 className="mt-3 font-serif text-[30px] font-black leading-none text-[#111827] dark:text-white lg:text-4xl">{profile.name || 'Sales'}</h1>
               <p className="mt-2 text-sm font-black uppercase tracking-[0.16em] text-[#8b7355] dark:text-[#d7b974]">{profile.title}</p>
               {profile.market && <p className="mt-3 flex items-center justify-center gap-1 text-sm font-semibold text-[#778093] dark:text-gray-300 lg:justify-start"><MapPin className="h-4 w-4 text-[#d0ad65]" /> {profile.market}</p>}

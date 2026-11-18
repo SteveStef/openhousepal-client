@@ -13,6 +13,7 @@ import api, { type SetupData, type SetupInfoPatch, type SetupStepId } from '@/li
 import { useAuth } from '@/contexts/AuthContext'
 import { notifySetupChanged } from '@/hooks/useSettingsCompleteness'
 import { stepCopy } from '@/lib/setupFlow'
+import { replaceAddress } from '@/lib/historyAddress'
 import { OhpWordmark } from '@/components/brand/OhpBrand'
 import OhpLoader from '@/components/brand/OhpLoader'
 import type { Gate, Mini, StepCtx } from '@/components/setup/SetupUi'
@@ -37,6 +38,15 @@ const GROUPS: { title: string; ids: SetupStepId[] }[] = [
 ]
 // The website steps get the whole width: choices on the left, a tall live preview on the right.
 const WIDE_STEPS: SetupStepId[] = ['homes', 'website']
+
+// The step goes in the address with the browser's own history, not router.replace: that asked the
+// server for the page again on every step, and while a reply was slow the address stayed several
+// steps behind - a refresh then sent the agent back to an old step (deep audit, 11/18).
+// replaceAddress hands Next.js a state of the page's own (passing window.history.state straight back
+// made Next skip its router, and it later put the old address back) - see lib/historyAddress.
+function setStepInAddress(id: SetupStepId | 'done') {
+  replaceAddress(id === 'done' ? '/setup' : `/setup?step=${id}`)
+}
 
 function mergePatch(a: SetupInfoPatch, b: SetupInfoPatch): SetupInfoPatch {
   return {
@@ -102,7 +112,7 @@ function SetupFlow() {
         || d.steps.find(s => s.status === 'skipped')?.id
         || 'done'
       setCurrent(start)
-      if (start !== 'done' && params.get('step') !== start) router.replace(`/setup?step=${start}`, { scroll: false })
+      if (start !== 'done' && params.get('step') !== start) setStepInAddress(start)
       const cal = params.get('calendar')
       if (cal === 'connected') setNotice({ text: 'Your calendar is connected.', step: 'calendar' })
       if (cal === 'error') setNotice({ text: 'That calendar didn’t connect - please try again.', step: 'calendar' })
@@ -155,10 +165,9 @@ function SetupFlow() {
     setCurrent(id)
     setSheetOpen(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
-    const qs = id === 'done' ? '' : `?step=${id}`
-    router.replace(`/setup${qs}`, { scroll: false })
+    setStepInAddress(id)
     if (id !== 'done') api.setup.setState({ last_step: id })
-  }, [router])
+  }, [])
 
   // Continue / Skip go to the next step that still needs doing, never one that's already done
   // (owner, 10/26) - after the last one, round to any earlier step still open, then the finish.
