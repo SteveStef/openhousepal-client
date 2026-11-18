@@ -395,7 +395,7 @@ export default function PublicAgentHubPage() {
   useEffect(() => {
     if (!agentSlug) return
     let cancelled = false
-    api.public.checkAgentHub(agentSlug).then(response => {
+    api.public.checkAgentHub(agentSlug, forceLightMode).then(response => {
       if (cancelled) return
       if (response.success && response.data?.slug === agentSlug) writeHubCache(agentSlug, { config: response.data.config || null })
       setHubStatus(response.success ? 'found' : 'not-found')

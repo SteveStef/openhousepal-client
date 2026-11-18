@@ -133,6 +133,7 @@ import OhpLoader from '@/components/brand/OhpLoader'
 import { copyText } from '@/lib/copyText'
 import { upgradeHubPhones } from '@/lib/hubPhones'
 import GoogleVisibilityNote from '@/components/ui/GoogleVisibilityNote'
+import HubOnOffSwitch from '@/components/agent-hub/HubOnOffSwitch'
 
 type HubStatus = 'Draft' | 'Published' | 'Unpublished'
 type PreviewSize = 'mobile' | 'tablet' | 'desktop'
@@ -3561,6 +3562,8 @@ function AgentHubContent() {
                     />
                   }
                 />
+                {/* The Agent Hub on/off switch (owner, 11/18) - only here. */}
+                <HubOnOffSwitch />
               </motion.div>
 
               <AnimatePresence mode="wait">

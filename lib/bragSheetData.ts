@@ -87,8 +87,9 @@ export function planHasBragSheet(planTier?: string | null): boolean {
  * the minimum the backend requires to go live (a name + a way to reach them; see
  * _hub_has_minimum_content). Every agent has a hub URL now, so a printed QR must check this or it
  * would point at a page that 404s. */
-function hubIsLive(planTier: string | null | undefined, config: any): boolean {
+function hubIsLive(planTier: string | null | undefined, config: any, isPublic?: boolean): boolean {
   if (!hasAgentHubAccess(planTier)) return false
+  if (isPublic === false) return false   // the agent switched their Agent Hub off (11/18)
   const profile = config?.profile || {}
   const contact = config?.contact || {}
   const hasName = Boolean(String(profile.name || '').trim())
@@ -191,7 +192,7 @@ export async function buildBragSheetData(currentUser: User | null, similarProper
         email: contact.email || currentUser?.email || undefined,
         bio: profile.about || undefined,
         // Only link the Agent Hub where that public page actually exists.
-        hubUrl: hub?.slug && hubIsLive(planTier, config) ? `${clientUrl}/${hub.slug}` : null,
+        hubUrl: hub?.slug && hubIsLive(planTier, config, hub?.is_public) ? `${clientUrl}/${hub.slug}` : null,
       },
       recentSales: visibleSales.map((sale: any) => ({
         id: sale.id,
@@ -260,6 +261,6 @@ export async function buildCheatSheetAgentData(currentUser: User | null): Promis
     photoPosition: getAgentPhotoPosition(config),
     phone: getAgentPhone(contact, currentUser),
     email: contact.email || currentUser?.email || undefined,
-    hubUrl: hub?.slug && hubIsLive(currentUser?.plan_tier, config) ? `${clientUrl}/${hub.slug}` : null,
+    hubUrl: hub?.slug && hubIsLive(currentUser?.plan_tier, config, hub?.is_public) ? `${clientUrl}/${hub.slug}` : null,
   }
 }

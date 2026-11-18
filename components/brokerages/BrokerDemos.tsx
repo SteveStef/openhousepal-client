@@ -2,17 +2,19 @@
 
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Building2, QrCode, Search } from 'lucide-react'
+import { Layout, Package, QrCode, Ticket } from 'lucide-react'
 import { HOME_CSS } from '@/components/home/homeCss'
 import { usePlayWhenSeen } from '@/components/CalmLoops'
 
-// The three homepage demos a broker cares about most, loaded only when this spot is near the
-// screen (each is its own chunk, so the page itself stays light).
+// The demos a broker cares about most, in the order a visitor meets them (owner, 11/18): the
+// sign-in, the Guest Pass on their phone, the printed kit, then the Showcase that keeps them coming
+// back. Loaded only when this spot is near the screen (each is its own chunk, so the page stays light).
 const Holder = () => <div aria-hidden className="h-[520px] w-full rounded-2xl bg-gray-100 dark:bg-white/5" />
 const DEMOS = {
   signin: { label: 'Sign-in', icon: QrCode, line: 'A visitor scans, signs in, and becomes a lead.', Demo: dynamic(() => import('@/components/home/demos/SignInDemo'), { ssr: false, loading: Holder }) },
-  discovery: { label: 'Discovery', icon: Search, line: 'Agents find your office’s open houses to host.', Demo: dynamic(() => import('@/components/home/demos/DiscoveryDemo'), { ssr: false, loading: Holder }) },
-  manager: { label: 'Manager', icon: Building2, line: 'Listing agents keep every weekend covered.', Demo: dynamic(() => import('@/components/home/demos/ManagerDemo'), { ssr: false, loading: Holder }) },
+  guestpass: { label: 'Guest Pass', icon: Ticket, line: 'Their phone opens the home, similar homes and the Cheat Sheet - and asks for more in one tap.', Demo: dynamic(() => import('@/components/home/demos/GuestPassDemo'), { ssr: false, loading: Holder }) },
+  kits: { label: 'Kits', icon: Package, line: 'One address, every printed piece for the open house.', Demo: dynamic(() => import('@/components/home/demos/OpenHouseKitDemo'), { ssr: false, loading: Holder }) },
+  showcase: { label: 'Showcases', icon: Layout, line: 'Buyers get their own home search, and you see every reaction.', Demo: dynamic(() => import('@/components/home/demos/ShowcaseDemo'), { ssr: false, loading: Holder }) },
 } as const
 type Key = keyof typeof DEMOS
 

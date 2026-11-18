@@ -1362,7 +1362,7 @@ class ApiService {
     // no-store: this feeds the Brag/Cheat Sheet's live bio + contact fields (bragSheetData.ts) -
     // every open/refresh of those PDFs must show what's actually saved in Settings/Agent Hub right
     // now, never a browser-cached response from an earlier visit to this page.
-    getMine: () => this.request<{ id: string; slug: string; status: string; config?: Record<string, any>; brand_look?: import('@/types').BrandKitLook } | null>('/agent-hub/me', { cache: 'no-store' }),
+    getMine: () => this.request<{ id: string; slug: string; status: string; config?: Record<string, any>; brand_look?: import('@/types').BrandKitLook; is_public?: boolean; idx_site_live?: boolean } | null>('/agent-hub/me', { cache: 'no-store' }),
     // What deserves marketing now (synced MLS data): listings without a Spotlight, newest listing, latest sale.
     marketingMoments: () => this.request<MarketingMoments>('/agent-hub/me/marketing-moments', { cache: 'no-store' }),
     // Studio's recommendation for this listing/sale is handled (design made, or dismissed) - for good.
@@ -2809,8 +2809,13 @@ class ApiService {
       method: 'POST',
     }, false),
 
-    checkAgentHub: (agentSlug: string) =>
-      this.request<{ slug: string; config?: Record<string, any> }>(`/agent-hub/public/${encodeURIComponent(agentSlug)}`, {}, false),
+    // embedded: shown inside the agent's own IDX website (?idx_light) - an Agent Hub that's switched off still
+    // shows there, as part of the website's About / Sales pages (backend _resolve_public_hub).
+    checkAgentHub: (agentSlug: string, embedded = false) =>
+      this.request<{ slug: string; config?: Record<string, any> }>(`/agent-hub/public/${encodeURIComponent(agentSlug)}${embedded ? '?embedded=1' : ''}`, {}, false),
+    // The Agent Hub on/off switch (Tools -> Agent Hub, 11/18).
+    setHubVisibility: (isPublic: boolean) =>
+      this.request<{ is_public: boolean; idx_site_live: boolean }>('/agent-hub/me/visibility', { method: 'PUT', body: JSON.stringify({ is_public: isPublic }) }),
 
     // Sends the auth token (if present) so the backend can skip counting the visit/scan when
     // the viewer is logged in (e.g. the owner previewing their own page) - only anonymous

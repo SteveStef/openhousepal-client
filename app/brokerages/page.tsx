@@ -110,9 +110,10 @@ export default function BrokeragesPage() {
                 lead="Agents often pay for tools like these one at a time, each with its own login and its own bill. OpenHousePal puts them in one place, all working from the same listings and leads." />
               <ul data-reveal="" className="mt-7 flex flex-wrap gap-2">
                 {USUAL_STACK.map((s, i) => (
-                  <li key={s.label} className="relative inline-flex items-center gap-1.5 overflow-hidden rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[13px] font-bold text-gray-500 dark:border-white/10 dark:bg-[#151517] dark:text-gray-400">
-                    <s.icon className="h-3.5 w-3.5 shrink-0" /> {s.label}
-                    <span aria-hidden className="br-strike absolute inset-x-2 top-1/2 -mt-px h-[2px] rounded-full bg-[#C9A24D]" style={{ ['--sd' as string]: `${300 + i * 70}ms` }} />
+                  // Each one is included, so it gets a check mark (owner, 11/18: not crossed out).
+                  <li key={s.label} className="relative inline-flex items-center gap-1.5 overflow-hidden rounded-full border border-[#C9A24D]/35 bg-white px-3 py-1.5 text-[13px] font-bold text-[#111827] dark:border-[#C9A24D]/25 dark:bg-[#151517] dark:text-white" data-testid="broker-stack-item">
+                    <span aria-hidden className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#e8c97a] to-[#C9A24D] text-[#111827]" style={{ animationDelay: `${300 + i * 70}ms` }}><Check className="h-2.5 w-2.5" strokeWidth={3.5} /></span>
+                    <s.icon className="h-3.5 w-3.5 shrink-0 text-[#8b7355] dark:text-[#e8c97a]" /> {s.label}
                   </li>
                 ))}
               </ul>

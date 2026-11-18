@@ -90,7 +90,7 @@ export default function AgentHubSalesPage() {
     let cancelled = false
     // Same database config the profile page reads (set via the editor's Save button) - the
     // single source of truth for every real visitor, not this browser's localStorage draft.
-    api.public.checkAgentHub(agentSlug).then(response => {
+    api.public.checkAgentHub(agentSlug, forceLightMode).then(response => {
       if (cancelled) return
       setHubStatus(response.success ? 'found' : 'not-found')
       const config = response.data?.config
