@@ -526,7 +526,7 @@ export const DetailView = memo(function DetailView({
                   </motion.button>
                 )}
               </div>
-              <div className="grid shrink-0 grid-cols-5 items-stretch gap-1.5 sm:flex sm:items-center sm:gap-2">
+              <div className="grid shrink-0 grid-cols-5 items-stretch gap-1.5 sm:gap-2 lg:flex lg:items-center">
                 <motion.button
                   whileTap={{ scale: 0.94 }}
                   onClick={handleShare}
@@ -880,38 +880,66 @@ function ShowcaseEmailControls({ collection, onToggle, strip = false, className 
   const toClient = !!collection.notifyVisitor && !off
   const sw = (on: boolean, disabled = false) => `relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${disabled ? 'cursor-not-allowed bg-gray-200 dark:bg-gray-800' : on ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-gray-700'}`
   const knob = (on: boolean) => `inline-block h-4 w-4 rounded-full bg-white shadow transition ${on ? 'translate-x-4' : 'translate-x-0'}`
-  // Phones (owner, 11/19: the old bar spread the mail icon, their name and "Me" across the whole width with
-  // big gaps): two snug cards side by side - theirs (mail icon, name, switch, how often) and yours (Me, switch).
-  const card = strip ? 'rounded-lg border border-gray-200 bg-white px-2 py-1.5 dark:border-gray-800 dark:bg-[#151517] sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:dark:bg-transparent' : ''
+  const clientTitle = off ? `${first} unsubscribed from update emails` : toClient ? `Stop ${first}'s update emails` : `Turn ${first}'s update emails back on`
+  const meTitle = collection.notifyAgent ? 'Stop emails to you about this Showcase' : 'Get emailed about this Showcase'
+  const clientSwitch = (
+    <button type="button" aria-label={`Emails to ${first}`} aria-pressed={toClient} disabled={off} data-testid="showcase-email-client" title={clientTitle}
+      onClick={() => !off && onToggle(collection.id, 'visitor')} className={sw(toClient, off)}>
+      <span className={knob(toClient)} />
+    </button>
+  )
+  const meSwitch = (
+    <button type="button" aria-label="Emails to me" aria-pressed={!!collection.notifyAgent} data-testid="showcase-email-me" title={meTitle}
+      onClick={() => onToggle(collection.id, 'agent')} className={sw(!!collection.notifyAgent)}>
+      <span className={knob(!!collection.notifyAgent)} />
+    </button>
+  )
+
+  if (strip) {
+    // Phones and tablets (owner, 11/19): two cards that fill the bar, like the buttons above. Theirs: mail icon +
+    // name, how often, then the switch - evenly spaced. Yours: Me, then the switch.
+    const card = 'flex min-w-0 items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 dark:border-gray-800 dark:bg-[#151517] sm:rounded-xl sm:px-3.5 sm:py-2'
+    return (
+      <div data-testid="showcase-emails-strip" className={`grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] ${className}`}>
+        <div className={card} title={clientTitle}>
+          <span className={`flex min-w-0 items-center gap-1.5 text-[11px] font-bold sm:text-xs ${off ? 'text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}>
+            <Mail size={14} className="shrink-0 text-[#C9A24D]" aria-hidden />
+            <span className="truncate sm:hidden">{first}</span><span className="hidden truncate sm:inline">Emails to {first}</span>
+          </span>
+          {collection.customer.email && toClient
+            ? <EmailFrequencySelect email={collection.customer.email} pill align="left" sheetTitle={`How often ${first} gets emails`} />
+            : <span className="shrink-0 text-[10px] font-black uppercase tracking-wide text-gray-400">{off ? 'Unsubscribed' : 'Off'}</span>}
+          {clientSwitch}
+        </div>
+        <div className={card} title={meTitle}>
+          <span className="truncate text-[11px] font-bold text-gray-600 dark:text-gray-300 sm:text-xs"><span className="sm:hidden">Me</span><span className="hidden sm:inline">Emails to me</span></span>
+          {meSwitch}
+        </div>
+      </div>
+    )
+  }
+
+  // Wide screens: one compact group in the top row.
   return (
-    <div data-testid={strip ? 'showcase-emails-strip' : 'showcase-emails'}
-      className={`items-center gap-2 ${strip ? 'flex sm:rounded-xl sm:border sm:border-gray-200 sm:bg-gray-50/70 sm:px-3 sm:py-2 sm:dark:border-gray-800 sm:dark:bg-white/[0.03]' : 'flex rounded-full border border-gray-200 bg-gray-50/70 py-1 pl-3 pr-1.5 dark:border-gray-800 dark:bg-white/[0.03]'} ${className}`}>
-      <span className={`shrink-0 items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 ${strip ? 'hidden sm:inline-flex' : 'inline-flex'}`} title="Emails">
+    <div data-testid="showcase-emails"
+      className={`flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50/70 py-1 pl-3 pr-1.5 dark:border-gray-800 dark:bg-white/[0.03] ${className}`}>
+      <span className="inline-flex shrink-0 items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400" title="Emails">
         <Mail size={13} className="text-[#C9A24D]" /><span>Emails</span>
       </span>
-      <span className={`h-4 w-px shrink-0 bg-gray-200 dark:bg-gray-700 ${strip ? "hidden sm:block" : ""}`} />
-      <div className={`flex min-w-0 items-center gap-2 ${strip ? 'flex-1 sm:flex-none' : ''} ${card}`}>
-        {strip && <Mail size={14} className="shrink-0 text-[#C9A24D] sm:hidden" aria-hidden />}
-        <label className={`flex min-w-0 items-center gap-1.5 text-[11px] font-bold ${off ? 'text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}
-          title={off ? `${first} unsubscribed from update emails` : toClient ? `Stop ${first}'s update emails` : `Turn ${first}'s update emails back on`}>
-          <span className="max-w-[72px] truncate sm:hidden">{first}</span><span className="hidden max-w-[110px] truncate sm:inline">To {first}</span>
-          <button type="button" aria-label={`Emails to ${first}`} aria-pressed={toClient} disabled={off} data-testid="showcase-email-client"
-            onClick={() => !off && onToggle(collection.id, 'visitor')} className={sw(toClient, off)}>
-            <span className={knob(toClient)} />
-          </button>
+      <span className="h-4 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
+      <div className="flex min-w-0 items-center gap-2">
+        <label className={`flex min-w-0 items-center gap-1.5 text-[11px] font-bold ${off ? 'text-gray-400' : 'text-gray-600 dark:text-gray-300'}`} title={clientTitle}>
+          <span className="max-w-[110px] truncate">To {first}</span>
+          {clientSwitch}
         </label>
         {collection.customer.email && toClient && (
-          <EmailFrequencySelect email={collection.customer.email} pill className={strip ? 'ml-auto sm:ml-0' : ''} align={strip ? 'left' : 'right'} sheetTitle={`How often ${first} gets emails`} />
+          <EmailFrequencySelect email={collection.customer.email} pill align="right" sheetTitle={`How often ${first} gets emails`} />
         )}
-        {strip && !toClient && <span className="ml-auto text-[10px] font-black uppercase tracking-wide text-gray-400 sm:hidden">{off ? 'Unsubscribed' : 'Off'}</span>}
       </div>
-      <span className={`h-4 w-px shrink-0 bg-gray-200 dark:bg-gray-700 ${strip ? 'hidden sm:block' : ''}`} />
-      <label className={`flex shrink-0 items-center gap-1.5 text-[11px] font-bold text-gray-600 dark:text-gray-300 ${card}`} title={collection.notifyAgent ? 'Stop emails to you about this Showcase' : 'Get emailed about this Showcase'}>
-        <span className="sm:hidden">Me</span><span className="hidden sm:inline">To me</span>
-        <button type="button" aria-label="Emails to me" aria-pressed={!!collection.notifyAgent} data-testid="showcase-email-me"
-          onClick={() => onToggle(collection.id, 'agent')} className={sw(!!collection.notifyAgent)}>
-          <span className={knob(!!collection.notifyAgent)} />
-        </button>
+      <span className="h-4 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
+      <label className="flex shrink-0 items-center gap-1.5 text-[11px] font-bold text-gray-600 dark:text-gray-300" title={meTitle}>
+        <span>To me</span>
+        {meSwitch}
       </label>
     </div>
   )
