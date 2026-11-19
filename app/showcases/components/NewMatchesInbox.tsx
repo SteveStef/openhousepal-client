@@ -56,27 +56,26 @@ export default function NewMatchesInbox({ isOpen, onClose, onChanged }: { isOpen
     (!needle || [it.client, it.client_email, it.address, it.city].some(v => (v || '').toLowerCase().includes(needle))))
 
   const keyOf = (it: MatchHome) => `${it.collection_id}-${it.property_id}`
+  // The page's count is told AFTER the list changes, never from inside the list's own update - that set
+  // the Showcases page's state while this one was rendering (React's "Cannot update a component while
+  // rendering a different component", Day 7 audit 11/19).
   const dismiss = (it: MatchHome) => {
     setOpened(o => (o === keyOf(it) ? null : o))
     setUndo(it)
     api.collections.setAgentSeen(it.collection_id, it.property_id, true).catch(() => {})
-    setItems(list => {
-      const next = (list || []).filter(x => keyOf(x) !== keyOf(it))
-      onChanged(next.length)
-      if (who && !next.some(x => x.collection_id === who)) setWho(null)
-      return next
-    })
+    const next = (items || []).filter(x => keyOf(x) !== keyOf(it))
+    setItems(next)
+    onChanged(next.length)
+    if (who && !next.some(x => x.collection_id === who)) setWho(null)
   }
   const bringBack = () => {
     const it = undo
     if (!it) return
     setUndo(null)
     api.collections.setAgentSeen(it.collection_id, it.property_id, false).catch(() => {})
-    setItems(list => {
-      const next = [...(list || []), it].sort((a, b) => (b.matched_at || '').localeCompare(a.matched_at || ''))
-      onChanged(next.length)
-      return next
-    })
+    const next = [...(items || []).filter(x => keyOf(x) !== keyOf(it)), it].sort((a, b) => (b.matched_at || '').localeCompare(a.matched_at || ''))
+    setItems(next)
+    onChanged(next.length)
   }
 
   return (
