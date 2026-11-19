@@ -47,7 +47,9 @@ function requestState(r: HostRequest): { tone: PillTone; label: string; icon: Re
 // handful of nearby listings with the same 4-day calendar Manager uses - so "does this one still
 // need a host this weekend" is visible without leaving Dash. Asking to host, the home itself and My
 // Requests all open in windows right here.
-export default function DashDiscoveryPanel({ listings, statuses, hasSearchPreferences, myRequests = [], incomingAsks = 0, orderKeys, inChat = false }: {
+export default function DashDiscoveryPanel({ listings, statuses, hasSearchPreferences, myRequests = [], incomingAsks = 0, orderKeys, inChat = false, wide = false }: {
+  /** Full-width on the Dash (the odd panel out): hosting rows and homes sit side by side. */
+  wide?: boolean
   listings: DiscoveryListing[]
   statuses: Record<string, DiscoveryListingStatus>
   // Whether the agent has ever saved Discovery search preferences - see the matching prop on
@@ -149,7 +151,7 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
   const hostingList = shown.length > 0 && (
     <div>
       <SectionLabel right={<button type="button" onClick={() => setRequests({ focus: null })} className="text-[10px] font-black text-[#8b7355] hover:underline dark:text-[#d7b974]">All my requests</button>}>Your hosting</SectionLabel>
-      <div className="space-y-1.5">
+      <div className={wide ? 'grid gap-1.5 lg:grid-cols-3' : 'space-y-1.5'}>
         {shown.slice(0, 3).map(({ r, homes, whens }) => {
           const st = requestState(r)
           if (whens.length > 1) st.when = whens.slice(0, 2).join(' or ') + (whens.length > 2 ? ' …' : '')
@@ -172,7 +174,7 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
             </Link>
           )
         })}
-        {shown.length > 3 && <p className="text-center text-[10px] font-bold text-gray-400">+{shown.length - 3} more in My Requests</p>}
+        {shown.length > 3 && <p className={`text-center text-[10px] font-bold text-gray-400 ${wide ? 'lg:col-span-3' : ''}`}>+{shown.length - 3} more in My Requests</p>}
       </div>
     </div>
   )
@@ -218,7 +220,7 @@ export default function DashDiscoveryPanel({ listings, statuses, hasSearchPrefer
 
       <div>
         <SectionLabel right={<span className="text-[10px] font-bold text-gray-400">{orderKeys ? 'Newest first' : 'Closest first'}</span>}>{inChat ? 'Homes to host' : 'Near you to host'}</SectionLabel>
-        <div className="space-y-2.5">
+        <div className={wide && !inChat ? 'grid gap-2.5 lg:grid-cols-3' : 'space-y-2.5'}>
           {topListings.map((listing, i) => {
             const opens = statuses[listing.ListingKey]?.scheduled_opens || []
             const myAsks = myRequests.filter(r => r.listing_key === listing.ListingKey)

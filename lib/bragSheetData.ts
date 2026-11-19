@@ -2,7 +2,7 @@ import api from '@/lib/api-service'
 import { User } from '@/types'
 import { getSaleSummary } from '@/lib/agentSales'
 import { websitePublicUrl } from '@/lib/publicResourceLinks'
-import { hasAgentHubAccess, hasMlsAccess, hasShowcaseAccess } from '@/lib/navAccess'
+import { hasAgentHubAccess, hasMlsAccess, hasShowcaseAccess, meetsTier } from '@/lib/navAccess'
 
 const firstPresent = (...values: unknown[]): string | undefined => {
   for (const value of values) {
@@ -121,12 +121,14 @@ export async function buildBragSheetData(currentUser: User | null, similarProper
   // picked, the back is left blank (the PDF is one page).
   const withShowcase = hasShowcaseAccess(planTier) && opts?.showcases !== false && (similarProperties?.length ?? 0) > 0
   const withHub = hasAgentHubAccess(planTier)
+  const withIdx = meetsTier(planTier, 'IDX') || !!currentUser?.is_admin
 
   const [hubRes, formsRes, siteRes, domainsRes] = await Promise.all([
     api.agentHub.getMine(),
     withShowcase ? api.forms.getMine() : Promise.resolve({ success: false, data: [] as any[] }),
-    api.sites.getMine().catch(() => ({ success: false, data: null })),
-    api.sites.getDomains().catch(() => ({ success: false, data: [] })),
+    // The IDX website is IDX-plan only - other plans were refused (403) on every Brag Sheet (Day 4 audit 11/18).
+    withIdx ? api.sites.getMine().catch(() => ({ success: false, data: null })) : Promise.resolve({ success: false, data: null }),
+    withIdx ? api.sites.getDomains().catch(() => ({ success: false, data: [] })) : Promise.resolve({ success: false, data: [] as any[] }),
   ])
 
   const hub = hubRes.success ? hubRes.data : null

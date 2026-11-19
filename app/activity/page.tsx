@@ -30,7 +30,8 @@ const PAGE = 25
 type Kind = 'all' | 'unread' | 'open_houses' | 'forms' | 'tours' | 'inquiries' | 'showcases' | 'emails' | 'followups' | 'reviews' | 'hosting' | 'account'
 const KIND_TYPES: Record<Exclude<Kind, 'all' | 'unread' | 'account'>, string[]> = {
   open_houses: ['OPEN_HOUSE_SIGN_IN', 'OPEN_HOUSE_SECOND_VISIT', 'OPEN_HOUSE_DISCLOSURE', 'OPEN_HOUSE_FORM_REQUEST', 'GUEST_PASS_ACTIVITY'],
-  forms: ['FORM_SUBMISSION'],
+  // Invite replies sit with forms (the menu's "Forms & Invites"); they used to fall through to Account (Day 3 audit 11/18).
+  forms: ['FORM_SUBMISSION', 'INVITE_RSVP'],
   tours: ['TOUR_REQUEST'],
   inquiries: ['PROPERTY_INQUIRY', 'PORTAL_LEAD', 'LEAD'],
   showcases: ['PROPERTY_INTERACTION', 'PROPERTY_COMMENT', 'REFINE_SEARCH_REQUEST', 'SHOWCASE_SEARCH_CHANGED', 'SHOWCASE_DIGEST', 'PROPERTY_SYNC_UPDATE'],
@@ -49,7 +50,7 @@ const KINDS: { id: Kind; label: string; icon: React.ComponentType<{ className?: 
   { id: 'all', label: 'All', icon: ActivityIcon },
   { id: 'unread', label: 'Unread', icon: BellRing },
   { id: 'open_houses', label: 'Opens', icon: DoorOpen },
-  { id: 'forms', label: 'Forms', icon: ClipboardList },
+  { id: 'forms', label: 'Forms & invites', icon: ClipboardList },
   { id: 'tours', label: 'Tours', icon: Footprints },
   { id: 'inquiries', label: 'Questions', icon: MessageSquareText },
   { id: 'showcases', label: 'Showcases', icon: Building2 },

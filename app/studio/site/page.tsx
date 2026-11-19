@@ -25,7 +25,7 @@ import FormBuilderModal from '@/components/forms/FormBuilderModal'
 import FormPlacementsNotice from '@/components/forms/FormPlacementsNotice'
 import FormLookPicker from '@/components/forms/FormLookPicker'
 import { AfterSubmitSettings, EffectsSettings, RevertButton, SaveFormButton } from '@/components/forms/FormSettingsBits'
-import { hasAgentHubAccess } from '@/lib/navAccess'
+import { hasAgentHubAccess, hasReviewsAccess, hasStudioDesignAccess, meetsTier } from '@/lib/navAccess'
 import { formLookOf, type FormLookFields } from '@/lib/formLook'
 import { editQuestion, removeQuestion, tidyChoicesForSave } from '@/lib/formForks'
 import { brandFormLook, brandHubPatch, brandColorName, luxeAllowedFor, modeLabel, useBrandKit } from '@/lib/brandKit'
@@ -1315,6 +1315,8 @@ function AgentHubContent() {
   // only what the public page would show (shownReviewsData).
   const [reviewsData, setReviewsData] = useState<HubReviewsData | null>(null)
   useEffect(() => {
+    // Forms & Invites shares this page: skip what the plan can't open (Day 3 audit 11/18 - Basic got refused calls)
+    if (!hasReviewsAccess(user?.plan_tier) && !user?.is_admin) return
     api.agentHub.listReviews().then(r => {
       if (!r.success || !r.data) return
       setReviewsData({
@@ -1913,6 +1915,7 @@ function AgentHubContent() {
 
   useEffect(() => {
     if (!user) return
+    if (!meetsTier(user.plan_tier, 'IDX') && !user.is_admin) return // the IDX website is IDX-plan only
     Promise.all([api.sites.getMine(), api.sites.getDomains()])
       .then(([siteResponse, domainsResponse]) => {
         if (siteResponse.success && siteResponse.data) setIdxSite(siteResponse.data)
@@ -1923,6 +1926,7 @@ function AgentHubContent() {
 
   useEffect(() => {
     if (!user) return
+    if (!hasStudioDesignAccess(user.plan_tier) && !user.is_admin) { setMyBlogsLoading(false); return } // Blogs aren't on this plan
     setMyBlogsLoading(true)
     api.blogs.getMine('PUBLISHED').then(response => {
       if (response.success && response.data) setMyBlogs(response.data)

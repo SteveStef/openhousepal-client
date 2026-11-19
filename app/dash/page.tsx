@@ -22,6 +22,7 @@ import DomainConfirmReminder from '@/components/domains/DomainConfirmReminder'
 import EmailHealthBanner from '@/components/EmailHealthBanner'
 import StatCard from '@/components/stats/StatCard'
 import { refreshOpenHouseActionCounts, useOpenHouseActionCounts } from '@/hooks/useOpenHouseActionCount'
+import { useOpenRequestsCount } from '@/hooks/useOpenRequestsCount'
 import DashLeadCard from '@/components/dash/DashLeadCard'
 import LeadDetailModal from '@/components/leads/LeadDetailModal'
 import DashActivityFeed from '@/components/dash/DashActivityFeed'
@@ -127,6 +128,9 @@ export default function DashPage() {
   // Host requests on my listings waiting on my answer - one per request (its offered time slots
   // grouped), active listings only: the same number the Opens menu badge counts.
   const pendingHostRequests = Math.max(0, (openHouseActionCount || 0) - (listingAgentUnseenUpdates || 0))
+  // Guests' disclosure / second-visit requests still waiting (Day 3 audit 11/18): the Opens menu badge
+  // counted them but the Dash's "Open houses" number didn't, so it said 0 while Opens showed 2.
+  const openRequestsCount = useOpenRequestsCount()
   const [loading, setLoading] = useState(true)
   const [statSummary, setStatSummary] = useState<StatSummary | null>(null)
   const [newLeads, setNewLeads] = useState<Lead[]>([])
@@ -361,6 +365,12 @@ export default function DashPage() {
   // Activity with just 1-2 items) doesn't leave dead space next to it that nothing else can fill.
   // Counted over the whole 30-day feed (not just the 21 rows shown) - the same number the bell shows.
   const activityUnread = visibleNotifications(activityNotifications).filter(n => !n.isRead).length
+  // An odd panel out (e.g. no listings, so no Manager card: Leads, Activity, Discovery) goes full
+  // width under the two columns on md+ instead of hanging under one of them with dead space beside
+  // it (Day 3 audit 11/18). Discovery lays its homes out side by side when it's wide.
+  const dashPanelKeys = dashPanelsDrag.order.filter(k => k === 'New Leads' || k === 'Activity'
+    || (k === 'Open House Manager' && (myListings?.listings.length || 0) > 0) || (k === 'Open House Discovery' && mlsPlan))
+  const wideLastPanel = dashPanelKeys.length > 1 && dashPanelKeys.length % 2 === 1 ? dashPanelKeys[dashPanelKeys.length - 1] : null
   const allPanels: Record<string, React.ReactNode> = {
     'Activity': (
       <DashPanel
@@ -414,6 +424,7 @@ export default function DashPage() {
         myRequests={myHostRequests}
         counteredAsHost={counteredAsHost}
         incomingAsks={incomingAsks}
+        wide={wideLastPanel === 'Open House Discovery'}
       />
     ) } : {}),
   }
@@ -507,7 +518,7 @@ export default function DashPage() {
                 small
                 stats={[
                   { label: 'Unread', value: newLeadsCount, icon: Users, alert: newLeadsCount > 0 },
-                  { label: 'Open houses', value: (openHouseActionCount || 0) + (openHouseHostActionCount || 0), icon: Home, alert: ((openHouseActionCount || 0) + (openHouseHostActionCount || 0)) > 0 },
+                  { label: 'Open houses', value: (openHouseActionCount || 0) + (openHouseHostActionCount || 0) + openRequestsCount, icon: Home, alert: ((openHouseActionCount || 0) + (openHouseHostActionCount || 0) + openRequestsCount) > 0 },
                   ...(followupsOn ? [{ label: 'Follow-ups', value: followupOpenCount ?? '-', icon: CalendarClock, urgent: (followupOpenCount || 0) > 0 }] : []),
                 ]}
                 note="Waiting on you right now · updates on its own"
@@ -624,7 +635,7 @@ export default function DashPage() {
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.15 }} className={`hidden min-w-0 items-start gap-4 sm:gap-5 md:grid md:grid-cols-2 ${followupsAtTop ? 'mt-4' : 'mt-8'}`}>
               {[0, 1].map(columnIndex => (
                 <div key={columnIndex} className="flex min-w-0 flex-col gap-4 sm:gap-5">
-                  {dashPanelsDrag.order.filter(key => allPanels[key]).filter((_, i) => i % 2 === columnIndex).map(key => (
+                  {dashPanelsDrag.order.filter(key => allPanels[key] && key !== wideLastPanel).filter((_, i) => i % 2 === columnIndex).map(key => (
                     <div key={key} {...dashPanelsDrag.dragProps(key)} className={`group relative min-w-0 cursor-grab rounded-2xl active:cursor-grabbing ${dashPanelsDrag.draggedId === key ? 'opacity-40' : ''}`}>
                       <DragHandle dragging={dashPanelsDrag.draggedId === key} />
                       {allPanels[key]}
@@ -633,6 +644,12 @@ export default function DashPage() {
                 </div>
               ))}
             </motion.div>
+            {wideLastPanel && allPanels[wideLastPanel] && (
+              <div {...dashPanelsDrag.dragProps(wideLastPanel)} className={`group relative mt-4 hidden min-w-0 cursor-grab rounded-2xl active:cursor-grabbing sm:mt-5 md:block ${dashPanelsDrag.draggedId === wideLastPanel ? 'opacity-40' : ''}`}>
+                <DragHandle dragging={dashPanelsDrag.draggedId === wideLastPanel} />
+                {allPanels[wideLastPanel]}
+              </div>
+            )}
 
             {/* Follow-ups pinned full-width below the grid, out of the way, once caught up. */}
             {!followupsAtTop && followupsPanel && (

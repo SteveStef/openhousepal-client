@@ -50,7 +50,6 @@ export default function NotificationDropdown({
   // The dropdown itself only ever shows the 10 most recent rows - the full history (up to 30 days,
   // and everything older than that) lives on the /activity page via the link at the bottom.
   const visibleItems = items.slice(0, 10)
-  const hasMore = items.length > visibleItems.length
 
   const getTypeBadge = (type: string, message?: string, title?: string) => {
     const { icon: Icon, label, className } = getNotificationMeta(type, message, title)
@@ -83,7 +82,7 @@ export default function NotificationDropdown({
               Mark all read
             </button>
           )}
-          <button
+          <button aria-label="Close" type="button"
             onClick={onClose}
             className="p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors"
           >
@@ -111,6 +110,8 @@ export default function NotificationDropdown({
               <div
                 key={item.key}
                 data-testid="bell-stack"
+                role="button" tabIndex={0}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onStackClick?.(item.items) } }}
                 onClick={() => onStackClick?.(item.items)}
                 className={`p-4 hover:bg-gray-50 dark:hover:bg-[#2c241b] cursor-pointer transition-colors ${
                   !item.isRead ? 'bg-blue-50/30 dark:bg-blue-900/10' : 'bg-white dark:bg-[#151517] opacity-70'
@@ -140,6 +141,8 @@ export default function NotificationDropdown({
             ) : ((notification: Notification) => (
               <div
                 key={notification.id}
+                role="button" tabIndex={0}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); (e.currentTarget as HTMLElement).click() } }}
                 onClick={() => {
                   onNotificationClick(notification)
                   if (!notification.isRead) {
@@ -202,7 +205,8 @@ export default function NotificationDropdown({
         onClick={onClose}
         className="block border-t border-gray-200 p-3 text-center text-xs font-bold text-[#C9A24D] transition-colors hover:bg-gray-50 hover:text-[#b38e3e] dark:border-gray-800 dark:hover:bg-[#2c241b]"
       >
-        {hasMore ? `View All Activity (${notifications.length})` : 'View All Activity'}
+        {/* No count here (Day 3 audit 11/18): this list only holds 30 days, so its number never matched the Activity page's "All". */}
+        View All Activity
       </Link>
     </div>
   )

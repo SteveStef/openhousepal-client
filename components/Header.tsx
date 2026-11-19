@@ -366,8 +366,9 @@ export default function Header({ mode = 'app' }: HeaderProps) {
             {!isCheckingAuth && isAuthenticated && (
               <div className="flex items-center space-x-1 sm:space-x-3">
                 <IncompleteSettingsModal />
-                {/* Mobile Only: Priority icons before hamburger */}
-                <div className="flex items-center space-x-1 sm:hidden">
+                {/* Below xl (phones, tablets, small laptops) the bell + light/dark switch sit beside the menu button.
+                    Day 3 audit 11/18: this was sm:hidden, so from 640 to 1279px neither showed anywhere. */}
+                <div className="flex items-center space-x-1 xl:hidden">
                   <NotificationBell />
                   <ThemeToggle />
                 </div>

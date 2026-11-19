@@ -10,8 +10,9 @@ import { todayLocal } from '@/lib/relativeDays'
 // The "host someone else's open house" side, its own Dash card now (was a tab inside the shared
 // "Open House Manager" card - split out so it sits beside Manager and uses the full column width).
 export default function DashDiscoveryCard({
-  listings, statuses, actionCount, hasSearchPreferences, myRequests = [], counteredAsHost = 0, incomingAsks = 0,
+  listings, statuses, actionCount, hasSearchPreferences, myRequests = [], counteredAsHost = 0, incomingAsks = 0, wide = false,
 }: {
+  wide?: boolean
   listings: DiscoveryListing[]
   statuses: Record<string, DiscoveryListingStatus>
   actionCount: number
@@ -41,7 +42,7 @@ export default function DashDiscoveryCard({
       />
 
       <div className="mt-4 min-w-0">
-        <DashDiscoveryPanel listings={listings} statuses={statuses} hasSearchPreferences={hasSearchPreferences} myRequests={myRequests} incomingAsks={incomingAsks} />
+        <DashDiscoveryPanel listings={listings} statuses={statuses} hasSearchPreferences={hasSearchPreferences} myRequests={myRequests} incomingAsks={incomingAsks} wide={wide} />
       </div>
     </div>
   )

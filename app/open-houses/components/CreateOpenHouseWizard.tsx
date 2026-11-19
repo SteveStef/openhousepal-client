@@ -224,7 +224,9 @@ export function CreateOpenHouseWizard({
         brand: (opts.brand ?? kitPrefs.flyerBrand) ? await buildCheatSheetAgentData(currentUser) : null,
         coverImage: selectedImage?.url,
         coverImagePosition: { x: selectedImage?.x ?? 50, y: selectedImage?.y ?? 50 },
-        openHouseUrl: `${window.location.origin}/open-house/${generatedOpenHouseId}`
+        // A path, like a saved kit's formUrl: the flyer adds the site address itself. A full URL here made the
+        // wizard preview's printable QR "https://openhousepal.comhttps://..." (Day 4 audit 11/18, scanned).
+        openHouseUrl: `/open-house/${generatedOpenHouseId}`
       };
       return flyerData;
     } else if (mode === 'recommendations') {

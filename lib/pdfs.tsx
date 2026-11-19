@@ -708,7 +708,7 @@ const PropertyPDFCard = ({ item, agentId, showMatchScore, openHouseEventId }: { 
   return (
     <View style={styles.card}>
       <View style={styles.cardPhotoWrap}>
-        <Image src={normalizeImageUrl(item.ListPictureURL || item.image || '')} style={styles.cardImage} />
+        <Image src={pdfImageUrl(item.ListPictureURL || item.image || '')} style={styles.cardImage} />
         <PhotoBottomScrim />
         {showMatchScore && matchScore != null && (
           <View style={styles.cardMatchBadge}>
@@ -800,11 +800,14 @@ export const OpenHouseFlyerDocument = ({ data }: { data: any }) => {
   const [flyerStreetRaw, ...flyerRest] = String(propertyAddress).split(',');
   const flyerStreet = toTitleCase(flyerStreetRaw.trim()).replace(/\b(\d+)([a-z])\b/g, (_m, n, l) => n + l.toUpperCase());
   const flyerCityState = [toTitleCase(flyerRest.join(',').trim()), String(data?.state || '').trim()].filter(Boolean).join(', ');
+  // Only the facts the home has (Day 4 audit 11/18): No-MLS agents type beds/baths/size/price by hand
+  // and may skip any of them - the flyer printed "0 Baths" / "$0" instead of leaving them off.
   const stats = [
-    { key: 'beds', icon: ICONS.bed, value: String(data.beds || 0), label: 'Beds' },
-    { key: 'baths', icon: ICONS.bath, value: String(data.baths || 0), label: 'Baths' },
-    { key: 'sqft', icon: ICONS.ruler, value: Number(data.sqft || 0).toLocaleString(), label: 'Sq Ft' },
-  ];
+    { key: 'beds', icon: ICONS.bed, value: String(data.beds || 0), label: 'Beds', has: Number(data.beds) > 0 },
+    { key: 'baths', icon: ICONS.bath, value: String(data.baths || 0), label: 'Baths', has: Number(data.baths) > 0 },
+    { key: 'sqft', icon: ICONS.ruler, value: Number(data.sqft || 0).toLocaleString(), label: 'Sq Ft', has: Number(data.sqft) > 0 },
+  ].filter(s => s.has);
+  const hasPrice = Number(data.price) > 0;
   // Long streets step down so the address never takes more than two lines.
   const addressSize = flyerStreet.length > 30 ? 26 : flyerStreet.length > 22 ? 29 : flyerStreet.length > 16 ? 31 : 40;
   const schoolDistrictRaw = String(data?.schoolDistrict || '').trim();
@@ -822,7 +825,7 @@ export const OpenHouseFlyerDocument = ({ data }: { data: any }) => {
     <Document>
       <Page size="LETTER" style={styles.flyerPage}>
         <View style={styles.heroSection}>
-          <Image src={normalizeImageUrl(data.coverImage)} style={[styles.flyerCoverImage, { objectPosition: `${data.coverImagePosition?.x ?? 50}% ${data.coverImagePosition?.y ?? 50}%` }]} />
+          <Image src={pdfImageUrl(data.coverImage)} style={[styles.flyerCoverImage, { objectPosition: `${data.coverImagePosition?.x ?? 50}% ${data.coverImagePosition?.y ?? 50}%` }]} />
           <View style={styles.heroOverlay} />
           {brand && (
             <View style={styles.flyerBrandWrap}>
@@ -857,7 +860,9 @@ export const OpenHouseFlyerDocument = ({ data }: { data: any }) => {
             <Text style={[styles.flyerAddressBig, { fontSize: addressSize }]}>{flyerStreet}</Text>
             {flyerCityState ? <Text style={styles.addressCityText}>{flyerCityState}</Text> : null}
 
+            {stats.length || schoolDistrict ? (
             <View style={styles.flyerFactCard}>
+              {stats.length ? (
               <View style={styles.flyerFactRow}>
                 {stats.map((stat, i) => (
                   <React.Fragment key={stat.key}>
@@ -870,6 +875,7 @@ export const OpenHouseFlyerDocument = ({ data }: { data: any }) => {
                   </React.Fragment>
                 ))}
               </View>
+              ) : null}
               {schoolDistrict ? (
                 <View style={schoolWraps ? [styles.flyerSchoolStrip, styles.flyerSchoolStripBalanced] : styles.flyerSchoolStrip}>
                   {ICONS.gradCap({ size: 12 })}
@@ -877,13 +883,16 @@ export const OpenHouseFlyerDocument = ({ data }: { data: any }) => {
                 </View>
               ) : null}
             </View>
+            ) : null}
             </View>
 
             <View style={styles.flyerSpacerBelow} />
+            {hasPrice ? (
             <View style={styles.priceBlock}>
               <Text style={styles.priceLabel}>Listing Price</Text>
               <Text style={styles.priceValue}>${Number(data.price || 0).toLocaleString()}</Text>
             </View>
+            ) : null}
           </View>
 
           <View style={styles.rightCol}>

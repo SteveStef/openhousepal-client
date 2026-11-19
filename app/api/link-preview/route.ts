@@ -17,7 +17,11 @@ function target(raw: string, req: NextRequest): URL | null {
     const u = new URL(raw)
     if (!/^https?:$/.test(u.protocol)) return null
     const h = u.hostname.toLowerCase()
-    if (h === req.nextUrl.hostname || h === BASE || h.endsWith(`.${BASE}`)) return u
+    // The request's own host only on a development server (security pass 11/18): on the live server
+    // the Host header is whatever the caller sends, so trusting it let a crafted request point this
+    // at any address. Keyed on the build, not the Host header, so it can't be faked.
+    const devHost = process.env.NODE_ENV !== 'production' && h === req.nextUrl.hostname
+    if (devHost || h === BASE || h.endsWith(`.${BASE}`)) return u
     return null
   } catch {
     return null

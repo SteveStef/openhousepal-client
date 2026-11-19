@@ -12,7 +12,7 @@ import { GoogleLogo, OutlookLogo } from '@/components/brand/ProviderLogos'
 import { AlertTriangle, ArrowRight, Check, Gauge, Loader2, MailCheck, Send, ShieldCheck } from 'lucide-react'
 import api, { type MailboxInfo } from '@/lib/api-service'
 import { useOptionalAuth } from '@/contexts/AuthContext'
-import { hasMlsAccess } from '@/lib/navAccess'
+import { hasMlsAccess, hasShowcaseAccess } from '@/lib/navAccess'
 
 const GUEST_EMAILS = ['Showcase invites', 'New homes for your clients', 'Tour confirmations', 'Your replies to comments', 'Listing alerts']
 
@@ -214,7 +214,11 @@ const NO_MLS_GUEST_EMAILS = ['Invite RSVP confirmations', 'Tour confirmations']
 
 function Chips() {
   const planTier = useOptionalAuth()?.user?.plan_tier
-  const list = planTier && !hasMlsAccess(planTier) ? NO_MLS_GUEST_EMAILS : GUEST_EMAILS
+  // Only what this plan sends (Day 3 audit 11/18): Showcase emails on Premium + IDX, Listing alerts on IDX.
+  const list = planTier && !hasMlsAccess(planTier) ? NO_MLS_GUEST_EMAILS
+    : planTier && !hasShowcaseAccess(planTier) ? ['Tour confirmations']
+    : planTier && planTier !== 'IDX' ? GUEST_EMAILS.filter(g => g !== 'Listing alerts')
+    : GUEST_EMAILS
   return (
     <div>
       <p className="flex items-center gap-1.5 text-[12px] font-black uppercase tracking-[0.16em] text-gray-400"><MailCheck className="h-3.5 w-3.5" /> Sent from you</p>
