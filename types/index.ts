@@ -3028,6 +3028,46 @@ export interface CmaSubjectProperty {
   photo_source?: 'upload' | 'street_view' | 'aerial' | null;
   // The agent's own photos of the home today (optional, manual subject) - read by the same AI scan as the comps' photos.
   condition_photos?: string[];
+  // Seller report (11/18): the agent's answers about the home, asked after the comps are picked.
+  seller_answers?: CmaSellerAnswers | null;
+}
+
+export type CmaSellerPlacement = 'below_all' | 'lower_half' | 'upper_half' | 'above_all' | 'not_sure'
+export type CmaRoomState = 'original' | 'updated' | 'redone' | 'not_sure'
+export type CmaReplacedItem = 'roof' | 'heating_cooling' | 'windows' | 'water_heater' | 'electrical' | 'plumbing' | 'siding' | 'flooring'
+export interface CmaSellerAnswers {
+  placement?: CmaSellerPlacement | null;
+  // comp by comp (11/18): the comp's listing key (or id) -> this home is nicer / about the same / not as nice
+  comp_marks?: Record<string, 'better' | 'same' | 'worse' | 'not_sure'>;
+  kitchen?: CmaRoomState | null;
+  kitchen_year?: number | null;
+  baths?: CmaRoomState | null;
+  baths_year?: number | null;
+  replaced?: { item: CmaReplacedItem; year?: number | null }[];
+  // two paths (11/19): does the agent have inside photos (the AI then fills the answers in from them)
+  inside_photos?: 'yes' | 'no' | null;
+  // the AI's read these answers were filled from (its finished_at) - filled once, never again over the agent
+  ai_applied?: string | null;
+  // answers the agent changed from what the photos suggested, and confirmed: comp keys, 'kitchen', 'baths'
+  kept?: string[];
+}
+
+/** GET/POST /api/cma/{id}/seller-prefill - the AI's read of the photos on the seller Compare step. */
+export interface CmaSellerPrefill {
+  status: 'none' | 'reading' | 'ready' | 'failed';
+  started_at?: string;
+  finished_at?: string;
+  error?: string | null;
+  save_usage?: boolean;
+  stale?: boolean;
+  comp_keys?: string[];
+  suggest?: {
+    comp_marks: Record<string, 'better' | 'same' | 'worse'>;
+    unread: string[];
+    kitchen?: CmaRoomState | null;
+    baths?: CmaRoomState | null;
+    rooms_missing: ('kitchen' | 'baths')[];
+  };
 }
 
 // GET /api/cma/subject-area - location facts most nearby MLS homes share, in the MLS's spelling.

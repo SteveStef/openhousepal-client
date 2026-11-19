@@ -142,6 +142,19 @@ function fillRowSpan(count: number): string {
 
 // Facts the valuation leans on - shown as a short "still missing" list so a manual subject
 // isn't sent to the engine half-filled.
+// The six a seller report can't be valued without (owner 11/19): a home typed in by hand must have these before
+// the comps step - Bright has no public records to fill them. The rest of missingKeyFacts stay reminders.
+export function requiredMissingFacts(s: CmaSubjectProperty): string[] {
+  const out: string[] = []
+  if (s.latitude == null || s.longitude == null) out.push('map location')
+  if (!s.property_type) out.push('property type')
+  if (s.beds == null) out.push('bedrooms')
+  if (s.baths == null) out.push('bathrooms')
+  if (!aboveGrade(s)) out.push('above-grade square feet')
+  if (!s.year_built) out.push('year built')
+  return out
+}
+
 export function missingKeyFacts(s: CmaSubjectProperty): string[] {
   const out: string[] = []
   if (s.latitude == null || s.longitude == null) out.push('map location')
@@ -598,8 +611,10 @@ function SubjectConditionPhotos({ reportId, subject, setSubject }: { reportId: s
 // The editor
 // ---------------------------------------------------------------------------------------------
 
-export function SubjectFactsEditor({ reportId, subject, setSubject, area }: {
+export function SubjectFactsEditor({ reportId, subject, setSubject, area, requireCore = false }: {
   reportId: string, subject: CmaSubjectProperty, setSubject: SetSubject, area: CmaSubjectArea | null,
+  /** Seller report, home typed in by hand: the six core facts are required (see requiredMissingFacts). */
+  requireCore?: boolean,
 }) {
   const manual = subject.source === 'manual' && !subject.listing_key
   const set = (patch: Partial<CmaSubjectProperty>) => setSubject(s => ({ ...s, ...patch }))
@@ -610,7 +625,8 @@ export function SubjectFactsEditor({ reportId, subject, setSubject, area }: {
   const walkout = /walk ?out/i.test(subject.basement || '')
   const bsmtFinished = bsmtKind === 'Partially Finished' || bsmtKind === 'Fully Finished'
   const heat = splitHeating(subject.heating)
-  const missing = missingKeyFacts(subject)
+  const required = requireCore && manual ? requiredMissingFacts(subject) : []
+  const missing = missingKeyFacts(subject).filter(f => !required.includes(f))
 
   const setAbove = (v: number | null) => setSubject(s => ({ ...s, above_grade_finished_area: v, sqft: v == null && !s.below_grade_finished_area ? null : (v || 0) + (s.below_grade_finished_area || 0) }))
   const setBelow = (v: number | null) => setSubject(s => {
@@ -660,9 +676,14 @@ export function SubjectFactsEditor({ reportId, subject, setSubject, area }: {
       </div>
 
       <div className="cma-groups-in space-y-4">
+        {required.length > 0 && (
+          <div data-cma-required-facts className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+            Needed before the comps: {required.join(', ')}. This home isn&apos;t on the MLS, so these come from you - the value is built on them.
+          </div>
+        )}
         {missing.length > 0 && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
-            Still missing: {missing.join(', ')}. The value is only as good as these facts.
+            {required.length ? 'Also helps' : 'Still missing'}: {missing.join(', ')}. The value is only as good as these facts.
           </div>
         )}
 

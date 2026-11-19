@@ -1,4 +1,4 @@
-import type { CmaAiEstimate, MarketingMoments, SiteSeo, ShowingStatus, ShowcaseInbox, EmailPerson, ClientEmailRow, BrandUsage, ShowcaseInviteStatus, AdminGradingItem, ContactLogEntry } from '@/types'
+import type { CmaAiEstimate, CmaSellerPrefill, MarketingMoments, SiteSeo, ShowingStatus, ShowcaseInbox, EmailPerson, ClientEmailRow, BrandUsage, ShowcaseInviteStatus, AdminGradingItem, ContactLogEntry } from '@/types'
 import type { DomainContact, DomainSearch, DomainShop, OneClick, PurchasedDomain } from '@/lib/domainShop'
 import type { HomeSend } from '@/lib/sendHome'
 
@@ -2489,6 +2489,10 @@ class ApiService {
     aiEstimate: () => this.request<CmaAiEstimate>('/api/cma/ai-estimate'),
     generateAiAnalysis: (id: string, payload: { max_photos_per_property?: number, include_map_images?: boolean, force_regenerate?: boolean, background?: boolean, save_usage?: boolean } = {}) =>
       this.request<CmaReport>(`/api/cma/${id}/generate-ai-analysis`, { method: 'POST', body: JSON.stringify(payload) }),
+    /** Seller Compare step (11/19): the AI reads the photos first and suggests the answers - the report reuses that read. */
+    getSellerPrefill: (id: string) => this.request<CmaSellerPrefill>(`/api/cma/${id}/seller-prefill`),
+    startSellerPrefill: (id: string, payload: { save_usage: boolean }) =>
+      this.request<CmaSellerPrefill>(`/api/cma/${id}/seller-prefill`, { method: 'POST', body: JSON.stringify(payload) }),
 
     // Re-runs the deterministic evidence/confidence/value-drivers pipeline plus one lightweight
     // (no-photo) AI call to keep the value/methodology text consistent with any comp overrides

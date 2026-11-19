@@ -10,7 +10,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { smartBackClick } from '@/lib/navHistory'
 import {
-  AlertTriangle, ArrowLeft, ArrowUpDown, Bath, Bed, Building2, Calculator, Calendar, Car, Check, ChevronLeft, Clock,
+  AlertTriangle, ArrowLeft, ArrowUpDown, Bath, Bed, Building2, Calculator, Calendar, Car, Check, ChevronLeft, Clock, CloudCheck,
   ChevronRight, ChevronsLeft, ChevronsRight, DollarSign, Download, Droplets, ExternalLink, GraduationCap, GripVertical, Home, LandPlot, Layers,
   Image as ImageIcon, Leaf, Loader2, Lock, MapPin, Moon, Plus, RefreshCw, Ruler, Scale, Search, Share2, ShieldAlert, Sparkles, Sun, Trash2, Waves, X, Zap,
 } from 'lucide-react'
@@ -18,6 +18,7 @@ import { readyClock, usageRange } from '@/lib/blogOvernight'
 import { usePdfFile } from '@/lib/pdfFile'
 import SubjectAddressSearch from '@/components/cma/SubjectAddressSearch'
 import CurrentCompetition from '@/components/cma/CurrentCompetition'
+import SellerCompareStep from '@/components/cma/SellerCompareStep'
 import type { HomeSearchResult } from '@/lib/api-service'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useEscapeToClose, useIsPhone, useLastValue, usePagePin, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
@@ -50,7 +51,7 @@ import { openHousePalPublicUrl, websitePublicUrl } from '@/lib/publicResourceLin
 import AuthGuard from '@/components/AuthGuard'
 import SubscriptionGuard from '@/components/SubscriptionGuard'
 import MonthlyAiUsageMeter from '@/components/MonthlyAiUsageMeter'
-import { ManualAddressPicker, SubjectFactsEditor, applyAreaSuggestions, subjectFromAddress } from '@/components/cma/SubjectFacts'
+import { ManualAddressPicker, SubjectFactsEditor, applyAreaSuggestions, subjectFromAddress, requiredMissingFacts } from '@/components/cma/SubjectFacts'
 import CmaSheet from '@/components/cma/CmaSheet'
 import CmaReportEditor from '@/components/cma/report/CmaReportEditor'
 import PhotoFlip, { PhotoThumbs, usePhotoList } from '@/components/cma/report/PhotoFlip'
@@ -59,7 +60,7 @@ import { cmaQaBlocking, cmaQaReview, isStaleArtifactOnly } from '@/lib/cmaQa'
 import { CMA_ROOM_FILTERS, CmaRoomFilter, CmaRoomView, cmaHomeHasRooms, cmaNoRoomPhotoText, cmaRoomPhotos } from '@/lib/cmaPhotoRooms'
 import { CmaFigureKey, cmaAdoptSavedRatings, cmaCompsLocked, cmaDefaultFigure, cmaFigure, cmaFigureEdited, cmaFigurePatch } from '@/lib/cmaReport'
 
-type StepId = 'subject' | 'comps' | 'analysis' | 'pricing' | 'summary'
+type StepId = 'subject' | 'comps' | 'compare' | 'analysis' | 'pricing' | 'summary'
 
 function shortReadableSentence(value: string): string {
   const cleaned = value.replace(/[*_`#]/g, '').replace(/\s+/g, ' ').trim()
@@ -135,14 +136,23 @@ const STEPS: { id: StepId, label: string, shortLabel?: string }[] = [
   { id: 'pricing', label: 'Pricing' },
   { id: 'summary', label: 'Review' },
 ]
+// A seller report has one more step after the comps (owner 11/18): Compare - the agent says, comp by comp, whether
+// the home is nicer, about the same or not as nice. A buyer report keeps the five steps exactly as before.
+const SELLER_STEPS: { id: StepId, label: string, shortLabel?: string }[] = [
+  STEPS[0], STEPS[1], { id: 'compare', label: 'Compare' }, STEPS[2], STEPS[3], STEPS[4],
+]
+function cmaSteps(report?: { mode?: string | null } | null) { return report?.mode === 'buyer' || !report ? STEPS : SELLER_STEPS }
+function cmaStepNumber(report: { mode?: string | null }, id: StepId) { return cmaSteps(report).findIndex(s => s.id === id) + 1 }
+function cmaStepTotal(report: { mode?: string | null }) { return cmaSteps(report).length }
 
 // Freely navigable step progress - this is a workspace, not a locked wizard. `stretch` lets the
 // connecting segments grow to fill the row (desktop, or the mobile row which gets its own full
 // line); `showLabels` forces the word labels on even at narrow widths, for that mobile line.
-function CmaStepper({ step, setStep, completed = false, className = '', stretch = false, showLabels = false }: {
+function CmaStepper({ steps = STEPS, step, setStep, completed = false, className = '', stretch = false, showLabels = false }: {
+  steps?: { id: StepId, label: string, shortLabel?: string }[]
   step: StepId, setStep: (s: StepId) => void, completed?: boolean, className?: string, stretch?: boolean, showLabels?: boolean
 }) {
-  const currentIndex = STEPS.findIndex(x => x.id === step)
+  const currentIndex = steps.findIndex(x => x.id === step)
 
   // The fill bar's width used to be a flat `calc(percent - 0.75rem)` guess at where the current
   // step's button ends - that correction is only exact for one particular step/container width,
@@ -180,8 +190,8 @@ function CmaStepper({ step, setStep, completed = false, className = '', stretch 
           className="absolute bottom-1.5 left-1.5 top-1.5 rounded-xl bg-gradient-to-r from-[#111827] via-[#8b7355] to-[#C9A24D] shadow-[0_10px_30px_-18px_rgba(201,162,77,0.9)] transition-[width] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] dark:from-white dark:via-[#d7b974] dark:to-[#C9A24D]"
           style={{ width: barWidth ? `${barWidth}px` : 0 }}
         />
-        <div ref={gridRef} className="relative grid grid-cols-5 gap-1">
-          {STEPS.map((s, i) => {
+        <div ref={gridRef} className="relative grid gap-1" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
+          {steps.map((s, i) => {
             const isDone = completed || i < currentIndex
             const isCurrent = s.id === step
             const isActiveZone = i <= currentIndex
@@ -192,7 +202,7 @@ function CmaStepper({ step, setStep, completed = false, className = '', stretch 
                 type="button"
                 onClick={() => setStep(s.id)}
                 aria-current={isCurrent ? 'step' : undefined}
-                className={`group flex min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-[9px] font-black uppercase tracking-wide transition-all duration-500 active:scale-95 sm:gap-2 sm:px-2.5 sm:text-[10px] lg:text-[11px] ${showLabels ? 'flex-col !gap-0.5' : ''} ${
+                className={`group flex min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-[9px] font-black uppercase tracking-wide transition-all duration-500 active:scale-95 sm:gap-2 sm:px-2.5 sm:text-[10px] lg:text-[11px] ${steps.length > 5 ? 'lg:!gap-1.5 lg:!px-1.5 lg:!text-[10px] lg:!tracking-normal' : ''} ${showLabels ? 'flex-col !gap-0.5' : ''} ${
                   isCurrent
                     ? 'scale-[1.02] bg-white text-[#111827] shadow-md ring-1 ring-[#C9A24D]/40 dark:bg-[#0B0B0B] dark:text-white'
                     : isActiveZone
@@ -252,10 +262,11 @@ function CmaWorkspacePageInner() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [savedFlash, setSavedFlash] = useState(false)
+  const [saveFailed, setSaveFailed] = useState(false)
   const [step, setStep] = useState<StepId>('subject')
   // Steps slide in from the side they're coming from: forward from the right, back from the left.
   const reduceMotion = useReducedMotion()
-  const stepIndex = STEPS.findIndex(s => s.id === step)
+  const stepIndex = cmaSteps(report).findIndex(s => s.id === step)
   const prevStepIndex = useRef(stepIndex)
   const stepDir = stepIndex >= prevStepIndex.current ? 1 : -1
   useEffect(() => { prevStepIndex.current = stepIndex }, [stepIndex])
@@ -297,6 +308,9 @@ function CmaWorkspacePageInner() {
           if (!response.data.subject?.street_address) setStep('subject')
           else if (response.data.comparables.length === 0) setStep('comps')
           else if (response.data.status === 'READY' || response.data.status === 'SHARED') setStep('summary')
+          // a seller report not yet compared comp by comp starts on Compare (it comes before the AI)
+          else if (response.data.mode !== 'buyer' && !response.data.ai_analysis
+                   && !Object.keys(response.data.subject?.seller_answers?.comp_marks || {}).length) setStep('compare')
           else setStep('analysis')
         }
       } else {
@@ -339,10 +353,12 @@ function CmaWorkspacePageInner() {
         setReport(response.data)
       }
       setSavedFlash(true)
+      setSaveFailed(false)
       if (savedFlashTimer.current) clearTimeout(savedFlashTimer.current)
       savedFlashTimer.current = setTimeout(() => setSavedFlash(false), 2200)
       return response.data
     }
+    setSaveFailed(true)
     showToast(response.error || 'Could not save changes.', 'error')
     return null
   }, [showToast])
@@ -405,24 +421,28 @@ function CmaWorkspacePageInner() {
           </div>
 
           {/* Step progress - desktop only here, stretches to fill the rest of the row */}
-          <CmaStepper step={step} setStep={setStep} completed={report.status === 'READY' || report.status === 'SHARED'} className="hidden lg:flex" stretch />
+          <CmaStepper steps={cmaSteps(report)} step={step} setStep={setStep} completed={report.status === 'READY' || report.status === 'SHARED'} className="hidden lg:flex" stretch />
 
           <div className="ml-auto flex shrink-0 items-center gap-2 lg:ml-0">
-            {/* Always rendered (visibility toggled, not mount/unmount) - this sits in the same row
-                as the desktop step bar next door, and Continue triggers a save+step-change at the
-                same moment. A mounting/unmounting indicator here resized that row out from under
-                the bar's own resize-driven width measurement, causing a visible wobble right as it
-                was supposed to smoothly advance. Reserving the space at all times keeps the row's
-                width - and the bar's measurement - stable through a save. */}
-            <span className={`items-center gap-1.5 text-xs font-bold ${saving || savedFlash ? 'flex' : 'hidden lg:flex'} ${saving ? 'text-gray-400' : savedFlash ? 'text-emerald-600 dark:text-emerald-400' : 'invisible'}`}>
-              {saving ? <><Loader2 className="h-3 w-3 animate-spin" /> Saving…</> : <><Check className="h-3 w-3" /> Saved</>}
+            {/* Saving / saved (owner 11/18: the "Saving… / Saved" words came and went and pushed the row around). One
+                small icon, always there at the same size next to the status tag: a spinner while saving, a green
+                tick for a moment after, a quiet cloud tick otherwise. The words are for screen readers and the
+                hover title only. */}
+            <span role="status" aria-live="polite" title={saving ? 'Saving…' : saveFailed ? 'Not saved - check your connection' : 'All changes saved'}
+              className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border transition-colors duration-300 sm:h-9 sm:w-9 sm:rounded-xl ${
+                saving ? 'border-gray-200 text-gray-400 dark:border-gray-700'
+                  : saveFailed ? 'border-rose-300 bg-rose-50 text-rose-600 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-400'
+                  : savedFlash ? 'border-emerald-300 bg-emerald-50 text-emerald-600 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-400'
+                  : 'border-gray-200 text-gray-300 dark:border-gray-800 dark:text-gray-600'}`}>
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saveFailed ? <AlertTriangle className="h-3.5 w-3.5" /> : savedFlash ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : <CloudCheck className="h-3.5 w-3.5" />}
+              <span className="sr-only">{saving ? 'Saving…' : saveFailed ? 'Not saved - check your connection' : 'All changes saved'}</span>
             </span>
             <span className={`inline-flex h-7 items-center justify-center whitespace-nowrap rounded-lg px-2.5 text-[10px] font-black uppercase leading-none tracking-wide sm:h-9 sm:rounded-xl sm:px-3.5 ${CMA_STATUS_STYLES[report.status]}`}>{report.status.toLowerCase()}</span>
           </div>
         </div>
 
         {/* Row 2: step progress on mobile - full width, with labels, own line */}
-        <CmaStepper step={step} setStep={setStep} completed={report.status === 'READY' || report.status === 'SHARED'} className="mt-3 flex sm:mt-5 lg:hidden" stretch showLabels />
+        <CmaStepper steps={cmaSteps(report)} step={step} setStep={setStep} completed={report.status === 'READY' || report.status === 'SHARED'} className="mt-3 flex sm:mt-5 lg:hidden" stretch showLabels />
 
         {/* key={step} forces a fresh mount on every step switch so animate-step-in always
             replays, instead of relying on the conditional children below to happen to unmount/
@@ -435,6 +455,11 @@ function CmaWorkspacePageInner() {
           className={`mt-4 sm:mt-6 ${step === 'analysis' || step === 'comps' ? 'hidden' : ''}`}
         >
           {step === 'subject' && <SubjectStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('comps')} />}
+          {step === 'compare' && (
+            <SellerCompareStep report={report} onSave={save} onNext={() => setStep('analysis')} onBack={() => setStep('comps')} onAddPhotos={() => setStep('subject')}
+              stepNumber={cmaStepNumber(report, 'compare')} totalSteps={cmaStepTotal(report)}
+              locked={cmaCompsLocked(report) || aiRunning || report.generation_status === 'generating'} />
+          )}
           {step === 'pricing' && <PricingStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('summary')} onBack={() => setStep('analysis')} />}
           {step === 'summary' && <ReviewStep report={report} onSave={save} onReportUpdated={applyReport} onJump={setStep} onDeleted={() => router.push('/studio/cma')} />}
         </motion.div>
@@ -443,13 +468,13 @@ function CmaWorkspacePageInner() {
             {/* Comps are chosen BEFORE the AI writes the report (owner, 11/16). After that this step only shows
                 them: no search, no add, no remove - different comps means a new CMA. */}
             {cmaCompsLocked(report) || aiRunning || report.generation_status === 'generating'
-              ? <LockedCompsStep report={report} visible={step === 'comps'} writing={!cmaCompsLocked(report)} onNext={() => setStep('analysis')} onBack={() => setStep('subject')} />
-              : <CompsStep report={report} visible={step === 'comps'} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('analysis')} onBack={() => setStep('subject')} />}
+              ? <LockedCompsStep report={report} visible={step === 'comps'} writing={!cmaCompsLocked(report)} onNext={() => setStep(report.mode === 'buyer' ? 'analysis' : 'compare')} onBack={() => setStep('subject')} />
+              : <CompsStep report={report} visible={step === 'comps'} onSave={save} onReportUpdated={applyReport} onNext={() => setStep(report.mode === 'buyer' ? 'analysis' : 'compare')} onBack={() => setStep('subject')} />}
           </div>
         )}
         {(analysisMounted || step === 'analysis') && (
           <div className={step === 'analysis' ? 'mt-4 animate-step-in sm:mt-6' : 'hidden'}>
-            <AnalysisStep report={report} visible={step === 'analysis'} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('pricing')} onBack={() => setStep('comps')} onRunningChange={setAiRunning} />
+            <AnalysisStep report={report} visible={step === 'analysis'} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('pricing')} onBack={() => setStep(report.mode === 'buyer' ? 'comps' : 'compare')} onRunningChange={setAiRunning} />
           </div>
         )}
       </div>
@@ -798,6 +823,14 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
       showToast("This is a rental listing - a CMA is for sales. Pick the home's sale listing or enter it by hand as a sale.", 'error')
       return
     }
+    // A seller home typed in by hand (not on the MLS): the six core facts first (owner 11/19) - Bright has no
+    // public records to fill them, and the value is built on them.
+    const coreMissing = report.mode !== 'buyer' && subject.source === 'manual' && !subject.listing_key ? requiredMissingFacts(subject) : []
+    if (coreMissing.length) {
+      showToast(`Fill in ${coreMissing.join(', ')} first - this home isn't on the MLS, so the value is built on what you enter.`, 'error')
+      document.querySelector('[data-cma-required-facts]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
     // No lot size on record for a house or townhouse: ask for it once, here, BEFORE anything is worked
     // out (owner 11/15: "ask agent for lot before calculation as that is important"). It is a question,
     // not a wall - Skip carries on and the report simply doesn't compare lot sizes.
@@ -928,10 +961,10 @@ function SubjectStep({ report, onSave, onReportUpdated, onNext }: { report: CmaR
             </div>
           }
         >
-          <SubjectFactsEditor reportId={report.id} subject={subject} setSubject={setSubject} area={area} />
+          <SubjectFactsEditor reportId={report.id} subject={subject} setSubject={setSubject} area={area} requireCore={report.mode !== 'buyer'} />
         </SectionCard>
         {/* Phones: the flow bar (components/ui/FlowDock) - Find comps on the right, always in reach. */}
-        <FlowDock step={1} total={5} onContinue={handleContinue} continueLabel="Find comps" />
+        <FlowDock step={cmaStepNumber(report, 'subject')} total={cmaStepTotal(report)} onContinue={handleContinue} continueLabel="Find comps" />
         </motion.div>
       )}
       </AnimatePresence>
@@ -2075,7 +2108,7 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
 
       {/* Phones: the flow bar - Back, "2 / 5" with how many comps are picked, Continue. */}
       {visible && !optimizing && (
-        <FlowDock step={2} total={5} onBack={onBack} onContinue={handleContinue} disabled={comparables.length === 0}
+        <FlowDock step={cmaStepNumber(report, 'comps')} total={cmaStepTotal(report)} onBack={onBack} onContinue={handleContinue} disabled={comparables.length === 0}
           note={`${comparables.length} of ${MAX_COMPS} comps`} />
       )}
 
@@ -2329,7 +2362,7 @@ function LockedCompsStep({ report, visible = true, writing = false, onNext, onBa
   }
   return (
     <div className="space-y-5">
-      {visible && <FlowDock step={2} total={5} onBack={onBack} onContinue={onNext} note={`${comps.length} ${comps.length === 1 ? 'comp' : 'comps'} · locked`} />}
+      {visible && <FlowDock step={cmaStepNumber(report, 'comps')} total={cmaStepTotal(report)} onBack={onBack} onContinue={onNext} note={`${comps.length} ${comps.length === 1 ? 'comp' : 'comps'} · locked`} />}
       <SectionCard
         title="The Comps on This Report"
         subtitle={`${comps.length} ${comps.length === 1 ? 'home' : 'homes'} compared with ${subject.street_address || 'the subject'}. Tap one to see it.`}
@@ -3779,7 +3812,7 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
 
   return (
     <div className="space-y-5">
-      {visible && <FlowDock step={3} total={5} onBack={onBack} onContinue={handleContinue} continueLabel="Pricing" />}
+      {visible && <FlowDock step={cmaStepNumber(report, 'analysis')} total={cmaStepTotal(report)} onBack={onBack} onContinue={handleContinue} continueLabel="Pricing" />}
       {hasCompleteAi ? (
         // Explicit "used" state rather than just removing the banner - a banner that silently
         // vanishes reads the same as "nothing happened" if the agent glances back a moment later,
@@ -5396,7 +5429,7 @@ function PricingStep({ report, onSave, onReportUpdated, onNext, onBack }: { repo
 
   return (
     <div className="space-y-5">
-      <FlowDock step={4} total={5} onBack={onBack} onContinue={handleContinue} continueLabel="Review" />
+      <FlowDock step={cmaStepNumber(report, 'pricing')} total={cmaStepTotal(report)} onBack={onBack} onContinue={handleContinue} continueLabel="Review" />
 
       <SectionCard
         title={mode === 'listing' ? 'Pricing Conclusion' : 'Buyer Valuation / Offer Analysis'}
