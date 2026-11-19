@@ -342,7 +342,8 @@ export function LeadEmailCard({ email, initial }: { email?: string | null; initi
 const FREQUENCY_OPTIONS = [
   { value: 'daily', label: 'Daily', hint: 'Slows down by itself if they stop opening' },
   { value: 'weekly', label: 'Weekly', hint: 'Stays weekly, opened or not' },
-  { value: 'biweekly', label: 'Every 2 weeks', hint: 'Stays every 2 weeks, opened or not' },
+  // "Bi-weekly" (owner, 11/19): short enough for the small pill on the Showcase; the hint says what it means.
+  { value: 'biweekly', label: 'Bi-weekly', hint: 'Every 2 weeks, opened or not' },
 ] as const
 type Frequency = (typeof FREQUENCY_OPTIONS)[number]['value']
 
@@ -383,7 +384,7 @@ export function EmailFrequencySelect({ person, email, onChanged, className = '',
     <div className={`flex items-center gap-2 ${className}`} data-testid="email-frequency">
       {!compact && !pill && <span className="text-[11px] font-black text-gray-500 dark:text-gray-400">How often</span>}
       <LuxeSelect<string>
-        className={pill ? 'w-[88px] sm:w-[118px] [&>button]:h-7 [&>button]:rounded-full [&>button]:border-[#C9A24D]/40 [&>button]:bg-white [&>button]:px-2.5 [&>button]:py-0 [&>button]:text-[11px] dark:[&>button]:bg-white/5' : compact ? 'w-[132px]' : 'w-[150px]'}
+        className={pill ? 'w-max shrink-0 [&>button]:h-6 [&>button]:gap-1 [&>button]:rounded-full [&>button]:border-[#C9A24D]/40 [&>button]:bg-white [&>button]:px-2 [&>button]:py-0 [&>button]:text-[10.5px] dark:[&>button]:bg-white/5' : compact ? 'w-[132px]' : 'w-[150px]'}
         ariaLabel="How often they get automatic emails"
         value={value}
         onChange={go}

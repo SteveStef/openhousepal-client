@@ -462,25 +462,10 @@ export const DetailView = memo(function DetailView({
                     </span>
                   </>
                 )}
-                <div className="ml-auto hidden shrink-0 items-center gap-2 sm:flex">
-                  {/* Mailbox + Tours together, each its own look: Mailbox dark, Tours gold. */}
-                  <div className="flex items-center gap-1.5">
-                    <motion.button whileTap={{ scale: 0.95 }} onClick={() => setMailboxOpen(true)} title="Their newest homes and everything they did, all in one"
-                      data-testid="showcase-open-mailbox"
-                      className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#111827] px-3.5 text-[10px] font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-black dark:bg-white dark:text-[#111827]">
-                      <Inbox size={13} /> Mailbox
-                    </motion.button>
-                    <motion.button whileTap={{ scale: 0.95 }} onClick={onViewTours} title="Tour requests" data-testid="showcase-open-tours"
-                      className="relative inline-flex h-8 items-center gap-1.5 rounded-full border border-[#C9A24D]/55 bg-[#C9A24D]/10 px-3.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] shadow-sm transition hover:bg-[#C9A24D] hover:text-[#111827] dark:text-[#e8cf8a]">
-                      <Calendar size={13} /> Tours
-                      {!!selectedCollection.stats.tourRequestedCount && (
-                        <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[9px] font-black text-white dark:border-[#151517]">
-                          {selectedCollection.stats.tourRequestedCount}
-                        </span>
-                      )}
-                    </motion.button>
-                  </div>
-                  <ShowcaseEmailControls className="hidden xl:flex" collection={selectedCollection} onToggle={onNotificationToggle} />
+                {/* Wide screens: the email controls up here. Mailbox + Tours sit with Share / Edit below
+                    on every size (owner, 11/19). */}
+                <div className="ml-auto hidden shrink-0 items-center gap-2 xl:flex">
+                  <ShowcaseEmailControls collection={selectedCollection} onToggle={onNotificationToggle} />
                 </div>
               </div>
             </div>
@@ -515,7 +500,7 @@ export const DetailView = memo(function DetailView({
             )}
 
             {/* Title (+ Tidy up on the same line, owner 11/08), then the Showcase's own buttons. */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex min-w-0 items-center gap-2.5 sm:gap-4">
                 <div className="min-w-0 flex-1 sm:flex-none">
                   <h1 className="truncate text-[17px] font-black tracking-tight text-gray-900 dark:text-white min-[380px]:text-xl sm:text-2xl" title={`${customerFullName}'s Showcase`}>
@@ -558,27 +543,32 @@ export const DetailView = memo(function DetailView({
                   <SlidersHorizontal size={13} className="sm:h-3.5 sm:w-3.5" />
                   Edit
                 </button>
-                {/* Mailbox + Tours - on phones they sit in this row, side by side, each its own look */}
-                <button
+                {/* Mailbox + Tours - in this row on every size (owner, 11/19), side by side, each its own look */}
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
                   onClick={() => setMailboxOpen(true)}
-                  data-testid="showcase-open-mailbox-phone"
-                  className="relative inline-flex flex-col items-center justify-center gap-1 rounded-xl bg-[#111827] px-1 py-2 text-[9.5px] font-black uppercase tracking-wider text-white transition-all dark:bg-white dark:text-[#111827] sm:hidden"
+                  title="Their newest homes and everything they did, all in one"
+                  data-testid="showcase-open-mailbox"
+                  className="relative inline-flex flex-col items-center justify-center gap-1 rounded-xl bg-[#111827] px-1 py-2 text-[9.5px] font-black uppercase tracking-wider text-white transition-all hover:bg-black dark:bg-white dark:text-[#111827] sm:flex-row sm:gap-2 sm:rounded-lg sm:px-4 sm:py-2.5 sm:text-xs sm:tracking-widest"
                 >
-                  <Inbox size={13} />
+                  <Inbox size={13} className="sm:h-3.5 sm:w-3.5" />
                   Mailbox
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
                   onClick={onViewTours}
-                  className="relative inline-flex flex-col items-center justify-center gap-1 rounded-xl border border-[#C9A24D]/55 bg-[#C9A24D]/10 px-1 py-2 text-[9.5px] font-black uppercase tracking-wider text-[#8b7355] transition-all dark:text-[#e8cf8a] sm:hidden"
+                  title="Tour requests"
+                  data-testid="showcase-open-tours"
+                  className="relative inline-flex flex-col items-center justify-center gap-1 rounded-xl border border-[#C9A24D]/55 bg-[#C9A24D]/10 px-1 py-2 text-[9.5px] font-black uppercase tracking-wider text-[#8b7355] transition-all hover:bg-[#C9A24D] hover:text-[#111827] dark:text-[#e8cf8a] sm:flex-row sm:gap-2 sm:rounded-lg sm:px-4 sm:py-2.5 sm:text-xs sm:tracking-widest"
                 >
-                  <Calendar size={13} />
+                  <Calendar size={13} className="sm:h-3.5 sm:w-3.5" />
                   Tours
                   {!!selectedCollection.stats.tourRequestedCount && (
                     <span className="absolute -right-1 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[9px] font-black text-white dark:border-[#151517]">
                       {selectedCollection.stats.tourRequestedCount}
                     </span>
                   )}
-                </button>
+                </motion.button>
                 <button
                   onClick={() => onStatusToggle(selectedCollection.id)}
                   className={`inline-flex shrink-0 flex-col items-center justify-center gap-1 whitespace-nowrap rounded-xl border px-1 py-2 text-[9.5px] font-black uppercase tracking-wider transition-all hover:shadow-md sm:flex-row sm:gap-2 sm:rounded-lg sm:px-4 sm:py-2.5 sm:text-xs sm:tracking-widest ${
@@ -890,28 +880,33 @@ function ShowcaseEmailControls({ collection, onToggle, strip = false, className 
   const toClient = !!collection.notifyVisitor && !off
   const sw = (on: boolean, disabled = false) => `relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${disabled ? 'cursor-not-allowed bg-gray-200 dark:bg-gray-800' : on ? 'bg-[#C9A24D]' : 'bg-gray-200 dark:bg-gray-700'}`
   const knob = (on: boolean) => `inline-block h-4 w-4 rounded-full bg-white shadow transition ${on ? 'translate-x-4' : 'translate-x-0'}`
+  // Phones (owner, 11/19: the old bar spread the mail icon, their name and "Me" across the whole width with
+  // big gaps): two snug cards side by side - theirs (mail icon, name, switch, how often) and yours (Me, switch).
+  const card = strip ? 'rounded-lg border border-gray-200 bg-white px-2 py-1.5 dark:border-gray-800 dark:bg-[#151517] sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:dark:bg-transparent' : ''
   return (
     <div data-testid={strip ? 'showcase-emails-strip' : 'showcase-emails'}
-      className={`items-center gap-2 border border-gray-200 bg-gray-50/70 dark:border-gray-800 dark:bg-white/[0.03] ${strip ? 'flex justify-between rounded-xl px-2.5 py-2 sm:justify-start sm:px-3' : 'rounded-full py-1 pl-3 pr-1.5'} ${className}`}>
-      <span className="inline-flex shrink-0 items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400" title="Emails">
-        <Mail size={13} className="text-[#C9A24D]" /><span className={strip ? "hidden sm:inline" : ""}>Emails</span>
+      className={`items-center gap-2 ${strip ? 'flex sm:rounded-xl sm:border sm:border-gray-200 sm:bg-gray-50/70 sm:px-3 sm:py-2 sm:dark:border-gray-800 sm:dark:bg-white/[0.03]' : 'flex rounded-full border border-gray-200 bg-gray-50/70 py-1 pl-3 pr-1.5 dark:border-gray-800 dark:bg-white/[0.03]'} ${className}`}>
+      <span className={`shrink-0 items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 ${strip ? 'hidden sm:inline-flex' : 'inline-flex'}`} title="Emails">
+        <Mail size={13} className="text-[#C9A24D]" /><span>Emails</span>
       </span>
       <span className={`h-4 w-px shrink-0 bg-gray-200 dark:bg-gray-700 ${strip ? "hidden sm:block" : ""}`} />
-      <div className="flex min-w-0 items-center gap-2">
+      <div className={`flex min-w-0 items-center gap-2 ${strip ? 'flex-1 sm:flex-none' : ''} ${card}`}>
+        {strip && <Mail size={14} className="shrink-0 text-[#C9A24D] sm:hidden" aria-hidden />}
         <label className={`flex min-w-0 items-center gap-1.5 text-[11px] font-bold ${off ? 'text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}
           title={off ? `${first} unsubscribed from update emails` : toClient ? `Stop ${first}'s update emails` : `Turn ${first}'s update emails back on`}>
-          <span className="max-w-[64px] truncate sm:hidden">{first}</span><span className="hidden max-w-[110px] truncate sm:inline">To {first}</span>
+          <span className="max-w-[72px] truncate sm:hidden">{first}</span><span className="hidden max-w-[110px] truncate sm:inline">To {first}</span>
           <button type="button" aria-label={`Emails to ${first}`} aria-pressed={toClient} disabled={off} data-testid="showcase-email-client"
             onClick={() => !off && onToggle(collection.id, 'visitor')} className={sw(toClient, off)}>
             <span className={knob(toClient)} />
           </button>
         </label>
         {collection.customer.email && toClient && (
-          <EmailFrequencySelect email={collection.customer.email} pill align={strip ? 'left' : 'right'} sheetTitle={`How often ${first} gets emails`} />
+          <EmailFrequencySelect email={collection.customer.email} pill className={strip ? 'ml-auto sm:ml-0' : ''} align={strip ? 'left' : 'right'} sheetTitle={`How often ${first} gets emails`} />
         )}
+        {strip && !toClient && <span className="ml-auto text-[10px] font-black uppercase tracking-wide text-gray-400 sm:hidden">{off ? 'Unsubscribed' : 'Off'}</span>}
       </div>
-      <span className="h-4 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-      <label className="flex shrink-0 items-center gap-1.5 text-[11px] font-bold text-gray-600 dark:text-gray-300" title={collection.notifyAgent ? 'Stop emails to you about this Showcase' : 'Get emailed about this Showcase'}>
+      <span className={`h-4 w-px shrink-0 bg-gray-200 dark:bg-gray-700 ${strip ? 'hidden sm:block' : ''}`} />
+      <label className={`flex shrink-0 items-center gap-1.5 text-[11px] font-bold text-gray-600 dark:text-gray-300 ${card}`} title={collection.notifyAgent ? 'Stop emails to you about this Showcase' : 'Get emailed about this Showcase'}>
         <span className="sm:hidden">Me</span><span className="hidden sm:inline">To me</span>
         <button type="button" aria-label="Emails to me" aria-pressed={!!collection.notifyAgent} data-testid="showcase-email-me"
           onClick={() => onToggle(collection.id, 'agent')} className={sw(!!collection.notifyAgent)}>
