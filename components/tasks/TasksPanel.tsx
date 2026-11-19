@@ -16,6 +16,7 @@ import LeadDetailModal from '@/components/leads/LeadDetailModal'
 import OhpLoader from '@/components/brand/OhpLoader'
 import FollowupCard from './FollowupCard'
 import CheckinCard, { messageToSave, usagePct, type WriteEstimate } from './CheckinCard'
+import { followupAutoTitle } from '@/components/assistant/FollowupPick'
 import { AnimatePresence, motion } from 'framer-motion'
 import { WhenSheet, addDays, nextWeekday, whenText, ymd } from '@/components/ui/WhenPicker'
 import { backdropMotion, useEscapeToClose, useIsPhone, usePagePin, useSheetMotion, useSwipeToClose } from '@/components/ui/windowMotion'
@@ -542,8 +543,11 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
   const [hh, mm] = time ? time.split(':').map(Number) : [NaN, NaN]
   const timePassed = !!(day && time && at(day, hh, mm).getTime() < Date.now())
 
+  // Left blank on a lead's page: it gets their name - "Call Sarah", "Check in with Sarah" (owner, 11/19).
+  const autoTitle = leadId && leadName ? followupAutoTitle(kind, leadName) : ''
+  const finalTitle = title.trim() || autoTitle
   const submit = async () => {
-    if (!title.trim()) return
+    if (!finalTitle) return
     setSaving(true)
     // A time = a timed event that buzzes the phone (per the alert settings below). No time = an
     // all-day item for that day - it never shows as "overdue" at some made-up hour.
@@ -557,7 +561,7 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
     }
     const withMsg = !!leadId && (kind === 'text' || kind === 'email') && !!msg.trim()
     const res = await api.tasks.create({
-      title: title.trim(), kind, priority, due_at: due, remind_at: remind, all_day: allDay,
+      title: finalTitle, kind, priority, due_at: due, remind_at: remind, all_day: allDay,
       lead_id: leadId ?? null,
       // signed with the agent's name like every follow-up message; an untouched AI one keeps its time slots
       ...(withMsg ? { suggested_message: written ? messageToSave(written, msg) : msg.trim(), signed: true } : {}),
@@ -592,7 +596,7 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
           value={title}
           onChange={e => setTitle(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') setOpen(false) }}
-          placeholder="What needs doing?"
+          placeholder={autoTitle || 'What needs doing?'}
           className={`min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white ${phone ? 'py-3 text-base' : 'py-2 text-sm'}`}
         />
         {!phone && <button onClick={() => setOpen(false)} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10"><X className="h-4 w-4" /></button>}
@@ -665,7 +669,7 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
       )}
       <WhenSheet open={whenOpen} onClose={() => setWhenOpen(false)} mode="datetime" allowAnytime="Any time that day" agentCalendar
         title="When should we remind you?" kicker="Follow-up"
-        context={title.trim() || 'Your new follow-up'} contextSub={leadName || null}
+        context={finalTitle || 'Your new follow-up'} contextSub={leadName || null}
         value={day ? { date: ymd(day), time: time || null, anytime: !time } : null}
         suggestions={[
           { label: 'Today', date: addDays(0), anytime: true },
@@ -684,7 +688,7 @@ function QuickAdd({ leadId, leadName, onAdded, startOpen = false, onClose }: {
         }} />
       {saveErr && <p className="mt-2 text-[12px] font-bold text-rose-600 dark:text-rose-400" role="alert">{saveErr}</p>}
       <div className={phone ? 'mt-4' : 'mt-2 flex justify-end'}>
-        <button onClick={submit} disabled={saving || !title.trim()}
+        <button onClick={submit} disabled={saving || !finalTitle}
           className={`inline-flex items-center justify-center gap-1.5 bg-[#C9A24D] font-black uppercase tracking-wide text-[#111827] transition hover:brightness-105 disabled:opacity-50 ${phone ? 'h-12 w-full rounded-2xl text-sm' : 'rounded-lg px-4 py-2 text-xs'}`}>
           {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} {phone ? 'Add follow-up' : 'Add'}
         </button>

@@ -49,8 +49,31 @@ function Row({ name, children }: { name: string; children: React.ReactNode }) {
   )
 }
 
+/** No title yet: once you pick who it's for, it gets their name - "Text Sarah", "Check in with Sarah" (owner, 11/19:
+ *  two check-ins with the same title told you nothing). */
+export function followupAutoTitle(kind: string, name: string) {
+  const first = (name || '').trim().split(/\s+/)[0] || ''
+  if (!first || first.includes('@')) return ''
+  const n = first === first.toUpperCase() || first === first.toLowerCase() ? first.charAt(0).toUpperCase() + first.slice(1).toLowerCase() : first
+  return kind === 'call' ? `Call ${n}` : kind === 'text' ? `Text ${n}` : kind === 'email' ? `Email ${n}` : kind === 'showing' ? `Showing with ${n}` : `Check in with ${n}`
+}
+
 export function FollowupPick({ picks, onPicks }: { picks: FollowupPicks; onPicks: (p: FollowupPicks) => void }) {
-  const set = (patch: Partial<FollowupPicks>) => onPicks({ ...picks, ...patch })
+  // A title we filled in (not one you typed) follows the person and the type when they change.
+  const auto = useRef('')
+  const set = (patch: Partial<FollowupPicks>) => {
+    const next = { ...picks, ...patch }
+    if (('lead_name' in patch || 'kind' in patch) && (!picks.title.trim() || picks.title === auto.current)) {
+      auto.current = next.lead_id ? followupAutoTitle(next.kind, next.lead_name) : ''
+      next.title = auto.current
+    }
+    onPicks(next)
+  }
+  useEffect(() => {
+    // Opened with a person but no title: fill it right away.
+    if (!picks.title.trim() && picks.lead_id && picks.lead_name) set({ lead_name: picks.lead_name })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   // who it's for: their leads, searched as they type
   const [q, setQ] = useState('')
   const [hits, setHits] = useState<{ id: string; name: string; email?: string | null }[]>([])
