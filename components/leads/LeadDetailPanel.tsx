@@ -162,6 +162,10 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
   const [alertsOpen, setAlertsOpen] = useState(false)
   // Just changed "has an agent": the Showcase question (11/01).
   const [askShowcase, setAskShowcase] = useState<'yes' | 'no' | null>(null)
+  // Just marked "has an agent" and they have a Showcase: "Delete their Showcase?" (owner, 11/19) - for
+  // every lead (form, Spotlight, open house...). Deleting it ends its emails, alerts and follow-ups.
+  const [askDeleteShowcase, setAskDeleteShowcase] = useState(false)
+  const [deletingShowcase, setDeletingShowcase] = useState(false)
   const [editShowcase, setEditShowcase] = useState<string | null>(null)
   const reduceMotion = useReducedMotion()
   const [lead, setLead] = useState<LeadDetail | null>(null)
@@ -214,6 +218,18 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
     const r = await api.leads.get(leadId)
     if (r.success && r.data) setLead(r.data)
   }, [leadId])
+  const deleteShowcases = async () => {
+    const ids = (lead?.showcases || []).map(x => x.id)
+    setDeletingShowcase(true)
+    const results = await Promise.all(ids.map(id => api.collections.delete(id)))
+    setDeletingShowcase(false)
+    setAskDeleteShowcase(false)
+    const failed = results.find(r => !r.success)
+    if (failed) showToast(failed.error || "Couldn't delete their Showcase - try again from Showcases", 'error')
+    else showToast(ids.length > 1 ? 'Their Showcases are deleted - no more emails or alerts from them' : 'Their Showcase is deleted - no more emails or alerts from it', 'success')
+    await reload()
+    onChanged?.()
+  }
   // The open house Showcase switch lives in the lead's one Showcase card (owner, 11/01).
   const clearAsk = useCallback(() => setAskShowcase(null), [])
   const ohShowcase = useLeadOhShowcase({ leadId, represented: lead?.represented ?? null, asked: askShowcase, onAsked: clearAsk, onChanged: reload })
@@ -478,16 +494,17 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
                 ]}
               />
               <LuxeSelect<LeadRepresented>
-                className="flex-1 sm:w-[128px] sm:flex-none"
+                // wide enough for "Has an agent" with its dot + arrow (it read "Has an ag..." at 128px)
+                className="flex-1 sm:w-[150px] sm:flex-none"
                 ariaLabel="Do they have an agent?"
                 value={lead.represented}
                 onChange={async v => {
                   if (v === lead.represented) return
                   const ok = await applyUpdate({ represented: v })
-                  // Their sign-ins and follow-up follow the change on the server; then ask about their Showcase.
-                  if (ok && (v === 'yes' || v === 'no')) {
-                    setAskShowcase(v)
-                  }
+                  // Their sign-ins and follow-up follow the change on the server; then ask about their Showcase:
+                  // no agent -> "give them one?" (open house guests); has an agent -> "delete it?" (anyone with one).
+                  if (ok && v === 'no') setAskShowcase('no')
+                  if (ok && v === 'yes' && (lead.showcases || []).length > 0) setAskDeleteShowcase(true)
                 }}
                 align="right"
                 menuWidth={220}
@@ -829,6 +846,22 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
           </AnimatePresence>
         </div>
       </OhSheet>
+
+      <MotionModal open={askDeleteShowcase} onBackdropClick={() => !deletingShowcase && setAskDeleteShowcase(false)} className="z-[60] bg-black/55">
+        <div onClick={e => e.stopPropagation()} data-testid="lead-showcase-delete-ask" className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl dark:bg-[#151517]">
+          <h3 className="text-lg font-black text-[#111827] dark:text-white">They have an agent - delete their Showcase?</h3>
+          <p className="mt-1.5 text-sm font-medium text-gray-500 dark:text-gray-400">
+            Their Showcase keeps sending them homes and alerting you when they look. Deleting it stops all of that: its emails, alerts and follow-ups end, and its link stops working.
+          </p>
+          <p className="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">You keep their lead, notes and activity.</p>
+          <div className="mt-5 flex gap-2">
+            <button onClick={() => setAskDeleteShowcase(false)} disabled={deletingShowcase} className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-bold disabled:opacity-50 dark:border-white/10 dark:text-white">Keep it</button>
+            <button onClick={deleteShowcases} disabled={deletingShowcase} data-testid="lead-showcase-delete-yes" className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-bold text-white disabled:opacity-50">
+              {deletingShowcase ? 'Deleting...' : 'Delete Showcase'}
+            </button>
+          </div>
+        </div>
+      </MotionModal>
 
       <MotionModal open={confirmDelete} onBackdropClick={() => setConfirmDelete(false)} className="z-[60] bg-black/55">
         <div onClick={e => e.stopPropagation()} className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl dark:bg-[#151517]">

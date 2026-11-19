@@ -82,10 +82,10 @@ export default function NotesThread({ notes, loading, currentUserId, emptyLabel,
                 </div>
                 {!isEditing && (
                   <div className="flex shrink-0 items-center gap-1">
-                    <button onClick={() => startEdit(note)} disabled={isSaving} className="rounded-lg p-1 text-gray-400 hover:text-[#8b7355] disabled:opacity-50">
+                    <button onClick={() => startEdit(note)} disabled={isSaving} aria-label="Edit note" title="Edit note" className="rounded-lg p-1 text-gray-400 hover:text-[#8b7355] disabled:opacity-50">
                       <Pencil className="h-3 w-3" />
                     </button>
-                    <button onClick={() => handleDelete(note.id)} disabled={isSaving} className="rounded-lg p-1 text-gray-400 hover:text-red-500 disabled:opacity-50">
+                    <button onClick={() => handleDelete(note.id)} disabled={isSaving} aria-label="Delete note" title="Delete note" className="rounded-lg p-1 text-gray-400 hover:text-red-500 disabled:opacity-50">
                       {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                     </button>
                   </div>

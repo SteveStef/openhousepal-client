@@ -75,6 +75,9 @@ const PAGE = 25
 const latestAt = (l: Lead) => new Date(l.latest?.at || l.created_at).getTime()
 const firstDue = (l: Lead) => Math.min(...(l.todos || []).filter(t => t.kind === 'followup' && t.due_at).map(t => new Date(t.due_at!).getTime()), Infinity)
 const digits = (s?: string | null) => (s || '').replace(/\D/g, '')
+// Search text without accents or curly quotes (Day 6 audit 11/19): "jose" finds José, and an iPhone's
+// O’Neil (curly apostrophe, typed by default) finds O'Neil and back.
+const fold = (s?: string | null) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[‘’ʼ`´]/g, "'").toLowerCase()
 const emailRate = (l: Lead, none: number) => l.email_engagement?.rate ?? none
 // Red on the list: something waiting on the agent, or something new they haven't opened.
 const isRed = (l: Lead) => !!(l.needs_you || l.needs_attention)
@@ -150,6 +153,17 @@ function LeadsPageInner() {
   const refresh = useCallback(() => { load(); if (hiddenLeads !== null) loadHidden() }, [load, loadHidden, hiddenLeads])
 
   useEffect(() => { load() }, [load])
+  // New sign-ins and form leads show up while the page is open (Day 6 audit 11/19: a guest signing in at
+  // an open house never appeared until a reload, though Dash and the bell update on their own). Same
+  // rhythm as Dash, slower because this is the whole list: every 20s while the tab is on screen and no
+  // lead is open (closing one refreshes anyway), and straight away when the agent comes back to the tab.
+  useEffect(() => {
+    const refetch = () => { if (!document.hidden && !selectedLeadId) load() }
+    const timer = setInterval(refetch, 20000)
+    document.addEventListener('visibilitychange', refetch)
+    window.addEventListener('focus', refetch)
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', refetch); window.removeEventListener('focus', refetch) }
+  }, [load, selectedLeadId])
   useEffect(() => { if (view === 'hidden' && hiddenLeads === null) loadHidden() }, [view, hiddenLeads, loadHidden])
   useEffect(() => {
     api.leads.getOpenHouseHistory().then(r => { if (r.success && r.data) setOpenHouses(r.data) })
@@ -186,17 +200,17 @@ function LeadsPageInner() {
   useEffect(() => { if (tag && !tagsPresent.some(([t]) => t === tag)) setTag('') }, [tag, tagsPresent])
 
   const visible = useMemo(() => {
-    const q = search.trim().toLowerCase()
+    const q = fold(search.trim())
     const qd = digits(q)
     const list = (activeView === 'hidden' ? hiddenLeads || [] : leads).filter(l => {
       if (!inView(l, activeView)) return false
       if (origin !== 'any' && (l.origin_group || 'other') !== origin) return false
       if (tag && !(l.tags || []).includes(tag)) return false
       if (openHouseId && !l.open_houses?.some(oh => oh.id === openHouseId)) return false
-      if (q && !((l.name || '').toLowerCase().includes(q) || (l.email || '').includes(q) || (qd.length >= 3 && digits(l.phone).includes(qd))
+      if (q && !(fold(l.name).includes(q) || fold(l.email).includes(q) || (qd.length >= 3 && digits(l.phone).includes(qd))
         // ...or the open house they came to / Cheat Sheet they scanned (user, 10/21)
-        || (l.places || []).some(p => p.toLowerCase().includes(q))
-        || (l.open_houses || []).some(oh => `${oh.address || ''} ${oh.city || ''}`.toLowerCase().includes(q)))) return false
+        || (l.places || []).some(p => fold(p).includes(q))
+        || (l.open_houses || []).some(oh => fold(`${oh.address || ''} ${oh.city || ''}`).includes(q)))) return false
       return true
     })
     const by = {
@@ -378,7 +392,7 @@ function LeadsPageInner() {
         <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-2xl border border-gray-200 bg-white p-2.5 shadow-sm dark:border-white/[0.08] dark:bg-[#151517] sm:flex sm:flex-wrap">
           <div className="relative min-w-0 sm:min-w-[200px] sm:flex-[2]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={narrow ? "Name, email or address" : "Search name, email, phone or open house"}
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={narrow ? "Search leads" /* the longer hint was cut off on phones (Day 6 audit) */ : "Search name, email, phone or open house"}
               className="w-full rounded-xl border border-gray-200 bg-[#faf9f7] py-2.5 pl-9 pr-8 text-sm font-semibold outline-none transition focus:border-[#C9A24D] focus:bg-white dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white" />
             {search && <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>}
           </div>

@@ -134,7 +134,7 @@ function CalendarPageInner() {
                   className={`flex items-center gap-2 overflow-hidden rounded-2xl border px-4 py-3 text-sm font-semibold ${banner === 'connected' ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-300' : 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-300'}`}>
                   {banner === 'connected'
                     ? <><Check className="h-4 w-4 shrink-0" /> Connected - your tasks and open houses are syncing now. Look for an “OpenHousePal” calendar.</>
-                    : <><AlertCircle className="h-4 w-4 shrink-0" /> Couldn’t connect. Try again - if Google showed an “unverified app” screen, click Advanced → continue.</>}
+                    : <><AlertCircle className="h-4 w-4 shrink-0" /> Couldn’t connect. Try again - pick your Google account, then click Allow.</>}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -146,7 +146,7 @@ function CalendarPageInner() {
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#8b7355] dark:text-[#e8c97a]">How it works</p>
                     <p className="lx-title mt-1 font-serif text-2xl font-black leading-tight">One calendar called <em>“OpenHousePal”</em></p>
-                    <p className="mt-2 text-xs font-semibold leading-relaxed text-[#6b5a45] dark:text-white/60">We add it to your Google or Outlook account and keep it filled in - every follow-up and open house, automatically. Connect once and you&apos;re done.</p>
+                    <p className="mt-2 text-xs font-semibold leading-relaxed text-[#6b5a45] dark:text-white/60">We add it to your Google account and keep it filled in - every follow-up and open house, automatically. Connect once and you&apos;re done. Outlook is coming soon.</p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       {[{ i: BellRing, t: 'Follow-ups' }, { i: Home, t: 'Open houses' }, { i: RefreshCw, t: 'Always in sync' }].map(({ i: I, t }, k) => (
                         <motion.span key={t} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + k * 0.08 }} className="inline-flex items-center gap-1.5 rounded-full border border-[#C9A24D]/30 bg-white/80 px-3 py-1 text-[11px] font-black text-[#6b5a45] dark:border-white/10 dark:bg-white/[0.06] dark:text-white/75"><I className="h-3.5 w-3.5 text-[#C9A24D]" /> {t}</motion.span>
@@ -170,7 +170,7 @@ function CalendarPageInner() {
                     name="Google Calendar" mark={<GoogleCalendarLogo />} recommended
                     blurb="Two-way - edit events right in Google, and we skip times you're already booked."
                     status={g} busy={busy} onConnect={connect} onDisconnect={disconnect} onResync={resync}
-                    steps={['Click Connect - you’ll sign in with Google.', 'If Google says “unverified app”: Advanced → Go to OpenHousePal → Allow.', 'You land back here, synced.']} />
+                    steps={['Click Connect - you’ll sign in with Google.', 'Google shows OpenHousePal is verified - pick your account and click Allow.', 'You land back here, synced.']} />
                 )}
                 {msAvail && (
                   <ProviderCard

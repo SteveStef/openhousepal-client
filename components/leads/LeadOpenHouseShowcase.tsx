@@ -75,9 +75,10 @@ export function useLeadOhShowcase({ leadId, represented, asked, onAsked, onChang
   // The question after a change - only when there's something to decide.
   // (Waits for data that already has the new answer - never decides on the pre-save copy.)
   const fresh = !!asked && !!data && (!data.visitor_id || (data.has_agent || '').toUpperCase() === (asked === 'yes' ? 'YES' : 'NO'))
+  // "Has an agent" no longer asks to turn it off here - the lead page offers to delete their
+  // Showcase instead, for every lead (owner, 11/19). So only "no agent -> give them one?" is left.
   const question = fresh && data?.visitor_id && data.plan
-    ? asked === 'no' && data.switchable && !data.showcase_on ? 'make'
-      : asked === 'yes' && data.showcase_on ? 'stop' : null
+    ? asked === 'no' && data.switchable && !data.showcase_on ? 'make' : null
     : null
   useEffect(() => { if (fresh && !question) onAsked() }, [fresh, question, onAsked])
 
