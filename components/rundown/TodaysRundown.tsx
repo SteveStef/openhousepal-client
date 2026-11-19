@@ -46,7 +46,9 @@ type Home = {
   street_address: string; city: string; state: string; image: string; beds: string; baths: string; sqft: string; price: string
   is_price_drop: boolean; old_price?: string; new_price?: string; savings?: string; clients: Client[]; clients_more: string; clients_label: string
 }
-type Happening = { id: string; type: string; title: string; message: string; address?: string | null; link: string; showcase_link?: string | null; is_read: boolean; at: string; agent_status?: string | null }
+type Happening = { id: string; type: string; title: string; message: string; address?: string | null; link: string; showcase_link?: string | null; is_read: boolean; at: string; agent_status?: string | null
+  /** You already took care of it (owner, 11/19): "Done" (follow-up checked off) or "Confirmed" (tour) - a green check. */
+  done?: string | null }
 export type Rundown = {
   date: string; date_label: string; generated_at: string; first_name: string; headline: string
   briefing: { time_label: string; sent: boolean; sent_at: string | null; ran_today: boolean; upcoming: boolean; notification_id: string | null }
@@ -572,10 +574,23 @@ function HappeningRow({ n, glow = false, go }: { n: Happening; glow?: boolean; g
     <div role="button" tabIndex={0} onClick={() => go(n.link)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(n.link) } }} data-testid="rundown-happening"
       data-new={glow ? '' : undefined}
       className={`flex w-full min-w-0 cursor-pointer items-start gap-3 px-3.5 py-3 text-left transition hover:bg-[#faf9f7] active:bg-[#f4efe4] dark:hover:bg-white/[0.03] dark:active:bg-white/[0.05] ${glow ? 'ohp-new-glow bg-[#fdf6e4] dark:bg-[#C9A24D]/[0.08]' : ''}`}>
-      <span className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full border ${className}`}><Icon className="h-4 w-4" /></span>
+      <span className={`relative mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full border ${className}`}>
+        <Icon className="h-4 w-4" />
+        {n.done && (
+          <span aria-hidden className="absolute -bottom-1 -right-1 grid h-[18px] w-[18px] place-items-center rounded-full bg-emerald-500 text-white ring-2 ring-white dark:ring-[#141416]">
+            <CheckCheck className="h-3 w-3" strokeWidth={3} />
+          </span>
+        )}
+      </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-start gap-2">
-          <span className={`min-w-0 flex-1 text-[13.5px] leading-snug text-[#111827] dark:text-white ${n.is_read ? 'font-bold' : 'font-black'}`}>{n.title}</span>
+          <span className={`min-w-0 flex-1 text-[13.5px] leading-snug ${n.done ? 'text-gray-500 dark:text-white/60' : 'text-[#111827] dark:text-white'} ${n.is_read || n.done ? 'font-bold' : 'font-black'}`}>{n.title}</span>
+          {n.done && (
+            <span data-testid="rundown-done" title="You already took care of this"
+              className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-px text-[9.5px] font-black uppercase tracking-[0.08em] text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+              <CheckCircle2 className="h-3 w-3" strokeWidth={2.6} /> {n.done}
+            </span>
+          )}
           {glow && <span className="shrink-0 rounded-full bg-[#C9A24D] px-1.5 py-px text-[9px] font-black uppercase tracking-[0.08em] text-white">New</span>}
           <span className="shrink-0 pt-0.5 text-[10.5px] font-bold tabular-nums text-gray-400">{clock(n.at)}</span>
         </span>
