@@ -370,6 +370,20 @@ export default function ActionCard({ messageId, action }: { messageId: string; a
     window.addEventListener('ohp-form-card', on)
     return () => window.removeEventListener('ohp-form-card', on)
   }, [isForm, action.status, action.record_id, formTitle])
+  // A reply that points at this card's button brings it down under that reply (owner, 11/19 - ai_routes.
+  // _bring_down_waiting_card): the copy up here greys out right away, so only the one below can be tapped.
+  useEffect(() => {
+    const movedFrom = (action as any).moved_from as string | undefined
+    if (movedFrom) window.dispatchEvent(new CustomEvent('ohp-card-moved', { detail: { id: action.record_id, to: messageId } }))
+    if (action.status && action.status !== 'pending') return
+    const on = (e: Event) => {
+      const d = (e as CustomEvent).detail as { id: string; to: string }
+      if (d.id === action.record_id && d.to !== messageId)
+        setState(s => (s.status === 'pending' ? { ...s, status: 'replaced', message: 'Moved down to my newest message.' } : s))
+    }
+    window.addEventListener('ohp-card-moved', on)
+    return () => window.removeEventListener('ohp-card-moved', on)
+  }, [action, messageId])
   // ...so when they ask the helper to change question 5, it changes the list they're looking at (11/02)
   const formSaved = useRef(JSON.stringify(form))
   useEffect(() => {
