@@ -602,12 +602,11 @@ function CmaQaReviewPanel({ report }: { report: CmaReport }) {
       ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
       : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
   const StatusIcon = review.status === 'Blocked' ? ShieldAlert : review.status === 'Warning' ? AlertTriangle : Check
-  const hasAdvanced = review.blockers.length > 0 || review.warnings.length > 0 || review.corrections.length > 0 || review.flags.length > 0 || review.checks.length > 0
 
   return (
     <SectionCard
       title="QA / Review Items"
-      subtitle="Agent-only review. Audit data and export safeguards remain active."
+      subtitle="Only you see this. It never goes on the report."
     >
       <div className="flex flex-wrap items-center gap-3">
         <span className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-black ${statusClass}`}>
@@ -624,39 +623,9 @@ function CmaQaReviewPanel({ report }: { report: CmaReport }) {
         </ol>
       )}
 
-      {hasAdvanced && (
-        <details className="mt-4 border-t border-gray-100 pt-3 dark:border-gray-800">
-          <summary className="cursor-pointer select-none text-xs font-black text-gray-500 marker:text-gray-400 dark:text-gray-400">
-            Advanced Audit
-          </summary>
-          <div className="mt-3 space-y-4 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-            {review.blockers.length > 0 && <AuditList title="Raw blocking diagnostics" items={review.blockers} tone="red" />}
-            {review.warnings.length > 0 && <AuditList title="Raw warnings" items={review.warnings} tone="amber" />}
-            {review.corrections.length > 0 && <AuditList title="Automatic corrections" items={review.corrections} />}
-            {review.flags.length > 0 && <AuditList title="Generation diagnostics" items={review.flags} />}
-            {review.checks.length > 0 && (
-              <div>
-                <p className="font-black text-[#111827] dark:text-white">Checks run</p>
-                <p className="mt-1 break-words">{review.checks.join(', ')}</p>
-              </div>
-            )}
-            {review.checkedAt && <p>Last checked: {review.checkedAt}</p>}
-          </div>
-        </details>
-      )}
+      {/* The "Advanced Audit" (raw engine diagnostics) is gone from the agent's screen (owner 11/19: "not agent
+          friendly at all"). The checks still run and still guard sharing / the PDF; the issues above are what an agent acts on. */}
     </SectionCard>
-  )
-}
-
-function AuditList({ title, items, tone = 'gray' }: { title: string; items: string[]; tone?: 'gray' | 'amber' | 'red' }) {
-  const toneClass = tone === 'red' ? 'text-red-700 dark:text-red-400' : tone === 'amber' ? 'text-amber-700 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'
-  return (
-    <div>
-      <p className="font-black text-[#111827] dark:text-white">{title}</p>
-      <ul className={`mt-1 list-disc space-y-1 pl-5 ${toneClass}`}>
-        {items.map((item, index) => <li key={`${title}-${index}`}>{item}</li>)}
-      </ul>
-    </div>
   )
 }
 

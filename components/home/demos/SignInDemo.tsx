@@ -8,6 +8,7 @@ import { DemoNote, DEMO_NOTE_CSS } from './DemoNote'
 import MobilePhoneMockup from '@/components/MobilePhoneMockup'
 import BrowserFrame from '@/components/home/BrowserFrame'
 import TitleSlide from './TitleSlide'
+import GuestPassStage, { GUEST_PASS_STOPS as GP } from './GuestPassPhone'
 import { REAL_OPEN_HOUSE as OH } from './realData'
 
 // The note beside the stage for each step - what the guest does, and what you get out of it.
@@ -27,7 +28,10 @@ const NOTES: { id: string; icon: LucideIcon; title: string; body: string }[] = [
 // wrapped in the same BrowserFrame "computer window" every other demo uses, so all three phases
 // (and every other tab) share the exact same fixed footprint - nothing here can shift the rest of
 // the page down.
-type Phase = 'title' | 'sign' | 'scanning' | 'scanned' | 'phone'
+type Phase = 'title' | 'sign' | 'scanning' | 'scanned' | 'phone' | 'pass'
+
+// After they sign in, their Guest Pass opens (owner 11/18) - the real pass on a phone, a few parts of it.
+const PASS_STOPS = [GP.welcome, GP.similar, GP.tiles, GP.showcase]
 
 // The phone mockup's own 4 slides (Your Info -> Contact Info -> Your Visit -> Thank You) take
 // roughly this long each - startDelay + (chars * typing speed) + the Continue-press pause for the
@@ -37,9 +41,9 @@ type Phase = 'title' | 'sign' | 'scanning' | 'scanned' | 'phone'
 const NAME_SLIDE_MS = 500 + 10 * 80 + 900 + 350 // "John Smith" + Continue press
 const CONTACT_SLIDE_MS = (500 + 17 * 50) + (200 + 14 * 60) + 900 + 350 // email + phone + Continue press
 const AGENT_SLIDE_MS = 3000
-const THANKYOU_SLIDE_MS = 3800 * 3 // held long enough to read the note beside the phone and the showcase invitation
+const THANKYOU_SLIDE_MS = 3800 * 2 // long enough to read the note beside the phone; their Guest Pass follows
 const PHONE_TOTAL_MS = NAME_SLIDE_MS + CONTACT_SLIDE_MS + AGENT_SLIDE_MS + THANKYOU_SLIDE_MS
-const SIGNIN_TOTAL_PAGES = 5
+const SIGNIN_PAGES = 5
 
 // Pages 0 and 1 (title, flyer) always precede the phone; within the phone, slides 0-1 (Your Info /
 // Contact Info) share page 2 since they're really one continuous "fill out the form" beat, then
@@ -72,20 +76,35 @@ const QR_CELLS = [
   1,1,1,1,1,1,1,0,1,1,0,1,1,0,1,0,1,
 ]
 
-export default function SignInDemo() {
+export default function SignInDemo({ guestPass = true }: { guestPass?: boolean } = {}) {
   const [phase, setPhase] = useState<Phase>('title')
   const [phoneSlide, setPhoneSlide] = useState(0)
+  const SIGNIN_TOTAL_PAGES = SIGNIN_PAGES + (guestPass ? PASS_STOPS.length : 0)
+  // The Guest Pass part: which part of the pass is showing, and 250 ms ticks within it.
+  const [passStop, setPassStop] = useState(0)
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    if (phase !== 'pass') return
+    setTick(0)
+    const ticker = setInterval(() => setTick(t => t + 1), 250)
+    const t = setTimeout(() => {
+      if (passStop < PASS_STOPS.length - 1) setPassStop(n => n + 1)
+      else { setPassStop(0); setPhase('title') }
+    }, PASS_STOPS[passStop].hold)
+    return () => { clearTimeout(t); clearInterval(ticker) }
+  }, [phase, passStop])
 
   useEffect(() => {
     // 'phone' is the last phase - it must loop back to 'title', not stop, or the demo freezes
     // forever on that one frame once a visitor reaches it. Its own duration has to cover all 4 of
     // the phone's internal slides, not just a guess, or the phase would get yanked back to the
     // title screen mid-sequence.
-    const delays: Record<Phase, number> = { title: 5200, sign: 3800, scanning: 2000, scanned: 1000, phone: PHONE_TOTAL_MS }
-    const order: Phase[] = ['title', 'sign', 'scanning', 'scanned', 'phone']
+    if (phase === 'pass') return // the Guest Pass runs its own parts (above), then back to the title
+    const delays: Record<Exclude<Phase, 'pass'>, number> = { title: 5200, sign: 3800, scanning: 2000, scanned: 1000, phone: PHONE_TOTAL_MS }
+    const order: Phase[] = guestPass ? ['title', 'sign', 'scanning', 'scanned', 'phone', 'pass'] : ['title', 'sign', 'scanning', 'scanned', 'phone']
     const t = setTimeout(() => setPhase(order[(order.indexOf(phase) + 1) % order.length]), delays[phase])
     return () => clearTimeout(t)
-  }, [phase])
+  }, [phase, guestPass])
 
   if (phase === 'title') {
     return <TitleSlide icon={QrCode} kicker="Automated" title="Instant Sign In" body="Guests scan, sign in, and become leads - automatically." nowrapBody durationMs={5200} totalPages={SIGNIN_TOTAL_PAGES} url="app.openhousepal.com/open-houses" />
@@ -95,6 +114,14 @@ export default function SignInDemo() {
   // of the three, not three separate resets.
   const currentPage = 1
   const pageDurationMs = 3800 + 2000 + 1000
+
+  if (phase === 'pass') {
+    return (
+      <BrowserFrame url="openhousepal.com/open-house/pass" progress={{ pages: SIGNIN_TOTAL_PAGES, current: SIGNIN_PAGES + passStop, durationMs: PASS_STOPS[passStop].hold }}>
+        <GuestPassStage stops={PASS_STOPS} stop={passStop} tick={tick} />
+      </BrowserFrame>
+    )
+  }
 
   if (phase === 'phone') {
     // In its own BrowserFrame "window", same as the title slide and every other tab - the phone

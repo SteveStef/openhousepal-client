@@ -3,7 +3,7 @@
 // The mk-* classes mirror components/marketing/MarketingPage.tsx (MarketingMotion adds mk-hide/mk-in).
 export const BROKER_CSS = String.raw`
 @keyframes mkRise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
-@keyframes mkSheen { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+/* (11/19 speed pass: the gold words no longer shimmer - a background-position loop repaints every frame) */
 @keyframes mkSweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 @keyframes mkTwinkle { 0%, 100% { opacity: .15; transform: scale(.7); } 50% { opacity: .95; transform: scale(1.1); } }
 @keyframes brDrift { from { transform: translate3d(-18px, 10px, 0) scale(1); } to { transform: translate3d(22px, -14px, 0) scale(1.1); } }
@@ -12,8 +12,8 @@ export const BROKER_CSS = String.raw`
 @keyframes brFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 @keyframes brMarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .mk-rise { animation: mkRise .85s cubic-bezier(.16,1,.3,1) both; animation-delay: var(--d, 0ms); }
-.mk-gold { background: linear-gradient(100deg, #f3dfa8, #e8c97a 30%, #fff3cf 50%, #C9A24D 70%, #f3dfa8); background-size: 240% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: mkSheen 7s ease-in-out infinite; padding-right: .06em; }
-.br-ink-gold { background: linear-gradient(100deg, #8b6a2b, #C9A24D 35%, #e3c27a 50%, #C9A24D 65%, #8b6a2b); background-size: 240% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: mkSheen 8s ease-in-out infinite; padding-right: .06em; }
+.mk-gold { background: linear-gradient(100deg, #f3dfa8, #e8c97a 30%, #fff3cf 50%, #C9A24D 70%, #f3dfa8); background-size: 240% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; padding-right: .06em; }
+.br-ink-gold { background: linear-gradient(100deg, #8b6a2b, #C9A24D 35%, #e3c27a 50%, #C9A24D 65%, #8b6a2b); background-size: 240% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; padding-right: .06em; }
 .dark .br-ink-gold { background-image: linear-gradient(100deg, #C9A24D, #e8c97a 35%, #fff3cf 50%, #e8c97a 65%, #C9A24D); }
 .mk-sweep { animation: mkSweep 5.5s ease-in-out infinite; will-change: transform; }
 .mk-spark { animation: mkTwinkle 4.5s ease-in-out infinite; }

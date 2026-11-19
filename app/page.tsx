@@ -223,7 +223,6 @@ function HomePageContent() {
     return () => ro.disconnect()
   }, [currentFeature.key])
   const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement | null>>>({})
-  const [activeSection, setActiveSection] = useState<SectionId>('hero')
   const [seenSections, setSeenSections] = useState<Set<SectionId>>(() => new Set<SectionId>(['hero']))
 
   useEffect(() => {
@@ -268,7 +267,7 @@ function HomePageContent() {
             setSeenSections(prev => (prev.has(id) ? prev : new Set(prev).add(id)))
           }
           if (entry.intersectionRatio >= 0.5) {
-            setActiveSection(id)
+            activeSectionRef.current = id // a ref, not state (11/19): changing it used to re-render the whole page mid-scroll
           }
         })
       },
@@ -299,7 +298,6 @@ function HomePageContent() {
   // (The old wheel-driven section jumping was removed; the page scrolls normally.)
   const activeSectionRef = useRef<SectionId>('hero')
   const isSectionAnimatingRef = useRef(false)
-  useEffect(() => { activeSectionRef.current = activeSection }, [activeSection])
 
   // Used by the wheel handler below - lands a section's top edge just under the sticky header
   // instead of at the very top of the viewport, so the header never

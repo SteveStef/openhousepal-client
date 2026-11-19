@@ -585,11 +585,13 @@ export default function CmaReportEditor({ report, onSave, onReportUpdated, onBac
       <FlowDock step={5} total={5} onBack={onBack} continueLabel={done ? 'Back to CMAs' : 'Mark ready'} busy={readying}
         onContinue={done ? () => router.push('/studio/cma') : markReady} />
 
-      {/* ---- Complete and send: at the top, and it stays in reach while the report scrolls ---- */}
+      {/* ---- Complete and send: at the top, and it stays in reach while the report scrolls ----
+           Both rows fill the bar on every screen (owner 11/19: on a computer they used to stop partway and
+           leave the right side empty): the main button and the Edit / Client switch stretch, the rest keep their size. */}
       <div className="sticky top-2 z-30 rounded-2xl border border-gray-200 bg-white/95 p-2 shadow-[0_14px_34px_-22px_rgba(17,24,39,0.55)] dark:border-gray-800 dark:bg-[#151517]/95 sm:p-2.5">
         <div className="flex items-center gap-2">
           <motion.button type="button" onClick={done ? undefined : markReady} disabled={readying} whileTap={done ? undefined : { scale: 0.96 }}
-            className={`group relative inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-xl px-4 text-[12px] font-black uppercase tracking-wide text-white shadow-md transition sm:flex-none sm:px-6 ${
+            className={`group relative inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-xl px-4 text-[12px] font-black uppercase tracking-wide text-white shadow-md transition sm:px-6 ${
               done ? 'cursor-default bg-gradient-to-r from-emerald-600 to-emerald-500' : 'bg-gradient-to-r from-[#b8913f] via-[#C9A24D] to-[#e0b85f] hover:shadow-lg hover:shadow-[#C9A24D]/40'}`}>
             {readying ? <Loader2 className="h-4 w-4 animate-spin" /> : done ? <Check className="h-4 w-4" strokeWidth={3} /> : <Sparkles className="h-4 w-4 transition group-hover:rotate-12" />}
             <span className="truncate">{readying ? 'Marking ready…' : report.status === 'SHARED' ? <><span className="sm:hidden">Link is live</span><span className="hidden sm:inline">Shared - link is live</span></> : done ? 'Ready to send' : 'Mark ready'}</span>
@@ -607,7 +609,7 @@ export default function CmaReportEditor({ report, onSave, onReportUpdated, onBac
           <button type="button" className={`${tool} w-11 px-0`} onClick={() => setMore(true)} aria-label="More report settings" title="More"><MoreHorizontal className="h-5 w-5" /></button>
         </div>
         <div className="mt-2 flex items-center gap-2">
-          <div className="relative grid h-10 flex-1 grid-cols-2 rounded-xl bg-gray-100 p-1 dark:bg-white/[0.06] sm:max-w-xs">
+          <div className="relative grid h-10 flex-1 grid-cols-2 rounded-xl bg-gray-100 p-1 dark:bg-white/[0.06]">
             <span aria-hidden className={`absolute bottom-1 left-1 top-1 w-[calc(50%-0.25rem)] rounded-lg bg-[#111827] shadow transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] dark:bg-white ${mode === 'client' ? 'translate-x-full' : ''}`} />
             {(['edit', 'client'] as const).map(m => (
               <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)}

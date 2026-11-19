@@ -35,7 +35,9 @@ function SegmentedProgressBar({ pages, current, durationMs }: SegmentedProgress)
           {idx < current ? (
             <div className="h-full w-full bg-[#C9A24D]" />
           ) : idx === current ? (
-            <div className="h-full bg-[#C9A24D]" style={{ width: filled ? '100%' : '0%', transition: `width ${durationMs}ms linear` }} />
+            // scaleX, not width (11/19): a width animation re-lays-out and repaints the page every frame
+            // (measured: the homepage held ~30 fps at rest on a slow computer); a transform runs on the GPU.
+            <div className="h-full w-full origin-left bg-[#C9A24D] will-change-transform" style={{ transform: `scaleX(${filled ? 1 : 0})`, transition: filled ? `transform ${durationMs}ms linear` : 'none' }} />
           ) : null}
         </div>
       ))}

@@ -21,11 +21,14 @@ const DUST = [
   [57, 56, 4.4], [81, 60, 0.6],
 ] as const
 
+// 11/19 speed pass: nothing here repaints every frame any more - the grid floor, the title shine and the
+// AI badge pulse were background-position / box-shadow loops (main-thread paint each frame); they're
+// still now. What still moves is transform / opacity only (GPU).
 const CSS = `
 .ts-aurora{position:absolute;inset:-35%;background:radial-gradient(38% 38% at 32% 36%,rgba(201,162,77,.2),transparent),radial-gradient(38% 38% at 70% 64%,rgba(80,110,170,.18),transparent);animation:tsSpin 26s linear infinite}
 .ts-floor{position:absolute;left:-30%;right:-30%;bottom:-8%;height:58%;transform:perspective(380px) rotateX(64deg);transform-origin:50% 100%;
   background-image:linear-gradient(rgba(201,162,77,.38) 1px,transparent 1px),linear-gradient(90deg,rgba(201,162,77,.38) 1px,transparent 1px);background-size:44px 44px;
-  -webkit-mask-image:linear-gradient(to top,#000 0%,rgba(0,0,0,.65) 45%,transparent 100%);mask-image:linear-gradient(to top,#000 0%,rgba(0,0,0,.65) 45%,transparent 100%);animation:tsFloor 6s linear infinite}
+  -webkit-mask-image:linear-gradient(to top,#000 0%,rgba(0,0,0,.65) 45%,transparent 100%);mask-image:linear-gradient(to top,#000 0%,rgba(0,0,0,.65) 45%,transparent 100%)}
 .ts-cone{position:absolute;left:50%;top:-10%;width:520px;height:420px;transform:translateX(-50%);background:radial-gradient(ellipse 50% 60% at 50% 0%,rgba(241,213,139,.22),transparent 70%);animation:tsCone 5s ease-in-out infinite}
 .ts-sweep{position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(241,213,139,.16) 45%,rgba(255,255,255,.10) 50%,transparent 62%);transform:translateX(-120%);animation:tsSweep 1.6s cubic-bezier(.4,0,.2,1) .25s forwards}
 @keyframes tsSweep{to{transform:translateX(120%)}}
@@ -42,12 +45,11 @@ const CSS = `
 .ts-rise{opacity:0;animation:tsRise .75s cubic-bezier(.2,.8,.2,1) forwards}
 .ts-line{height:1px;width:0;background:linear-gradient(90deg,transparent,#C9A24D);animation:tsLine .7s ease-out .55s forwards}
 .ts-line.r{background:linear-gradient(90deg,#C9A24D,transparent)}
-.ts-title{background:linear-gradient(100deg,#ffffff 0%,#ffffff 38%,#f6e2ad 48%,#ffffff 58%,#ffffff 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:tsShine 5.5s ease-in-out 1.4s infinite}
-.ts-gold{padding:0 .16em .08em 0;margin:0 -.16em -.08em 0;background:linear-gradient(100deg,#b88a2e 0%,#e8c97a 35%,#fff1c8 50%,#e8c97a 65%,#b88a2e 100%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:tsShine 4.5s ease-in-out 1s infinite}
-.ts-ai{animation:tsAiIn .6s cubic-bezier(.34,1.56,.64,1) .9s both,tsAiPulse 2.8s ease-in-out 1.6s infinite}
-.ts-ai-shine{position:absolute;inset:0;border-radius:9999px;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.75) 50%,transparent 65%);background-size:250% 100%;animation:tsShine 3.2s ease-in-out 1.6s infinite;mix-blend-mode:overlay}
+.ts-title{background:linear-gradient(100deg,#ffffff 0%,#ffffff 38%,#f6e2ad 48%,#ffffff 58%,#ffffff 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent}
+.ts-gold{padding:0 .16em .08em 0;margin:0 -.16em -.08em 0;background:linear-gradient(100deg,#b88a2e 0%,#e8c97a 35%,#fff1c8 50%,#e8c97a 65%,#b88a2e 100%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent}
+.ts-ai{animation:tsAiIn .6s cubic-bezier(.34,1.56,.64,1) .9s both;box-shadow:0 0 18px rgba(201,162,77,.65)}
+.ts-ai-shine{position:absolute;inset:0;border-radius:9999px;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.75) 50%,transparent 65%);background-size:250% 100%;background-position:0 0;mix-blend-mode:overlay}
 @keyframes tsSpin{to{transform:rotate(360deg)}}
-@keyframes tsFloor{from{background-position:0 0}to{background-position:0 44px}}
 @keyframes tsCone{0%,100%{opacity:.75}50%{opacity:1}}
 @keyframes tsDust{0%{opacity:0;transform:translateY(10px) scale(.6)}25%{opacity:.9}70%{opacity:.5}100%{opacity:0;transform:translateY(-46px) scale(1)}}
 @keyframes tsHalo{0%{opacity:.75;transform:scale(1)}100%{opacity:0;transform:scale(2.15)}}
@@ -55,9 +57,7 @@ const CSS = `
 @keyframes tsCorner{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
 @keyframes tsRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 @keyframes tsLine{to{width:44px}}
-@keyframes tsShine{0%{background-position:100% 0}55%,100%{background-position:0% 0}}
 @keyframes tsAiIn{from{opacity:0;transform:scale(.4) rotate(-12deg)}to{opacity:1;transform:none}}
-@keyframes tsAiPulse{0%,100%{box-shadow:0 0 14px rgba(201,162,77,.55)}50%{box-shadow:0 0 26px rgba(241,213,139,.9)}}
 @media (prefers-reduced-motion:reduce){.ts-aurora,.ts-floor,.ts-cone,.ts-dust,.ts-halo,.ts-glow,.ts-orbit,.ts-title,.ts-gold,.ts-ai,.ts-ai-shine{animation:none}.ts-rise,.ts-corner{animation:none;opacity:1}.ts-sweep{display:none}.ts-line{animation:none;width:44px}.ts-dust,.ts-halo{display:none}}
 `
 

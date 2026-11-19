@@ -24,12 +24,12 @@ export function marketingMeta(path: string, title: string, description: string) 
 const MOTION_CSS = String.raw`
 @keyframes mkRise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
 @keyframes mkDrift { from { transform: translate3d(-14px, 8px, 0) scale(1); } to { transform: translate3d(18px, -12px, 0) scale(1.12); } }
-@keyframes mkSheen { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+/* (11/19 speed pass: the gold words no longer shimmer - a background-position loop repaints every frame) */
 @keyframes mkSweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 @keyframes mkTwinkle { 0%, 100% { opacity: .15; transform: scale(.7); } 50% { opacity: .95; transform: scale(1.1); } }
 .mk-rise { animation: mkRise .85s cubic-bezier(.16,1,.3,1) both; animation-delay: var(--d, 0ms); }
 .mk-orb { animation: mkDrift 15s ease-in-out infinite alternate; will-change: transform; }
-.mk-gold { background: linear-gradient(100deg, #f3dfa8, #e8c97a 30%, #fff3cf 50%, #C9A24D 70%, #f3dfa8); background-size: 240% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: mkSheen 7s ease-in-out infinite; padding-right: .06em; }
+.mk-gold { background: linear-gradient(100deg, #f3dfa8, #e8c97a 30%, #fff3cf 50%, #C9A24D 70%, #f3dfa8); background-size: 240% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; padding-right: .06em; }
 .mk-sweep { animation: mkSweep 5.5s ease-in-out infinite; will-change: transform; }
 .mk-spark { animation: mkTwinkle 4.5s ease-in-out infinite; }
 .mk-hide { opacity: 0; transform: translateY(26px); }

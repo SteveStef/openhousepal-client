@@ -33,9 +33,10 @@ export default function Footer() {
     <footer className="relative isolate mt-auto overflow-hidden bg-[#0B0B0B] py-16 text-white">
       {/* gold edge, soft gold light and a faint grid - the same language as the page headers */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#C9A24D]/80 to-transparent" />
+      {/* glides by transform, not background-position (11/19: no per-frame repaint) */}
       <div className="ohp-foot-sweep pointer-events-none absolute inset-x-0 top-0 h-px" />
       <div className="ohp-foot-grid pointer-events-none absolute inset-0" />
-      <style>{`.ohp-foot-sweep{background:linear-gradient(90deg,transparent 30%,#f1d58b 50%,transparent 70%);background-size:220% 100%;animation:ohpFootSweep 8s ease-in-out infinite}@keyframes ohpFootSweep{0%{background-position:160% 0}100%{background-position:-60% 0}}.ohp-foot-grid{background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:38px 38px;-webkit-mask-image:radial-gradient(60% 70% at 20% 0%,#000,transparent 75%);mask-image:radial-gradient(60% 70% at 20% 0%,#000,transparent 75%)}@media (prefers-reduced-motion:reduce){.ohp-foot-sweep{animation:none}}`}</style>
+      <style>{`.ohp-foot-sweep{right:auto;width:45%;background:linear-gradient(90deg,transparent,#f1d58b,transparent);transform:translateX(-100%);will-change:transform;animation:ohpFootSweep 8s ease-in-out infinite}@keyframes ohpFootSweep{0%{transform:translateX(-100%)}100%{transform:translateX(225%)}}.ohp-foot-grid{background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:38px 38px;-webkit-mask-image:radial-gradient(60% 70% at 20% 0%,#000,transparent 75%);mask-image:radial-gradient(60% 70% at 20% 0%,#000,transparent 75%)}@media (prefers-reduced-motion:reduce){.ohp-foot-sweep{animation:none}}`}</style>
       <div className="relative max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 mb-16">
           {/* Brand Column */}
