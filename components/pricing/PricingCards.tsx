@@ -297,6 +297,53 @@ export function PremiumPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Sele
   )
 }
 
+// The IDX plan's own extras - one definition for the tall card (Pricing page) and the wide one
+// (IDX Websites page, owner 11/18: "cards next to each other in a large rectangle called IDX plan").
+const IDX_EXTRAS: PricingFeatureGroup[] = [
+  { label: 'Media Lab', ai: true, icon: Sparkles, iconClass: 'ohp-icon-sparkle-all', kicker: 'Photo & Video', desc: 'Twilight, staging & photo-to-video, plus an easy animated social-post editor' },
+  { label: 'Listing Spotlight', ai: true, icon: SpotlightIcon, kicker: 'Listing', desc: 'A cinematic standalone site for each of your listings - set up for you by AI in minutes' },
+  { label: 'Signature', icon: Mail, iconClass: 'ohp-icon-assemble-mail', kicker: 'Brand', desc: 'Your personal branding, in every email, on your site, and everywhere else you show up - listings & sales update automatically' },
+]
+
+// Flagship callout - the headline reason to pay for IDX - leads the list, with AI Property Media
+// right beneath it as the second-billed highlight.
+function IdxFlagship() {
+  return (
+    <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0B0B0B] via-[#172033] to-[#4a3820] p-5 border border-[#C9A24D]/60">
+      <div className="pointer-events-none absolute inset-y-0 w-1/5 -skew-x-12 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-shimmer-mini" />
+      <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-[#C9A24D] via-[#f1d58b] to-[#C9A24D]" />
+      <div className="relative mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-[#C9A24D] flex items-center justify-center flex-shrink-0 shadow-md transition-transform duration-300 group-hover:scale-110">
+            <Globe className="ohp-icon-draw w-5 h-5 text-[#111827]" />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-[#C9A24D]">Auto-Built</p>
+            <h5 className="text-white font-black text-lg tracking-tight leading-tight">IDX Website</h5>
+          </div>
+        </div>
+      </div>
+      <AiCorner />
+      <div className="relative mt-4 space-y-2.5 border-t border-white/10 pt-4">
+        {[
+          { title: 'Complete IDX Website', body: 'Full property search & automatic listing sync - built around your sales, listings, neighborhoods, blogs and videos + much more' },
+          { title: 'Custom Domain Support', body: 'Connect your own domain and bring your IDX website, Agent Hub, Showcases, Spotlights, Forms, Kits, Review Hub, blogs & more under it' },
+        ].map((item) => (
+          <div key={item.title} className="flex items-start gap-2">
+            <svg className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[#C9A24D]" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            <span className="text-xs leading-relaxed text-gray-300">
+              <span className="font-black text-white">{item.title}</span>
+              <span className="block font-medium">{item.body}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function IdxPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Select IDX', current = false, onCtaClick, ctaDisabled }: TierCardProps) {
   // The top tier gets one deliberate, always-dark navy-and-gold treatment in both light and
   // dark mode - the same family of colors as its own "Full Website" badge and flagship callout
@@ -327,44 +374,8 @@ export function IdxPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Select I
         <div className="relative flex flex-col gap-4 mb-8 flex-grow">
           <IncludesDivider label={PRICING_PLANS.IDX.includesLabel} dark />
 
-          {/* Flagship callout - the headline reason to pay for IDX - leads the list, with AI
-              Property Media right beneath it as the second-billed highlight. */}
-          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0B0B0B] via-[#172033] to-[#4a3820] p-5 border border-[#C9A24D]/60">
-            <div className="pointer-events-none absolute inset-y-0 w-1/5 -skew-x-12 bg-gradient-to-r from-transparent via-white/15 to-transparent animate-shimmer-mini" />
-            <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-[#C9A24D] via-[#f1d58b] to-[#C9A24D]" />
-            <div className="relative mb-4 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-[#C9A24D] flex items-center justify-center flex-shrink-0 shadow-md transition-transform duration-300 group-hover:scale-110">
-                  <Globe className="ohp-icon-draw w-5 h-5 text-[#111827]" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#C9A24D]">Auto-Built</p>
-                  <h5 className="text-white font-black text-lg tracking-tight leading-tight">IDX Website</h5>
-                </div>
-              </div>
-            </div>
-            <AiCorner />
-            <div className="relative mt-4 space-y-2.5 border-t border-white/10 pt-4">
-              {[
-                { title: 'Complete IDX Website', body: 'Full property search & automatic listing sync - built around your sales, listings, neighborhoods, blogs and videos + much more' },
-                { title: 'Custom Domain Support', body: 'Connect your own domain and bring your IDX website, Agent Hub, Showcases, Spotlights, Forms, Kits, Review Hub, blogs & more under it' },
-              ].map((item) => (
-                <div key={item.title} className="flex items-start gap-2">
-                  <svg className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[#C9A24D]" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                  <span className="text-xs leading-relaxed text-gray-300">
-                    <span className="font-black text-white">{item.title}</span>
-                    <span className="block font-medium">{item.body}</span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <SpotlightFeatureCard group={{ label: 'Media Lab', ai: true, icon: Sparkles, iconClass: 'ohp-icon-sparkle-all', kicker: 'Photo & Video', desc: 'Twilight, staging & photo-to-video, plus an easy animated social-post editor' }} alwaysShow />
-          <SpotlightFeatureCard group={{ label: 'Listing Spotlight', ai: true, icon: SpotlightIcon, kicker: 'Listing', desc: 'A cinematic standalone site for each of your listings - set up for you by AI in minutes' }} alwaysShow />
-          <SpotlightFeatureCard group={{ label: 'Signature', icon: Mail, iconClass: 'ohp-icon-assemble-mail', kicker: 'Brand', desc: 'Your personal branding, in every email, on your site, and everywhere else you show up - listings & sales update automatically' }} alwaysShow />
+          <IdxFlagship />
+          {IDX_EXTRAS.map(g => <SpotlightFeatureCard key={g.label} group={g} alwaysShow />)}
 
           {/* mt-auto - see BasicPricingCard's matching pill for why. */}
           <div className="relative mt-auto rounded-full border border-[#C9A24D]/40 bg-[#C9A24D]/10 px-4 py-3 shadow-sm">
@@ -377,6 +388,45 @@ export function IdxPricingCard({ isVisible = true, ctaHref, ctaLabel = 'Select I
 
         <CardCTA current={current} onCtaClick={onCtaClick} ctaDisabled={ctaDisabled} className="relative"
           href={ctaHref ?? `/register?plan=${PRICING_PLANS.IDX.id}`} label={ctaLabel} />
+      </div>
+    </div>
+  )
+}
+
+/** The IDX plan laid out wide: price and button across the top, then the website and every extra side by
+ *  side (owner 11/18 - the tall card made the IDX Websites page too long). Same content as IdxPricingCard. */
+export function IdxPlanWide({ ctaHref, ctaLabel = 'Select IDX', current = false, onCtaClick, ctaDisabled }: TierCardProps) {
+  return (
+    <div className="relative rounded-[2rem] border-2 border-[#C9A24D]">
+      <div className="relative overflow-hidden rounded-[calc(2rem-2px)] bg-gradient-to-br from-[#0B0B0B] via-[#1a2438] to-[#4a3820] p-5 sm:p-8">
+        <div className="absolute inset-0 z-0 opacity-[0.07]" style={DOT_TEXTURE} />
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-card-shimmer" />
+        <div className="relative flex flex-col items-center gap-5 text-center lg:flex-row lg:justify-between lg:text-left">
+          <div>
+            <p className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.24em] text-[#f1d58b]"><Sparkles className="h-3.5 w-3.5 text-[#C9A24D]" /> Full website</p>
+            <h4 className="mt-1 font-serif text-3xl font-black text-white sm:text-4xl">{PRICING_PLANS.IDX.name} plan</h4>
+            <div className="mt-2 flex items-baseline justify-center gap-2 lg:justify-start">
+              <span className="text-4xl font-black tracking-tight text-white sm:text-5xl">{PRICING_PLANS.IDX.priceString}</span>
+              <span className="font-medium text-gray-400">/mo</span>
+              <span className="ml-1 text-xs italic text-gray-400">+ Setup Fee &middot; Domain Not Included</span>
+            </div>
+          </div>
+          <div className="w-full max-w-xs shrink-0">
+            <CardCTA current={current} onCtaClick={onCtaClick} ctaDisabled={ctaDisabled} className="relative"
+              href={ctaHref ?? `/register?plan=${PRICING_PLANS.IDX.id}`} label={ctaLabel} />
+          </div>
+        </div>
+        <div className="relative mt-6">
+          <IncludesDivider label={PRICING_PLANS.IDX.includesLabel} dark />
+        </div>
+        {/* The website on the left, the three extras stacked beside it - same height, no empty cards. */}
+        <div className="relative mt-5 grid gap-3 lg:grid-cols-2 lg:gap-4">
+          <div className="lg:row-span-3 [&>div]:h-full"><IdxFlagship /></div>
+          {IDX_EXTRAS.map(g => <SpotlightFeatureCard key={g.label} group={g} alwaysShow />)}
+        </div>
+        <div className="relative mx-auto mt-5 w-fit rounded-full border border-[#C9A24D]/40 bg-[#C9A24D]/10 px-4 py-2.5">
+          <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-[#C9A24D]"><Sparkles className="h-4 w-4" /> 4X Basic&apos;s AI Credits</span>
+        </div>
       </div>
     </div>
   )

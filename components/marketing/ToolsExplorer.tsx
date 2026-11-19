@@ -1,10 +1,10 @@
 'use client'
 
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ComponentType } from 'react'
 import Link from 'next/link'
 import {
-  ArrowDown, ArrowRight, Award, BadgeDollarSign, BookOpen, Briefcase, CalendarCheck, CalendarDays, Camera, ChartColumn, Check, CircleCheck,
+  Award, BadgeDollarSign, BookOpen, Briefcase, CalendarCheck, CalendarDays, Camera, ChartColumn, Check, CircleCheck,
   ClipboardList, DoorOpen, Download, FileDown, Filter, Globe, Heart, House, Images, Inbox, LayoutGrid, Link2, ListChecks, MapPin, Megaphone,
   MessageCircleQuestion, Palette, PencilLine, PenTool, Plug, Printer, QrCode, RefreshCw, Rocket, Search, Send, Share2, SlidersHorizontal,
   Smartphone, Sparkles, Star, Target, Upload, UserCheck, Users, WandSparkles,
@@ -76,11 +76,19 @@ export default function ToolsExplorer({ initial = 'signin' }: { initial?: Featur
           <p className="text-sm font-black text-[#8b7355] dark:text-[#e8c97a]">{page.plans} <Link href="/pricing" className="underline underline-offset-2">See plans</Link></p>
           <h2 className="mt-2 font-serif text-3xl font-black tracking-tight text-[#0B0B0B] dark:text-white sm:text-4xl">{page.title}</h2>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {page.why.map(w => (
-              <article key={w.title} className="mk-card rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#151517]">
-                <h3 className="flex items-start gap-2 text-lg font-black text-[#111827] dark:text-white"><Check className="mt-1 h-4 w-4 shrink-0 text-[#C9A24D]" strokeWidth={3} /> {w.title}</h3>
-                <p className="mt-1.5 text-[15px] font-medium leading-relaxed text-[#4b5563] dark:text-gray-300">{w.text}</p>
+          {/* Owner 11/18: two per row, each with a picture-like numbered tile (was plain text cards, 3 + a lone 4th). */}
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            {page.why.map((w, i) => (
+              <article key={w.title} className={`mk-card group relative flex gap-4 overflow-hidden rounded-3xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#151517] sm:p-6 ${page.why.length % 2 && i === page.why.length - 1 ? 'sm:col-span-2' : ''}`}>
+                <span aria-hidden className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.16),transparent)]" />
+                <span className="mk-icon relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#f3dfa8] via-[#C9A24D] to-[#8b6a2b] text-[#111827] shadow-[0_10px_22px_-12px_rgba(139,106,43,.9)]">
+                  <Check className="h-5 w-5" strokeWidth={3} />
+                  <span className="absolute -bottom-1.5 -right-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-[#111827] px-1 text-[10px] font-black text-[#e8c97a] ring-2 ring-white dark:ring-[#151517]">{i + 1}</span>
+                </span>
+                <span className="relative min-w-0">
+                  <h3 className="text-lg font-black leading-snug text-[#111827] dark:text-white">{w.title}</h3>
+                  <p className="mt-1 text-[15px] font-medium leading-relaxed text-[#4b5563] dark:text-gray-300">{w.text}</p>
+                </span>
               </article>
             ))}
           </div>
@@ -89,8 +97,9 @@ export default function ToolsExplorer({ initial = 'signin' }: { initial?: Featur
           <HowItWorks slug={page.slug} steps={page.steps} />
 
           <h3 className="mt-12 text-center font-serif text-2xl font-black text-[#0B0B0B] dark:text-white sm:text-3xl lg:text-left">Common questions</h3>
-          <div className="mt-5 space-y-3 lg:max-w-3xl">
-            {page.faqs.map((f, i) => <Question key={f.q} faq={f} startOpen={i === 0} />)}
+          {/* Two per row on a computer (owner 11/18). */}
+          <div className="mt-5 grid items-start gap-3 lg:grid-cols-2">
+            {page.faqs.map(f => <Question key={f.q} faq={f} startOpen={false} />)}
           </div>
           {page.article && <p className="mt-4 text-sm font-black text-[#8b7355] dark:text-[#e8c97a]"><Link href={page.article.href} className="underline underline-offset-4">{page.article.href.startsWith('/resources') ? `Read: ${page.article.label}` : page.article.label}</Link></p>}
         </section>
@@ -122,33 +131,26 @@ const STEP_ICONS: Record<string, Icon[]> = {
   'idx-website': [Palette, MapPin, Rocket, Globe],
 }
 
-/** "How it works": phones get one centered column, each step a single row (number, picture, words)
- *  with an arrow down to the next; computers get the same steps side by side with arrows across. */
+/** "How it works" (owner 11/18: "number and symbol then nothing, words under it" looked odd): every step is
+ *  one row - its picture with the step number on it, then the words beside it - two per row on a computer. */
 function HowItWorks({ slug, steps }: { slug: string; steps: string[] }) {
   const icons = STEP_ICONS[slug] || []
   return (
-    <ol className="mx-auto mt-6 flex max-w-md flex-col items-stretch lg:mx-0 lg:max-w-none lg:flex-row lg:items-stretch" data-testid="how-it-works">
+    <ol className="mt-6 grid gap-3 sm:grid-cols-2 sm:gap-4" data-testid="how-it-works">
       {steps.map((s, i) => {
         const StepIcon = icons[i] || Check
         return (
-          <Fragment key={s}>
-            {i > 0 && (
-              <li aria-hidden className="flex shrink-0 items-center justify-center py-1.5 text-[#C9A24D] lg:px-2 lg:py-0">
-                <ArrowDown className="h-5 w-5 lg:hidden" strokeWidth={2.5} />
-                <ArrowRight className="hidden h-5 w-5 lg:block" strokeWidth={2.5} />
-              </li>
-            )}
-            <li className="mk-card relative flex min-w-0 flex-1 items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-br from-[#111827] to-[#1f1a10] p-3.5 text-white shadow-[0_18px_36px_-24px_rgba(17,24,39,.9)] ring-1 ring-[#C9A24D]/25 lg:flex-col lg:items-start lg:gap-3 lg:p-5">
-              <span aria-hidden className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.22),transparent)]" />
-              <span className="flex shrink-0 items-center gap-2">
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-[#e8c97a] to-[#C9A24D] font-serif text-[15px] font-black text-[#111827]">{i + 1}</span>
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/[0.07] text-[#e8c97a] ring-1 ring-white/10">
-                  <StepIcon className="h-5 w-5" strokeWidth={2} />
-                </span>
-              </span>
-              <p className="relative min-w-0 text-[15px] font-bold leading-snug lg:text-base">{s}</p>
-            </li>
-          </Fragment>
+          <li key={s} className={`mk-card relative flex min-w-0 items-center gap-4 overflow-hidden rounded-3xl bg-gradient-to-br from-[#111827] to-[#1f1a10] p-4 text-white shadow-[0_18px_36px_-24px_rgba(17,24,39,.9)] ring-1 ring-[#C9A24D]/25 sm:p-5 ${steps.length % 2 && i === steps.length - 1 ? 'sm:col-span-2' : ''}`}>
+            <span aria-hidden className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-[radial-gradient(closest-side,rgba(201,162,77,.22),transparent)]" />
+            <span className="relative grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/[0.07] text-[#e8c97a] ring-1 ring-white/10">
+              <StepIcon className="h-6 w-6" strokeWidth={2} />
+              <span className="absolute -left-2 -top-2 grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-[#e8c97a] to-[#C9A24D] font-serif text-[14px] font-black text-[#111827] ring-2 ring-[#111827]">{i + 1}</span>
+            </span>
+            <span className="relative min-w-0">
+              <span className="block text-[10.5px] font-black uppercase tracking-[0.22em] text-[#e8c97a]">Step {i + 1}</span>
+              <span className="mt-0.5 block text-[15.5px] font-bold leading-snug sm:text-base">{s}</span>
+            </span>
+          </li>
         )
       })}
     </ol>
