@@ -661,11 +661,13 @@ function QuestionEditor({ question, questions, onUpdate }: { question: FormQuest
       <ForkEditor question={question} questions={questions} onUpdate={onUpdate} />
       <label className="block">
         <span className="text-xs font-black uppercase tracking-widest text-gray-400">{question.type === 'statement' ? 'Headline' : 'Question label'}</span>
+        {/* disabled:text-[#9ca3af], not disabled:text-gray-400: globals.css greys any class containing
+            "text-gray-400" in dark mode on this page, so the typed label read like an empty hint (Day 8 audit). */}
         <input
           value={question.label}
           disabled={question.locked}
           onChange={(event) => onUpdate({ label: event.target.value })}
-          className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base font-semibold outline-none focus:border-[#C9A24D] disabled:text-gray-400 dark:border-gray-700 dark:bg-[#151517] dark:text-white"
+          className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-base font-semibold outline-none focus:border-[#C9A24D] disabled:text-[#9ca3af] dark:border-gray-700 dark:bg-[#151517] dark:text-white"
         />
       </label>
 
@@ -728,7 +730,7 @@ function QuestionEditor({ question, questions, onUpdate }: { question: FormQuest
                     onUpdate({ options: next })
                   }}
                   placeholder={`Choice ${optionIndex + 1}`}
-                  className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-[#fbfaf7] px-3 py-2 text-sm font-semibold outline-none focus:border-[#C9A24D] disabled:text-gray-400 dark:border-gray-700 dark:bg-[#151517] dark:text-white"
+                  className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-[#fbfaf7] px-3 py-2 text-sm font-semibold outline-none focus:border-[#C9A24D] disabled:text-[#9ca3af] dark:border-gray-700 dark:bg-[#151517] dark:text-white"
                 />
                 {!question.locked && (
                   <button

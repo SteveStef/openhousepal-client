@@ -1456,6 +1456,10 @@ function AgentHubContent() {
   const [editingSlugFormId, setEditingSlugFormId] = useState('')
   const initializedFormsRef = useRef(false)
   const autoCreateFormRef = useRef(false)
+  // The form "New custom form" just made, as the server first saved it. Closed without a single change or
+  // save, it's removed again - otherwise every tap left a blank "Untitled Form" card with a live public link
+  // (Day 8 audit, 11/19).
+  const untouchedNewFormRef = useRef<{ id: string; snapshot: AgentFormConfig } | null>(null)
   const scrolledTabRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -1483,6 +1487,12 @@ function AgentHubContent() {
     if (isFormsRoute && searchParams.get('new') === '1') {
       autoCreateFormRef.current = true
       handleCreateForm()
+      // Drop ?new=1 from the address, so a reload doesn't make a second blank form (Day 8 audit, 11/19).
+      try {
+        const url = new URL(window.location.href)
+        url.searchParams.delete('new')
+        window.history.replaceState(window.history.state, '', url.pathname + (url.search || '') + url.hash)
+      } catch { /* harmless */ }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFormsRoute, searchParams])
@@ -3143,6 +3153,19 @@ function AgentHubContent() {
   // Closing with unsaved edits keeps them as a draft (no "discard?" question any more) - Discard
   // in the builder is the only way to throw them away.
   const handleRequestCloseFormBuilder = () => {
+    const fresh = untouchedNewFormRef.current
+    untouchedNewFormRef.current = null
+    // A brand-new form closed exactly as it was made (never edited, never saved): take it back off the list.
+    if (fresh && fresh.id === formEditorOpenId && !formIsDirty[fresh.id] && (lastSavedFormsRef.current[fresh.id]?.updated_at ?? fresh.snapshot.updated_at) === fresh.snapshot.updated_at) {
+      setIsBuilderOpen(false)
+      api.forms.deleteForm(fresh.id).then(r => {
+        if (r.success) {
+          setAgentForms(current => current.filter(form => form.id !== fresh.id))
+          delete lastSavedFormsRef.current[fresh.id]
+        }
+      })
+      return
+    }
     if (formIsDirty[formEditorOpenId]) showToast('Draft kept - your changes are waiting. Open the form and press Save when you are ready.', 'success')
     setIsBuilderOpen(false)
   }
@@ -3171,6 +3194,17 @@ function AgentHubContent() {
     }
     setFormIsDirty(current => ({ ...current, [pendingDiscardFormId]: false }))
     setFormSaveStatus(current => ({ ...current, [pendingDiscardFormId]: 'idle' }))
+    // Discarding every change on a form that was never saved: it goes back off the list too.
+    const fresh = untouchedNewFormRef.current
+    if (fresh && fresh.id === pendingDiscardFormId && (lastSavedFormsRef.current[fresh.id]?.updated_at ?? fresh.snapshot.updated_at) === fresh.snapshot.updated_at) {
+      untouchedNewFormRef.current = null
+      api.forms.deleteForm(fresh.id).then(r => {
+        if (r.success) {
+          setAgentForms(current => current.filter(form => form.id !== fresh.id))
+          delete lastSavedFormsRef.current[fresh.id]
+        }
+      })
+    }
     setPendingDiscardFormId('')
     setIsBuilderOpen(false)
   }
@@ -3225,6 +3259,7 @@ function AgentHubContent() {
     if (response.success && response.data) {
       setAgentForms(current => [...current, response.data!].sort((a, b) => a.order_index - b.order_index))
       lastSavedFormsRef.current[response.data.id] = response.data
+      untouchedNewFormRef.current = { id: response.data.id, snapshot: response.data }
       setFormEditorOpenId(response.data.id)
       setIsBuilderOpen(true)
     }

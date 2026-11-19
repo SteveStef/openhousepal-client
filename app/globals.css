@@ -930,13 +930,16 @@ input:-webkit-autofill:active {
 }
 
 /* Property Recommendations Print Styles */
+/* Print rules for the old property-list print view (PropertyRecommendationsPrintView) only - scoped to its
+   page (Day 8 audit, 11/19): unscoped, they hid every positioned element on ANY printed page, so the
+   printed invite came out with no card. */
 @media print {
   @page {
     size: letter portrait;
     margin: 0; /* Removes browser headers/footers */
   }
 
-  html, body {
+  html:has(.print-view-container), html:has(.print-view-container) body {
     height: auto !important;
     min-height: 100%;
     margin: 0;
@@ -944,13 +947,13 @@ input:-webkit-autofill:active {
     background-color: #f9f9f9 !important;
   }
 
-  body {
+  html:has(.print-view-container) body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
   /* Strict Page Container */
-  .page-container {
+  html:has(.print-view-container) .page-container {
     width: 8.5in;
     height: 11in;
     padding: 0.35in;
@@ -960,7 +963,7 @@ input:-webkit-autofill:active {
   }
 
   /* Header */
-  .print-view-container header.print-header {
+  html:has(.print-view-container) .print-view-container header.print-header {
     height: 0.55in !important;
     padding: 0 !important;
     margin: 0 !important;
@@ -971,24 +974,24 @@ input:-webkit-autofill:active {
     width: 100% !important;
   }
   
-  .print-view-container header.print-header h1 {
+  html:has(.print-view-container) .print-view-container header.print-header h1 {
     font-size: 14pt !important;
     line-height: 1.2 !important;
     white-space: nowrap !important;
     color: #000000 !important;
   }
   
-  .print-view-container header.print-header p {
+  html:has(.print-view-container) .print-view-container header.print-header p {
     font-size: 9pt !important;
     color: #000000 !important;
   }
 
-  .print-view-container header.print-header svg {
+  html:has(.print-view-container) .print-view-container header.print-header svg {
     color: #000000 !important;
   }
 
   /* Main Container - Acts as wrapper */
-  .print-view-container main.print-main {
+  html:has(.print-view-container) .print-view-container main.print-main {
     flex: 1;
     padding: 0.12in 0.25in 0 0.25in !important;
     display: block !important;
@@ -997,16 +1000,16 @@ input:-webkit-autofill:active {
   }
 
   /* Hide everything else aggressively */
-  header:not(.print-header), 
-  footer:not(.print-footer),
-  nav,
-  .fixed,
-  .absolute:not(.print-view-root):not(.print-view-container) {
+  html:has(.print-view-container) header:not(.print-header),
+  html:has(.print-view-container) footer:not(.print-footer),
+  html:has(.print-view-container) nav,
+  html:has(.print-view-container) .fixed,
+  html:has(.print-view-container) .absolute:not(.print-view-root):not(.print-view-container) {
     display: none !important;
   }
 
   /* Actual Grid Container - Target via class for reliability */
-  .properties-grid {
+  html:has(.print-view-container) .properties-grid {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important; /* Explicit 2 columns */
     grid-template-rows: repeat(3, 1fr) !important;
@@ -1017,7 +1020,7 @@ input:-webkit-autofill:active {
   }
 
   /* Card Container */
-  article {
+  html:has(.print-view-container) article {
     height: 100% !important;
     width: 100% !important;
     display: flex !important;
@@ -1031,14 +1034,14 @@ input:-webkit-autofill:active {
   }
   
   /* Image Section (Adjusted to 53% height to give content more room) */
-  article > .relative {
+  html:has(.print-view-container) article > .relative {
     flex: 0 0 53% !important; 
     height: 53% !important;
     width: 100% !important;
   }
   
   /* Card Content (Increased to 47% height) */
-  article > .flex-1 {
+  html:has(.print-view-container) article > .flex-1 {
     display: flex !important;
     flex-direction: column !important;
     /* Optimized padding: less top/bottom to maximize space for elements */
@@ -1048,7 +1051,7 @@ input:-webkit-autofill:active {
   }
 
   /* Typography Fixes */
-  article h3 { 
+  html:has(.print-view-container) article h3 { 
     font-size: 11.5pt !important; 
     line-height: 1.2 !important;
     font-weight: 600 !important;
@@ -1058,18 +1061,18 @@ input:-webkit-autofill:active {
     color: #000000 !important;
   }
   
-  article p { 
+  html:has(.print-view-container) article p { 
     font-size: 9.5pt !important;
     color: #111827 !important;
   }
   
-  article .text-muted-foreground {
+  html:has(.print-view-container) article .text-muted-foreground {
     color: #111827 !important;
   }
   
   /* KPI Chips & Icons */
-  article .bg-muted\/50,
-  article .kpi-chip {
+  html:has(.print-view-container) article .bg-muted\/50,
+  html:has(.print-view-container) article .kpi-chip {
     padding: 0.05in !important;
     background-color: #f3f4f6 !important;
     display: flex !important;
@@ -1077,15 +1080,15 @@ input:-webkit-autofill:active {
     align-items: center !important;
     justify-content: center !important;
   }
-  article .bg-muted\/50 svg,
-  article .kpi-chip svg { 
+  html:has(.print-view-container) article .bg-muted\/50 svg,
+  html:has(.print-view-container) article .kpi-chip svg { 
     height: 12px !important; 
     width: 12px !important; 
     margin-bottom: 2px !important;
     color: #000000 !important;
   }
-  article .bg-muted\/50 span,
-  article .kpi-chip span { 
+  html:has(.print-view-container) article .bg-muted\/50 span,
+  html:has(.print-view-container) article .kpi-chip span { 
     font-size: 10.5pt !important; 
     font-weight: 700 !important; 
     line-height: 1 !important;
@@ -1093,7 +1096,7 @@ input:-webkit-autofill:active {
   }
 
   /* Bottom Section (QR Inline) */
-  article > .flex-1 > div:last-child {
+  html:has(.print-view-container) article > .flex-1 > div:last-child {
     margin-top: auto !important;
     padding-top: 0 !important;
     border-top: none !important;
@@ -1103,7 +1106,7 @@ input:-webkit-autofill:active {
   }
 
   /* QR Box */
-  article .h-12 {
+  html:has(.print-view-container) article .h-12 {
     height: 0.65in !important;
     width: 0.65in !important;
     padding: 0.02in !important;
@@ -1116,8 +1119,8 @@ input:-webkit-autofill:active {
   .print\:block { display: block !important; }
   
   /* Reset general grid constraints */
-  .grid { display: grid !important; }
-  .max-w-6xl { max-width: none !important; }
+  html:has(.print-view-container) .grid { display: grid !important; }
+  html:has(.print-view-container) .max-w-6xl { max-width: none !important; }
 }
 
 @media (min-width: 1024px) {
