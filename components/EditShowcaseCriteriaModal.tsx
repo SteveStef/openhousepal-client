@@ -17,7 +17,7 @@ import { formatNumberWithCommas, stripCommas } from '@/lib/utils'
 import { copyText } from '@/lib/copyText'
 import { homesLabel, SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
 import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
-import { HighSchoolNote } from '@/components/showcases/HighSchoolPicker'
+import { HighSchoolPicker } from '@/components/showcases/HighSchoolPicker'
 
 // Visitor-facing "refine my search" for a public showcase - a deliberately narrow subset of
 // EditPreferencesModal.tsx (the agent-side equivalent in Studio) for what a visitor can actually
@@ -69,12 +69,12 @@ export type SaveOutcome = { added: number; removed: number }
 export type MatchPreview = { count: number; points: { id: string; lat: number; lng: number }[]; at_limit?: boolean }
 
 type FormState = Pick<CollectionPreferences,
-  'address' | 'lat' | 'long' | 'diameter' | 'min_price' | 'max_price' | 'min_beds' | 'max_beds' | 'min_baths' | 'max_baths' | 'cities' | 'townships' | 'school_districts'>
+  'address' | 'lat' | 'long' | 'diameter' | 'min_price' | 'max_price' | 'min_beds' | 'max_beds' | 'min_baths' | 'max_baths' | 'cities' | 'townships' | 'school_districts' | 'high_schools'>
 
 const EMPTY_FORM: FormState = {
   address: '', lat: null, long: null, diameter: null,
   min_price: null, max_price: null, min_beds: null, max_beds: null, min_baths: null, max_baths: null,
-  cities: [], townships: [], school_districts: [],
+  cities: [], townships: [], school_districts: [], high_schools: [],
 }
 
 type Suggestion = { listingKey: string; address: string; city?: string | null; lat: number; lng: number; image?: string | null; price?: number | null; beds?: number | null; baths?: number | null; squareFeet?: number | null }
@@ -167,10 +167,9 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
     cities: preferences?.cities || [],
     townships: preferences?.townships || [],
     school_districts: preferences?.school_districts || [],
+    high_schools: preferences?.high_schools || [],
   } as FormState))
   const savedFormRef = useRef(formData)
-  const sameDistricts = JSON.stringify([...(formData.school_districts || [])].sort()) === JSON.stringify([...(preferences?.school_districts || [])].sort())
-  const hsNote = sameDistricts ? <HighSchoolNote names={preferences?.high_school_names} /> : null
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [saved, setSaved] = useState(false)
   const [outcome, setOutcome] = useState<SaveOutcome | null>(null)
@@ -485,6 +484,29 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
   // like Zillow/Redfin - property_service ANDs districts with every area), so it isn't one.
   const isUsingAreaSearch = () => !!(formData.cities?.length || formData.townships?.length)
   const isUsingAddressSearch = () => !!formData.address
+  const areaGrid = (opts: { lockTowns?: boolean } = {}) => {
+    const box = (label: string, el: ReactNode, id: string) => (
+      <div className="min-w-0 space-y-1.5" data-testid={`area-${id}`}>
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</p>
+        {el}
+      </div>
+    )
+    const clearDistance = { address: '', lat: null, long: null, diameter: null }
+    return (
+      // towns | townships, then school district | high school - on a phone they stack (owner, 11/19)
+      <div className="grid gap-3 sm:grid-cols-2" data-testid="area-grid">
+        {box('Towns', <MultiSelectDatabaseInput values={formData.cities || []} apiMethod={api.properties.citiesPublic} placeholder="Search towns..." disabled={opts.lockTowns}
+          onChange={(cities) => setFormData(prev => ({ ...prev, cities, ...clearDistance }))} />, 'towns')}
+        {box('Townships', <MultiSelectDatabaseInput values={formData.townships || []} apiMethod={api.properties.townshipsPublic} placeholder="Search townships..." disabled={opts.lockTowns}
+          onChange={(townships) => setFormData(prev => ({ ...prev, townships, ...clearDistance }))} />, 'townships')}
+        {box('School district', <MultiSelectDatabaseInput values={formData.school_districts || []} apiMethod={api.properties.schoolDistrictsPublic} placeholder="Search school districts..."
+          onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts }))} />, 'district')}
+        {box('High school', <HighSchoolPicker client={audience !== 'agent'} bare districts={formData.school_districts || []} value={formData.high_schools || []}
+          onChange={(high_schools) => setFormData(prev => ({ ...prev, high_schools }))} />, 'high-school')}
+      </div>
+    )
+  }
+
 
   const handleSave = async () => {
     setError('')
@@ -741,7 +763,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
     (formData.cities?.length || 0) > 2 ? `+${(formData.cities?.length || 0) - 2} towns` : '',
     ...(formData.school_districts || []).slice(0, 1),
     // the agent's high-school pick, while the district is the one it was picked for
-    ...(sameDistricts ? Object.values(preferences?.high_school_names || {}).slice(0, 1).map(n => `${n} only`) : []),
+    ...(formData.high_schools || []).slice(0, 1).map(k => preferences?.high_school_names?.[k] ? `${preferences.high_school_names[k]} only` : 'One high school'),
     formData.min_price && formData.max_price ? `${money(formData.min_price)} – ${money(formData.max_price)}`
       : formData.max_price ? `Up to ${money(formData.max_price)}` : formData.min_price ? `${money(formData.min_price)}+` : '',
     formData.min_beds ? `${formData.min_beds}+ beds` : '',
@@ -1138,6 +1160,8 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
     )
     // One slim row at the top of the filters: the home it's built around (or none) + change it.
     const rowBtn = 'inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 text-[11px] font-black uppercase tracking-widest text-[#111827] transition-colors hover:border-[#C9A24D] dark:border-white/10 dark:bg-white/[0.04] dark:text-white'
+    // buyers only see it while it's on (or being changed) - the agent's own layout has its own (owner, 11/19)
+    const showHomeRow = !!selectedCompareProperty?.address || homeSwap || removedHome
     const homeRow = (
       <motion.section key="home" layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
         className={`flex flex-wrap items-center gap-3 rounded-3xl border p-3 shadow-[0_14px_30px_-26px_rgba(17,24,39,.6)] ${homeSwap || removedHome ? 'border-emerald-500/40 bg-emerald-500/[0.06]' : 'border-[#C9A24D]/30 bg-white dark:bg-[#18181b]'}`}>
@@ -1173,14 +1197,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
               Right now: the area {agentFirst} drew on the map. Pick towns below to search those instead, or a school district to narrow it down.
             </p>
           )}
-          <MultiSelectDatabaseInput values={formData.cities || []} apiMethod={api.properties.citiesPublic} placeholder="Search towns..."
-            onChange={(cities) => setFormData(prev => ({ ...prev, cities, address: '', lat: null, long: null, diameter: null }))} />
-          <p data-area-label className="-mb-1 text-[10px] font-black uppercase tracking-widest text-gray-400">Townships</p>
-          <MultiSelectDatabaseInput values={formData.townships || []} apiMethod={api.properties.townshipsPublic} placeholder="Search townships..." onChange={(townships) => setFormData(prev => ({ ...prev, townships, address: '', lat: null, long: null, diameter: null }))} />
-          <p data-area-label className="-mb-1 text-[10px] font-black uppercase tracking-widest text-gray-400">School district</p>
-          <MultiSelectDatabaseInput values={formData.school_districts || []} apiMethod={api.properties.schoolDistrictsPublic} placeholder="Search school districts..."
-            onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts }))} />
-          {hsNote}
+          {areaGrid()}
           {/* Towns AND a school district = only homes in both (property_service stacks them). */}
           <AnimatePresence initial={false}>
             {!!formData.cities?.length && !!formData.school_districts?.length && (
@@ -1287,20 +1304,9 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
           {!isUsingAreaSearch() && <span className="text-[11px] font-bold text-gray-400">Towns replace the distance · a school district narrows it</span>}
         </div>
         {!isUsingAreaSearch() && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <p className="text-xs font-black text-gray-500">Towns, cities or townships <span className="font-semibold text-gray-400">(instead of the distance)</span></p>
-              <MultiSelectDatabaseInput values={formData.cities || []} apiMethod={api.properties.citiesPublic} placeholder="Search towns..."
-                onChange={(cities) => setFormData(prev => ({ ...prev, cities, address: '', lat: null, long: null, diameter: null }))} />
-              <p data-area-label className="-mb-1 text-[10px] font-black uppercase tracking-widest text-gray-400">Townships</p>
-              <MultiSelectDatabaseInput values={formData.townships || []} apiMethod={api.properties.townshipsPublic} placeholder="Search townships..." onChange={(townships) => setFormData(prev => ({ ...prev, townships, address: '', lat: null, long: null, diameter: null }))} />
-            </div>
-            <div className="space-y-2">
-              <p className="text-xs font-black text-gray-500">School district <span className="font-semibold text-gray-400">(only homes in it)</span></p>
-              <MultiSelectDatabaseInput values={formData.school_districts || []} apiMethod={api.properties.schoolDistrictsPublic} placeholder="Search school districts..."
-                onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts }))} />
-              {hsNote}
-            </div>
+          <div className="space-y-2">
+            <p className="text-xs font-black text-gray-500">Towns or townships replace the distance · a school district narrows it</p>
+            {areaGrid()}
           </div>
         )}
         {/* Distance AND a school district = only homes in both (property_service stacks them). */}
@@ -1480,15 +1486,28 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
           {focus === 'all' && back(() => { resetToSaved(); setStep('choose') })}
           {/* Phones: the home on top. Desktop: it sits above price, beside the distance picker
               (fills what was empty space under Bedrooms). */}
-          <div className="md:hidden">{homeRow}</div>
-          <div className="grid items-stretch gap-4 md:grid-cols-2">
-            <div>{whereCard}</div>
-            <div className="flex flex-col gap-4">
-              <div className="hidden md:block">{homeRow}</div>
-              {priceCard}
-              {bedsCard}
+          {showHomeRow && <div className="md:hidden">{homeRow}</div>}
+          {isUsingAreaSearch() || !formData.address ? (
+            // Towns / district search: the area card spans the width so towns | townships and district | high
+            // school sit side by side (owner, 11/19); price and bedrooms side by side under it.
+            <>
+              {whereCard}
+              {showHomeRow && <div className="hidden md:block">{homeRow}</div>}
+              <div className="grid items-stretch gap-4 md:grid-cols-2">
+                {priceCard}
+                {bedsCard}
+              </div>
+            </>
+          ) : (
+            <div className="grid items-stretch gap-4 md:grid-cols-2">
+              <div>{whereCard}</div>
+              <div className="flex flex-col gap-4">
+                {showHomeRow && <div className="hidden md:block">{homeRow}</div>}
+                {priceCard}
+                {bedsCard}
+              </div>
             </div>
-          </div>
+          )}
           {moreCard}
           {errorLine}
         </div>
@@ -1592,22 +1611,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
                         <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Towns &amp; school districts</p>
                         {(isUsingAreaSearch() || !!formData.school_districts?.length) && <button type="button" onClick={() => setFormData(prev => ({ ...prev, cities: [], school_districts: [] }))} className="text-[10px] font-black uppercase tracking-widest text-[#a8843a] hover:underline dark:text-[#e8c97a]">Clear</button>}
                       </div>
-                      <MultiSelectDatabaseInput
-                        values={formData.cities || []}
-                        onChange={(cities) => setFormData(prev => ({ ...prev, cities, address: '', lat: null, long: null, diameter: null }))}
-                        apiMethod={api.properties.citiesPublic}
-                        placeholder="Search towns..."
-                        disabled={isUsingAddressSearch()}
-                      />
-                      <p data-area-label className="-mb-1 text-[10px] font-black uppercase tracking-widest text-gray-400">Townships</p>
-                      <MultiSelectDatabaseInput values={formData.townships || []} apiMethod={api.properties.townshipsPublic} placeholder="Search townships..." onChange={(townships) => setFormData(prev => ({ ...prev, townships, address: '', lat: null, long: null, diameter: null }))} disabled={isUsingAddressSearch()} />
-                      <MultiSelectDatabaseInput
-                        values={formData.school_districts || []}
-                        onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts }))}
-                        apiMethod={api.properties.schoolDistrictsPublic}
-                        placeholder={isUsingAddressSearch() ? 'Narrow to a school district...' : 'Search school districts...'}
-                      />
-                      {hsNote}
+                      {areaGrid({ lockTowns: isUsingAddressSearch() })}
                       <AreaPicksMap cities={formData.cities || []} schoolDistricts={formData.school_districts || []} />
                     </div>
                   </div>

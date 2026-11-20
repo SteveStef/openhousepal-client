@@ -10,7 +10,11 @@ import api from '@/lib/api-service'
 
 type School = { key: string; name: string; homes: number; named: number; sure: number }
 
-export function HighSchoolPicker({ districts, value, onChange }: { districts: string[]; value: string[]; onChange: (keys: string[]) => void }) {
+export function HighSchoolPicker({ districts, value, onChange, client = false, bare = false }: {
+  districts: string[]; value: string[]; onChange: (keys: string[]) => void
+  /** the client's own editor (public lookup) */ client?: boolean
+  /** under its own "High school" label: no heading, and a line instead of nothing when there's no choice */ bare?: boolean
+}) {
   const [schools, setSchools] = useState<School[] | null>(null)
   const dkey = JSON.stringify(districts || [])
   useEffect(() => {
@@ -18,7 +22,7 @@ export function HighSchoolPicker({ districts, value, onChange }: { districts: st
     if (!ds.length) { setSchools(null); if (value.length) onChange([]); return }
     let live = true
     setSchools(null)
-    api.properties.highSchools(ds).then(r => {
+    ;(client ? api.properties.highSchoolsPublic(ds) : api.properties.highSchools(ds)).then(r => {
       if (!live) return
       const got = (r.success && r.data?.schools) || []
       setSchools(got)   // "unknown" = homes there whose school can't be told (not a chip - they stay in, marked)
@@ -31,14 +35,19 @@ export function HighSchoolPicker({ districts, value, onChange }: { districts: st
 
   const real = (schools || []).filter(s => s.key !== 'unknown')
   const unknown = (schools || []).find(s => s.key === 'unknown')?.homes || 0
-  if (!districts?.length || real.length < 2) return null
+  const quiet = 'text-[12px] font-semibold leading-snug text-gray-400'
+  if (!districts?.length) return bare ? <p className={quiet} data-testid="high-school-empty">Pick a school district first</p> : null
+  if (!schools) return bare ? <p className={quiet}>Loading…</p> : null
+  if (real.length < 2) return bare ? <p className={quiet} data-testid="high-school-empty">{real.length ? `${real[0].name} - the only one` : 'No high schools found yet'}</p> : null
   const toggle = (k: string) => onChange(value.includes(k) ? value.filter(x => x !== k) : [...value, k])
   const placed = real.reduce((n, s) => n + (s.homes - s.named), 0)
   return (
     <div className="space-y-1.5" data-testid="high-school-picker">
-      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-        High schools <span className="normal-case tracking-normal text-gray-400">· {value.length ? 'only these' : 'any - tap to keep only one'}</span>
-      </p>
+      {bare ? <p className="text-[11px] font-semibold text-gray-400">{value.length ? 'Only these' : 'Any - tap one to keep only it'}</p> : (
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+          High schools <span className="normal-case tracking-normal text-gray-400">· {value.length ? 'only these' : 'any - tap to keep only one'}</span>
+        </p>
+      )}
       <div className="flex flex-wrap gap-1.5">
         {real.map(s => {
           const on = value.includes(s.key)
@@ -59,7 +68,7 @@ export function HighSchoolPicker({ districts, value, onChange }: { districts: st
           {`Plus ${unknown} home${unknown === 1 ? '' : 's'} in the district whose school can't be told - they stay in, marked "School unknown", so nothing is missed.`}
         </p>
       )}
-      {placed > 0 && (
+      {placed > 0 && !client && (
         <p className="text-[10.5px] font-semibold leading-snug text-gray-400">
           {`Counts are homes for sale. ${placed} of them don't name a high school in the listing - the government school map and the homes around them place those, so they still count.`}
         </p>
