@@ -24,11 +24,16 @@ const shortDistrict = (name?: string | null) =>
     .trim() || (name || '')
 
 // "Downingtown High School East Campus" -> "Downingtown East": the school's own words, for the gold photo pill.
+// Checked on every state's names (11/21): "Woodbury Junior-senior High School" -> "Woodbury", "Pendleton County
+// Middle/high School" -> "Pendleton County", "Laurel Senior" -> "Laurel", "Bethesda-chevy Chase" -> "Bethesda-Chevy Chase".
 const shortSchool = (name?: string | null) =>
   String(name || '')
-    .replace(/\b(high school|senior high|school|campus|hs|sr\.?|jr\.?\/sr\.?|secondary)\b/gi, ' ')
+    .replace(/\b(junior[- ]senior|jr\.?\s*\/\s*sr\.?|middle\s*(?:\/|&|and)\s*high|senior high|high school|school|campus|hs|secondary)\b/gi, ' ')
+    .replace(/\s(senior|sr\.?)\s*$/i, '')
     .replace(/\s{2,}/g, ' ')
-    .replace(/[\s,-]+$/, '')
+    .replace(/(\s+(and|of|&))+\s*$/i, '')
+    .replace(/[\s,&/-]+$/, '')
+    .replace(/-([a-z])/g, (_m, c: string) => `-${c.toUpperCase()}`)
     .trim() || (name || '')
 
 interface PropertyCardProps {
