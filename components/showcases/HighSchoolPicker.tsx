@@ -43,7 +43,7 @@ export function HighSchoolPicker({ districts, value, onChange, client = false, b
   const placed = real.reduce((n, s) => n + (s.homes - s.named), 0)
   return (
     <div className="space-y-1.5" data-testid="high-school-picker">
-      {bare ? <p className="text-[11px] font-semibold text-gray-400">{value.length ? 'Only these' : 'Any - tap one to keep only it'}</p> : (
+      {bare ? null : (
         <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
           High schools <span className="normal-case tracking-normal text-gray-400">· {value.length ? 'only these' : 'any - tap to keep only one'}</span>
         </p>

@@ -77,10 +77,10 @@ function simplifyPath(points: google.maps.LatLng[], toleranceDegrees = 0.0006, m
 }
 
 type ViewMode = 'map' | 'grid' | 'split'
-type AreaShape = { kind: 'town' | 'school_district' | 'county'; label: string; query: string; rings: number[][][]; zips?: string[] | null }
+type AreaShape = { kind: 'town' | 'township' | 'school_district' | 'county'; label: string; query: string; rings: number[][][]; zips?: string[] | null }
 
 // Search-area highlight colours: towns gold, school districts in blues/greens, counties violet.
-const AREA_COLORS = { town: ['#C9A24D', '#d97706', '#b45309'], school_district: ['#2563eb', '#059669', '#0891b2', '#4f46e5'], county: ['#7c3aed', '#a21caf'] }
+const AREA_COLORS = { town: ['#C9A24D', '#d97706', '#b45309'], township: ['#0d9488', '#0891b2', '#4f46e5'], school_district: ['#2563eb', '#059669', '#0891b2', '#4f46e5'], county: ['#7c3aed', '#a21caf'] }
 const shortAreaName = (s: AreaShape) => s.kind === 'school_district'
   ? s.label.replace(/\s*(School District|Public Schools|Schools|Unified District|District)\s*$/i, '').replace(/^(The )?School District of (the )?/i, '').trim() || s.label
   : s.kind === 'county' ? s.label.replace(/\s+County$/i, '') : s.label
@@ -606,15 +606,15 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
   const keptHomes = geoMode === 'none' ? [] : currentHomes.filter(h => keepReason(h) && !previewIds.has(String(h.id || h.ListingKey)))
 
   // --- Search-area highlight: the picked towns / districts / counties drawn with their real lines ---
-  const areaKey = JSON.stringify([formData.cities || [], formData.school_districts || [], formData.counties || []])
+  const areaKey = JSON.stringify([formData.cities || [], formData.school_districts || [], formData.counties || [], formData.townships || []])
   useEffect(() => {
     if (!isOpen) return
-    const [cities, school_districts, counties] = JSON.parse(areaKey) as string[][]
-    if (!cities.length && !school_districts.length && !counties.length) { setAreaShapes([]); return }
+    const [cities, school_districts, counties, townships] = JSON.parse(areaKey) as string[][]
+    if (!cities.length && !school_districts.length && !counties.length && !townships.length) { setAreaShapes([]); return }
     let cancelled = false
     setAreaShapesLoading(true)
     const t = setTimeout(() => {
-      api.properties.areaShapes({ cities, school_districts, counties })
+      api.properties.areaShapes({ cities, townships, school_districts, counties })
         .then(r => { if (!cancelled) setAreaShapes(r.data?.shapes || []) })
         .catch(() => { if (!cancelled) setAreaShapes([]) })
         .finally(() => { if (!cancelled) setAreaShapesLoading(false) })
@@ -651,7 +651,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
   })
   const areaBadges: CanvasBadge[] = areaShapes.map((sh, i) => ({
     id: `b:${sh.kind}:${sh.query}`, shapeId: `${sh.kind}:${sh.query}`, title: shortAreaName(sh),
-    sub: sh.kind === 'town' ? (sh.zips?.length ? `Town · ZIP ${sh.zips.slice(0, 2).join(', ')}${sh.zips.length > 2 ? '…' : ''}` : 'Town') : sh.kind === 'school_district' ? 'School district' : 'County',
+    sub: sh.kind === 'town' ? (sh.zips?.length ? `Town · ZIP ${sh.zips.slice(0, 2).join(', ')}${sh.zips.length > 2 ? '…' : ''}` : 'Town') : sh.kind === 'school_district' ? 'School district' : sh.kind === 'township' ? 'Township' : 'County',
     color: areaCanvasShapes[i].color, icon: sh.kind === 'school_district' ? 'school' : sh.kind === 'county' ? 'county' : 'town',
   }))
   const homePins = previewProperties.filter(p => p.Latitude != null && p.Longitude != null).slice(0, 300).map(p => ({ lat: p.Latitude as number, lng: p.Longitude as number }))

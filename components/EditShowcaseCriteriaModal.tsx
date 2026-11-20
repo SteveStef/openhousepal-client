@@ -487,7 +487,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
   const areaGrid = (opts: { lockTowns?: boolean } = {}) => {
     const box = (label: string, el: ReactNode, id: string) => (
       <div className="min-w-0 space-y-1.5" data-testid={`area-${id}`}>
-        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label}{id === 'high-school' && formData.school_districts?.length ? <span className="normal-case tracking-normal text-gray-400"> · {formData.high_schools?.length ? 'only these' : 'any - tap one to keep only it'}</span> : null}</p>
         {el}
       </div>
     )
@@ -1208,7 +1208,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
               </motion.p>
             )}
           </AnimatePresence>
-          <AreaPicksMap cities={formData.cities || []} schoolDistricts={formData.school_districts || []} />
+          <AreaPicksMap cities={formData.cities || []} townships={formData.townships || []} schoolDistricts={formData.school_districts || []} points={live?.points} count={preview ? (live?.count ?? null) : null} counting={liveLoading} atLimit={liveFull} />
           {!removedHome && homeAddress && homeLat != null && homeLng != null && (
             <button type="button" onClick={() => setFormData(prev => ({ ...prev, cities: [], address: homeAddress, lat: homeLat!, long: homeLng!, diameter: prev.diameter || 6 }))}
               className="inline-flex items-center gap-1.5 text-[12px] font-black text-[#a8843a] hover:underline dark:text-[#e8c97a]">
@@ -1319,7 +1319,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
             </motion.p>
           )}
         </AnimatePresence>
-        {!isUsingAreaSearch() && <div className="mt-3"><AreaPicksMap cities={formData.cities || []} schoolDistricts={formData.school_districts || []} /></div>}
+        {!isUsingAreaSearch() && <div className="mt-3"><AreaPicksMap cities={formData.cities || []} townships={formData.townships || []} schoolDistricts={formData.school_districts || []} points={live?.points} count={preview ? (live?.count ?? null) : null} counting={liveLoading} atLimit={liveFull} /></div>}
         {hasSummary && (
           <div className={`space-y-1.5 ${!isUsingAreaSearch() ? 'mt-4 border-t border-gray-100 pt-4 dark:border-white/[0.07]' : ''}`}>
             <p className="text-xs font-black text-gray-500">Also set by your agent</p>
@@ -1612,7 +1612,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
                         {(isUsingAreaSearch() || !!formData.school_districts?.length) && <button type="button" onClick={() => setFormData(prev => ({ ...prev, cities: [], school_districts: [] }))} className="text-[10px] font-black uppercase tracking-widest text-[#a8843a] hover:underline dark:text-[#e8c97a]">Clear</button>}
                       </div>
                       {areaGrid({ lockTowns: isUsingAddressSearch() })}
-                      <AreaPicksMap cities={formData.cities || []} schoolDistricts={formData.school_districts || []} />
+                      <AreaPicksMap cities={formData.cities || []} townships={formData.townships || []} schoolDistricts={formData.school_districts || []} points={live?.points} count={preview ? (live?.count ?? null) : null} counting={liveLoading} atLimit={liveFull} />
                     </div>
                   </div>
                 ),

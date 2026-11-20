@@ -405,7 +405,7 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
                     <LookupAdd placeholder="Or add a township…" lookup={q => api.properties.townshipsPublic(q)} picked={townships} onAdd={v => setTownships(ts => ts.includes(v) ? ts : [...ts, v])} />
                     <Picked items={townships} onRemove={v => setTownships(ts => ts.filter(t => t !== v))} />
                   </div>
-                  <div className="mt-4"><AreaPicksMap cities={towns} schoolDistricts={[]} accent={accent} className="h-56 sm:h-64" /></div>
+                  <div className="mt-4"><AreaPicksMap cities={towns} townships={townships} schoolDistricts={[]} accent={accent} className="h-56 sm:h-64" /></div>
                 </>
               )}
               {where === 'district' && (
@@ -421,7 +421,7 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
                       <Picked items={townships} onRemove={v => setTownships(ts => ts.filter(t => t !== v))} />
                     </div>
                   )}
-                  <div className="mt-4"><AreaPicksMap cities={[]} schoolDistricts={districts} accent={accent} className="h-56 sm:h-64" /></div>
+                  <div className="mt-4"><AreaPicksMap cities={[]} townships={townships} schoolDistricts={districts} accent={accent} className="h-56 sm:h-64" /></div>
                 </>
               )}
               <div className="mt-7 flex justify-end">
