@@ -127,6 +127,8 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
   const showTour = !!onScheduleTour && (tourButtonVariant !== 'requests' || !!property.hasTourRequest)
   // The agent's pick (user, 10/18) - impossible to miss on both sides; gone once the client passes on it.
   const recommended = !!property.agentRecommended && !property.disliked
+  // A star the must-haves gave lists what the home has (owner, 11/20) - "… recommends this home" only for the agent's own tap.
+  const mustHaves = property.aiStarred && property.smartMatch?.wants?.length ? property.smartMatch.wants : null
   const statsRef = useRef<HTMLDivElement>(null)
   const fit = useFitLevel(statsRef, 2, [property.LivingArea, property.LotSizeAcres, property.BedroomsTotal, property.BathroomsTotal])
   // Memoize visitor interaction counts to avoid redundant filtering on every render
@@ -323,9 +325,12 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
       }`}
     >
       {recommended && (
-        <div className="flex items-center justify-center gap-2 bg-gradient-to-r from-[#8b6a2b] via-[#C9A24D] to-[#8b6a2b] px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#111827]">
-          <Star size={13} className="fill-[#111827]" />
-          {recommendedBy ? `${recommendedBy} recommends this home` : 'Your agent recommends this home'}
+        <div className="flex items-center justify-center gap-2 bg-gradient-to-r from-[#8b6a2b] via-[#C9A24D] to-[#8b6a2b] px-3 py-2 text-center text-[11px] font-black uppercase leading-snug tracking-[0.16em] text-[#111827]"
+          data-testid={mustHaves ? 'star-banner-must-haves' : 'star-banner-agent'}>
+          <Star size={13} className="shrink-0 fill-[#111827]" />
+          <span className="min-w-0">
+            {mustHaves ? `Has ${mustHaves.join(' · ')}` : recommendedBy ? `${recommendedBy} recommends this home` : 'Your agent recommends this home'}
+          </span>
         </div>
       )}
       {/* The photo's own 3:2 shape (MLS photos are 3:2) - the old wide 16:9 box plus the MLS-badge

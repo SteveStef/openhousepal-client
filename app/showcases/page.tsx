@@ -403,7 +403,8 @@ function ShowcaseContent() {
   const handleRecommend = async (property: Property) => {
     if (!selectedCollection || property.id === undefined) return
     const next = !(property.agentRecommended && !property.disliked)
-    setMatchedProperties(prev => prev.map(p => p.id === property.id ? { ...p, agentRecommended: next, ...(next ? { disliked: false } : {}) } : p))
+    // the agent's tap makes the star their own (server: forget_ai_star) - the banner then says they recommend it
+    setMatchedProperties(prev => prev.map(p => p.id === property.id ? { ...p, agentRecommended: next, aiStarred: false, ...(next ? { disliked: false } : {}) } : p))
     // Recommending from the open home window takes the Pass off there too.
     if (next) setSelectedProperty(prev => prev && String(prev.id) === String(property.id) ? { ...prev, disliked: false } : prev)
     const { success, error } = await api.collections.recommend(selectedCollection.id, String(property.id), next)
@@ -448,8 +449,8 @@ function ShowcaseContent() {
           case 'unlike': return { ...p, liked: false }
           case 'dislike': return { ...p, disliked: true, liked: false, agentRecommended: false }
           case 'undislike': return { ...p, disliked: false }
-          case 'recommend': return { ...p, agentRecommended: true, disliked: false }
-          case 'unrecommend': return { ...p, agentRecommended: false }
+          case 'recommend': return { ...p, agentRecommended: true, aiStarred: false, disliked: false }
+          case 'unrecommend': return { ...p, agentRecommended: false, aiStarred: false }
           case 'sold': return { ...p, soldFiled: true }
           case 'unsold': return { ...p, soldFiled: false }
         }
