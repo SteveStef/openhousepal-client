@@ -1,9 +1,9 @@
 'use client'
 
 // "Only these high schools" in the Showcase search (owner, 11/19): Bright leaves the high school out of most listings,
-// so each for-sale home's school is worked out once in the background - Bright's answer first, then the government
-// school map, then the homes around it (backend services/home_school_service.py). Picking a school here keeps only
-// the homes going to it, those included.
+// so each for-sale home's school is worked out once in the background - Bright's answer first; otherwise only when the
+// home's township, the government school map and the nearby listings ALL agree (backend services/home_school_service.py;
+// a wrong school is worse than "unknown"). Picking a school here keeps only the homes going to it, those included.
 import { useEffect, useState } from 'react'
 import { Check, GraduationCap } from 'lucide-react'
 import api from '@/lib/api-service'
@@ -70,7 +70,7 @@ export function HighSchoolPicker({ districts, value, onChange, client = false, b
       )}
       {placed > 0 && !client && (
         <p className="text-[10.5px] font-semibold leading-snug text-gray-400">
-          {`Counts are homes for sale. ${placed} of them don't name a high school in the listing - the government school map and the homes around them place those, so they still count.`}
+          {`Counts are homes for sale. ${placed} of them don't name a high school in the listing - their township, the government school map and the nearby listings all agree on the school, so they still count.`}
         </p>
       )}
     </div>
