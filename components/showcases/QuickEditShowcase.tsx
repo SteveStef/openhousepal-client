@@ -16,6 +16,16 @@ import { useToast } from '@/contexts/ToastContext'
 import { formatNumberWithCommas, stripCommas } from '@/lib/utils'
 import { tidyAllCaps } from '@/lib/cheatSheetContent'
 import { useCircleTownCheck, type Circle } from '@/components/showcases/CircleTownPrompt'
+import { SmartWantsInput, type SmartState } from '@/components/showcases/SmartWants'
+import { SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
+
+// Must-haves as saved (owner, 11/21: "someone tells me at the open house the home needs a pool") - same
+// list the full editor, the Showcase bar and the chat use (collection_preferences.ai_wants).
+const savedWants = (p: any): string[] => {
+  const w = p?.ai_wants
+  return Array.isArray(w) ? w : Array.isArray(w?.wants) && w?.state !== 'off' ? w.wants : []
+}
+const sameWants = (a: string[], b: string[]) => JSON.stringify(a.map(x => x.toLowerCase())) === JSON.stringify(b.map(x => x.toLowerCase()))
 
 export type QuickShowcase = { id: string; name?: string | null }
 
@@ -78,15 +88,17 @@ function changesOf(p: any, f: Form): Record<string, unknown> {
   return out
 }
 
-export default function QuickEditShowcase({ open, onClose, leadId, showcases: given, initialId, who, onSaved }: {
+export default function QuickEditShowcase({ open, onClose, leadId, showcases: given, initialId, who, onSaved, focus }: {
   open: boolean
   onClose: () => void
+  /** 'must-haves': opened from a must-have chip - scrolls straight to that section. */
+  focus?: 'must-haves' | null
   /** Their lead - its Showcases are offered when there's more than one. */
   leadId?: string | null
   showcases?: QuickShowcase[]
   initialId?: string | null
   who?: string | null
-  onSaved?: (r: { id: string; count: number; added: number; removed: number }) => void
+  onSaved?: (r: { id: string; count: number; added: number; removed: number; wants?: string[] }) => void
 }) {
   const { showToast } = useToast()
   const [list, setList] = useState<QuickShowcase[]>(given || [])
@@ -101,6 +113,8 @@ export default function QuickEditShowcase({ open, onClose, leadId, showcases: gi
   // What the client asked for from their Showcase ("Could you add Downingtown too?") - shown here,
   // and marked handled when this saves (its follow-up is checked off too).
   const [asked, setAsked] = useState<string | null>(null)
+  const [wants, setWants] = useState<string[]>([])
+  const mustRef = useRef<HTMLDivElement>(null)
 
   // Their Showcases (a guest can have two - pick which).
   useEffect(() => {
@@ -123,13 +137,21 @@ export default function QuickEditShowcase({ open, onClose, leadId, showcases: gi
     setPrefs(null); setForm(null); setCount(null); setNote(null)
     api.collections.getById(id).then(r => {
       const p = r.data?.preferences || {}
-      setPrefs(p); setForm(formFrom(p))
+      setPrefs(p); setForm(formFrom(p)); setWants(savedWants(p))
       setAsked(r.data?.refine_request_message || null)
     })
   }, [open, id])
+  // Opened from a must-have chip: straight to the must-haves.
+  useEffect(() => {
+    if (!open || focus !== 'must-haves' || !form) return
+    const t = window.setTimeout(() => mustRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 250)
+    return () => window.clearTimeout(t)
+  }, [open, focus, !!form]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const changes = useMemo(() => (prefs && form ? changesOf(prefs, form) : {}), [prefs, form])
-  const dirty = Object.keys(changes).length > 0
+  const searchDirty = Object.keys(changes).length > 0
+  const wantsDirty = !!prefs && !sameWants(wants, savedWants(prefs))
+  const dirty = searchDirty || wantsDirty
   const radius = !!(prefs?.address && prefs?.diameter && prefs?.lat != null)
   const places = !!(form && (form.cities.length || form.townships.length || (prefs?.counties || []).length))
   // the circle as it stands now: the saved one, a grown / moved one, or none
@@ -162,23 +184,43 @@ export default function QuickEditShowcase({ open, onClose, leadId, showcases: gi
   }, [open, prefs, form, changes, area])
 
   const save = useCallback(async () => {
-    if (!id || !dirty || !area) return
+    if (!id || !dirty || (searchDirty && !area)) return
     setSaving(true)
-    const r = await api.collections.updatePreferencesAndRefresh(id, changes) as any
+    let n = count?.n ?? 0
+    let d: any = {}
+    if (searchDirty) {
+      const r = await api.collections.updatePreferencesAndRefresh(id, changes) as any
+      if (!r.success) { setSaving(false); showToast(r.error || "Couldn't update their Showcase", 'error'); return }
+      d = r.data || {}
+      n = d.properties_count ?? n
+    }
+    // Must-haves through the same save the full editor uses (showcase_smart_filter.save_wants): the stars,
+    // the Showcase bar, the chat and the follow-up all read the one list. A township / school typed here
+    // goes into the search instead (it says so).
+    let st: SmartState & { moved?: { to: string; say: string; want: string }[] } | null = null
+    if (wantsDirty) {
+      const s = await api.collections.saveSmartFilter(id, wants) as any
+      if (!s.success) {
+        setSaving(false)
+        showToast(s.error || (searchDirty ? "The search saved, but the must-haves didn't" : "Couldn't save the must-haves"), 'error')
+        if (!searchDirty) return
+      } else st = s.data?.smart_filter || { wants }
+    }
     setSaving(false)
-    if (!r.success) { showToast(r.error || "Couldn't update their Showcase", 'error'); return }
     if (asked) { await api.collections.dismissRefineRequest(id); setAsked(null) }
-    const d = r.data || {}
-    const n = d.properties_count ?? count?.n ?? 0
     const delta = [d.added ? `${d.added} new` : '', d.removed ? `${d.removed} gone` : ''].filter(Boolean).join(' · ')
-    const line = `Updated - ${n} ${n === 1 ? 'home' : 'homes'}${delta ? ` (${delta})` : ''}`
-    setDone(line)
-    showToast(`${who ? `${who.split(' ')[0]}'s Showcase` : 'Showcase'} updated - ${n} ${n === 1 ? 'home' : 'homes'}${delta ? ` (${delta})` : ''}`, 'success')
-    setPrefs({ ...prefs, ...changes })
+    const homes = `${n} ${n === 1 ? 'home' : 'homes'}${delta ? ` (${delta})` : ''}`
+    const now = st?.wants || []
+    const must = !st ? '' : now.length ? `homes with ${now.join(' + ')} get a star` : 'must-haves off'
+    const moved = (st?.moved || []).map(m => m.to === 'townships' ? `${m.say} added to Townships` : m.to === 'cities' ? `${m.say} added to Towns`
+      : m.to === 'high_schools' ? `${m.say} set as the high school` : `"${m.want}" isn't a must-have - pick the school in the search`)
+    setDone(searchDirty ? `Updated - ${homes}${must ? ` · ${must}` : ''}` : `Saved - ${must}`)
+    showToast(`${who ? `${who.split(' ')[0]}'s Showcase` : 'Showcase'} ${searchDirty ? `updated - ${homes}` : 'saved'}${must ? ` · ${must}` : ''}${moved.length ? ` · ${moved.join(' · ')}` : ''}`, 'success')
+    setPrefs({ ...prefs, ...changes, ...(st ? { ai_wants: st } : {}) })
     setForm(f => (f ? { ...f, dropRadius: false, circle: undefined } : f))
-    onSaved?.({ id, count: n, added: d.added || 0, removed: d.removed || 0 })
-    window.setTimeout(onClose, 900)
-  }, [id, dirty, area, changes, count, prefs, who, onSaved, onClose, showToast, asked])
+    onSaved?.({ id, count: n, added: d.added || 0, removed: d.removed || 0, ...(st ? { wants: now } : {}) })
+    window.setTimeout(onClose, 1100)
+  }, [id, dirty, searchDirty, wantsDirty, wants, area, changes, count, prefs, who, onSaved, onClose, showToast, asked])
 
   // A max under the open house's starting min (owner, 11/01: "looking for 1.15M max" on a $6M-$9M
   // open house search) clears that min instead of matching nothing.
@@ -215,7 +257,7 @@ export default function QuickEditShowcase({ open, onClose, leadId, showcases: gi
           </motion.span>
         </AnimatePresence>
       </div>
-      <button type="button" onClick={save} disabled={!dirty || !area || saving || !!done} data-testid="quick-edit-save"
+      <button type="button" onClick={save} disabled={!dirty || (searchDirty && !area) || saving || !!done} data-testid="quick-edit-save"
         className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#111827] px-5 py-2.5 text-[13px] font-black text-white transition hover:bg-black active:scale-[0.97] disabled:opacity-40 dark:bg-white dark:text-[#111827]">
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : done ? <Check className="h-4 w-4" /> : null} {done ? 'Saved' : 'Save'}
       </button>
@@ -265,6 +307,17 @@ export default function QuickEditShowcase({ open, onClose, leadId, showcases: gi
                 <p className="mt-1 text-[11px] font-semibold text-amber-700/80 dark:text-amber-300/80">Saving marks it done.</p>
               </div>
             )}
+
+            {/* Must-haves (owner, 11/21): what they told you at the open house - "it needs a pool". Never hides
+                a home; the ones that have them all get the star, listing them on the card. */}
+            <div ref={mustRef} className="scroll-mt-4 rounded-2xl border border-[#C9A24D]/35 bg-gradient-to-br from-[#fffaf0] to-white p-3.5 dark:border-[#C9A24D]/25 dark:from-[#C9A24D]/[0.07] dark:to-transparent" data-testid="quick-edit-must-haves">
+              <span className={`${label} !text-[#8b7355] dark:!text-[#C9A24D]`}>Must-haves</span>
+              <SmartWantsInput wants={wants} onChange={setWants}
+                intro="What they told you the home needs, like a pool. Nothing is hidden - the homes that have all of them get a star that lists them."
+                count={!area || counting || !count ? null : Math.min(count.n, SHOWCASE_MAX_HOMES)}
+                atLimit={!!count && (!!count.limit || count.n > SHOWCASE_MAX_HOMES)}
+                state={prefs?.ai_wants && !Array.isArray(prefs.ai_wants) && prefs.ai_wants.wants?.length && !wantsDirty ? prefs.ai_wants as SmartState : null} />
+            </div>
 
             {/* Where */}
             <div>

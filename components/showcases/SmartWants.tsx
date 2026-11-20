@@ -5,8 +5,9 @@
 // agent recommended them, with a line under the address; the rest still show, without the star.
 // backend: services/showcase_smart_filter.py
 import { useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import api from '@/lib/api-service'
-import { Plus, Sparkles, X } from 'lucide-react'
+import { Pencil, Plus, Sparkles, X } from 'lucide-react'
 
 export type SmartState = { wants?: string[]; state?: 'reading' | 'done' | 'no_room' | 'error' | 'off' | 'too_many'; matched?: number; left?: number; read?: number; at?: string; cap?: number; used_percent?: number | null; used_total_percent?: number | null }
 export type SmartMatch = { wants?: string[]; quotes?: string[]; marks?: { want: string; words: string }[]; say?: string; facts?: string[] } | null | undefined
@@ -44,8 +45,10 @@ export function filterWantNote(w: string): string | null {
 const IDEAS = ['First-floor primary bedroom', '9 ft+ ceilings', 'Pool', 'Finished basement', '3-car garage', 'Home office', 'Walk-out basement', 'Fenced yard', 'One-level living']
 
 /** Chips + a box to add more - used in the Showcase search editor (create and edit). */
-export function SmartWantsInput({ wants, onChange, state, count, atLimit = false }: {
+export function SmartWantsInput({ wants, onChange, state, count, atLimit = false, intro }: {
   wants: string[]; onChange: (w: string[]) => void; state?: SmartState | null
+  /** A shorter first line where the box isn't last (the quick Edit Showcase sheet). */
+  intro?: string
   /** Homes the search above finds right now (null while it counts) - the AI reads every one. */
   count?: number | null; atLimit?: boolean
 }) {
@@ -70,9 +73,9 @@ export function SmartWantsInput({ wants, onChange, state, count, atLimit = false
     : { tone: 'ok', text: `${wants.length ? 'Reads' : 'Would read'} ${atLimit ? `the ${count} homes it keeps` : `${count} home${count === 1 ? '' : 's'}`}${wants.length > 1 ? ` for ${wants.length} must-haves` : ''} · uses ${pct(est.usage_percent).replace('about ', '~')} of AI usage${est.left_percent != null ? ` · ${est.left_percent}% left` : ''}` }
   return (
     <div className="space-y-2.5" data-testid="smart-wants">
-      <p className="text-[11.5px] font-semibold leading-snug text-gray-500 dark:text-gray-400">
+      {intro ? <p className="text-[11.5px] font-semibold leading-snug text-gray-500 dark:text-gray-400">{intro}</p> : <p className="text-[11.5px] font-semibold leading-snug text-gray-500 dark:text-gray-400">
         Set this last: features the search can't see. The AI reads every home your search above finds; homes that have <span className="font-black text-[#111827] dark:text-white">all</span> of these get one star and a line saying so - the rest still show, without the star. Townships, towns and schools go in the search itself.
-      </p>
+      </p>}
       {line && (
         <p data-testid="smart-estimate" data-tone={line.tone}
           className={`rounded-lg px-2.5 py-1.5 text-[11.5px] font-bold leading-snug ${line.tone === 'bad' ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300' : line.tone === 'warn' ? 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300' : 'bg-[#C9A24D]/10 text-[#8b7355] dark:text-[#e8c97a]'}`}>
@@ -81,14 +84,19 @@ export function SmartWantsInput({ wants, onChange, state, count, atLimit = false
       )}
       {wants.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {wants.map(w => (
-            <span key={w} className="inline-flex max-w-full items-center gap-1 rounded-full border border-[#C9A24D]/60 bg-[#C9A24D]/10 py-1 pl-2.5 pr-1 text-[12px] font-black text-[#8b7355] dark:text-[#e8c97a]" data-testid="smart-want">
-              <Sparkles className="h-3 w-3 shrink-0" /> <span className="min-w-0 truncate">{w}</span>
-              <button type="button" aria-label={`Take off ${w}`} onClick={() => onChange(wants.filter(x => x !== w))} className="grid h-5 w-5 shrink-0 place-items-center rounded-full hover:bg-[#C9A24D]/20" data-testid="smart-want-remove">
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
+          {/* chips pop in / out (transform + opacity only - smooth on phones) */}
+          <AnimatePresence initial={false}>
+            {wants.map(w => (
+              <motion.span key={w} layout initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }}
+                transition={{ type: 'spring', stiffness: 520, damping: 26 }}
+                className="inline-flex max-w-full items-center gap-1 rounded-full border border-[#C9A24D]/60 bg-[#C9A24D]/10 py-1 pl-2.5 pr-1 text-[12px] font-black text-[#8b7355] dark:text-[#e8c97a]" data-testid="smart-want">
+                <Sparkles className="h-3 w-3 shrink-0" /> <span className="min-w-0 truncate">{w}</span>
+                <button type="button" aria-label={`Take off ${w}`} onClick={() => onChange(wants.filter(x => x !== w))} className="grid h-5 w-5 shrink-0 place-items-center rounded-full hover:bg-[#C9A24D]/20" data-testid="smart-want-remove">
+                  <X className="h-3 w-3" />
+                </button>
+              </motion.span>
+            ))}
+          </AnimatePresence>
         </div>
       )}
       {wants.length < MAX_WANTS && !tooMany && (
@@ -177,12 +185,25 @@ export function SmartFilterBar({ collectionId, initial, onEdit, onDone }: { coll
     return () => { live = false; window.clearInterval(t) }
   }, [reading, collectionId]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!st?.wants?.length || st.state === 'off') return null
-  return (
-    <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-[#C9A24D]/35 bg-gradient-to-r from-[#fffaf0] to-white px-3 py-2.5 dark:border-[#C9A24D]/25 dark:from-[#C9A24D]/[0.07] dark:to-transparent" data-testid="smart-filter-bar">
+  // The label + chips are the editing spot (owner, 11/20): one rectangle with a pencil, tap to change them.
+  const box = 'group flex min-w-0 flex-wrap items-center gap-1.5 rounded-xl border border-[#C9A24D]/45 bg-white/80 px-2.5 py-1.5 text-left dark:border-[#C9A24D]/35 dark:bg-white/[0.04]'
+  const inner = (
+    <>
       <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7355] dark:text-[#C9A24D]">Must-haves</span>
       {st.wants.map(w => <span key={w} className="rounded-full bg-white px-2 py-0.5 text-[11.5px] font-black text-[#111827] ring-1 ring-[#C9A24D]/40 dark:bg-zinc-900 dark:text-white">{w}</span>)}
-      <SmartStatus state={st} className="!bg-transparent !px-1 !py-0" />
-      {onEdit && <button type="button" onClick={onEdit} className="ml-auto text-[11px] font-black text-[#8b7355] hover:underline dark:text-[#e8c97a]" data-testid="smart-filter-edit">Change</button>}
+      {onEdit && (
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#C9A24D]/15 text-[#8b7355] transition group-hover:bg-[#C9A24D]/30 group-active:scale-90 dark:text-[#e8c97a]" aria-hidden>
+          <Pencil className="h-3 w-3" />
+        </span>
+      )}
+    </>
+  )
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-[#C9A24D]/35 bg-gradient-to-r from-[#fffaf0] to-white px-3 py-2.5 dark:border-[#C9A24D]/25 dark:from-[#C9A24D]/[0.07] dark:to-transparent" data-testid="smart-filter-bar">
+      {onEdit
+        ? <button type="button" onClick={onEdit} aria-label="Change the must-haves" className={`${box} transition hover:border-[#C9A24D] active:scale-[0.98]`} data-testid="smart-filter-edit">{inner}</button>
+        : <div className={box}>{inner}</div>}
+      <SmartStatus state={st} className="!bg-transparent !px-0 !py-0" />
     </div>
   )
 }

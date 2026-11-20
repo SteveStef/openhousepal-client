@@ -2323,6 +2323,8 @@ export interface LeadShowcase {
   last_active_at?: string | null;
   emails_on: boolean;
   refine_message?: string | null;
+  /** The Showcase's must-haves - gold chips that open Edit Showcase at them (11/21). */
+  must_haves?: string[];
   invite?: ShowcaseInviteStatus | null;
 }
 

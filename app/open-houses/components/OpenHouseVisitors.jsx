@@ -18,6 +18,7 @@ import NotesThread from '@/components/leads/NotesThread'
 import { OhpSpinner } from '@/components/brand/OhpLoader'
 import OhSheet from '@/components/open-house-manager/OhSheet'
 import QuickEditShowcase from '@/components/showcases/QuickEditShowcase'
+import MustHaveChips from '@/components/showcases/MustHaveChips'
 import { copyText } from '@/lib/copyText'
 
 // `contacted`: "Texted" / "Emailed" right after the number / email once they were reached that way (11/02).
@@ -153,6 +154,9 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
   const [activityFor, setActivityFor] = useState(null)
   // Edit Showcase straight from the guest (owner, 11/01)
   const [editFor, setEditFor] = useState(null)
+  // opened from a must-have chip: Edit Showcase scrolls to the must-haves (11/21)
+  const [editFocus, setEditFocus] = useState(null)
+  const openEdit = (visitor, focus) => { setEditFocus(focus || null); setEditFor(visitor) }
   const patchVisitor = (id, patch) => setVisitors(prev => prev.map(v => v.id === id ? { ...v, ...patch } : v))
   // Text / Email tapped for a guest - their lead shows Texted / Emailed here and on the Leads page (11/02).
   const markContacted = (visitor, via) => {
@@ -546,9 +550,12 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
                                 )}
                                 {visitor.showcase_id && (
                                   <div className="mt-1.5 flex items-center gap-1.5">
-                                    <button type="button" data-testid="visitor-edit-showcase" onClick={e => { e.stopPropagation(); setEditFor(visitor) }} className="inline-flex items-center gap-1 rounded-full border border-[#C9A24D]/40 bg-white px-2.5 py-1 text-[11px] font-black text-[#8b7355] transition hover:border-[#C9A24D] active:scale-95 dark:bg-white/5 dark:text-[#e8c97a]"><Pencil className="h-3 w-3" /> Edit Showcase</button>
+                                    <button type="button" data-testid="visitor-edit-showcase" onClick={e => { e.stopPropagation(); openEdit(visitor) }} className="inline-flex items-center gap-1 rounded-full border border-[#C9A24D]/40 bg-white px-2.5 py-1 text-[11px] font-black text-[#8b7355] transition hover:border-[#C9A24D] active:scale-95 dark:bg-white/5 dark:text-[#e8c97a]"><Pencil className="h-3 w-3" /> Edit Showcase</button>
                                     <OpenShowcaseLink compact id={visitor.showcase_id} />
                                   </div>
+                                )}
+                                {visitor.showcase_id && (
+                                  <MustHaveChips wants={visitor.showcase_must_haves} onOpen={() => openEdit(visitor, 'must-haves')} className="mt-1.5" />
                                 )}
                               </td>
                               <td className="px-4 py-4 lg:px-5 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
@@ -631,11 +638,16 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
                         )}
                         {visitor.showcase_id && (
                           <div className="mx-3.5 mt-2 flex gap-2">
-                            <button type="button" data-testid="visitor-edit-showcase" onClick={() => setEditFor(visitor)}
+                            <button type="button" data-testid="visitor-edit-showcase" onClick={() => openEdit(visitor)}
                               className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-2xl border border-[#C9A24D]/40 bg-white py-2.5 text-[13px] font-black text-[#8b7355] transition active:scale-[0.98] dark:bg-white/5 dark:text-[#e8c97a]">
                               <Pencil className="h-3.5 w-3.5" /> Edit Showcase
                             </button>
                             {!visitor.showcase_switchable && <OpenShowcaseLink id={visitor.showcase_id} />}
+                          </div>
+                        )}
+                        {visitor.showcase_id && (
+                          <div className="mx-3.5 mt-2">
+                            <MustHaveChips wants={visitor.showcase_must_haves} onOpen={() => openEdit(visitor, 'must-haves')} />
                           </div>
                         )}
 
@@ -717,7 +729,9 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
       </OhSheet>
 
       <PassActivitySheet visitor={activityFor} onClose={() => setActivityFor(null)} onSeen={id => patchVisitor(id, { pass_new: 0 })} />
-      <QuickEditShowcase open={!!editFor} onClose={() => setEditFor(null)} leadId={editFor?.lead_id} initialId={editFor?.showcase_id} who={editFor?.full_name} />
+      <QuickEditShowcase open={!!editFor} onClose={() => setEditFor(null)} leadId={editFor?.lead_id} initialId={editFor?.showcase_id} who={editFor?.full_name}
+        focus={editFocus}
+        onSaved={r => { if (r.wants && editFor) setVisitors(prev => prev.map(v => v.showcase_id === r.id ? { ...v, showcase_must_haves: r.wants } : v)) }} />
     </div>
   )
 }

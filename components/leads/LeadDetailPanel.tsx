@@ -34,6 +34,7 @@ import ShowcaseMailbox from '@/components/showcases/ShowcaseMailbox'
 import OhpSwitch from '@/components/ui/OhpSwitch'
 import LeadRecentMatches from './LeadRecentMatches'
 import QuickEditShowcase from '@/components/showcases/QuickEditShowcase'
+import MustHaveChips from '@/components/showcases/MustHaveChips'
 import { InviteLine, SendInviteButton } from '@/components/showcases/ShowcaseInvite'
 import { tidyAllCaps } from '@/lib/cheatSheetContent'
 
@@ -167,6 +168,9 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
   const [askDeleteShowcase, setAskDeleteShowcase] = useState(false)
   const [deletingShowcase, setDeletingShowcase] = useState(false)
   const [editShowcase, setEditShowcase] = useState<string | null>(null)
+  // opened from a must-have chip: Edit Showcase scrolls to the must-haves (11/21)
+  const [editFocus, setEditFocus] = useState<'must-haves' | null>(null)
+  const openEdit = (id: string, focus?: 'must-haves') => { setEditFocus(focus || null); setEditShowcase(id) }
   const reduceMotion = useReducedMotion()
   const [lead, setLead] = useState<LeadDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -593,11 +597,11 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
           )}
 
           {ohShowcase.modal}
-          <QuickEditShowcase open={!!editShowcase} onClose={() => setEditShowcase(null)} who={lead.name}
+          <QuickEditShowcase open={!!editShowcase} onClose={() => setEditShowcase(null)} who={lead.name} focus={editFocus}
             showcases={(lead.showcases || []).map(s => ({ id: s.id, name: s.name }))} initialId={editShowcase} onSaved={() => reload()} />
 
           {/* On a phone their Showcase comes before the long history (the side column is last). */}
-          <div className="space-y-4 lg:hidden"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={setEditShowcase} who={lead} leadId={leadId} onChanged={() => { reload(); onChanged?.() }} /></div>
+          <div className="space-y-4 lg:hidden"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={openEdit} who={lead} leadId={leadId} onChanged={() => { reload(); onChanged?.() }} /></div>
 
           {/* ── emails we sent them: opened / clicked, and whether automatic ones are on, weekly or off (and why) */}
           {lead.email && <LeadEmailCard email={lead.email} initial={lead.email_engagement} />}
@@ -662,7 +666,7 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
 
         {/* ── side: their Showcase, open houses, tags, notes, record */}
         <div className="min-w-0 space-y-4 sm:space-y-5">
-          <div className="hidden space-y-4 lg:block sm:space-y-5"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={setEditShowcase} who={lead} leadId={leadId} onChanged={() => { reload(); onChanged?.() }} /></div>
+          <div className="hidden space-y-4 lg:block sm:space-y-5"><ShowcaseCards showcases={lead.showcases || []} oh={ohShowcase} onCopy={copy} onEdit={openEdit} who={lead} leadId={leadId} onChanged={() => { reload(); onChanged?.() }} /></div>
 
           {!!lead.open_houses?.length && (
             <Card>
@@ -972,13 +976,13 @@ function ViewsRow({ items, open, onToggle }: { items: LeadEvent[]; open: boolean
 // Their Showcase in one card (owner, 11/01): the open house on/off switch sits on top of the card for
 // the Showcase it controls (or the first one); with no Showcase yet the card is just the switch.
 type Who = { name?: string | null; email?: string | null }
-function ShowcaseCards({ showcases, oh, onCopy, onEdit, who, leadId, onChanged }: { leadId: string; showcases: LeadShowcase[]; oh: LeadOhShowcaseState; onCopy: (text: string, what: string) => void; onEdit: (id: string) => void; who: Who; onChanged: () => void }) {
+function ShowcaseCards({ showcases, oh, onCopy, onEdit, who, leadId, onChanged }: { leadId: string; showcases: LeadShowcase[]; oh: LeadOhShowcaseState; onCopy: (text: string, what: string) => void; onEdit: (id: string, focus?: 'must-haves') => void; who: Who; onChanged: () => void }) {
   if (!showcases.length) {
     if (!oh.show) return null
     return <Card><SectionTitle>Their Showcase</SectionTitle><LeadOhShowcaseSwitch oh={oh} withLink /></Card>
   }
   const withSwitch = (oh.show && (showcases.find(s => s.id === oh.data?.showcase_id) || showcases[0]).id) || null
-  return <>{showcases.map((sc, i) => <ShowcaseCard key={sc.id} sc={sc} who={who} onCopy={onCopy} onEdit={() => onEdit(sc.id)} top={sc.id === withSwitch ? <LeadOhShowcaseSwitch oh={oh} /> : <ShowcaseOnOff sc={sc} onChanged={onChanged} />}
+  return <>{showcases.map((sc, i) => <ShowcaseCard key={sc.id} sc={sc} who={who} onCopy={onCopy} onEdit={() => onEdit(sc.id)} onMustHaves={() => onEdit(sc.id, 'must-haves')} top={sc.id === withSwitch ? <LeadOhShowcaseSwitch oh={oh} /> : <ShowcaseOnOff sc={sc} onChanged={onChanged} />}
     leadId={i === 0 ? leadId : undefined} />)}</>
 }
 
@@ -1008,7 +1012,7 @@ function ShowcaseOnOff({ sc, onChanged }: { sc: LeadShowcase; onChanged: () => v
   )
 }
 
-function ShowcaseCard({ sc, who, onCopy, onEdit, top, leadId }: { leadId?: string; sc: LeadShowcase; who: Who; onCopy: (text: string, what: string) => void; onEdit?: () => void; top?: React.ReactNode }) {
+function ShowcaseCard({ sc, who, onCopy, onEdit, onMustHaves, top, leadId }: { leadId?: string; sc: LeadShowcase; who: Who; onCopy: (text: string, what: string) => void; onEdit?: () => void; onMustHaves?: () => void; top?: React.ReactNode }) {
   // Did their invite email reach them (owner, 11/01)? When and whether they opened it are in the
   // Emails card; here it's sent or not, with Send invite (again).
   const [invite, setInvite] = useState(sc.invite || null)
@@ -1037,6 +1041,7 @@ function ShowcaseCard({ sc, who, onCopy, onEdit, top, leadId }: { leadId?: strin
         <p>{sc.emails_on ? 'Gets Showcase emails' : 'Turned Showcase emails off'}</p>
         {sc.refine_message && <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">Asked for: &ldquo;{sc.refine_message}&rdquo;</p>}
       </div>
+      {onMustHaves && <MustHaveChips wants={sc.must_haves} onOpen={onMustHaves} className="mt-2.5" />}
       <div className="mt-3 flex gap-1.5">
         <Link href={`/showcases?showcase=${sc.id}`} className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl bg-[#111827] px-3 py-2 text-[11px] font-black text-white dark:bg-white dark:text-[#111827]">
           <Building2 className="h-3.5 w-3.5" /> Open
