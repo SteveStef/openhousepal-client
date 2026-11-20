@@ -31,6 +31,16 @@ function useReadEstimate(count: number | null | undefined, wants: number) {
   }, [count, wants])
   return est
 }
+/** A township, town or school is a search filter, not a must-have (owner, 11/20) - said right where it's typed.
+ *  The backend moves any that slip through (a bare town name) into the search (showcase_smart_filter.split_filter_wants). */
+export function filterWantNote(w: string): string | null {
+  const t = w.toLowerCase()
+  if (/\b(walk|walking|walkable|near|nearby|close|bus|minutes?|mins?|drive|blocks?|miles?)\b/.test(t)) return null
+  if (/\b(high\s*schools?|hs|schools?|school district|district)\b/.test(t))
+    return 'Schools are a search filter now - pick the school district, then the high school, in the search.'
+  if (/\b(township|twp|borough|boro)\b/.test(t)) return 'Townships are a search filter now - add it under Townships in the search.'
+  return null
+}
 const IDEAS = ['First-floor primary bedroom', '9 ft+ ceilings', 'Pool', 'Finished basement', '3-car garage', 'Home office', 'Walk-out basement', 'Fenced yard', 'One-level living']
 
 /** Chips + a box to add more - used in the Showcase search editor (create and edit). */
@@ -40,13 +50,16 @@ export function SmartWantsInput({ wants, onChange, state, count, atLimit = false
   count?: number | null; atLimit?: boolean
 }) {
   const [text, setText] = useState('')
+  const [note, setNote] = useState<string | null>(null)
   // The search is finished first, then the must-haves (owner, 11/09): too many homes -> nothing can be added.
   const tooMany = count != null && count > SMART_READ_CAP
   const est = useReadEstimate(tooMany ? null : count, Math.max(1, wants.length))
   const add = (w: string) => {
     const t = w.replace(/\s+/g, ' ').trim().slice(0, 60)
     if (!t || tooMany || wants.length >= MAX_WANTS || wants.some(x => x.toLowerCase() === t.toLowerCase())) return
-    onChange([...wants, t]); setText('')
+    const n = filterWantNote(t)
+    if (n) { setNote(n); return }
+    setNote(null); onChange([...wants, t]); setText('')
   }
   const ideas = IDEAS.filter(i => !wants.some(w => w.toLowerCase() === i.toLowerCase())).slice(0, 6)
   const line = count == null ? null
@@ -58,7 +71,7 @@ export function SmartWantsInput({ wants, onChange, state, count, atLimit = false
   return (
     <div className="space-y-2.5" data-testid="smart-wants">
       <p className="text-[11.5px] font-semibold leading-snug text-gray-500 dark:text-gray-400">
-        Set this last: the AI reads every home your search above finds. Homes that have <span className="font-black text-[#111827] dark:text-white">all</span> of these get a star and a line saying so - the rest still show, without the star.
+        Set this last: features the search can't see. The AI reads every home your search above finds; homes that have <span className="font-black text-[#111827] dark:text-white">all</span> of these get one star and a line saying so - the rest still show, without the star. Townships, towns and schools go in the search itself.
       </p>
       {line && (
         <p data-testid="smart-estimate" data-tone={line.tone}
@@ -81,12 +94,15 @@ export function SmartWantsInput({ wants, onChange, state, count, atLimit = false
       {wants.length < MAX_WANTS && !tooMany && (
         <>
           <div className="flex gap-1.5">
-            <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(text) } }}
+            <input value={text} onChange={e => { setText(e.target.value); setNote(null) }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(text) } }}
               maxLength={60} placeholder={wants.length ? 'Add another (up to 3)' : 'e.g. first-floor primary, 9 ft+ ceilings, pool'} data-testid="smart-want-input"
               className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-[#FAFAF7] px-3 py-2 text-[16px] font-bold text-[#0B0B0B] outline-none placeholder:font-semibold placeholder:text-gray-300 focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/15 sm:text-sm dark:border-white/10 dark:bg-[#0B0B0B] dark:text-white dark:placeholder:text-gray-600" />
             <button type="button" onClick={() => add(text)} disabled={!text.trim()} aria-label="Add it" data-testid="smart-want-add"
               className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#111827] text-white transition disabled:opacity-30 dark:bg-[#C9A24D] dark:text-[#111827]"><Plus className="h-4 w-4" /></button>
           </div>
+          {note && (
+            <p className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11.5px] font-bold leading-snug text-amber-800 dark:bg-amber-500/10 dark:text-amber-300" data-testid="smart-want-filter-note">{note}</p>
+          )}
           <div className="flex flex-wrap gap-1">
             {ideas.map(i => (
               <button key={i} type="button" onClick={() => add(i)} data-testid="smart-want-idea"

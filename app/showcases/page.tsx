@@ -832,7 +832,11 @@ function ShowcaseContent() {
       setIsEditPreferencesModalOpen(false)
       fetchCollections()
     } else if (success) {
-      showToast('Preferences updated and properties refreshed!', 'success')
+      // a township / town / school typed as a must-have went into the search instead (owner, 11/20)
+      const moved = ((smart as any)?.data?.smart_filter?.moved || []) as { to: string; say: string; want: string }[]
+      const said = moved.map(m => m.to === 'townships' ? `${m.say} added to Townships` : m.to === 'cities' ? `${m.say} added to Towns`
+        : m.to === 'high_schools' ? `${m.say} set as the high school` : `"${m.want}" isn't a must-have - pick the school in the search`)
+      showToast(said.length ? `Saved. ${said.join(' · ')}.` : 'Preferences updated and properties refreshed!', 'success')
       setIsEditPreferencesModalOpen(false)
       // Since backend doesn't return full transformed collection, refresh the list
       fetchCollections()

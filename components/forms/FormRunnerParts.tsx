@@ -456,8 +456,9 @@ export function showcaseStepOf(q: FormQuestion | null | undefined): ShowcaseStep
 const filled = (v: unknown) => Array.isArray(v) ? v.length > 0 : !!(v && String(v).trim())
 
 /** Is anything picked on this question (for the trail's checks + the card's gold edge)? */
-/** "Any must-haves?" (owner, 11/19): up to 3 - tap a suggestion or type your own ("Pool", "In Uwchlan Township",
- *  "First-floor primary bedroom"). The agent's AI stars the homes in their Showcase that have them all. */
+/** "Any must-haves?" (owner, 11/19): up to 3 features - tap a suggestion or type your own ("Pool", "First-floor
+ *  primary bedroom"). The agent's AI stars the homes in their Showcase that have them all. A township, town or school
+ *  typed here goes into the Showcase's search filters instead (owner, 11/20 - backend split_filter_wants). */
 export function MustHavesInput({ value, options, onChange, accent }: { value: string[]; options: string[]; onChange: (v: string[]) => void; accent: string }) {
   const [text, setText] = useState('')
   const max = 3
