@@ -37,7 +37,7 @@ function useReadEstimate(count: number | null | undefined, wants: number) {
 export function filterWantNote(w: string): string | null {
   const t = w.toLowerCase()
   if (/\b(walk|walking|walkable|near|nearby|close|bus|minutes?|mins?|drive|blocks?|miles?)\b/.test(t)) return null
-  if (/\b(high\s*schools?|hs|schools?|school district|district)\b/.test(t))
+  if (/\b(high\s*schools?|hs|schools?)\b/.test(t))   // "Historic district" is a feature
     return 'Schools are a search filter now - pick the school district, then the high school, in the search.'
   if (/\b(township|twp|borough|boro)\b/.test(t)) return 'Townships are a search filter now - add it under Townships in the search.'
   return null
