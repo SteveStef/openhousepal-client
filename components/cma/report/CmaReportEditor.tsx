@@ -487,7 +487,7 @@ export default function CmaReportEditor({ report, onSave, onReportUpdated, onBac
       ...(n.title?.trim() ? [{ id: `note-title:${n.id}`, text: n.title, label: 'Your note - title' }] : []),
       ...(n.body?.trim() ? [{ id: `note-body:${n.id}`, text: n.body, label: 'Your note' }] : []),
     ]),
-    ...working.comparables.filter(c => (c.commentary || '').trim() && (c.commentary || '').trim() !== (c.ai_commentary || '').trim())
+    ...working.comparables.filter(c => (c.commentary || '').trim() && (c.commentary_by_agent || (c.commentary || '').trim() !== (c.ai_commentary || '').trim()))
       .map(c => ({ id: `comp:${c.id}`, text: c.commentary || '', label: `Comp - ${c.street_address || 'paragraph'}` })),
   ]
   const applyGrammar = (picked: GrammarChange[]) => {
@@ -506,7 +506,7 @@ export default function CmaReportEditor({ report, onSave, onReportUpdated, onBac
       }), { now: true })
       if (texts.length) setVersions(v => ({ ...v, ...Object.fromEntries(texts.map(c => [c.id.slice(5), (v[c.id.slice(5)] || 0) + 1])) }))
     }
-    if (compsFixed.size) changeComps(list => list.map(c => (compsFixed.has(c.id) ? { ...c, commentary: compsFixed.get(c.id) || c.commentary } : c)), { now: true })
+    if (compsFixed.size) changeComps(list => list.map(c => (compsFixed.has(c.id) ? { ...c, commentary: compsFixed.get(c.id) || c.commentary, commentary_by_agent: true } : c)), { now: true })
   }
 
   const [mode, setMode] = useState<'edit' | 'client'>('edit')
@@ -600,7 +600,7 @@ export default function CmaReportEditor({ report, onSave, onReportUpdated, onBac
         </button>
       )
     },
-    setCompNote: (id, text) => changeComps(list => list.map(c => (c.id === id ? { ...c, commentary: text } : c)), { lazy: true }),
+    setCompNote: (id, text) => changeComps(list => list.map(c => (c.id === id ? { ...c, commentary: text, commentary_by_agent: true } : c)), { lazy: true }),
     // Ratings and the classification lock with the comps (the server refuses a save that changes one).
     setCompQuality: (id, key: keyof CmaQualityAssessment, value) => locked ? undefined : changeComps(list => list.map(c => (c.id === id ? { ...c, quality: { ...c.quality, [key]: value } } : c)), { now: true }),
     setCompStrength: (id, value) => locked ? undefined : changeComps(list => list.map(c => (c.id === id ? { ...c, strength: value as CmaComparable['strength'] } : c)), { now: true }),

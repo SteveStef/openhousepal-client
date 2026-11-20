@@ -3209,6 +3209,8 @@ export interface CmaComparable {
   // AI-drafted note for this comp - separate from `commentary` above, never auto-applied. The
   // frontend offers a "Use this" button to copy it in, still editable after.
   ai_commentary?: string | null;
+  /** The agent wrote or edited this comp's paragraph (11/19) - no run changes it. */
+  commentary_by_agent?: boolean | null;
 }
 
 export interface CmaRoadContext {
@@ -3694,6 +3696,8 @@ export interface CmaAiAnalysisMeta {
   input_fingerprint?: string | null;
   images_sent?: Record<string, string[]> | null;
   warnings?: string[];
+  /** made in the Save usage line - Update the value uses the same line */
+  save_usage?: Record<string, unknown> | null;
 }
 
 export interface CmaMarketContext {

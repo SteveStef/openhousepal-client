@@ -373,6 +373,9 @@ function CmaWorkspacePageInner() {
   // For results the server already fully computed and persisted itself (AI generation) - just
   // syncs local state, no redundant PATCH back to the same data.
   const applyReport = useCallback((updated: CmaReport) => setReport(updated), [])
+  // an Update the value run (11/20): the progress says the photos aren't read again
+  const [updatingAnswers, setUpdatingAnswers] = useState(false)
+  useEffect(() => { if (report?.generation_status && report.generation_status !== 'generating') setUpdatingAnswers(false) }, [report?.generation_status])
 
   if (!report && !loading && loadError) {
     const missing = loadError === 'missing'
@@ -464,7 +467,7 @@ function CmaWorkspacePageInner() {
           {step === 'subject' && <SubjectStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('comps')} />}
           {step === 'compare' && (
             <SellerCompareStep report={report} onSave={save} onNext={() => setStep('analysis')} onBack={() => setStep('comps')} onAddPhotos={() => setStep('subject')}
-              onUpdated={r => { applyReport(r); setStep('analysis') }}
+              onUpdated={r => { applyReport(r); setUpdatingAnswers(true); setStep('analysis') }}
               stepNumber={cmaStepNumber(report, 'compare')} totalSteps={cmaStepTotal(report)}
               locked={cmaCompsLocked(report) || aiRunning || report.generation_status === 'generating'} />
           )}
@@ -482,7 +485,7 @@ function CmaWorkspacePageInner() {
         )}
         {(analysisMounted || step === 'analysis') && (
           <div className={step === 'analysis' ? 'mt-4 animate-step-in sm:mt-6' : 'hidden'}>
-            <AnalysisStep report={report} visible={step === 'analysis'} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('pricing')} onBack={() => setStep(report.mode === 'buyer' ? 'comps' : 'compare')} onRunningChange={setAiRunning} />
+            <AnalysisStep report={report} visible={step === 'analysis'} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('pricing')} onBack={() => setStep(report.mode === 'buyer' ? 'comps' : 'compare')} onRunningChange={setAiRunning} updatingAnswers={updatingAnswers} />
           </div>
         )}
       </div>
@@ -3331,13 +3334,17 @@ function buildAnalysisPopupData(kind: 'subject' | 'comp', subject: CmaSubjectPro
   }
 }
 
-function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext, onBack, onRunningChange }: {
+function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext, onBack, onRunningChange, updatingAnswers = false }: {
   report: CmaReport, visible?: boolean, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>,
   onReportUpdated: (r: CmaReport) => void, onNext: () => void, onBack?: () => void,
   /** Told the moment an AI run starts and when it ends, so the Comps step locks for the minutes it takes. */
   onRunningChange?: (running: boolean) => void,
+  /** An Update the value run (seller, 11/20): its progress says the photos are not read again. */
+  updatingAnswers?: boolean,
 }) {
   const { showToast } = useToast()
+  const updatingRef = useRef(updatingAnswers)
+  updatingRef.current = updatingAnswers
   const [comparables, setComparables] = useState<CmaComparable[]>(() => normalizeAnalysisComparables(report.comparables))
   const [activeId, setActiveId] = useState<string | null>(() => normalizeAnalysisComparables(report.comparables)[0]?.id || null)
   // 0 = the subject, k = comparables[k - 1] - the details sheet steps through them with prev / next.
@@ -3451,7 +3458,7 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
 
       let pct = 2
       let stage = 0
-      let label = 'Reading the subject’s photos and facts'
+      let label = updatingRef.current ? 'Using your changed answers - the photos are not read again' : 'Reading the subject’s photos and facts'
       let nextScanStage = 0
 
       if (elapsedMs < subjectMs) {
@@ -3462,7 +3469,7 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
         const compFraction = (compElapsed - compIndex * perCompMs) / perCompMs
         pct = 8 + ((compIndex + compFraction) / stagedCompCount) * 27
         stage = 1
-        label = `Reviewing comparable ${compIndex + 1} of ${stagedCompCount}`
+        label = `${updatingRef.current ? 'Rechecking' : 'Reviewing'} comparable ${compIndex + 1} of ${stagedCompCount}`
         nextScanStage = compIndex + 1
         if (compIndex !== lastActiveCompIndex && followScanAcrossPage) {
           lastActiveCompIndex = compIndex

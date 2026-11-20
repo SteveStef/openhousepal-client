@@ -163,13 +163,29 @@ export default function SellerCompareStep({ report, onSave, onNext, onBack, step
 
   // ---- Update the value (the finished report) ----
   const [updating, setUpdating] = useState(false)
+  // what the change would do to the value, before they press it (11/20: one answer can move it 10-15%)
+  const [preview, setPreview] = useState<{ now: number, about: number, change_pct: number } | null>(null)
+  const draftSig = JSON.stringify(draft)
+  useEffect(() => {
+    setPreview(null)
+    if (!canUpdate || !Object.keys(draft).length) return
+    let alive = true
+    const t = setTimeout(async () => {
+      try {
+        const r = await api.cma.sellerUpdatePreview(report.id, draft)
+        if (alive && r.data?.ok && r.data.now && r.data.about != null) setPreview({ now: r.data.now, about: r.data.about, change_pct: r.data.change_pct ?? 0 })
+      } catch { /* the box works without it */ }
+    }, 300)
+    return () => { alive = false; clearTimeout(t) }
+  }, [draftSig, canUpdate, report.id])   // eslint-disable-line react-hooks/exhaustive-deps
   const [updateErr, setUpdateErr] = useState<string | null>(null)
   const runUpdate = async () => {
     setUpdating(true); setUpdateErr(null)
     try {
       const r = await api.cma.sellerUpdate(report.id, {
         comp_marks: Object.fromEntries(changedKeys.map(k => [k, draft[k]])),
-        save_usage: report.generation_mode === 'save_usage',
+        // the same line the report was made in (Save usage is the default everywhere)
+        save_usage: report.generation_mode === 'save_usage' || !!report.ai_analysis?.save_usage,
       })
       if (!r.data) { setUpdateErr(r.error || r.message || 'The value could not be updated. Try again.'); return }
       setDraft({})
@@ -430,11 +446,19 @@ export default function SellerCompareStep({ report, onSave, onNext, onBack, step
           <p className="text-[14px] font-black text-[#111827] dark:text-white">
             You changed {changedKeys.length === 1 ? 'one answer' : `${changedKeys.length} answers`}.
           </p>
+          {preview && (
+            <p data-cma-update-preview className="mt-1 text-[14px] font-bold text-[#111827] dark:text-white">
+              This moves the value from {money(preview.now)} to about {money(preview.about)}
+              {' '}<span className={preview.change_pct >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}>({preview.change_pct >= 0 ? '+' : ''}{preview.change_pct}%)</span>.
+              {Math.abs(preview.change_pct) >= 8 && <span className="block text-[12px] font-semibold text-amber-800 dark:text-amber-300">That&apos;s a big move - make sure this answer is right.</span>}
+            </p>
+          )}
           <p className="mt-0.5 text-[13px] font-semibold text-gray-500 dark:text-gray-400">
             Update the value to use {changedKeys.length === 1 ? 'it' : 'them'}. Takes a few minutes - the photos aren&apos;t read again. Anything you typed on the report stays.
           </p>
           {updateErr && <p role="alert" className="mt-2 text-[13px] font-black text-rose-700 dark:text-rose-300">{updateErr}</p>}
-          <div className="mt-3 flex flex-wrap gap-2">
+          {/* room on the right on a phone: the floating helper button sits over the corner */}
+          <div className="mt-3 flex flex-wrap gap-2 pr-16 sm:pr-0">
             <button type="button" data-cma-update-go disabled={updating} onClick={() => void runUpdate()}
               className="inline-flex min-h-[48px] items-center gap-2 rounded-2xl bg-gradient-to-r from-[#C9A24D] to-[#e0b85f] px-5 text-[15px] font-black text-white shadow-lg shadow-[#C9A24D]/30 transition active:scale-[0.98] disabled:opacity-60">
               {updating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Update the value

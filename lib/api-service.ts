@@ -2500,6 +2500,10 @@ class ApiService {
     startSellerPrefill: (id: string, payload: { save_usage: boolean }) =>
       this.request<CmaSellerPrefill>(`/api/cma/${id}/seller-prefill`, { method: 'POST', body: JSON.stringify(payload) }),
     // Update the value (11/19): answers changed on a finished seller report - re-made from the same photo read.
+    // What the changed answers would do to the value - free, no AI (11/20)
+    sellerUpdatePreview: (id: string, comp_marks: Record<string, string>) =>
+      this.request<{ ok: boolean; now?: number; about?: number; low?: number; high?: number; change_pct?: number }>(
+        `/api/cma/${id}/seller-update/preview`, { method: 'POST', body: JSON.stringify({ comp_marks }) }),
     sellerUpdate: (id: string, payload: { comp_marks: Record<string, string>, save_usage: boolean }) =>
       this.request<CmaReport>(`/api/cma/${id}/seller-update`, { method: 'POST', body: JSON.stringify(payload) }),
 
