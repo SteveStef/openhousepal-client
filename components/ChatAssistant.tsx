@@ -238,7 +238,7 @@ export default function ChatAssistant({ collectionData, customerName }: ChatAssi
             <div className="p-4 border-t border-zinc-800/40">
               <div className="flex items-end space-x-2">
                 <div className="flex-1 relative">
-                  <textarea
+                  <textarea data-no-grammar
                     ref={textareaRef}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}

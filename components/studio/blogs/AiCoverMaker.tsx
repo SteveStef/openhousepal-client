@@ -66,7 +66,7 @@ export default function AiCoverMaker({ blogId, idea: initialIdea, coverUrl, last
       </p>
 
       {!img && (
-        <textarea value={idea} onChange={e => setIdea(e.target.value)} rows={3} disabled={!!busy}
+        <textarea data-no-grammar value={idea} onChange={e => setIdea(e.target.value)} rows={3} disabled={!!busy}
           className="w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs font-semibold text-[#111827] outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white" />
       )}
 

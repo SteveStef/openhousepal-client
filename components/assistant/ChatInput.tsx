@@ -283,7 +283,7 @@ export default function ChatInput({ onSend, disabled, maxChars = 12000, placehol
         </button>
         <input ref={fileInput} type="file" accept={PHOTO_ACCEPT} multiple className="hidden" data-testid="ai-photo-input"
           onChange={e => { addFiles(Array.from(e.target.files || [])); e.target.value = '' }} />
-        <textarea
+        <textarea data-no-grammar
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}

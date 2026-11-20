@@ -99,7 +99,7 @@ function AutoGrow({ value, onChange, className, ...rest }: { value: string; onCh
     el.style.height = 'auto'
     el.style.height = `${el.scrollHeight + 2}px`
   }, [value])
-  return <textarea ref={ref} value={value} onChange={e => onChange(e.target.value)} rows={rest.rows ?? 1} className={`${className} resize-none overflow-hidden`} {...rest} />
+  return <textarea data-no-grammar ref={ref} value={value} onChange={e => onChange(e.target.value)} rows={rest.rows ?? 1} className={`${className} resize-none overflow-hidden`} {...rest} />
 }
 
 /** What the writer saves as the agent goes (and what a resumed draft starts from). */
@@ -715,7 +715,7 @@ export default function BlogAiWriter({
                 {step === 0 && (
                   <>
                     <Question icon={PenLine} title={titleBased ? 'Your title' : "What's this article about?"} hint={titleBased ? (titleAngles.length ? 'Keep it as it is, or tap a sharper version.' : sugLoading ? 'Reading your title for ideas…' : 'Keep it as it is, or edit it here.') : 'A sentence is plenty. Pick an idea below to start faster.'}>
-                      <textarea autoFocus={!titleBased} value={topic} onChange={e => setTopic(e.target.value)} onBlur={() => { if (ctx.ai_available && !(sug?.angles || []).includes(topic.trim())) readTitle(topic) }} rows={2} placeholder="e.g. What buyers should know about older homes in Bryn Mawr" className={inputCls} />
+                      <textarea data-no-grammar autoFocus={!titleBased} value={topic} onChange={e => setTopic(e.target.value)} onBlur={() => { if (ctx.ai_available && !(sug?.angles || []).includes(topic.trim())) readTitle(topic) }} rows={2} placeholder="e.g. What buyers should know about older homes in Bryn Mawr" className={inputCls} />
                       {ideas.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {ideas.map(idea => {
@@ -811,7 +811,7 @@ export default function BlogAiWriter({
                           {sug!.key_points.map(p => <Chip key={p} on={hasPoint(p)} onClick={() => togglePoint(p)}>{p}</Chip>)}
                         </div>
                       )}
-                      <textarea value={keyPoints} onChange={e => setKeyPoints(e.target.value)} rows={3} placeholder={(sug?.key_points || []).length ? 'Anything else to cover? One per line.' : '- Why pre-approval comes first\n- What to ask at the inspection\n- How we decide on an offer price'} className={inputCls} />
+                      <textarea data-no-grammar value={keyPoints} onChange={e => setKeyPoints(e.target.value)} rows={3} placeholder={(sug?.key_points || []).length ? 'Anything else to cover? One per line.' : '- Why pre-approval comes first\n- What to ask at the inspection\n- How we decide on an offer price'} className={inputCls} />
                     </Question>
                     <Question icon={Sparkles} title="Your take, or a local story only you could tell" hint={(sug?.takes || []).length ? 'This is what makes it yours. Tap one you agree with and make it yours - or write your own.' : 'This is what makes it yours instead of generic. The AI weaves it in, in your voice.'}>
                       {(sug?.takes || []).length > 0 && (
@@ -819,13 +819,13 @@ export default function BlogAiWriter({
                           {sug!.takes.map(t => <Chip key={t} on={personalTake.trim() === t} onClick={() => setPersonalTake(personalTake.trim() === t ? '' : t)}>{t}</Chip>)}
                         </div>
                       )}
-                      <textarea value={personalTake} onChange={e => setPersonalTake(e.target.value)} rows={3} placeholder="e.g. The buyers who win here are the ones who've seen enough homes to recognize a good one in the first ten minutes." className={`${inputCls} min-h-[8.25rem] sm:min-h-0`} />
+                      <textarea data-no-grammar value={personalTake} onChange={e => setPersonalTake(e.target.value)} rows={3} placeholder="e.g. The buyers who win here are the ones who've seen enough homes to recognize a good one in the first ten minutes." className={`${inputCls} min-h-[8.25rem] sm:min-h-0`} />
                     </Question>
                     {/* The article pulls live MLS numbers for the towns picked on its own - typing them was the one
                         question that asked the agent for what the app already has (reviewer, 11/14). */}
                     <Question icon={ShieldCheck} title="Numbers" hint={areas.length ? `Nothing to type: live prices, how fast homes sell and homes for sale in ${areas.slice(0, 3).join(', ')} are pulled in automatically, with their dates. The AI never invents a statistic.` : 'Pick a town on the step before and its live prices, speed of sale and homes for sale are pulled in automatically. The AI never invents a statistic.'}>
                       {factsOpen
-                        ? <textarea value={facts} onChange={e => setFacts(e.target.value)} rows={2} placeholder="e.g. Three of my last five listings went under contract in the first weekend" className={`${inputCls} min-h-[5.75rem] sm:min-h-0`} />
+                        ? <textarea data-no-grammar value={facts} onChange={e => setFacts(e.target.value)} rows={2} placeholder="e.g. Three of my last five listings went under contract in the first weekend" className={`${inputCls} min-h-[5.75rem] sm:min-h-0`} />
                         : <button type="button" onClick={() => setFactsOpen(true)} className="inline-flex items-center gap-1.5 text-xs font-black text-[#8b7355] hover:text-[#111827] dark:text-[#d7b974] dark:hover:text-white"><Plus className="h-3.5 w-3.5" /> Add a number of my own</button>}
                     </Question>
                     {(ctx.recent_sales.length > 0 || ctx.listings.length > 0) && (

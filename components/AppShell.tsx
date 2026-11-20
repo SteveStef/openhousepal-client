@@ -7,6 +7,7 @@ import PageGate from '@/components/PageGate'
 import NavHistoryTracker from '@/components/NavHistoryTracker'
 import AssistantWidget from '@/components/assistant/AssistantWidget'
 import IdxDomainMigrationModal from '@/components/IdxDomainMigrationModal'
+import GrammarAssist from '@/components/ui/GrammarAssist'
 
 // Everything only the OpenHousePal app needs around a page (sign-in state, toasts, the header, the
 // page loader, the assistant). The root layout loads this lazily and only on app pages, so an
@@ -28,6 +29,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </main>
         <AssistantWidget />
         <IdxDomainMigrationModal />
+        {/* Fix grammar next to any writing box on the agent's own pages (11/19) */}
+        <GrammarAssist />
       </AuthProvider>
     </ToastProvider>
   )

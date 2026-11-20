@@ -135,7 +135,7 @@ export function AiWriteButton({
             </div>
           )}
 
-          <textarea
+          <textarea data-no-grammar
             value={instruction}
             onChange={e => setInstruction(e.target.value)}
             placeholder={isPolish ? 'Anything to keep or change? (optional)' : 'Add any extra instructions (optional)'}

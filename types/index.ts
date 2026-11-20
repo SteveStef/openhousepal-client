@@ -3050,6 +3050,10 @@ export interface CmaSellerAnswers {
   ai_applied?: string | null;
   // answers the agent changed from what the photos suggested, and confirmed: comp keys, 'kitchen', 'baths'
   kept?: string[];
+  /** One-pass report (11/19): answers the report's photo pass filled in (comp keys, 'kitchen', 'baths'), and what the photos couldn't answer. */
+  ai_filled?: string[];
+  ai_unread?: string[];
+  ai_rooms_missing?: string[];
 }
 
 /** GET/POST /api/cma/{id}/seller-prefill - the AI's read of the photos on the seller Compare step. */

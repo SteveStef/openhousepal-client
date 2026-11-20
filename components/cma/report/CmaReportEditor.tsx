@@ -30,6 +30,7 @@ import {
 import { CmaPresentationDocument } from '@/lib/pdfs'
 import { CmaComparable, CmaPresentationSettings, CmaPublicResponse, CmaQualityAssessment, CmaReport, Site, SiteDomain } from '@/types'
 import FlowDock from '@/components/ui/FlowDock'
+import GrammarFixButton, { type GrammarChange, type GrammarItem } from '@/components/ui/GrammarFix'
 import CmaSheet from '@/components/cma/CmaSheet'
 import CmaShareLinksModal from '@/components/CmaShareLinksModal'
 import WarningConfirmModal from '@/components/WarningConfirmModal'
@@ -474,6 +475,40 @@ export default function CmaReportEditor({ report, onSave, onReportUpdated, onBac
     flipPrev.current = now
   })
 
+  // ---- Fix grammar (11/19): only what the agent typed - their own wording, their own notes, comp paragraphs they wrote
+  const TEXT_LABELS: Record<string, string> = {
+    valuation_notes: 'Value notes', inspection: 'Inspection', offer: 'Offer', pricing_strategy: 'Pricing strategy',
+    listing_prep: 'Listing prep', competition_commentary: 'Competition',
+  }
+  const grammarItems: GrammarItem[] = [
+    ...Object.entries(pres?.text || {}).filter(([, v]) => (v || '').trim())
+      .map(([k, v]) => ({ id: `text:${k}`, text: v, label: k.startsWith('title:') ? 'A heading' : (TEXT_LABELS[k] || 'Your wording') })),
+    ...(pres?.notes || []).flatMap(n => [
+      ...(n.title?.trim() ? [{ id: `note-title:${n.id}`, text: n.title, label: 'Your note - title' }] : []),
+      ...(n.body?.trim() ? [{ id: `note-body:${n.id}`, text: n.body, label: 'Your note' }] : []),
+    ]),
+    ...working.comparables.filter(c => (c.commentary || '').trim() && (c.commentary || '').trim() !== (c.ai_commentary || '').trim())
+      .map(c => ({ id: `comp:${c.id}`, text: c.commentary || '', label: `Comp - ${c.street_address || 'paragraph'}` })),
+  ]
+  const applyGrammar = (picked: GrammarChange[]) => {
+    const texts = picked.filter(c => c.id.startsWith('text:'))
+    const notes = picked.filter(c => c.id.startsWith('note-'))
+    const compsFixed = new Map(picked.filter(c => c.id.startsWith('comp:')).map(c => [c.id.slice(5), c.after]))
+    if (texts.length || notes.length) {
+      setPres(p => ({
+        ...p,
+        text: { ...(p.text || {}), ...Object.fromEntries(texts.map(c => [c.id.slice(5), c.after])) },
+        notes: (p.notes || []).map(n => {
+          const t = notes.find(c => c.id === `note-title:${n.id}`)
+          const b = notes.find(c => c.id === `note-body:${n.id}`)
+          return t || b ? { ...n, ...(t ? { title: t.after } : {}), ...(b ? { body: b.after } : {}) } : n
+        }),
+      }), { now: true })
+      if (texts.length) setVersions(v => ({ ...v, ...Object.fromEntries(texts.map(c => [c.id.slice(5), (v[c.id.slice(5)] || 0) + 1])) }))
+    }
+    if (compsFixed.size) changeComps(list => list.map(c => (compsFixed.has(c.id) ? { ...c, commentary: compsFixed.get(c.id) || c.commentary } : c)), { now: true })
+  }
+
   const [mode, setMode] = useState<'edit' | 'client'>('edit')
   const [arrange, setArrange] = useState(false)
   const [more, setMore] = useState(false)
@@ -623,6 +658,7 @@ export default function CmaReportEditor({ report, onSave, onReportUpdated, onBac
             onClick={() => setPres(p => ({ ...p, default_theme: theme === 'dark' ? 'light' : 'dark' }), { now: true })}>
             {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}<span className="hidden lg:inline">{theme === 'dark' ? 'Midnight' : 'Ivory'}</span>
           </button>
+          {mode === 'edit' && <GrammarFixButton items={grammarItems} where="a home value report (CMA) for a client" onApply={applyGrammar} className={`${tool} h-10`} />}
           {reviewCount > 0 && (
             <button type="button" onClick={onGoToPricing} title="Things to check before sending - in the Pricing step"
               className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 text-[11px] font-black uppercase tracking-wide text-amber-800 transition hover:bg-amber-100 active:scale-95 dark:border-amber-900/50 dark:bg-amber-900/15 dark:text-amber-300">

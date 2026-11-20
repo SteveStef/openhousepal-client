@@ -97,7 +97,7 @@ export default function ReviewImporter({ inputCls, onImported }: { inputCls: str
       {mode === 'paste' && !rows && (
         <div className="mt-3 space-y-2.5">
           <p className="text-[12px] font-semibold leading-relaxed text-gray-500 dark:text-gray-400"><b className="text-[#111827] dark:text-white">How:</b> {src.how}</p>
-          <textarea value={text} onChange={e => setText(e.target.value)} rows={6} placeholder={`Paste your ${src.label} reviews here…`}
+          <textarea data-no-grammar value={text} onChange={e => setText(e.target.value)} rows={6} placeholder={`Paste your ${src.label} reviews here…`}
             className={`${inputCls} min-h-[140px] resize-y`} />
           <button type="button" onClick={read} disabled={busy || text.trim().length < 20}
             className="inline-flex items-center gap-2 rounded-xl bg-[#111827] px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white transition hover:-translate-y-0.5 disabled:opacity-40 dark:bg-white dark:text-[#111827]">
@@ -145,7 +145,7 @@ export default function ReviewImporter({ inputCls, onImported }: { inputCls: str
           <input value={one.name} onChange={e => setOne({ ...one, name: e.target.value })} placeholder="Client’s name (e.g. Jennifer M.)" className={inputCls} />
           <input type="date" value={one.date} max={todayLocal()} onChange={e => setOne({ ...one, date: e.target.value })} className={inputCls} aria-label="When they wrote it" />
           <div className="flex items-center gap-2 sm:col-span-2"><span className="text-xs font-black text-gray-500">Stars</span><StarPicker value={one.rating} onChange={n => setOne({ ...one, rating: n })} /></div>
-          <textarea value={one.body} onChange={e => setOne({ ...one, body: e.target.value })} rows={4} placeholder="Paste or type the review, word for word" className={`${inputCls} sm:col-span-2`} />
+          <textarea data-no-grammar value={one.body} onChange={e => setOne({ ...one, body: e.target.value })} rows={4} placeholder="Paste or type the review, word for word" className={`${inputCls} sm:col-span-2`} />
           <label className="flex items-start gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300 sm:col-span-2">
             <input type="checkbox" checked={confirm} onChange={e => setConfirm(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#C9A24D]" />
             This is a real review my client left for me on {src.label}.

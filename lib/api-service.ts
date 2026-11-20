@@ -2386,6 +2386,12 @@ class ApiService {
     copywrite: (body: { purpose: string; context?: string; tone?: string; instruction?: string }) =>
       this.request<{ text: string; cost_usd?: number | null }>('/ai/copywrite', { method: 'POST', body: JSON.stringify(body) }),
 
+    // Fix grammar (11/19): spelling / grammar / wording only in what the agent typed - shown before / after to pick.
+    fixGrammar: (body: { passages: { id: string; text: string }[]; where?: string }) =>
+      this.request<{ changes: { id: string; before: string; after: string }[]; checked: number }>(
+        '/ai/fix-grammar', { method: 'POST', body: JSON.stringify(body) },
+      ),
+
     // Advisory Fair-Housing / MLS phrase check - returns risky phrases + a suggested swap.
     complianceCheck: (text: string) =>
       this.request<{ flags: { phrase: string; issue: string; suggestion: string }[] }>(
@@ -2493,6 +2499,9 @@ class ApiService {
     getSellerPrefill: (id: string) => this.request<CmaSellerPrefill>(`/api/cma/${id}/seller-prefill`),
     startSellerPrefill: (id: string, payload: { save_usage: boolean }) =>
       this.request<CmaSellerPrefill>(`/api/cma/${id}/seller-prefill`, { method: 'POST', body: JSON.stringify(payload) }),
+    // Update the value (11/19): answers changed on a finished seller report - re-made from the same photo read.
+    sellerUpdate: (id: string, payload: { comp_marks: Record<string, string>, save_usage: boolean }) =>
+      this.request<CmaReport>(`/api/cma/${id}/seller-update`, { method: 'POST', body: JSON.stringify(payload) }),
 
     // Re-runs the deterministic evidence/confidence/value-drivers pipeline plus one lightweight
     // (no-photo) AI call to keep the value/methodology text consistent with any comp overrides

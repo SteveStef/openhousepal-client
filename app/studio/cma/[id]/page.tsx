@@ -89,6 +89,13 @@ function NarrativeText({ text }: { text: string }) {
   )
 }
 
+// The AI's value notes sometimes write a sale price without its dollar sign ("sold at 703,190" - live 11/19).
+// A comma-grouped figure of $50,000 or more that isn't a size, distance or day count gets its "$" back.
+function withDollarSigns(text: string): string {
+  return text.replace(/(^|[^$\d.,])(\d{1,3}(?:,\d{3})+)(?![\d,])(?!\s*(?:sq\b|sf\b|square|acres?\b|ft\b|feet|miles?\b|mi\b|days?\b))/gi,
+    (m, pre: string, num: string) => (Number(num.replace(/,/g, '')) >= 50000 ? `${pre}$${num}` : m))
+}
+
 // The agent-facing explanation of the analysis's own fair-value conclusion. With the QA/Review
 // panel and "how this value was calculated" trace both hidden from Studio (see the Summary step
 // below), this is now the ONE place an agent sees why the number came back the way it did - so it
@@ -111,7 +118,7 @@ function cmaWhyBullets(report: CmaReport): string[] {
   }
   const drivers = (estimate?.value_drivers || []).slice(0, 5).map(driver => {
     const label = /^\d{7,}$/.test((driver.comp_label || '').trim()) ? 'A key comparable' : (driver.comp_label || 'A key comparable')
-    const note = String(driver.note || '').trim()
+    const note = withDollarSigns(String(driver.note || '').trim())
     if (note && !technical.test(note)) return shortReadableSentence(note)
     if (driver.direction === 'up') return `${label} supports the higher side of the value range.`
     if (driver.direction === 'down') return `${label} supports a more conservative value.`
@@ -457,10 +464,11 @@ function CmaWorkspacePageInner() {
           {step === 'subject' && <SubjectStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('comps')} />}
           {step === 'compare' && (
             <SellerCompareStep report={report} onSave={save} onNext={() => setStep('analysis')} onBack={() => setStep('comps')} onAddPhotos={() => setStep('subject')}
+              onUpdated={r => { applyReport(r); setStep('analysis') }}
               stepNumber={cmaStepNumber(report, 'compare')} totalSteps={cmaStepTotal(report)}
               locked={cmaCompsLocked(report) || aiRunning || report.generation_status === 'generating'} />
           )}
-          {step === 'pricing' && <PricingStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('summary')} onBack={() => setStep('analysis')} />}
+          {step === 'pricing' && <PricingStep report={report} onSave={save} onReportUpdated={applyReport} onNext={() => setStep('summary')} onBack={() => setStep('analysis')} onCheckAnswers={() => setStep('compare')} />}
           {step === 'summary' && <ReviewStep report={report} onSave={save} onReportUpdated={applyReport} onJump={setStep} onDeleted={() => router.push('/studio/cma')} />}
         </motion.div>
         {(compsMounted || step === 'comps') && (
@@ -1537,6 +1545,9 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
       return
     }
     if (!report.subject.latitude || !report.subject.longitude) {
+      // No home picked yet (Change on the Subject step empties it, 11/19): nothing to search, and no warning -
+      // the agent is about to pick the new home. A picked home with no map point still gets the warning.
+      if (!report.subject.street_address && !report.subject.listing_key) { setOptimizing(false); return }
       showToast('This subject property is missing location coordinates - try re-selecting it from the address search on the previous step.', 'error')
       setOptimizing(false)
       return
@@ -5271,6 +5282,9 @@ function agentReviewNotes(report: CmaReport): AgentReviewNote[] {
   if (est?.audit_review?.message) notes.push({ text: est.audit_review.message, values: null })
   // One or two sales sit far from the rest after adjusting and carry the figure (11/14)
   if (est?.spread_review?.message) notes.push({ text: est.spread_review.message, values: null })
+  // A comp paragraph the agent wrote themselves is never changed (11/19) - when a re-run would have, they're told
+  const ownNotes = (est as { own_notes_review?: { message?: string | null } | null } | null | undefined)?.own_notes_review
+  if (ownNotes?.message) notes.push({ text: ownNotes.message, values: null })
   // MLS data more than a day old when this report was made (grader audit 11/13)
   if (est?.data_freshness?.message) notes.unshift({ text: est.data_freshness.message, values: null })
   // The subject's listing left the MLS only days ago - confirm with the owner before sending (grader audit 11/14)
@@ -5356,7 +5370,7 @@ function AgentValueReviewBanner({ report }: { report: CmaReport }) {
 // sending, why the value landed where it did, the adjusted sales against the final value, the homes on the
 // market with their match scores, and the checks the report went through. The numbers are set here (or right
 // on the report); the wording is typed on the report itself in the Review step.
-function PricingStep({ report, onSave, onReportUpdated, onNext, onBack }: { report: CmaReport, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>, onReportUpdated: (r: CmaReport) => void, onNext: () => void, onBack?: () => void }) {
+function PricingStep({ report, onSave, onReportUpdated, onNext, onBack, onCheckAnswers }: { report: CmaReport, onSave: (p: Partial<CmaReport>, o?: { silent?: boolean }) => Promise<CmaReport | null>, onReportUpdated: (r: CmaReport) => void, onNext: () => void, onBack?: () => void, onCheckAnswers?: () => void }) {
   // Mode is fixed at CMA creation (see the picker in studio/cma/page.tsx's CreateCmaModal).
   const mode = report.mode
   const [local, setLocal] = useState<{ pricing: CmaPricing, presentation: CmaReport['presentation'] }>({ pricing: report.pricing, presentation: report.presentation })
@@ -5464,6 +5478,13 @@ function PricingStep({ report, onSave, onReportUpdated, onNext, onBack }: { repo
 
       {/* How strong the evidence is + everything to check before this goes out. Agent only. */}
       <AgentReviewBanner report={report} />
+      {/* one-pass seller report (11/19): the AI answered the comp questions from the photos - easy to check */}
+      {mode !== 'buyer' && onCheckAnswers && (report.subject?.seller_answers?.ai_filled || []).some(k => k !== 'kitchen' && k !== 'baths') && (
+        <div data-cma-check-answers className="flex flex-col gap-3 rounded-2xl border border-[#C9A24D]/40 bg-[#C9A24D]/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-bold text-[#111827] dark:text-white">The AI compared your home with each comp from the photos. <span className="font-semibold text-gray-500 dark:text-gray-400">See its answers - change any that are wrong and the value updates.</span></p>
+          <button type="button" onClick={onCheckAnswers} className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-xl border border-[#C9A24D]/60 px-4 text-[13px] font-black text-[#8b7355] hover:bg-[#C9A24D]/10 dark:text-[#e8c97a]">Check the answers</button>
+        </div>
+      )}
 
       {whyBullets.length > 0 && (
         <SectionCard title="Why This Value" subtitle="Only you see this. The report's own wording makes the case to your client.">
