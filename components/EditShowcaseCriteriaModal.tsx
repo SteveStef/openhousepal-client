@@ -17,6 +17,7 @@ import { formatNumberWithCommas, stripCommas } from '@/lib/utils'
 import { copyText } from '@/lib/copyText'
 import { homesLabel, SHOWCASE_MAX_HOMES } from '@/lib/showcaseLimit'
 import ShowcaseLimitNote from '@/components/showcases/ShowcaseLimitNote'
+import { HighSchoolNote } from '@/components/showcases/HighSchoolPicker'
 
 // Visitor-facing "refine my search" for a public showcase - a deliberately narrow subset of
 // EditPreferencesModal.tsx (the agent-side equivalent in Studio) for what a visitor can actually
@@ -167,6 +168,8 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
     school_districts: preferences?.school_districts || [],
   } as FormState))
   const savedFormRef = useRef(formData)
+  const sameDistricts = JSON.stringify([...(formData.school_districts || [])].sort()) === JSON.stringify([...(preferences?.school_districts || [])].sort())
+  const hsNote = sameDistricts ? <HighSchoolNote names={preferences?.high_school_names} /> : null
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [saved, setSaved] = useState(false)
   const [outcome, setOutcome] = useState<SaveOutcome | null>(null)
@@ -736,6 +739,8 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
     ...(formData.cities || []).slice(0, 2).map(c => c.split(',')[0]),
     (formData.cities?.length || 0) > 2 ? `+${(formData.cities?.length || 0) - 2} towns` : '',
     ...(formData.school_districts || []).slice(0, 1),
+    // the agent's high-school pick, while the district is the one it was picked for
+    ...(sameDistricts ? Object.values(preferences?.high_school_names || {}).slice(0, 1).map(n => `${n} only`) : []),
     formData.min_price && formData.max_price ? `${money(formData.min_price)} – ${money(formData.max_price)}`
       : formData.max_price ? `Up to ${money(formData.max_price)}` : formData.min_price ? `${money(formData.min_price)}+` : '',
     formData.min_beds ? `${formData.min_beds}+ beds` : '',
@@ -1171,6 +1176,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
             onChange={(cities) => setFormData(prev => ({ ...prev, cities, address: '', lat: null, long: null, diameter: null }))} />
           <MultiSelectDatabaseInput values={formData.school_districts || []} apiMethod={api.properties.schoolDistrictsPublic} placeholder="Search school districts..."
             onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts }))} />
+          {hsNote}
           {/* Towns AND a school district = only homes in both (property_service stacks them). */}
           <AnimatePresence initial={false}>
             {!!formData.cities?.length && !!formData.school_districts?.length && (
@@ -1287,6 +1293,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
               <p className="text-xs font-black text-gray-500">School district <span className="font-semibold text-gray-400">(only homes in it)</span></p>
               <MultiSelectDatabaseInput values={formData.school_districts || []} apiMethod={api.properties.schoolDistrictsPublic} placeholder="Search school districts..."
                 onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts }))} />
+              {hsNote}
             </div>
           </div>
         )}
@@ -1592,6 +1599,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
                         apiMethod={api.properties.schoolDistrictsPublic}
                         placeholder={isUsingAddressSearch() ? 'Narrow to a school district...' : 'Search school districts...'}
                       />
+                      {hsNote}
                       <AreaPicksMap cities={formData.cities || []} schoolDistricts={formData.school_districts || []} />
                     </div>
                   </div>

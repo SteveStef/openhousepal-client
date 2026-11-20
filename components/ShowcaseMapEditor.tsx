@@ -1,6 +1,7 @@
 'use client'
 
 import { SmartWantsInput, SMART_READ_CAP, type SmartState } from '@/components/showcases/SmartWants'
+import { HighSchoolPicker } from '@/components/showcases/HighSchoolPicker'
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -87,7 +88,7 @@ type GeoMode = 'address' | 'area' | 'polygon' | 'none'
 
 type FormState = Pick<CollectionPreferences,
   | 'address' | 'lat' | 'long' | 'diameter' | 'search_polygon'
-  | 'cities' | 'townships' | 'school_districts' | 'counties'
+  | 'cities' | 'townships' | 'school_districts' | 'high_schools' | 'counties'
   | 'min_price' | 'max_price' | 'min_beds' | 'max_beds' | 'min_baths' | 'max_baths'
   | 'min_year_built' | 'max_year_built' | 'min_sqft' | 'max_sqft' | 'min_acres' | 'max_acres'
   | 'special_features'
@@ -98,7 +99,7 @@ type FormState = Pick<CollectionPreferences,
 
 const EMPTY_FORM: FormState = {
   address: '', lat: null, long: null, diameter: null, search_polygon: null,
-  cities: [], townships: [], school_districts: [], counties: [],
+  cities: [], townships: [], school_districts: [], high_schools: [], counties: [],
   min_price: null, max_price: null, min_beds: null, max_beds: null, min_baths: null, max_baths: null,
   min_year_built: null, max_year_built: null, min_sqft: null, max_sqft: null, min_acres: null, max_acres: null,
   special_features: '',
@@ -245,7 +246,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
       setFormData({
         address: p?.address || '', lat: p?.lat ?? null, long: p?.long ?? null,
         diameter: p?.diameter || null, search_polygon: p?.search_polygon ?? null,
-        cities: p?.cities || [], townships: p?.townships || [], school_districts: p?.school_districts || [],
+        cities: p?.cities || [], townships: p?.townships || [], school_districts: p?.school_districts || [], high_schools: p?.high_schools || [],
         // Older form-built Showcases kept the county only in the single `county` text field.
         counties: p?.counties?.length ? p.counties : ((p as any)?.county ? String((p as any).county).split(',').map((c: string) => c.trim()).filter((c: string) => c.length > 2) : []),
         min_price: p?.min_price ?? null, max_price: p?.max_price ?? null,
@@ -1220,6 +1221,8 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
                     <label className={miniLabel}>School districts <span className="normal-case tracking-normal text-gray-400">· narrows every area</span></label>
                     <MultiSelectDatabaseInput values={formData.school_districts || []} onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts }))} apiMethod={api.properties.searchSchoolDistricts} placeholder="Search school districts..." />
                   </div>
+                  <HighSchoolPicker districts={formData.school_districts || []} value={formData.high_schools || []}
+                    onChange={(high_schools) => setFormData(prev => ({ ...prev, high_schools }))} />
                   <div>
                     <label className={miniLabel}>Counties</label>
                     <MultiSelectDatabaseInput values={formData.counties || []} onChange={(counties) => setFormData(prev => ({ ...prev, counties }))} apiMethod={api.properties.counties} placeholder="Search counties..." />

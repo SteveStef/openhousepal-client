@@ -9,7 +9,7 @@ import api from '@/lib/api-service'
 import { Plus, Sparkles, X } from 'lucide-react'
 
 export type SmartState = { wants?: string[]; state?: 'reading' | 'done' | 'no_room' | 'error' | 'off' | 'too_many'; matched?: number; left?: number; read?: number; at?: string; cap?: number; used_percent?: number | null; used_total_percent?: number | null }
-export type SmartMatch = { wants?: string[]; quotes?: string[]; marks?: { want: string; words: string }[]; say?: string } | null | undefined
+export type SmartMatch = { wants?: string[]; quotes?: string[]; marks?: { want: string; words: string }[]; say?: string; facts?: string[] } | null | undefined
 
 export const MAX_WANTS = 3
 /** The most homes the AI reads at once - the chat's own Home search ceiling (backend ai_home_reader.READ_CAP). */
@@ -120,6 +120,14 @@ export function SmartStatus({ state, className = '' }: { state: SmartState; clas
   )
 }
 
+function matchText(m: NonNullable<SmartMatch>): string {
+  const facts = m.facts || []
+  const list = (m.wants || []).map(w => w.charAt(0).toLowerCase() + w.slice(1)).join(', ')
+  if (facts.length && facts.length >= (m.wants || []).length) return facts.join(' · ')
+  if (facts.length) return `${facts.join(' · ')} · ${m.say ? `appears to ${m.say}` : 'has the rest of what you asked for'}`
+  return m.say ? `This appears to ${m.say}` : `Has what you asked for: ${list}`
+}
+
 /** Under a home's address on its card: what the AI found, gold - only when it has every must-have. */
 export function SmartMatchLine({ match, className = '' }: { match: SmartMatch; className?: string }) {
   if (!match?.wants?.length) return null
@@ -128,7 +136,8 @@ export function SmartMatchLine({ match, className = '' }: { match: SmartMatch; c
       title={(match.quotes || []).map(q => q.replace(/[⟦⟧]/g, '')).join(' · ') || undefined}>
       <Sparkles className="mt-px h-3 w-3 shrink-0" />
       {/* say = the tidied words ("be on a cul-de-sac and have a pool"); without them, a plain list that reads right whatever was typed */}
-      <span className="min-w-0 line-clamp-2">{match.say ? `This appears to ${match.say}` : `Has what you asked for: ${match.wants.map(w => w.charAt(0).toLowerCase() + w.slice(1)).join(', ')}`}</span>
+      {/* facts = places the listing itself says ("In Uwchlan Township") - plain, never "appears to" */}
+      <span className="min-w-0 line-clamp-2">{matchText(match)}</span>
     </p>
   )
 }

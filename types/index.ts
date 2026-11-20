@@ -718,6 +718,8 @@ export interface CollectionPreferences {
   township?: string | null; // Keep for backward compatibility
   townships?: string[]; // New field for multiple townships
   school_districts?: string[]; // New field for school districts
+  high_schools?: string[]; // only homes going to these high schools (home_schools keys - backend home_school_service)
+  high_school_names?: Record<string, string>;
   county?: string | null; // Legacy single-value field, superseded by `counties` below
   counties?: string[];
   diameter?: number | null;

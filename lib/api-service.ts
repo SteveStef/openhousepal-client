@@ -370,6 +370,12 @@ class ApiService {
         body: JSON.stringify(params),
       }),
 
+    // The high schools of the for-sale homes in these districts - the Showcase search's "Only these high schools".
+    highSchools: (districts: string[]) => {
+      const q = new URLSearchParams()
+      ;(districts || []).forEach(d => q.append('districts', d))
+      return this.request<{ schools: { key: string; name: string; homes: number; named: number; sure: number }[] }>(`/api/properties/high-schools?${q.toString()}`)
+    },
     searchSchoolDistricts: (query: string) =>
       this.request<{ results: string[] }>(`/api/properties/school-districts?query=${encodeURIComponent(query)}`),
 
