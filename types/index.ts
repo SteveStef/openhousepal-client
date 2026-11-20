@@ -77,6 +77,8 @@ export interface Property {
   smartMatch?: { wants?: string[]; quotes?: string[]; marks?: { want: string; words: string }[]; say?: string; one?: string; many?: string } | null;
   // in a high-school search only because its school can't be told (backend home_school_service)
   schoolUnknown?: boolean;
+  /** High-school search: the picked school this home goes to ("Downingtown High School East Campus") - gold photo pill. */
+  schoolMatch?: string | null;
   /** Showcase: moved into the Sold/Removed folder (off the market and filed by the buyer or agent).
    *  Off-market homes NOT filed stay in the list with a status notice (lib/showcaseStatus). */
   soldFiled?: boolean;

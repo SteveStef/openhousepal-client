@@ -23,6 +23,14 @@ const shortDistrict = (name?: string | null) =>
     .replace(/[\s,-]+$/, '')
     .trim() || (name || '')
 
+// "Downingtown High School East Campus" -> "Downingtown East": the school's own words, for the gold photo pill.
+const shortSchool = (name?: string | null) =>
+  String(name || '')
+    .replace(/\b(high school|senior high|school|campus|hs|sr\.?|jr\.?\/sr\.?|secondary)\b/gi, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/[\s,-]+$/, '')
+    .trim() || (name || '')
+
 interface PropertyCardProps {
   property: Property
   onLike?: (propertyId: string | number, liked: boolean) => void
@@ -345,7 +353,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
             alt={property.FullStreetAddress}
             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
             imgClassName="duration-700 ease-out group-hover:scale-[1.04]"
-            dotsClassName={shortDistrict(property.SchoolDistrictName) ? 'bottom-11' : 'bottom-3'}
+            dotsClassName={property.schoolMatch || shortDistrict(property.SchoolDistrictName) ? 'bottom-11' : 'bottom-3'}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
@@ -410,9 +418,21 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
           )}
         </div>
 
+        {/* High-school search: a home going to the picked school names it in gold (owner, 11/20); a home whose
+            school is unknown keeps the plain district pill below (and its amber note). */}
+        {property.schoolMatch ? (
+          <div className={`pointer-events-none absolute bottom-3 z-10 flex items-center gap-1.5 rounded-full border border-[#f4dc9b]/60 bg-gradient-to-r from-[#8b6a2b] via-[#C9A24D] to-[#8b6a2b] px-3 py-1 shadow-lg ${
+            isViewed || interactionCounts.liked > 0 ? 'left-3 max-w-[calc(100%-8rem)]' : 'left-1/2 max-w-[75%] -translate-x-1/2'
+          }`} data-testid="school-match-pill">
+            <School size={12} className="shrink-0 text-[#111827]" />
+            <span className="truncate text-[11px] font-black text-[#111827]" title={property.schoolMatch}>
+              {shortSchool(property.schoolMatch)}
+            </span>
+          </div>
+        ) : null}
         {/* School District - bottom-center of the photo itself, in a soft rounded pill so it
             stays readable over any photo underneath. */}
-        {shortDistrict(property.SchoolDistrictName) && (
+        {!property.schoolMatch && shortDistrict(property.SchoolDistrictName) && (
           <div className={`pointer-events-none absolute bottom-3 z-10 flex items-center gap-1.5 rounded-full border border-white/10 bg-[#111827]/75 px-3 py-1 shadow-lg ${
             isViewed || interactionCounts.liked > 0 ? 'left-3 max-w-[calc(100%-8rem)]' : 'left-1/2 max-w-[75%] -translate-x-1/2'
           }`}>
