@@ -2966,8 +2966,8 @@ class ApiService {
     // Situations that create a follow-up automatically, each switchable per agent.
     autoRules: () => this.request<FollowupSettings>('/tasks/auto-rules'),
     // The calendar alert a situation makes, for a sample lead, with an unsaved message.
-    previewAlert: (key: string, body: { template?: string; pitch?: string; seller?: boolean }) =>
-      this.request<{ summary: string; description: string; all_day?: boolean }>(`/tasks/auto-rules/${encodeURIComponent(key)}/preview`, { method: 'POST', body: JSON.stringify(body) }),
+    previewAlert: (key: string, body: { template?: string; pitch?: string; seller?: boolean; must?: boolean }) =>
+      this.request<{ summary: string; description: string; all_day?: boolean; message?: string }>(`/tasks/auto-rules/${encodeURIComponent(key)}/preview`, { method: 'POST', body: JSON.stringify(body) }),
     setAutoRules: (body: { enabled?: boolean; rules?: Record<string, Partial<Pick<AutoFollowupRule, 'enabled' | 'when' | 'style' | 'template' | 'pitch' | 'seller_template'>>>; color?: string; alerts?: Partial<FollowupAlerts> }) =>
       this.request<FollowupSettings>('/tasks/auto-rules', { method: 'PUT', body: JSON.stringify(body) }),
     // One-tap "Mark as done" page linked from calendar events - no login, the code is the key.

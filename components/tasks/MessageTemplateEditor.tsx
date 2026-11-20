@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, GripVertical, Home, Link2, Loader2, MapPin, MessageSquareText, PenLine, RotateCcw, Sparkles, User, UserRound } from 'lucide-react'
 import type { MessageToken } from '@/types'
 import CalendarAlertPreview from './CalendarAlertPreview'
+import api from '@/lib/api-service'
 
 const MAX = 1200
 const TOKEN_MIME = 'application/x-ohp-token'
@@ -335,6 +336,10 @@ export default function MessageTemplateEditor({
   seller?: boolean
 }) {
   const [previewTab, setPreviewTab] = useState<'text' | 'calendar'>('text')
+  // "With must-haves" (owner, 11/21): the message as it reads when their Showcase has must-haves - the server's
+  // own text (tasks_service.sample_event must=True), so the sentence lands exactly where it will.
+  const [withMust, setWithMust] = useState(false)
+  const [mustText, setMustText] = useState<string | null>(null)
   const hasPitch = !!pitchStyle && !!pitchTokens?.length
   const msgRef = useRef<FieldHandle>(null)
   const pitchRef = useRef<FieldHandle>(null)
@@ -355,6 +360,16 @@ export default function MessageTemplateEditor({
     .replace('{showcase}', hasPitch ? `\n\n${pitchText}\n\n` : '')
     .replace(/[ \t]+\n/g, '\n').replace(/\n[ \t]+/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
   const preview = fillPreview(assembled, { ...byKey, ...pitchByKey })
+
+  useEffect(() => {
+    if (!withMust || !ruleKey) { setMustText(null); return }
+    let live = true
+    const t = window.setTimeout(async () => {
+      const r = await api.tasks.previewAlert(ruleKey, { template: value, pitch: hasPitch ? pitchValue : undefined, seller, must: true })
+      if (live && r.success && r.data?.message) setMustText(r.data.message)
+    }, 350)
+    return () => { live = false; window.clearTimeout(t) }
+  }, [withMust, ruleKey, value, pitchValue, hasPitch, seller])
 
   const reset = () => {
     msgRef.current?.load(defaultTemplate)
@@ -461,6 +476,16 @@ export default function MessageTemplateEditor({
               </div>
             )}
           </div>
+          {ruleKey && hasPitch && previewTab === 'text' && (
+            <button type="button" onClick={() => setWithMust(v => !v)} aria-pressed={withMust} data-testid="preview-with-must"
+              className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide transition active:scale-95 ${withMust
+                ? 'border-[#C9A24D] bg-[#C9A24D]/15 text-[#8b7355] dark:text-[#e8c97a]' : 'border-gray-200 bg-white text-gray-400 hover:text-[#111827] dark:border-gray-700 dark:bg-white/5 dark:hover:text-white'}`}>
+              <span className={`relative h-3 w-5 rounded-full transition ${withMust ? 'bg-[#C9A24D]' : 'bg-gray-300 dark:bg-white/20'}`}>
+                <span className={`absolute top-0.5 h-2 w-2 rounded-full bg-white transition-all ${withMust ? 'left-2.5' : 'left-0.5'}`} />
+              </span>
+              With must-haves
+            </button>
+          )}
           {ruleKey && previewTab === 'calendar' ? (
             <div className="mt-2 lg:sticky lg:top-4">
               <CalendarAlertPreview ruleKey={ruleKey} template={value} pitch={hasPitch ? pitchValue : undefined} seller={seller} />
@@ -472,7 +497,12 @@ export default function MessageTemplateEditor({
               <User className="h-3 w-3" /> Jane Buyer
             </div>
             <motion.div layout className="ml-auto max-w-[94%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-[#0a84ff] px-3 py-2 text-[12.5px] leading-snug text-white">
-              {preview.length ? preview.map((p, i) => (
+              {withMust && mustText ? (
+                // the server's own text; the must-have sentence lit like a filled-in pill
+                mustText.split(/(\d+ of them [^.]*\.|All \d+ [^.]*\.|One of them [^.]*\.|That home [^.]*\.)/).map((bit, i) => i % 2
+                  ? <span key={i} className="rounded bg-[#C9A24D]/80 px-0.5 font-semibold text-[#111827]" data-testid="preview-must-line">{bit}</span>
+                  : <span key={i}>{bit}</span>)
+              ) : preview.length ? preview.map((p, i) => (
                 // The pitch is always its own paragraph in the real message (tasks_service.full_message).
                 p.link
                   ? <span key={i} className="rounded bg-white/20 px-0.5 font-semibold underline">{p.text}</span>
@@ -482,9 +512,11 @@ export default function MessageTemplateEditor({
                         ? <span key={j} className="rounded bg-amber-300 px-1 font-black text-[#111827]">{bit}</span>
                         : bit)}</span>
               )) : <span className="opacity-60">Your message…</span>}
-              {signature && preview.length > 0 && <span className="mt-2 block opacity-80">{signature}</span>}
+              {signature && preview.length > 0 && !(withMust && mustText) && <span className="mt-2 block opacity-80">{signature}</span>}
             </motion.div>
-            <p className="mt-1.5 text-right text-[9px] font-semibold text-white/40">Highlighted = filled in for each lead</p>
+            <p className="mt-1.5 text-right text-[9px] font-semibold text-white/40">{withMust && mustText
+              ? 'Gold = their must-haves, only when their Showcase has some (place the pill to move it)'
+              : 'Highlighted = filled in for each lead'}</p>
           </div>
           )}
         </div>
