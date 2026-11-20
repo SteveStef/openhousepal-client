@@ -43,7 +43,8 @@ export default function MyShowcase({ summary, siteId, basePrefix, accent, agent,
   const where = summary.criteria.center_lat != null && summary.criteria.radius_miles
     ? `${summary.criteria.radius_miles} mi around ${(summary.criteria.center_address || 'your home').split(',')[0]}`
     : summary.criteria.cities?.length ? summary.criteria.cities.map(c => c.split(',')[0].toLowerCase().replace(/(^|\s)\w/g, m => m.toUpperCase())).slice(0, 3).join(', ')
-      : summary.criteria.school_districts?.length ? summary.criteria.school_districts[0].split(',')[0].toLowerCase().replace(/(^|\s)\w/g, m => m.toUpperCase())
+      : summary.criteria.townships?.length ? summary.criteria.townships.map(c => c.split(',')[0].toLowerCase().replace(/(^|\s)\w/g, m => m.toUpperCase())).slice(0, 3).join(', ')
+        : summary.criteria.school_districts?.length ? summary.criteria.school_districts[0].split(',')[0].toLowerCase().replace(/(^|\s)\w/g, m => m.toUpperCase())
         : summary.criteria.drawn_area ? 'The area drawn on the map' : null
   // Their search can be changed here once the site knows their email (it saves to that contact);
   // otherwise the Showcase's own "Change your search" (inside it) does it.

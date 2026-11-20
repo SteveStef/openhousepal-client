@@ -21,7 +21,7 @@ export function HighSchoolPicker({ districts, value, onChange }: { districts: st
     api.properties.highSchools(ds).then(r => {
       if (!live) return
       const got = (r.success && r.data?.schools) || []
-      setSchools(got)
+      setSchools(got)   // "unknown" = homes there whose school can't be told (not a chip - they stay in, marked)
       // a school that isn't in the picked districts any more would leave no homes
       const keep = value.filter(k => got.some(s => s.key === k))
       if (keep.length !== value.length) onChange(keep)
@@ -29,16 +29,18 @@ export function HighSchoolPicker({ districts, value, onChange }: { districts: st
     return () => { live = false }
   }, [dkey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!districts?.length || !schools || schools.length < 2) return null
+  const real = (schools || []).filter(s => s.key !== 'unknown')
+  const unknown = (schools || []).find(s => s.key === 'unknown')?.homes || 0
+  if (!districts?.length || real.length < 2) return null
   const toggle = (k: string) => onChange(value.includes(k) ? value.filter(x => x !== k) : [...value, k])
-  const placed = schools.reduce((n, s) => n + (s.homes - s.named), 0)
+  const placed = real.reduce((n, s) => n + (s.homes - s.named), 0)
   return (
     <div className="space-y-1.5" data-testid="high-school-picker">
       <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
         High schools <span className="normal-case tracking-normal text-gray-400">· {value.length ? 'only these' : 'any - tap to keep only one'}</span>
       </p>
       <div className="flex flex-wrap gap-1.5">
-        {schools.map(s => {
+        {real.map(s => {
           const on = value.includes(s.key)
           return (
             <button key={s.key} type="button" onClick={() => toggle(s.key)} aria-pressed={on} data-testid="high-school-chip"
@@ -52,12 +54,29 @@ export function HighSchoolPicker({ districts, value, onChange }: { districts: st
           )
         })}
       </div>
+      {value.length > 0 && unknown > 0 && (
+        <p className="text-[10.5px] font-bold leading-snug text-amber-700 dark:text-amber-300" data-testid="high-school-unknown">
+          {`Plus ${unknown} home${unknown === 1 ? '' : 's'} in the district whose school can't be told - they stay in, marked "School unknown", so nothing is missed.`}
+        </p>
+      )}
       {placed > 0 && (
         <p className="text-[10.5px] font-semibold leading-snug text-gray-400">
           {`Counts are homes for sale. ${placed} of them don't name a high school in the listing - the government school map and the homes around them place those, so they still count.`}
         </p>
       )}
     </div>
+  )
+}
+
+/** On a home's card: in the high-school search only because the listing doesn't say its school and we couldn't
+ *  place it - kept so nobody misses a home (owner, 11/19). */
+export function SchoolUnknownLine({ className = '' }: { className?: string }) {
+  return (
+    <p className={`flex min-w-0 items-start gap-1 text-[11px] font-bold leading-snug text-amber-700 dark:text-amber-300 ${className}`} data-testid="school-unknown"
+      title="The listing doesn't name its high school and we couldn't place it - it's here so you don't miss it. Check the school before touring.">
+      <GraduationCap className="mt-px h-3 w-3 shrink-0" />
+      <span className="min-w-0">School unknown - check before touring</span>
+    </p>
   )
 }
 

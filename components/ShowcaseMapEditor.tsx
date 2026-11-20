@@ -1217,6 +1217,10 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
                     <label className={miniLabel}>Towns</label>
                     <MultiSelectDatabaseInput values={formData.cities || []} onChange={(cities) => setFormData(prev => ({ ...prev, cities }))} apiMethod={api.properties.cities} placeholder="Search towns..." />
                   </div>
+                  <div data-testid="me-townships">
+                    <label className={miniLabel}>Townships</label>
+                    <MultiSelectDatabaseInput values={formData.townships || []} onChange={(townships) => setFormData(prev => ({ ...prev, townships }))} apiMethod={api.properties.townships} placeholder="Search townships..." />
+                  </div>
                   <div>
                     <label className={miniLabel}>School districts <span className="normal-case tracking-normal text-gray-400">· narrows every area</span></label>
                     <MultiSelectDatabaseInput values={formData.school_districts || []} onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts }))} apiMethod={api.properties.searchSchoolDistricts} placeholder="Search school districts..." />

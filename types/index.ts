@@ -75,6 +75,8 @@ export interface Property {
   aiStarred?: boolean;
   /** The smart filter found every must-have (components/showcases/SmartWants) */
   smartMatch?: { wants?: string[]; quotes?: string[]; marks?: { want: string; words: string }[]; say?: string; one?: string; many?: string } | null;
+  // in a high-school search only because its school can't be told (backend home_school_service)
+  schoolUnknown?: boolean;
   /** Showcase: moved into the Sold/Removed folder (off the market and filed by the buyer or agent).
    *  Off-market homes NOT filed stay in the list with a status notice (lib/showcaseStatus). */
   soldFiled?: boolean;
@@ -1044,7 +1046,7 @@ export interface AdminSupportTicketListItem extends SupportTicketListItem {
 
 // ---- Agent Hub Forms ----
 
-export type FormQuestionType = 'short_text' | 'long_text' | 'email' | 'phone' | 'number' | 'select' | 'date' | 'time' | 'currency' | 'multi_select' | 'contact_group' | 'statement' | 'address_autocomplete' | 'city_multiselect' | 'school_district_multiselect' | 'county_multiselect';
+export type FormQuestionType = 'short_text' | 'long_text' | 'email' | 'phone' | 'number' | 'select' | 'date' | 'time' | 'currency' | 'multi_select' | 'contact_group' | 'statement' | 'address_autocomplete' | 'city_multiselect' | 'school_district_multiselect' | 'county_multiselect' | 'township_multiselect' | 'must_haves';
 
 export interface FormQuestionDependsOn {
   question_id: string;

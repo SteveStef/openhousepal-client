@@ -19,10 +19,13 @@ import { saveVisitor, showcaseCodeOf, useVisitor, type SiteVisitor } from '@/lib
 import AreaPicksMap from '@/components/maps/AreaPicksMap'
 import RadiusMap from './RadiusMap'
 import { useSmartFields } from '@/lib/smartFields'
+import { MustHavesInput } from '@/components/forms/FormRunnerParts'
 
 export interface BuilderCriteria {
   cities?: string[]
+  townships?: string[]
   school_districts?: string[]
+  must_haves?: string[]
   min_price?: number | null
   max_price?: number | null
   min_beds?: number | null
@@ -78,7 +81,7 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
   const agentFirst = (agent.name || 'your agent').split(' ')[0]
   const first = visitor?.firstName || visitor?.name?.split(' ')[0] || ''
 
-  const startWhere: Where | null = initial?.center_lat != null && initial?.radius_miles ? 'home' : initial?.school_districts?.length && !initial?.cities?.length ? 'district' : initial?.cities?.length ? 'towns' : null
+  const startWhere: Where | null = initial?.center_lat != null && initial?.radius_miles ? 'home' : initial?.school_districts?.length && !initial?.cities?.length ? 'district' : initial?.cities?.length || initial?.townships?.length ? 'towns' : null
   const [step, setStep] = useState<Step>(startStep || (mode === 'edit' ? 'where' : 'intro'))
   const [dir, setDir] = useState(1)
   const [where, setWhere] = useState<Where | null>(startWhere)
@@ -89,6 +92,8 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
   const [likeThis, setLikeThis] = useState(mode === 'create')
   const [towns, setTowns] = useState<string[]>(initial?.cities || [])
   const [districts, setDistricts] = useState<string[]>(initial?.school_districts || [])
+  const [townships, setTownships] = useState<string[]>(initial?.townships || [])
+  const [wants, setWants] = useState<string[]>(initial?.must_haves || [])
   const [lo, setLo] = useState(nearestIdx(initial?.min_price, 0))
   const [hi, setHi] = useState(nearestIdx(initial?.max_price, PRICES.length - 1))
   const [beds, setBeds] = useState<number>(initial?.min_beds || 0)
@@ -136,7 +141,7 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
     if (like && h.beds) setBeds(Math.min(5, Math.max(1, h.beds - 1)))
   }
 
-  const placeReady = where === 'home' ? !!home : where === 'towns' ? towns.length > 0 : where === 'district' ? districts.length > 0 : false
+  const placeReady = where === 'home' ? !!home : where === 'towns' ? towns.length + townships.length > 0 : where === 'district' ? districts.length > 0 : false
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())
   const phoneOk = phone.replace(/\D/g, '').length >= 10
   const youReady = name.trim().length > 1 && emailOk && phoneOk && hasAgent !== ''
@@ -144,14 +149,16 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
   const summary = useMemo(() => {
     const out: { k: string; v: string }[] = []
     if (where === 'home' && home) out.push({ k: 'Where', v: `Within ${radius} mi of ${home.street}` })
-    if (where === 'towns' && towns.length) out.push({ k: 'Where', v: towns.map(titleTown).join(', ') })
+    if (where === 'towns' && towns.length + townships.length) out.push({ k: 'Where', v: [...towns, ...townships].map(titleTown).join(', ') })
     if (where === 'district' && districts.length) out.push({ k: 'Schools', v: districts.map(titleTown).join(', ') })
+    if (where === 'district' && townships.length) out.push({ k: 'Only in', v: townships.map(titleTown).join(', ') })
     if (lo > 0 || hi < PRICES.length - 1) out.push({ k: 'Price', v: lo > 0 && hi < PRICES.length - 1 ? `${money(PRICES[lo])} – ${money(PRICES[hi])}` : lo > 0 ? `${money(PRICES[lo])}+` : `Up to ${money(PRICES[hi])}` })
     if (beds) out.push({ k: 'Beds', v: `${beds}+` })
     if (baths) out.push({ k: 'Baths', v: `${baths}+` })
     if (types.length) out.push({ k: 'Type', v: types.map(t => TYPES.find(x => x.id === t)?.label || t).join(', ') })
+    if (wants.length) out.push({ k: 'Must-haves', v: wants.join(', ') })
     return out
-  }, [where, home, radius, towns, districts, lo, hi, beds, baths, types])
+  }, [where, home, radius, towns, townships, districts, lo, hi, beds, baths, types, wants])
 
   const submit = async () => {
     if (!youReady) return
@@ -167,6 +174,10 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
       { questionId: 'phone', value: phone.trim() },
       { questionId: 'cities', value: where === 'towns' ? towns : [] },
       { questionId: 'school_districts', value: where === 'district' ? districts : [] },
+      // townships: the places themselves (towns mode) or a part of the district (district mode)
+      { questionId: 'townships', value: where === 'towns' || where === 'district' ? townships : [] },
+      // must-haves: the agent's AI stars the homes that have them all
+      { questionId: 'key_features', value: wants },
       { questionId: 'budget_min', value: lo > 0 ? PRICES[lo] : '' },
       { questionId: 'budget_max', value: hi < PRICES.length - 1 ? PRICES[hi] : '' },
       { questionId: 'min_bedrooms', value: beds || '' },
@@ -390,6 +401,10 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
                   )}
                   <LookupAdd placeholder="Add another town…" lookup={q => api.properties.citiesPublic(q)} picked={towns} onAdd={v => setTowns(ts => ts.some(t => townKey(t) === townKey(v)) ? ts : [...ts, v])} />
                   <Picked items={towns} onRemove={v => setTowns(ts => ts.filter(t => t !== v))} />
+                  <div className="mt-4" data-testid="idx-townships">
+                    <LookupAdd placeholder="Or add a township…" lookup={q => api.properties.townshipsPublic(q)} picked={townships} onAdd={v => setTownships(ts => ts.includes(v) ? ts : [...ts, v])} />
+                    <Picked items={townships} onRemove={v => setTownships(ts => ts.filter(t => t !== v))} />
+                  </div>
                   <div className="mt-4"><AreaPicksMap cities={towns} schoolDistricts={[]} accent={accent} className="h-56 sm:h-64" /></div>
                 </>
               )}
@@ -399,6 +414,13 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
                   <Explain>Type the district&apos;s name. You&apos;ll only see homes where the kids would go to its schools.</Explain>
                   <LookupAdd placeholder="Search school districts…" lookup={q => api.properties.schoolDistrictsPublic(q)} picked={districts} onAdd={v => setDistricts(ds => ds.includes(v) ? ds : [...ds, v])} autoFocus />
                   <Picked items={districts} onRemove={v => setDistricts(ds => ds.filter(d => d !== v))} />
+                  {districts.length > 0 && (
+                    <div className="mt-4" data-testid="idx-district-townships">
+                      <Explain>Only part of the district? Add the townships you want - leave it empty for all of it.</Explain>
+                      <LookupAdd placeholder="Add a township (optional)…" lookup={q => api.properties.townshipsPublic(q)} picked={townships} onAdd={v => setTownships(ts => ts.includes(v) ? ts : [...ts, v])} />
+                      <Picked items={townships} onRemove={v => setTownships(ts => ts.filter(t => t !== v))} />
+                    </div>
+                  )}
                   <div className="mt-4"><AreaPicksMap cities={[]} schoolDistricts={districts} accent={accent} className="h-56 sm:h-64" /></div>
                 </>
               )}
@@ -441,6 +463,13 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
                       </motion.button>
                     )
                   })}
+                </div>
+              </div>
+              <div className="mt-7" data-testid="idx-must-haves">
+                <p className="text-sm font-black" style={{ color: 'var(--site-heading)' }}>Any must-haves? <span className="font-semibold" style={{ color: 'var(--site-faint)' }}>(optional)</span></p>
+                <div className="mt-2.5">
+                  <MustHavesInput value={wants} onChange={setWants} accent={accent}
+                    options={['Pool', 'First-floor primary bedroom', 'Finished basement', 'Garage', 'Fenced yard', 'Cul-de-sac']} />
                 </div>
               </div>
               <div className="mt-8 flex justify-end">
@@ -515,7 +544,7 @@ export default function ShowcaseBuilder({ siteId, basePrefix, accent, agent, are
                       <motion.p key={buildMsg % 4} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3 }}
                         className={`mt-7 text-2xl font-black ${headingClass}`} style={{ color: 'var(--site-heading)' }}>
                         {[
-                          where === 'home' && home ? `Drawing your circle around ${home.street}…` : where === 'district' ? 'Finding homes in your school district…' : `Looking in ${towns.map(titleTown).slice(0, 2).join(' & ') || 'your towns'}…`,
+                          where === 'home' && home ? `Drawing your circle around ${home.street}…` : where === 'district' ? 'Finding homes in your school district…' : `Looking in ${[...towns, ...townships].map(titleTown).slice(0, 2).join(' & ') || 'your towns'}…`,
                           'Checking every home for sale…', 'Keeping only the ones that fit…', 'Setting up your new-home alerts…',
                         ][buildMsg % 4]}
                       </motion.p>

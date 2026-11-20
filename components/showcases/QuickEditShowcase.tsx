@@ -295,15 +295,7 @@ export default function QuickEditShowcase({ open, onClose, leadId, showcases: gi
               <MultiSelectDatabaseInput values={form.cities} apiMethod={api.properties.citiesPublic} placeholder="Add towns…" onChange={cities => up({ cities })} />
               {circleCheck.notice && <div className="mt-2">{circleCheck.notice}</div>}
               {circleCheck.prompt}
-              {form.townships.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {form.townships.map(t => (
-                    <span key={t} className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-[11.5px] font-bold text-gray-700 dark:bg-white/10 dark:text-gray-200">
-                      {tidyAllCaps(t.split(',')[0])} <button type="button" aria-label={`Remove ${t}`} onClick={() => up({ townships: form.townships.filter(x => x !== t) })}><X className="h-3 w-3" /></button>
-                    </span>
-                  ))}
-                </div>
-              )}
+              <MultiSelectDatabaseInput values={form.townships} apiMethod={api.properties.townshipsPublic} placeholder="Add townships…" onChange={townships => up({ townships })} />
             </div>
 
             <div>

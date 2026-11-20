@@ -357,6 +357,7 @@ class ApiService {
     // Unauthenticated variants for public-facing forms (visitors aren't logged in)
     // Public "which home?" suggestions (Schedule a Showing) - any on-market listing, the form owner's first.
     addressesPublic: async (query: string, formId?: string) => this.request<{ results: PublicHomeSuggestion[] }>(`/api/properties/addresses/public?query=${encodeURIComponent(query)}${formId ? `&form_id=${encodeURIComponent(formId)}` : ''}`, {}, false),
+    townshipsPublic: async (q: string) => this.request<{results: string[]}>(`/api/properties/townships/public?query=${encodeURIComponent(q)}`),
     citiesPublic: async (city: string) => this.request<{results: string[]}>(`/api/properties/cities/public?query=${encodeURIComponent(city)}`),
     schoolDistrictsPublic: async (query: string) => this.request<{results: string[]}>(`/api/properties/school-districts/public?query=${encodeURIComponent(query)}`),
     countiesPublic: async (query: string) => this.request<{results: string[]}>(`/api/properties/counties/public?query=${encodeURIComponent(query)}`),

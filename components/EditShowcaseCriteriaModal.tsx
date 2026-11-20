@@ -69,12 +69,12 @@ export type SaveOutcome = { added: number; removed: number }
 export type MatchPreview = { count: number; points: { id: string; lat: number; lng: number }[]; at_limit?: boolean }
 
 type FormState = Pick<CollectionPreferences,
-  'address' | 'lat' | 'long' | 'diameter' | 'min_price' | 'max_price' | 'min_beds' | 'max_beds' | 'min_baths' | 'max_baths' | 'cities' | 'school_districts'>
+  'address' | 'lat' | 'long' | 'diameter' | 'min_price' | 'max_price' | 'min_beds' | 'max_beds' | 'min_baths' | 'max_baths' | 'cities' | 'townships' | 'school_districts'>
 
 const EMPTY_FORM: FormState = {
   address: '', lat: null, long: null, diameter: null,
   min_price: null, max_price: null, min_beds: null, max_beds: null, min_baths: null, max_baths: null,
-  cities: [], school_districts: [],
+  cities: [], townships: [], school_districts: [],
 }
 
 type Suggestion = { listingKey: string; address: string; city?: string | null; lat: number; lng: number; image?: string | null; price?: number | null; beds?: number | null; baths?: number | null; squareFeet?: number | null }
@@ -165,6 +165,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
     min_baths: preferences?.min_baths ?? null,
     max_baths: preferences?.max_baths ?? null,
     cities: preferences?.cities || [],
+    townships: preferences?.townships || [],
     school_districts: preferences?.school_districts || [],
   } as FormState))
   const savedFormRef = useRef(formData)
@@ -482,7 +483,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
 
   // Towns replace the distance search; a school district only narrows it (distance AND district,
   // like Zillow/Redfin - property_service ANDs districts with every area), so it isn't one.
-  const isUsingAreaSearch = () => !!(formData.cities && formData.cities.length > 0)
+  const isUsingAreaSearch = () => !!(formData.cities?.length || formData.townships?.length)
   const isUsingAddressSearch = () => !!formData.address
 
   const handleSave = async () => {
@@ -994,7 +995,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
           {radiusPicker(formData.address)}
           {/* Towns + the distance stack (owner, 11/09): say the towns still count */}
           {(() => {
-            const places = [...(formData.cities || []), ...(preferences?.townships || []), ...(preferences?.counties || [])].map(c => String(c).split(',')[0].trim()).filter(Boolean)
+            const places = [...(formData.cities || []), ...(formData.townships || []), ...(preferences?.counties || [])].map(c => String(c).split(',')[0].trim()).filter(Boolean)
             if (!places.length) return null
             const nice = places.slice(0, 2).map(t => t.toLowerCase().replace(/(^|[\s-])([a-z])/g, (_, a: string, c: string) => a + c.toUpperCase())).join(' or ') + (places.length > 2 ? ` +${places.length - 2} more` : '')
             return (
@@ -1014,7 +1015,7 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
   // ---------------------------------------------------------------- the full Refine menu
 
   // Read-only picture of what the agent configured that a visitor can't edit here.
-  const areaFilters = preferences?.townships || []
+  const areaFilters = preferences?.counties || []
   const yearBuiltRange = preferences?.min_year_built || preferences?.max_year_built
     ? `${preferences?.min_year_built || 'Any'}–${preferences?.max_year_built || 'Present'}`
     : null
@@ -1174,6 +1175,9 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
           )}
           <MultiSelectDatabaseInput values={formData.cities || []} apiMethod={api.properties.citiesPublic} placeholder="Search towns..."
             onChange={(cities) => setFormData(prev => ({ ...prev, cities, address: '', lat: null, long: null, diameter: null }))} />
+          <p data-area-label className="-mb-1 text-[10px] font-black uppercase tracking-widest text-gray-400">Townships</p>
+          <MultiSelectDatabaseInput values={formData.townships || []} apiMethod={api.properties.townshipsPublic} placeholder="Search townships..." onChange={(townships) => setFormData(prev => ({ ...prev, townships, address: '', lat: null, long: null, diameter: null }))} />
+          <p data-area-label className="-mb-1 text-[10px] font-black uppercase tracking-widest text-gray-400">School district</p>
           <MultiSelectDatabaseInput values={formData.school_districts || []} apiMethod={api.properties.schoolDistrictsPublic} placeholder="Search school districts..."
             onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts }))} />
           {hsNote}
@@ -1285,9 +1289,11 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
         {!isUsingAreaSearch() && (
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <p className="text-xs font-black text-gray-500">Towns or cities <span className="font-semibold text-gray-400">(instead of the distance)</span></p>
+              <p className="text-xs font-black text-gray-500">Towns, cities or townships <span className="font-semibold text-gray-400">(instead of the distance)</span></p>
               <MultiSelectDatabaseInput values={formData.cities || []} apiMethod={api.properties.citiesPublic} placeholder="Search towns..."
                 onChange={(cities) => setFormData(prev => ({ ...prev, cities, address: '', lat: null, long: null, diameter: null }))} />
+              <p data-area-label className="-mb-1 text-[10px] font-black uppercase tracking-widest text-gray-400">Townships</p>
+              <MultiSelectDatabaseInput values={formData.townships || []} apiMethod={api.properties.townshipsPublic} placeholder="Search townships..." onChange={(townships) => setFormData(prev => ({ ...prev, townships, address: '', lat: null, long: null, diameter: null }))} />
             </div>
             <div className="space-y-2">
               <p className="text-xs font-black text-gray-500">School district <span className="font-semibold text-gray-400">(only homes in it)</span></p>
@@ -1593,6 +1599,8 @@ function EditShowcaseCriteriaWindow({ preferences, onClose, onSave, onSendMessag
                         placeholder="Search towns..."
                         disabled={isUsingAddressSearch()}
                       />
+                      <p data-area-label className="-mb-1 text-[10px] font-black uppercase tracking-widest text-gray-400">Townships</p>
+                      <MultiSelectDatabaseInput values={formData.townships || []} apiMethod={api.properties.townshipsPublic} placeholder="Search townships..." onChange={(townships) => setFormData(prev => ({ ...prev, townships, address: '', lat: null, long: null, diameter: null }))} disabled={isUsingAddressSearch()} />
                       <MultiSelectDatabaseInput
                         values={formData.school_districts || []}
                         onChange={(school_districts) => setFormData(prev => ({ ...prev, school_districts }))}

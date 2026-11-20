@@ -14,7 +14,7 @@ import { formatNumberWithCommas, sanitizeNumericInput, stripCommas } from '@/lib
 import { FORM_LOOK_CSS, formLookClass, formLookVars, formPaint, type FormLook } from '@/lib/formLook'
 import { smartStep, useSmartFields } from '@/lib/smartFields'
 import WhenPicker, { WhenField, WhenSheet, emptyWhen } from '@/components/ui/WhenPicker'
-import { AreaPicker, ShowcaseCard, ShowcaseTrail, WHEEL_CSS, WheelPicker, emptyLabelOf, isAreaField, pickerKindOf, pickerOptions, questionHasAnswer, showcaseStepOf, stateNameOf, useCoarsePointer } from '@/components/forms/FormRunnerParts'
+import { AreaPicker, MustHavesInput, ShowcaseCard, ShowcaseTrail, WHEEL_CSS, WheelPicker, emptyLabelOf, isAreaField, pickerKindOf, pickerOptions, questionHasAnswer, showcaseStepOf, stateNameOf, useCoarsePointer } from '@/components/forms/FormRunnerParts'
 
 export interface FormRunnerBranding {
   title: string
@@ -837,7 +837,7 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
           answers={answers}
           setAnswer={setAnswer}
           accent={accent}
-          apiFor={type => type === 'city_multiselect' ? api.properties.citiesPublic : type === 'school_district_multiselect' ? api.properties.schoolDistrictsPublic : api.properties.countiesPublic}
+          apiFor={type => type === 'city_multiselect' ? api.properties.citiesPublic : type === 'township_multiselect' ? api.properties.townshipsPublic : type === 'school_district_multiselect' ? api.properties.schoolDistrictsPublic : api.properties.countiesPublic}
         />
       )
     }
@@ -874,10 +874,10 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
               </div>
             )
           }
-          if (field.type === 'city_multiselect' || field.type === 'school_district_multiselect' || field.type === 'county_multiselect') {
+          if (field.type === 'city_multiselect' || field.type === 'township_multiselect' || field.type === 'school_district_multiselect' || field.type === 'county_multiselect') {
             const fieldValues = Array.isArray(answers[field.id]) ? (answers[field.id] as string[]) : []
-            const apiMethod = field.type === 'city_multiselect' ? api.properties.citiesPublic : field.type === 'school_district_multiselect' ? api.properties.schoolDistrictsPublic : api.properties.countiesPublic
-            const placeholder = field.type === 'city_multiselect' ? 'Type a city or town...' : field.type === 'school_district_multiselect' ? 'Type a school district...' : 'Type a county...'
+            const apiMethod = field.type === 'city_multiselect' ? api.properties.citiesPublic : field.type === 'township_multiselect' ? api.properties.townshipsPublic : field.type === 'school_district_multiselect' ? api.properties.schoolDistrictsPublic : api.properties.countiesPublic
+            const placeholder = field.type === 'city_multiselect' ? 'Type a city or town...' : field.type === 'township_multiselect' ? 'Type a township...' : field.type === 'school_district_multiselect' ? 'Type a school district...' : 'Type a county...'
             return (
               <div key={field.id}>
                 <label className="text-xs font-black uppercase tracking-widest text-gray-400">
@@ -1050,6 +1050,10 @@ function renderQuestionField(question: FormQuestion, answers: AnswersState, setA
         })}
       </div>
     )
+  }
+
+  if (question.type === 'must_haves') {
+    return <MustHavesInput value={arrayValue} options={question.options || []} accent={accent} onChange={v => setAnswer(question.id, v)} />
   }
 
   // Pick-all-that-apply as chips that wrap (the Showcase creator's look) - a long list of short
@@ -1667,7 +1671,7 @@ export default function FormRunner({ questions, branding, successHeading, succes
           if (question.type === 'contact_group') {
             return (question.fields || []).map(field => ({ questionId: field.id, value: answers[field.id] ?? '' }))
           }
-          return [{ questionId: question.id, value: answers[question.id] ?? (question.type === 'multi_select' ? [] : '') }]
+          return [{ questionId: question.id, value: answers[question.id] ?? (question.type === 'multi_select' || question.type === 'must_haves' ? [] : '') }]
         }).concat(HIDDEN_PREFILL_IDS.filter(id => answers[id]).map(id => ({ questionId: id, value: answers[id] })))
         const result = await onSubmit(payload)
         if (result.success) {

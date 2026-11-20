@@ -1,6 +1,7 @@
 'use client'
 
 import { SmartMatchLine } from '@/components/showcases/SmartWants'
+import { SchoolUnknownLine } from '@/components/showcases/HighSchoolPicker'
 import { useMemo, memo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import Image from '@/components/ui/CachedImage'
@@ -269,6 +270,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
               <span className="truncate">{[property.City ? String(property.City).toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : '', [property.StateOrProvince, property.PostalCode].filter(Boolean).join(' ')].filter(Boolean).join(', ')}</span>
             </p>
             <SmartMatchLine match={property.smartMatch} className="mt-1" />
+            {property.schoolUnknown && <SchoolUnknownLine className="mt-1" />}
 
             <div className="mt-3 flex flex-wrap gap-1.5">
               {([
@@ -537,6 +539,7 @@ const PropertyCard = memo(function PropertyCard({ property, onLike, onDislike, o
             ))}
           </p>
           <SmartMatchLine match={property.smartMatch} className="mt-1" />
+          {property.schoolUnknown && <SchoolUnknownLine className="mt-1" />}
 
           {/* One line on a computer, never wrapping Acres onto its own line (owner 10/31): when the
               chips don't fit they shorten (10,500 -> 10.5K, 0.80 -> .8), then the words (bd / ba / sf / ac). */}

@@ -241,7 +241,7 @@ export function stateNameOf(raw?: string | null): string | null {
   return Object.values(US_STATE_BY_ABBR).find(n => n.toLowerCase() === s.toLowerCase()) || null
 }
 
-export const isAreaField = (t: string) => t === 'city_multiselect' || t === 'school_district_multiselect' || t === 'county_multiselect'
+export const isAreaField = (t: string) => t === 'city_multiselect' || t === 'township_multiselect' || t === 'school_district_multiselect' || t === 'county_multiselect'
 
 const tidy = (name: string) => {
   const [main, st] = name.split(',')
@@ -251,6 +251,7 @@ const tidy = (name: string) => {
 
 const AREA_META: Record<string, { title: string; icon: typeof MapPin; blank: string; search: string }> = {
   city_multiselect: { title: 'Towns', icon: MapPin, blank: 'Any town or city', search: 'Search towns...' },
+  township_multiselect: { title: 'Townships', icon: LandPlot, blank: 'Any township', search: 'Search townships...' },
   school_district_multiselect: { title: 'School districts', icon: GraduationCap, blank: 'Any school district', search: 'Search school districts...' },
   county_multiselect: { title: 'Counties', icon: Building2, blank: 'Any county', search: 'Search counties...' },
 }
@@ -276,7 +277,7 @@ export function AreaPicker({ fields, answers, setAnswer, accent, apiFor }: {
     <div className="text-left">
       <div className="mb-3 flex items-start gap-2 rounded-2xl px-3.5 py-2.5 text-[13px] font-semibold leading-snug text-[#4b5563] dark:text-gray-300" style={{ backgroundColor: `${accent}12` }}>
         <Sparkles className="mt-0.5 h-4 w-4 shrink-0" style={{ color: accent }} />
-        <span>Pick <b className="font-black text-[#111827] dark:text-white">any one</b> - a town, a school district or a county. Add more to sharpen your search.</span>
+        <span>Pick <b className="font-black text-[#111827] dark:text-white">any one</b> - a town, a township, a school district or a county. A school district plus a township keeps just that part of the district.</span>
       </div>
       <div className="space-y-1.5">
         {areaFields.map((f, n) => {
@@ -455,6 +456,52 @@ export function showcaseStepOf(q: FormQuestion | null | undefined): ShowcaseStep
 const filled = (v: unknown) => Array.isArray(v) ? v.length > 0 : !!(v && String(v).trim())
 
 /** Is anything picked on this question (for the trail's checks + the card's gold edge)? */
+/** "Any must-haves?" (owner, 11/19): up to 3 - tap a suggestion or type your own ("Pool", "In Uwchlan Township",
+ *  "First-floor primary bedroom"). The agent's AI stars the homes in their Showcase that have them all. */
+export function MustHavesInput({ value, options, onChange, accent }: { value: string[]; options: string[]; onChange: (v: string[]) => void; accent: string }) {
+  const [text, setText] = useState('')
+  const max = 3
+  const full = value.length >= max
+  const add = (w: string) => {
+    const t = w.replace(/\s+/g, ' ').trim().slice(0, 60)
+    if (!t || full || value.some(x => x.toLowerCase() === t.toLowerCase())) return
+    onChange([...value, t]); setText('')
+  }
+  const ideas = options.filter(o => !value.some(v => v.toLowerCase() === o.toLowerCase()))
+  return (
+    <div className="space-y-3" data-testid="must-haves">
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {value.map(v => (
+            <span key={v} className="inline-flex items-center gap-1.5 rounded-full border-2 px-3.5 py-2 text-sm font-bold text-[#0B0B0B] dark:text-white" style={{ borderColor: accent, backgroundColor: `${accent}1F` }}>
+              <Sparkles className="h-3.5 w-3.5" style={{ color: accent }} />{v}
+              <button type="button" aria-label={`Remove ${v}`} onClick={() => onChange(value.filter(x => x !== v))}><X className="h-3.5 w-3.5" /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      {!full && (
+        <div className="flex gap-2">
+          <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(text) } }}
+            placeholder="Type one - e.g. a pool, a first-floor bedroom" maxLength={60} data-testid="must-haves-input"
+            className="min-w-0 flex-1 rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-[#0B0B0B] outline-none focus:border-gray-400 dark:border-white/15 dark:bg-[#151517] dark:text-white" />
+          <button type="button" onClick={() => add(text)} disabled={!text.trim()} className="shrink-0 rounded-2xl px-4 text-sm font-black text-white disabled:opacity-40" style={{ backgroundColor: accent }}>Add</button>
+        </div>
+      )}
+      {!full && ideas.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {ideas.map(o => (
+            <button key={o} type="button" onClick={() => add(o)} className="inline-flex items-center gap-1 rounded-full border-2 border-gray-200 bg-white px-3.5 py-2 text-sm font-bold text-[#374151] hover:border-gray-300 dark:border-white/15 dark:bg-[#151517] dark:text-gray-100">
+              <Plus className="h-3.5 w-3.5" />{o}
+            </button>
+          ))}
+        </div>
+      )}
+      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">{full ? 'That\'s 3 - homes with all of them get a star.' : `Up to ${max}. Homes with all of them get a star - the rest still show.`}</p>
+    </div>
+  )
+}
+
 export function questionHasAnswer(q: FormQuestion, answers: Record<string, unknown>): boolean {
   if (q.type === 'contact_group') return (q.fields || []).some(f => f.id !== 'state' && filled(answers[f.id]))
   return filled(answers[q.id])
