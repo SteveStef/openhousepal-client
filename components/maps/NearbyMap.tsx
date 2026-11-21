@@ -4,7 +4,7 @@
 // onto the same map as numbered pins, with a swipeable row of cards under it - tap a card and its
 // pin opens; tap a pin and its card slides into view. Used by Spotlight's Location section (both
 // looks), the IDX property page and the IDX town page. Data: ./useNearby (budget-gated, tap-only).
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Loader2, MapPin, Star } from 'lucide-react'
 import HomeAreaMap from './HomeAreaMap'
@@ -27,6 +27,15 @@ function inkOn(hex: string): string {
   return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 > 0.62 ? '#111827' : '#ffffff'
 }
 
+/** "★ 4.6 (812) · $$ · Open now" - from a town page's rated search (owner 11/20); empty otherwise. */
+export function placeFacts(p: { rating?: number | null; review_count?: number | null; price_level?: number | null; open_now?: boolean | null }): string {
+  return [
+    p.rating != null ? `★ ${p.rating.toFixed(1)}${p.review_count != null ? ` (${p.review_count.toLocaleString()})` : ''}` : '',
+    p.price_level ? '$'.repeat(p.price_level) : '',
+    p.open_now === true ? 'Open now' : p.open_now === false ? 'Closed now' : '',
+  ].filter(Boolean).join(' · ')
+}
+
 export function placeMarkers(nb: Nearby, color: string): CanvasMarker[] {
   // The category's own colour + icon (user, 10/24) - the page accent only if it's an unknown one.
   const cat = nearbyCategory(nb.active)
@@ -36,13 +45,13 @@ export function placeMarkers(nb: Nearby, color: string): CanvasMarker[] {
     return {
       id: p.place_id, lat: p.latitude, lng: p.longitude, kind: 'place' as const, color: cat?.color || color, glyph: String(i + 1), icon: cat?.icon,
       title: p.name, kicker: [p.category, milesText(p.distance_miles)].filter(Boolean).join(' · '),
-      lines: [rating, p.address || ''].filter(Boolean),
+      lines: [placeFacts(p) || rating, p.address || ''].filter(Boolean),
     }
   })
 }
 
 /** Category chips + the cards for the picked one. */
-export function NearbyPicker({ nb, accent, tone = 'auto', originLabel, categories, variant = 'row', chips = true }: {
+export function NearbyPicker({ nb, accent, tone = 'auto', originLabel, categories, variant = 'row', chips = true, moreCount = 0, onMore }: {
   nb: Nearby; accent: string; tone?: Tone; originLabel: string
   /** Only these category keys, in this order (the Guest Pass keeps it to the six people ask about). */
   categories?: string[]
@@ -50,6 +59,9 @@ export function NearbyPicker({ nb, accent, tone = 'auto', originLabel, categorie
   variant?: 'row' | 'grid'
   /** false = the page picks the category itself (the town page's day-to-day tabs) - cards only. */
   chips?: boolean
+  /** A town page: how many more places are waiting behind 'Show more' (owner 11/20). */
+  moreCount?: number
+  onMore?: () => void
 }) {
   const t = T[tone]
   const cats = categories ? categories.map(k => nearbyCategory(k)).filter(Boolean) as typeof NEARBY_CATEGORIES : NEARBY_CATEGORIES
@@ -136,7 +148,13 @@ export function NearbyPicker({ nb, accent, tone = 'auto', originLabel, categorie
                       <span className={`block truncate text-[14px] font-black leading-snug ${t.ink}`}>{p.name}</span>
                       <span className={`mt-0.5 block truncate text-[11px] font-bold uppercase tracking-[0.08em] ${t.faint}`}>{[p.category, milesText(p.distance_miles)].filter(Boolean).join(' · ')}</span>
                       {p.address && <span className={`mt-1.5 flex items-start gap-1 text-[12px] leading-snug ${t.muted}`}><MapPin className="mt-0.5 h-3 w-3 shrink-0" /><span className="line-clamp-2">{p.address}</span></span>}
-                      {on && (
+                      {placeFacts(p) && (
+                        <span className={`mt-1.5 flex items-center gap-1 text-[12px] font-black ${t.ink}`} data-testid="place-facts">
+                          {p.rating != null && <Star className="h-3.5 w-3.5 shrink-0 fill-current" style={{ color: pin }} />}
+                          <span className="truncate">{placeFacts(p).replace(/^★ /, '')}</span>
+                        </span>
+                      )}
+                      {on && !placeFacts(p) && (
                         <span className={`mt-1.5 flex items-center gap-1 text-[12px] font-black ${t.ink}`}>
                           {nb.loadingDetails === p.place_id ? <><Loader2 className="h-3 w-3 animate-spin" /> Rating…</>
                             : d?.rating != null ? <><Star className="h-3.5 w-3.5 fill-current" style={{ color: pin }} /> {d.rating.toFixed(1)}{d.review_count != null && <span className={`font-bold ${t.faint}`}>({d.review_count.toLocaleString()})</span>}</>
@@ -147,6 +165,13 @@ export function NearbyPicker({ nb, accent, tone = 'auto', originLabel, categorie
                   </motion.button>
                 )
               })}
+              {moreCount > 0 && onMore && (
+                <button type="button" onClick={onMore} data-testid="nearby-show-more"
+                  className={`flex w-[46%] max-w-[180px] shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-2xl border border-dashed p-3.5 text-center transition active:scale-[0.98] sm:w-[160px] ${t.card}`}>
+                  <span className={`text-[14px] font-black ${t.ink}`}>Show {moreCount} more</span>
+                  <span className={`text-[11px] font-bold ${t.faint}`}>in {originLabel}</span>
+                </button>
+              )}
             </div>
             <p className={`mt-1 text-[10.5px] font-semibold ${t.faint}`}>Places from <span translate="no">Google Maps</span> · straight-line distance</p>
           </motion.div>
@@ -157,7 +182,7 @@ export function NearbyPicker({ nb, accent, tone = 'auto', originLabel, categorie
 }
 
 /** The map box + the picker under it. `boxClassName` sizes / frames the map box. */
-export default function NearbyMap({ latitude, longitude, address, accent, dark, tone = 'auto', siteId, kind, listingKey, slug, nearbyOn = true, originLabel, boxClassName, showHome = true, homeLabel, categories, variant, gestures, category }: {
+export default function NearbyMap({ latitude, longitude, address, accent, dark, tone = 'auto', siteId, kind, listingKey, slug, nearbyOn = true, originLabel, boxClassName, showHome = true, homeLabel, categories, variant, gestures, category, townOutline = null }: {
   latitude: number
   longitude: number
   address?: string | null
@@ -173,6 +198,8 @@ export default function NearbyMap({ latitude, longitude, address, accent, dark, 
   nearbyOn?: boolean
   originLabel: string
   boxClassName: string
+  /** A town page: the town's own outline on the map (HomeAreaMap). */
+  townOutline?: { label: string; rings: number[][][] } | null
   showHome?: boolean
   homeLabel?: string
   categories?: string[]
@@ -199,7 +226,13 @@ export default function NearbyMap({ latitude, longitude, address, accent, dark, 
     return getComputedStyle(boxRef.current).getPropertyValue(v[1]).trim() || '#C9A24D'
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accent, nb.places])
-  const markers = useMemo(() => placeMarkers(nb, pinColor), [nb, pinColor])
+  // A town page shows 10 places, then 'Show more' (owner 11/20); every other map shows what the search sends.
+  const [more, setMore] = useState(false)
+  useEffect(() => { setMore(false) }, [nb.active])
+  const limit = townOutline && !more ? 10 : Infinity
+  const shown = useMemo(() => (nb.places && nb.places.length > limit ? { ...nb, places: nb.places.slice(0, limit) } : nb), [nb, limit])
+  const moreCount = (nb.places?.length || 0) - (shown.places?.length || 0)
+  const markers = useMemo(() => placeMarkers(shown, pinColor), [shown, pinColor])
 
   return (
     // min-w-0: the swipeable card row must never widen the page column it sits in (a grid cell).
@@ -207,9 +240,10 @@ export default function NearbyMap({ latitude, longitude, address, accent, dark, 
       <div className={boxClassName}>
         <HomeAreaMap latitude={latitude} longitude={longitude} address={address} accent={accent} dark={dark} className="absolute inset-0 h-full w-full" rounded=""
           places={markers} activePlace={nb.selected} onActivePlace={id => nb.selectPlace(id)} showHome={showHome} homeLabel={homeLabel}
-          holdCamera={!!nb.active && (nb.loading === nb.active || !nb.places)} gestures={gestures} frameTown={controlled} />
+          holdCamera={!!nb.active && (nb.loading === nb.active || !nb.places)} gestures={gestures} frameTown={controlled} townOutline={townOutline} />
       </div>
-      {enabled && <NearbyPicker nb={nb} accent={pinColor} tone={tone} originLabel={originLabel} categories={categories} variant={variant} chips={!controlled} />}
+      {enabled && <NearbyPicker nb={shown} accent={pinColor} tone={tone} originLabel={originLabel} categories={categories} variant={variant} chips={!controlled}
+        moreCount={moreCount} onMore={() => setMore(true)} />}
     </div>
   )
 }

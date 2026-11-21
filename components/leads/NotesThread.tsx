@@ -10,8 +10,9 @@ interface NotesThreadProps {
   loading?: boolean
   currentUserId?: string
   emptyLabel?: string
-  onAdd: (text: string) => Promise<void>
-  onEdit: (noteId: string, text: string) => Promise<void>
+  /** Resolve false when it didn't save (offline, signed out, server) - the words stay in the box. */
+  onAdd: (text: string) => Promise<void | boolean>
+  onEdit: (noteId: string, text: string) => Promise<void | boolean>
   onDelete: (noteId: string) => Promise<void>
 }
 
@@ -21,12 +22,16 @@ export default function NotesThread({ notes, loading, currentUserId, emptyLabel,
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState('')
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [failed, setFailed] = useState('')
 
   const handleAdd = async () => {
     if (!draft.trim()) return
     setAdding(true)
-    await onAdd(draft.trim())
-    setDraft('')
+    setFailed('')
+    let ok: void | boolean = false
+    try { ok = await onAdd(draft.trim()) } catch { ok = false }
+    if (ok === false) setFailed('Not saved - check your connection and try again.')
+    else setDraft('')
     setAdding(false)
   }
 
@@ -38,9 +43,12 @@ export default function NotesThread({ notes, loading, currentUserId, emptyLabel,
   const saveEdit = async (noteId: string) => {
     if (!editDraft.trim()) return
     setSavingId(noteId)
-    await onEdit(noteId, editDraft.trim())
+    setFailed('')
+    let ok: void | boolean = false
+    try { ok = await onEdit(noteId, editDraft.trim()) } catch { ok = false }
     setSavingId(null)
-    setEditingId(null)
+    if (ok === false) setFailed('Not saved - check your connection and try again.')
+    else setEditingId(null)
   }
 
   const handleDelete = async (noteId: string) => {
@@ -120,7 +128,7 @@ export default function NotesThread({ notes, loading, currentUserId, emptyLabel,
       <div className="mt-3 flex gap-1.5">
         <textarea
           value={draft}
-          onChange={event => setDraft(event.target.value)}
+          onChange={event => { setDraft(event.target.value); if (failed) setFailed('') }}
           placeholder="Add a note..."
           rows={2}
           className="min-w-0 flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold outline-none focus:border-[#C9A24D] dark:border-gray-700 dark:bg-[#0B0B0B] dark:text-white"
@@ -134,6 +142,7 @@ export default function NotesThread({ notes, loading, currentUserId, emptyLabel,
           {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
         </button>
       </div>
+      {failed && <p role="alert" className="mt-1.5 text-xs font-bold text-red-600 dark:text-red-400">{failed}</p>}
     </div>
   )
 }

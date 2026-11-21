@@ -39,7 +39,7 @@ const DARK: google.maps.MapTypeStyle[] = [
 const kindOf = (name: string) => name.match(/(Township|Borough|Town|City|Village|County)$/i)?.[1] || ''
 const shortDistrict = (name: string) => name.replace(/\s+(School District|Sch Dist|SD)$/i, '').replace(/\s+Area$/i, ' Area')
 
-export default function HomeAreaMap({ latitude, longitude, accent: accentProp = '#C9A24D', dark: darkProp, className = 'h-full w-full', rounded = 'rounded-2xl', places, activePlace, onActivePlace, showHome = true, homeLabel, holdCamera = false, gestures = 'cooperative', frameTown = false }: {
+export default function HomeAreaMap({ latitude, longitude, accent: accentProp = '#C9A24D', dark: darkProp, className = 'h-full w-full', rounded = 'rounded-2xl', places, activePlace, onActivePlace, showHome = true, homeLabel, holdCamera = false, gestures = 'cooperative', frameTown = false, townOutline = null }: {
   latitude: number
   longitude: number
   address?: string | null
@@ -64,6 +64,8 @@ export default function HomeAreaMap({ latitude, longitude, accent: accentProp = 
   /** A town page: places always framed WITH the whole town, so every category opens on the town
    *  (user, 10/27) - not zoomed onto a cluster of pins with the lines half out of view. */
   frameTown?: boolean
+  /** A town page (owner 11/20): the town's own outline - drawn instead of the township / school district. */
+  townOutline?: { label: string; rings: number[][][] } | null
 }) {
   const boxRef = useRef<HTMLDivElement>(null)
   const divRef = useRef<HTMLDivElement>(null)
@@ -123,7 +125,7 @@ export default function HomeAreaMap({ latitude, longitude, accent: accentProp = 
     <div ref={boxRef} className={`${placed ? '' : 'relative'} overflow-hidden ${rounded} ${className}`}>
       <div ref={divRef} className="h-full w-full" />
       <HomeAreaOverlay map={map} latitude={latitude} longitude={longitude} accent={accent} dark={dark} showHome={showHome} label={homeLabel} frameTown={frameTown}
-        markers={places} activeMarker={activePlace} onActiveMarker={onActivePlace} holdCamera={holdCamera} />
+        markers={places} activeMarker={activePlace} onActiveMarker={onActivePlace} holdCamera={holdCamera} townOutline={townOutline} />
     </div>
   )
 }
@@ -141,7 +143,7 @@ const spanOf = (b: Bounds | null) => (b ? (b.n - b.s) * (b.e - b.w) : 0)
 /** The lines + the layer switch, on any Google map already showing this home (HomeAreaMap's own,
  *  or the CMA's comparables map - fit={false} leaves that map's framing alone). Sits in the map's
  *  positioned box. */
-export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', dark = false, fit = true, showHome = false, label, markers, activeMarker, onActiveMarker, holdCamera = false, frameTown = false }: {
+export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', dark = false, fit = true, showHome = false, label, markers, activeMarker, onActiveMarker, holdCamera = false, frameTown = false, townOutline = null }: {
   map: google.maps.Map | null
   latitude: number
   longitude: number
@@ -158,6 +160,7 @@ export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', 
   holdCamera?: boolean
   /** Frame the places together with the whole town (see HomeAreaMap). */
   frameTown?: boolean
+  townOutline?: { label: string; rings: number[][][] } | null
 }) {
   const [areas, setAreas] = useState<Areas | null>(null)
   // `layer` = the switch (moves the moment it's tapped); `shown` = the lines actually drawn, which
@@ -168,10 +171,14 @@ export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', 
 
   useEffect(() => {
     if (!map) return
+    if (townOutline?.rings?.length) {   // the town itself, not the township it sits in (owner 11/20)
+      setAreas({ municipality: { name: townOutline.label, geoid: 'town-outline', rings: townOutline.rings }, neighbors: [], school_districts: [] })
+      return
+    }
     let cancelled = false
     api.properties.homeAreasPublic(latitude, longitude).then(r => { if (!cancelled && r.success && r.data) setAreas(r.data) }).catch(() => {})
     return () => { cancelled = true }
-  }, [map, latitude, longitude])
+  }, [map, latitude, longitude, townOutline])
 
   const muni = areas?.municipality || null
   const districts = useMemo(() => areas?.school_districts || [], [areas])
@@ -277,11 +284,11 @@ export function HomeAreaOverlay({ map, latitude, longitude, accent = '#C9A24D', 
 
   return (
     <>
-      <BoundaryCanvas map={map} shapes={shapes} badges={badges} dark={dark} animKey={drawn || 'none'} avoid={[{ lat: latitude, lng: longitude }]} topInset={layers.length ? 58 : 14}
+      <BoundaryCanvas map={map} shapes={shapes} badges={badges} dark={dark} animKey={drawn || 'none'} avoid={[{ lat: latitude, lng: longitude }]} topInset={layers.length && !townOutline ? 58 : 14}
         drawSeconds={switching.current ? 0.75 : 1.3}
         markers={markers || []} activeMarker={activeMarker} onActiveMarker={onActiveMarker}
         home={showHome ? { lat: latitude, lng: longitude, color: accent, label } : null} />
-      {layers.length > 0 && (
+      {layers.length > 0 && !townOutline && (
         <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-2.5">
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
             className={`pointer-events-auto flex gap-1 rounded-full border p-1 shadow-lg ${dark ? 'border-white/10 bg-[#141416]/95' : 'border-black/[0.06] bg-white/95'}`}>

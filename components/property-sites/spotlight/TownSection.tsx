@@ -161,7 +161,7 @@ export default function TownSection({ name, facts, body, place, kicker, tone, ph
           {photo?.url && (
             <figure className="tw-photo">
               <div className="tw-photo-in">
-              <img src={photo.url} alt={photo.caption || `${name}`} loading="lazy" />
+              <img src={photo.url.replace(/(\.wikimedia\.org\/wikipedia\/[^/]+\/thumb\/.+\/)(\d{4,})px-/, (m, a, w) => Number(w) > 1280 ? `${a}1280px-` : m)} alt={photo.caption || `${name}`} loading="lazy" />
               <figcaption>
                 {photo.caption && <span className={`${label} tw-photo-cap`}>{photo.caption}</span>}
                 {photo.credit && (photo.source_url

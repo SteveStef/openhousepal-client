@@ -21,7 +21,9 @@ export function hasValidSubscription(user: User | null): boolean {
   // Trial check
   if (user.subscription_status === 'TRIAL') {
     if (!user.trial_ends_at) return true; // Assume valid if no end date
-    return new Date(user.trial_ends_at) > new Date();
+    // A trial that just ended stays open 48 hours while PayPal takes the first payment (same as the API).
+    const grace = user.subscription_id ? 48 * 3600 * 1000 : 0;
+    return new Date(user.trial_ends_at).getTime() + grace > Date.now();
   }
   
   // Grace period check for cancelled subscriptions

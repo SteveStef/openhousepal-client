@@ -18,6 +18,9 @@ export interface NearbyPlace {
   address?: string | null
   rating?: number | null
   review_count?: number | null
+  /** 1-4 ($-$$$$) and open right now - a town page's rated search only (owner 11/20). */
+  price_level?: number | null
+  open_now?: boolean | null
   distance_miles?: number | null
   latitude: number
   longitude: number
@@ -116,6 +119,12 @@ export default function useNearby({ siteId, kind, slug, listingKey, enabled = tr
   const selectPlace = useCallback(async (placeId: string | null) => {
     setSelected(placeId)
     if (!placeId || details[placeId] !== undefined) return
+    // the rated search already brought its rating - no second (paid) lookup on the tap
+    const known = (active ? results[active]?.places : null)?.find(p => p.place_id === placeId)
+    if (known?.rating != null) {
+      setDetails(prev => ({ ...prev, [placeId]: { place_id: placeId, rating: known.rating, review_count: known.review_count } }))
+      return
+    }
     setLoadingDetails(placeId)
     try {
       const k = kind === 'property_site' ? 'property_site_place_details' : kind === 'guest_pass' ? 'guest_pass_place_details' : 'place_details'
@@ -127,7 +136,7 @@ export default function useNearby({ siteId, kind, slug, listingKey, enabled = tr
     } finally {
       setLoadingDetails(cur => (cur === placeId ? null : cur))
     }
-  }, [details, siteId, kind])
+  }, [details, siteId, kind, active, results])
 
   const places = active ? results[active]?.places || null : null
   return { available, active, select, places, loading, error, selected, selectPlace, details, loadingDetails }

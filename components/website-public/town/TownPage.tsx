@@ -855,7 +855,7 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
           <TownHeading luxe={luxe} eyebrow="Living here" title={`Day-to-day life in ${area.name}`} sub="Where people eat, shop, get groceries and get outside." />
           {livingKeys.length > 0 && (
             <TownLiving town={area.name} state={area.state} luxe={luxe}
-              map={area.explore_origin ? { siteId, slug, origin: area.explore_origin, accent: theme.secondary_color || '#C9A24D' } : null}
+              map={area.explore_origin ? { siteId, slug, origin: area.explore_origin, accent: theme.secondary_color || '#C9A24D', outline: facts.boundaries?.outline || null } : null}
               categories={livingKeys.map(k => ({
               key: k, label: CURATED_CATEGORY_META[k]?.label || k, notes: facts[k]?.notes || null,
               items: categoryEntities(facts[k]).map(e => ({ name: e.name, category: e.category, city: e.where || e.city, distance_miles: e.distance_miles, description: e.description, source_url: e.source_url })),

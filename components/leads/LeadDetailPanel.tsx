@@ -700,8 +700,8 @@ export default function LeadDetailPanel({ leadId, onBack, backLabel = 'Leads', o
           <Card>
             <SectionTitle>Notes</SectionTitle>
             <NotesThread notes={notesShown} loading={notesLoading} currentUserId={user?.id}
-              onAdd={async text => { const r = await api.leads.addNote(lead.id, { text }); if (r.success && r.data) { setNotesList(c => [r.data!, ...c]); setNotesPage(1) } }}
-              onEdit={async (id, text) => { const r = await api.leads.updateNote(id, text); if (r.success && r.data) setNotesList(c => c.map(n => n.id === id ? r.data! : n)) }}
+              onAdd={async text => { const r = await api.leads.addNote(lead.id, { text }); if (r.success && r.data) { setNotesList(c => [r.data!, ...c]); setNotesPage(1); return true } return false }}
+              onEdit={async (id, text) => { const r = await api.leads.updateNote(id, text); if (r.success && r.data) { setNotesList(c => c.map(n => n.id === id ? r.data! : n)); return true } return false }}
               onDelete={async id => { const r = await api.leads.deleteNote(id); if (r.success) setNotesList(c => c.filter(n => n.id !== id)) }} />
             <Pager page={Math.min(notesPage, notePages)} pages={notePages} onChange={n => setNotesPage(Math.min(Math.max(1, n), notePages))} prevLabel="Newer" nextLabel="Older" className="mt-3" />
             <p className="mt-2 text-[10px] font-semibold text-gray-400">Also shows on their open house sign-in and on their follow-ups.</p>

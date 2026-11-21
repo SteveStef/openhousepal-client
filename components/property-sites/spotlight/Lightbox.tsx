@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Grid3x3, X } from 'lucide-react'
 import { usePresence } from './motion'
+import { sizedImage, sizedSrcSet } from '@/lib/siteImage'
 
 // Full-screen photo viewer shared by both Spotlight templates: arrow keys / swipe to move, Esc to
 // close, a thumbnail rail to jump, and an "all photos" grid view - the way every serious listing
@@ -134,7 +135,7 @@ export default function Lightbox({
                 className={`group relative aspect-[4/3] overflow-hidden rounded-lg ${i === index ? 'ring-2 ring-white' : ''}`}
                 aria-label={`Open photo ${i + 1}`}
               >
-                <img src={src} alt="" loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                <img src={sizedImage(src, 640)} alt="" loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
               </button>
             ))}
           </div>
@@ -164,7 +165,9 @@ export default function Lightbox({
                   {/* Only the photos around the one on screen are loaded - a 40-photo listing stays light. */}
                   {Math.abs(i - index) <= 2 || (index === 0 && i === count - 1) || (index === count - 1 && i === 0) ? (
                     <img
-                      src={src}
+                      src={sizedImage(src, 1920, 80)}
+                      srcSet={sizedSrcSet(src, [828, 1080, 1200, 1920], 80) || undefined}
+                      sizes="100vw"
                       alt={`${title} - photo ${i + 1} of ${count}`}
                       className="max-h-full max-w-full object-contain"
                       draggable={false}
@@ -195,7 +198,7 @@ export default function Lightbox({
                   aria-label={`Photo ${i + 1}`}
                   aria-current={i === index}
                 >
-                  <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />
+                  <img src={sizedImage(src, 256)} alt="" loading="lazy" className="h-full w-full object-cover" />
                 </button>
               ))}
             </div>

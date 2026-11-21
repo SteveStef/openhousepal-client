@@ -152,6 +152,8 @@ export default function ManageHostsModal({
       showToast('Request cancelled.', 'success')
     } else {
       showToast(error || 'Unable to cancel this request right now.', 'error')
+      // e.g. a teammate took the slot a moment ago - show the window as it is now (who is hosting)
+      if (listingKey) { void load(listingKey); void loadBroadcasts(listingKey) }
     }
   }
 

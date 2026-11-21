@@ -43,6 +43,7 @@ export type {
   PropertySiteAgent, PropertySiteChapter, PropertySiteResolveResponse,
 } from './spotlight/model'
 import type { PropertySiteResolveResponse } from './spotlight/model'
+import { sizedImage, sizedSrcSet } from '@/lib/siteImage'
 
 // Font files live in frontend/fonts (Latin) - builds never download from Google Fonts (11/01: a
 // Google Fonts hiccup failed two production builds in a row).
@@ -267,7 +268,7 @@ function useScrollSpy(ids: string[]) {
 function Monogram({ agent, size = 36 }: { agent?: PropertySiteAgent; size?: number }) {
   const initials = (agent?.name || 'Listing').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
   if (agent?.photo_url) {
-    return <img src={agent.photo_url} alt="" style={{ width: size, height: size }} className="shrink-0 rounded-full object-cover ring-1 ring-white/25" />
+    return <img src={sizedImage(agent.photo_url, 256)} alt="" style={{ width: size, height: size }} className="shrink-0 rounded-full object-cover ring-1 ring-white/25" />
   }
   return (
     <span style={{ width: size, height: size, fontSize: size * 0.34 }} className="sp-display flex shrink-0 items-center justify-center rounded-full border border-[color:var(--sp-accent)] text-[color:var(--sp-accent)]">
@@ -687,7 +688,7 @@ function StorySection({ m }: { m: SpotlightModel }) {
           <figure className="cl-reveal lg:col-span-7">
             <div className="cl-wipe relative aspect-[4/3] overflow-hidden will-change-transform">
               <div className="cl-wipe-in h-full w-full overflow-hidden will-change-transform">
-                <img src={photo} alt={m.p.address} loading="lazy" className="cl-parallax h-full w-full object-cover will-change-transform" />
+                <img src={sizedImage(photo, 1920)} srcSet={sizedSrcSet(photo, [640, 828, 1080, 1200, 1920]) || undefined} sizes="100vw" alt={m.p.address} loading="lazy" className="cl-parallax h-full w-full object-cover will-change-transform" />
               </div>
             </div>
             {m.cityState && (
@@ -705,7 +706,7 @@ function StorySection({ m }: { m: SpotlightModel }) {
           <article className={`cl-drawer ${drawer.closing ? 'is-closing' : ''} relative h-full w-full max-w-[640px] overflow-y-auto bg-[#0d0d0d] shadow-[-40px_0_80px_-20px_rgba(0,0,0,.8)]`}>
             {photo && (
               <div className="relative h-56 overflow-hidden sm:h-72">
-                <img src={photo} alt="" className="h-full w-full object-cover" />
+                <img src={sizedImage(photo, 1920)} srcSet={sizedSrcSet(photo, [640, 828, 1080, 1200, 1920]) || undefined} sizes="100vw" alt="" className="h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0d0d0d] to-transparent" />
               </div>
             )}
@@ -939,7 +940,7 @@ function VirtualTourSection({ url, poster }: { url: string; poster?: string | nu
   return (
     <Section id="tour" eyebrow="3D virtual tour" title={<>Walk through, <em className="italic text-white/80">from anywhere</em></>} wide>
       <button onClick={() => setOpen(true)} className="cl-reveal group relative flex aspect-[21/9] min-h-[320px] w-full items-center justify-center overflow-hidden rounded-[2px] bg-[#111]">
-        {poster && <img src={poster} alt="" loading="lazy" className="absolute inset-0 h-full w-full scale-105 object-cover opacity-50 transition-[transform,opacity] duration-700 group-hover:scale-100 group-hover:opacity-60" />}
+        {poster && <img src={sizedImage(poster, 1200)} alt="" loading="lazy" className="absolute inset-0 h-full w-full scale-105 object-cover opacity-50 transition-[transform,opacity] duration-700 group-hover:scale-100 group-hover:opacity-60" />}
         <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/40" />
         <span className="relative flex flex-col items-center gap-4">
           <span className="flex h-20 w-20 items-center justify-center rounded-full bg-[color:var(--sp-accent)] text-[color:var(--sp-on-accent)] shadow-2xl transition duration-500 group-hover:scale-110"><Box className="h-8 w-8" /></span>
@@ -1167,7 +1168,7 @@ function AgentsSection({ m, url, siteId, signatureSlug }: { m: SpotlightModel; u
       <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
         <div className="cl-reveal relative mx-auto aspect-[4/5] w-full max-w-sm overflow-hidden rounded-[2px] bg-[#141414]">
           {primary.photo_url ? (
-            <img src={primary.photo_url} alt={primary.name} loading="lazy" className="h-full w-full object-cover" />
+            <img src={sizedImage(primary.photo_url, 640)} alt={primary.name} loading="lazy" className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_50%_30%,#1f1f1f,#0d0d0d)]">
               <span className="sp-display text-[7rem] font-light text-[color:color-mix(in_srgb,var(--sp-accent)_70%,transparent)]">{primary.name.split(/\s+/).map(w => w[0]).slice(0, 2).join('')}</span>
@@ -1221,7 +1222,7 @@ function ContactSection({ m, siteId, url, onShare, allowTour }: { m: SpotlightMo
   const bg = m.photos[m.photos.length > 3 ? 3 : 0]
   return (
     <section id="contact" className="sp-loop relative scroll-mt-16 overflow-hidden px-5 py-24 sm:px-10 sm:py-32">
-      {bg && <img src={bg} alt="" aria-hidden loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-[0.14]" />}
+      {bg && <img src={sizedImage(bg, 1200)} alt="" aria-hidden loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-[0.14]" />}
       <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A] via-[#0A0A0A]/85 to-[#0A0A0A]" />
       <div className="relative mx-auto grid max-w-6xl grid-cols-1 gap-12 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
         <div className="cl-reveal min-w-0 [container-type:inline-size]">

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { HeaderMode, HeaderMotion, HeroFrame } from './model'
+import { sizedImage, sizedSrcSet } from '@/lib/siteImage'
 
 // The moving picture behind a Spotlight page's header - shared by both templates. Three modes the
 // agent picks in the editor:
@@ -158,7 +159,7 @@ function Placed({ kind, src, poster, box, frame, motionClass, style, alt, priori
     )
   }
   return (
-    <img ref={img} src={src} alt={alt} fetchPriority={priority ? 'high' : undefined} className={cls} style={placed}
+    <img ref={img} src={sizedImage(src, 1920, 75)} srcSet={sizedSrcSet(src, HERO_W, 75) || undefined} sizes="100vw" alt={alt} fetchPriority={priority ? 'high' : undefined} className={cls} style={placed}
       onLoad={e => setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
       onError={() => setBroken(true)} />
   )
@@ -180,7 +181,14 @@ function HeroCycle({ photos, motion, alt, box, frame, active = true }: { photos:
     return () => window.clearTimeout(t)
   }, [index, photos.length, active])
   // Warm the next photo so the dissolve never shows a half-loaded frame.
-  useEffect(() => { const img = new Image(); img.src = photos[(index + 1) % photos.length] }, [index, photos])
+  useEffect(() => {
+    const u = photos[(index + 1) % photos.length]
+    const img = new Image()
+    img.sizes = '100vw'
+    const ss = sizedSrcSet(u, HERO_W, 75)
+    if (ss) img.srcset = ss
+    img.src = sizedImage(u, 1920, 75)
+  }, [index, photos])
   return (
     <>
       {photos.map((src, i) => {
@@ -200,6 +208,9 @@ function HeroCycle({ photos, motion, alt, box, frame, active = true }: { photos:
     </>
   )
 }
+
+// Right-sized hero photos (the browser picks by screen width x density); placePhoto only uses the photo's shape.
+const HERO_W = [640, 828, 1080, 1200, 1920]
 
 const HM_CSS = `
 .hm{position:absolute;inset:0;overflow:hidden}

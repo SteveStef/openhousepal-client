@@ -330,12 +330,15 @@ export default function OpenHouseVisitors({ openHouseEventId: idProp, onClose, s
     if (success && data) {
       setVisitorNotes(current => [data, ...current])
       setNoteCount(selectedVisitorForNote, visitorNotes.length + 1)
+      return true
     }
+    return false
   }
 
   const handleEditVisitorNote = async (noteId, text) => {
     const { success, data } = await api.openHouses.updateVisitorNoteThread(noteId, text)
-    if (success && data) setVisitorNotes(current => current.map(n => n.id === noteId ? data : n))
+    if (success && data) { setVisitorNotes(current => current.map(n => n.id === noteId ? data : n)); return true }
+    return false
   }
 
   const handleDeleteVisitorNote = async (noteId) => {

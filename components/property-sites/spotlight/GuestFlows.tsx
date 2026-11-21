@@ -10,6 +10,7 @@ import { readVisitor, saveVisitor } from '@/lib/visitor'
 import { visitSource } from '@/lib/visitSource'
 import { useSmartFields } from '@/lib/smartFields'
 import { fmtNumber, type PropertySiteAgent, type SpotlightModel } from './model'
+import { sizedImage } from '@/lib/siteImage'
 
 // The Spotlight's "Request info" and "Get the documents" windows (user, 10/24), built exactly like
 // the Schedule a Showing window guests love: the home on a lit photo panel, then one short step at
@@ -95,7 +96,7 @@ function FlowShell({ home, kicker, icon, steps, stepNo, done, onClose, busy, chi
         className="relative grid max-h-[100dvh] w-full grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-t-[26px] bg-white shadow-[0_40px_100px_-30px_rgba(0,0,0,.7)] dark:bg-[#111113] sm:max-h-[min(640px,calc(100dvh-2.5rem))] sm:max-w-[860px] sm:grid-cols-[290px_minmax(0,1fr)] sm:grid-rows-1 sm:rounded-[30px]">
         {/* ---- the home, lit */}
         <div className="relative isolate overflow-hidden bg-[#0b0b0c] text-white">
-          {home.photo && <img src={home.photo} alt="" className="gf-ken absolute inset-0 -z-20 h-full w-full object-cover" />}
+          {home.photo && <img src={sizedImage(home.photo, 828)} alt="" className="gf-ken absolute inset-0 -z-20 h-full w-full object-cover" />}
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(120%_90%_at_100%_0%,rgba(201,162,77,.45),transparent_55%),linear-gradient(180deg,rgba(11,11,12,.35),rgba(11,11,12,.92))]" />
           <span aria-hidden className="gf-edge pointer-events-none absolute inset-x-0 top-0 h-px" />
           <span aria-hidden className="pointer-events-none absolute left-1/2 top-2 z-10 h-1.5 w-10 -translate-x-1/2 rounded-full bg-white/35 sm:hidden" />

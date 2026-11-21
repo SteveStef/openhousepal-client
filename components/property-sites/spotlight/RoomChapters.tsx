@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Expand } from 'lucide-react'
 import type { PropertySiteChapter } from './model'
+import { sizedImage, sizedSrcSet } from '@/lib/siteImage'
 
 // "Room by room" for both templates: one full-screen panel per room. The room's own photos
 // dissolve into one another behind the words (each with a slow zoom), a strip of the room's
@@ -74,7 +75,7 @@ function Room({ ch, n, total, roman, flip, onOpen, labelClass }: {
       <div className="rc-photo">
         <div className="rc-media">
           {photos.map((src, j) => (
-            <img key={src + j} src={src} alt={j === active ? ch.label : ''} loading="lazy" className={j === active ? 'is-on' : ''} />
+            <img key={src + j} src={sizedImage(src, 1200)} srcSet={sizedSrcSet(src, [640, 828, 1080, 1200]) || undefined} sizes="(min-width: 1024px) 60vw, 100vw" alt={j === active ? ch.label : ''} loading="lazy" className={j === active ? 'is-on' : ''} />
           ))}
         </div>
         <div className="rc-shade" />
@@ -103,7 +104,7 @@ function Room({ ch, n, total, roman, flip, onOpen, labelClass }: {
           <div className="rc-strip">
             {photos.map((src, j) => (
               <button key={src + j} onClick={() => setActive(j)} className={j === active ? 'is-on' : ''} aria-label={`Show photo ${j + 1}`}>
-                <img src={src} alt="" loading="lazy" />
+                <img src={sizedImage(src, 256)} alt="" loading="lazy" />
                 {j === active && <i key={`${active}-${playing}`} style={{ animationPlayState: playing ? 'running' : 'paused' }} />}
               </button>
             ))}

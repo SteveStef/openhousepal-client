@@ -32,6 +32,7 @@ import { onAccent, usableAccent } from './spotlight/tone'
 import { SP_MOTION_CSS, useOffscreenPause, usePresence } from './spotlight/motion'
 import NearbyMap from '@/components/maps/NearbyMap'
 import { openDirections } from '@/lib/directions'
+import { sizedImage, sizedSrcSet } from '@/lib/siteImage'
 
 // Font files live in frontend/fonts (Latin) - builds never download from Google Fonts (11/01: a
 // Google Fonts hiccup failed two production builds in a row).
@@ -251,7 +252,7 @@ function Masthead({ items, m, onShare, allowTour }: { items: NavItem[]; m: Spotl
         <div className="flex h-16 w-full items-center justify-between gap-6 px-5 sm:px-10 xl:px-14">
           <button onClick={() => go('overview')} className="flex min-w-0 items-center gap-3 text-left" aria-label="Back to cover">
             {agentPhoto
-              ? <img src={agentPhoto} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-current/30" />
+              ? <img src={sizedImage(agentPhoto, 128)} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-current/30" />
               : <span className="sp-mono flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-current/40 text-[11px] tracking-[0.12em]">{initials}</span>}
             <span className="flex min-w-0 flex-col leading-tight">
               <span className="sp-display truncate text-[18px] italic">{m.agent?.name || street(m.p.address)}</span>
@@ -439,7 +440,7 @@ function Article({ m, n }: { m: SpotlightModel; n: string }) {
           </Reveal>
           {photo && (
             <Reveal as="figure" className="lg:sticky lg:top-24 lg:self-start">
-              <div className="ee-frame aspect-[4/5]"><img src={photo} alt={`${m.p.address}`} loading="lazy" /></div>
+              <div className="ee-frame aspect-[4/5]"><img src={sizedImage(photo, 1200)} srcSet={sizedSrcSet(photo, [640, 828, 1080, 1200]) || undefined} sizes="(min-width: 1024px) 50vw, 100vw" alt={`${m.p.address}`} loading="lazy" /></div>
               <figcaption className="sp-mono mt-3 flex justify-between text-[10px] uppercase tracking-[0.16em] opacity-60">
                 <span>Plate I</span><span>{[m.p.city, m.p.state].filter(Boolean).join(', ')}</span>
               </figcaption>
@@ -493,7 +494,7 @@ function Aperture({ m }: { m: SpotlightModel }) {
             {line ? <i className="text-[clamp(1.8rem,3.4vw,3rem)] leading-[1.15]">&ldquo;{line}&rdquo;</i> : <>Small frame.<br /><i>Infinite room.</i></>}
           </p>
         </div>
-        <div className="ee-aperture-window"><div className="ee-aperture-in"><img src={src} alt={`${m.p.address}`} loading="lazy" /></div></div>
+        <div className="ee-aperture-window"><div className="ee-aperture-in"><img src={sizedImage(src, 1920)} srcSet={sizedSrcSet(src, [640, 828, 1080, 1200, 1920]) || undefined} sizes="100vw" alt={`${m.p.address}`} loading="lazy" /></div></div>
       </div>
     </section>
   )
@@ -605,7 +606,7 @@ function FilmAndTour({ m, n, videoUrl }: { m: SpotlightModel; n: string; videoUr
           {m.has.tour && (
             <Reveal>
               <button onClick={() => setTourOpen(true)} className={`group relative flex w-full flex-col justify-end overflow-hidden bg-[#091513] p-8 text-left ${showVideo ? 'aspect-video lg:aspect-auto lg:h-full' : 'aspect-[21/9] min-h-[300px]'}`}>
-                {(m.photos[2] || m.heroImage) && <img src={m.photos[2] || m.heroImage!} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-45 transition duration-700 group-hover:scale-105 group-hover:opacity-55" />}
+                {(m.photos[2] || m.heroImage) && <img src={sizedImage(m.photos[2] || m.heroImage!, 1200)} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-45 transition duration-700 group-hover:scale-105 group-hover:opacity-55" />}
                 <span className="absolute inset-0 bg-gradient-to-t from-[#091513] via-[#091513]/30 to-transparent" />
                 <span className="relative">
                   <Box className="h-7 w-7 text-[color:var(--ee-gold)]" />
@@ -846,7 +847,7 @@ function PresentedBy({ m, url, siteId, signatureSlug }: { m: SpotlightModel; url
         <Reveal as="figure" className="mx-auto w-full max-w-md">
           <div className="ee-frame relative aspect-[4/5] bg-[#7d9082]">
             {primary.photo_url
-              ? <img src={primary.photo_url} alt={primary.name} loading="lazy" />
+              ? <img src={sizedImage(primary.photo_url, 640)} alt={primary.name} loading="lazy" />
               : <span className="sp-display flex h-full w-full items-center justify-center text-[7rem] italic text-[#f3efe6]">{primary.name.split(/\s+/).map(w => w[0]).slice(0, 2).join('')}</span>}
           </div>
           <figcaption className="sp-mono mt-3 flex justify-between text-[10px] uppercase tracking-[0.16em] opacity-60">
@@ -906,7 +907,7 @@ function Visit({ m, siteId, url, onShare, allowTour }: { m: SpotlightModel; site
           {a && (
             <div className="mt-10 flex items-center gap-4 border-t border-[#172522]/20 pt-8">
               {a.photo_url
-                ? <img src={a.photo_url} alt="" className="h-14 w-14 shrink-0 rounded-full object-cover" loading="lazy" />
+                ? <img src={sizedImage(a.photo_url, 128)} alt="" className="h-14 w-14 shrink-0 rounded-full object-cover" loading="lazy" />
                 : <span className="sp-display flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#7d9082] text-xl italic text-[#f3efe6]">{a.name.split(/\s+/).map(w => w[0]).slice(0, 2).join('')}</span>}
               <div className="min-w-0">
                 <p className="sp-display text-2xl leading-tight">{a.name}</p>

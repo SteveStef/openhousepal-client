@@ -385,6 +385,8 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
   const isExpired = user?.subscription_status === 'EXPIRED'
   const isSuspended = user?.subscription_status === 'SUSPENDED'
   const isTrial = user?.subscription_status === 'TRIAL'
+  // The trial is over but PayPal's first payment hasn't come back yet (it can take hours) - say so, not a past date.
+  const trialPaying = isTrial && !!user?.trial_ends_at && new Date(user.trial_ends_at).getTime() <= Date.now()
   const isActive = user?.subscription_status === 'ACTIVE'
   const isAuthorized = user?.broker_authorized || user?.is_admin
   const isPendingPayment = user?.subscription_status === 'PENDING_PAYMENT' && isAuthorized
@@ -585,7 +587,7 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
             <dl className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
               {isTrial && user?.trial_ends_at && (
                 <div className="flex justify-between items-center gap-3 sm:contents">
-                  <dt className="text-[11px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest">Trial Ends</dt>
+                  <dt className="text-[11px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest">{trialPaying ? 'Trial Ended' : 'Trial Ends'}</dt>
                   <dd className="text-sm font-black text-[#0B0B0B] dark:text-white sm:text-right">{formatDate(user.trial_ends_at)}</dd>
                 </div>
               )}
@@ -604,7 +606,7 @@ export default function BillingPanel({ embedded = false }: { embedded?: boolean 
               {(isTrial || isActive) && (user?.next_billing_date || user?.trial_ends_at) && (
                 <div className="flex justify-between items-center gap-3 sm:contents">
                   <dt className="text-[11px] font-bold text-[#6B7280] dark:text-gray-400 uppercase tracking-widest">{isTrial ? 'First Payment' : 'Next Renewal'}</dt>
-                  <dd className="text-sm font-black text-[#C9A24D] sm:text-right">{formatDate(isTrial ? user.trial_ends_at : user.next_billing_date)}</dd>
+                  <dd className="text-sm font-black text-[#C9A24D] sm:text-right">{trialPaying ? 'Processing with PayPal' : formatDate(isTrial ? user.trial_ends_at : user.next_billing_date)}</dd>
                 </div>
               )}
               {isCancelled && (user?.next_billing_date || user?.trial_ends_at) && (

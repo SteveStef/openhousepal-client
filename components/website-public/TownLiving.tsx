@@ -43,7 +43,7 @@ function whereLabel(p: LivingPlace, town: string) {
 export default function TownLiving({ categories: researched, town, state, luxe, map }: {
   categories: LivingCategory[]; town: string; state?: string | null; luxe: boolean
   /** The town's amenity map (Google Places through our budget-gated proxy) - see MAP_CATEGORY. */
-  map?: { siteId: string; slug: string; origin: { lat: number; lng: number }; accent: string } | null
+  map?: { siteId: string; slug: string; origin: { lat: number; lng: number }; accent: string; outline?: { rings: number[][][] } | null } | null
 }) {
   // Coffee has no researched list - it's a map-only tab.
   const categories = map ? [...researched, { key: 'coffee', label: 'Coffee', notes: null, items: [] }] : researched
@@ -83,6 +83,7 @@ export default function TownLiving({ categories: researched, town, state, luxe, 
           <div className="mb-6">
             <NearbyMap latitude={map.origin.lat} longitude={map.origin.lng} accent={map.accent} tone="auto"
               siteId={map.siteId} kind="area" slug={map.slug} originLabel={town} showHome={false} category={mapCategory}
+              townOutline={map.outline?.rings?.length ? { label: town, rings: map.outline.rings } : null}
               boxClassName={`relative h-[240px] w-full overflow-hidden border sm:h-[340px] ${luxe ? 'rounded-[20px]' : 'rounded-xl'}`} />
             {!mapCategory && <p className="mt-2 text-[12px] font-semibold" style={{ color: 'var(--site-faint)' }}>Pick Restaurants, Shopping, Groceries, Parks or Coffee to see those places on the map.</p>}
           </div>

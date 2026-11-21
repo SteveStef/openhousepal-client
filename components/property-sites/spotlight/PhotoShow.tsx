@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Expand, Pause, Play } from 'lucide-react'
+import { sizedImage, sizedSrcSet } from '@/lib/siteImage'
 
 // The photo show both Spotlight templates open their gallery with: every photograph drifts - the
 // first with a long slow zoom-out, the rest alternating a gentle zoom in / zoom out - and each next
@@ -96,7 +97,7 @@ export default function PhotoShow({ photos, alt, onOpen, tone, fontClass = '' }:
               className={`ps-slide ${state} ${i === 0 ? 'is-first' : ''} ${reduced ? 'is-reduced' : ''}`}
               aria-label={`Open photograph ${i + 1} full screen`}
             >
-              <img key={starts.current[i] || 0} src={src} alt={`${alt} - photograph ${i + 1}`} loading={i < 2 ? 'eager' : 'lazy'} draggable={false} style={{ animation: drift }} />
+              <img key={starts.current[i] || 0} src={sizedImage(src, 1920)} srcSet={sizedSrcSet(src, [640, 828, 1080, 1200, 1920]) || undefined} sizes="100vw" alt={`${alt} - photograph ${i + 1}`} loading={i < 2 ? 'eager' : 'lazy'} draggable={false} style={{ animation: drift }} />
             </button>
           )
         })}
@@ -127,7 +128,7 @@ export default function PhotoShow({ photos, alt, onOpen, tone, fontClass = '' }:
         <div className={`ps-strip ${fontClass}`} ref={stripRef}>
           {shown.map((src, i) => (
             <button key={src + i} data-i={i} type="button" onClick={() => go(i)} className={`ps-thumb ${i === index ? 'is-active' : ''} ${i === nextIndex ? 'is-next' : ''}`} aria-label={`Show photograph ${i + 1}`}>
-              <img src={src} alt="" loading="lazy" draggable={false} />
+              <img src={sizedImage(src, 256)} alt="" loading="lazy" draggable={false} />
               {i === nextIndex && <em>Next</em>}
               {i === index && <span className="ps-thumb-bar"><span key={`${index}-${playing}`} style={{ animationDuration: `${ms}ms`, animationPlayState: playing ? 'running' : 'paused' }} /></span>}
             </button>
