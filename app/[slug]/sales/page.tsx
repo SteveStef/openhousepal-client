@@ -18,6 +18,7 @@ import { AgentSale, applySalesDisplay, isEligibleListing, isEligibleSale, salesS
 import { type MlsOpenHouse } from '@/lib/mlsOpenHouses'
 import { PublicFormSummary } from '@/types'
 import { OhpWordmark } from '@/components/brand/OhpBrand'
+import { IdxNotice } from '@/components/MLSComplianceFooter'
 import { hubCompanyLine } from '@/lib/hubTeam'
 
 // The agent's Sales page: what's on the market right now up top, everything they've sold below.
@@ -298,6 +299,10 @@ export default function AgentHubSalesPage() {
             <Home className="h-5 w-5" /> {buyingForm?.title || "I'm Buying"}
           </Link>
         </section>
+        {/* Bright's IDX notice whenever this page shows MLS homes - owner 11/21 */}
+        {[...visibleSales, ...visibleListings].some(s => s.source !== 'manual') && (
+          <IdxNotice brokerage={profile.brokerage} className="mt-8 border-t border-gray-200 pt-5 text-gray-500 dark:border-gray-700 dark:text-gray-400" />
+        )}
       </section>
     </main>
     </div>

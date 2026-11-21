@@ -639,7 +639,9 @@ function PhotoCarousel({ photos, alt, coverPosition, onBrowsed, children }: {
         onScroll={onScroll}
         onTouchStart={() => { setAuto(false); browsing() }}
         onWheel={() => { setAuto(false); browsing() }}
-        className="flex aspect-[16/10] snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] sm:aspect-[16/8] [&::-webkit-scrollbar]:hidden"
+        onFocus={() => { setAuto(false); browsing() }}
+        tabIndex={0} role="region" aria-label="Home photos - use the arrow keys to browse"
+        className="focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#C9A24D] flex aspect-[16/10] snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] sm:aspect-[16/8] [&::-webkit-scrollbar]:hidden"
       >
         {(count ? photos : ['']).map((p, i) => (
           <div key={i} className="relative h-full w-full shrink-0 snap-center bg-gray-100 dark:bg-[#1c1c1f]">

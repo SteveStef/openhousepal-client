@@ -188,7 +188,7 @@ export default function CmaReportView({ data, edit }: {
         <div className="mt-6">
           {/* Phones: the table keeps readable columns and slides sideways (the row names stay pinned on the left). */}
           <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-gray-400 sm:hidden">Swipe to see every comparable →</p>
-          <div className="-mx-6 w-auto overflow-x-auto px-6 pb-1 [scrollbar-width:thin] sm:mx-0 sm:w-full sm:overflow-hidden sm:px-0">
+          <div tabIndex={0} role="region" aria-label="Comparable sales table - use the arrow keys to slide sideways" className="focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#C9A24D] -mx-6 w-auto overflow-x-auto px-6 pb-1 [scrollbar-width:thin] sm:mx-0 sm:w-full sm:overflow-hidden sm:px-0">
             <table className="w-full min-w-[620px] border-collapse text-[13px] sm:min-w-0 sm:table-fixed sm:text-sm">
               <thead>
                 <tr className="border-b-2 border-[#111827] dark:border-white print:border-black">

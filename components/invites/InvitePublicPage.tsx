@@ -697,8 +697,9 @@ function HomeShowcase({ inv, t, accent }: { inv: PublicInvite; t: Theme; accent:
     <section className="overflow-hidden rounded-[24px]" style={{ background: t.surface, border: `1px solid ${t.border}`, boxShadow: t.dark ? 'none' : '0 22px 50px -34px rgba(60,45,20,.55)' }} data-testid="invite-home">
       <div className="relative">
         <div ref={strip} onScroll={() => { const el = strip.current; if (!el) return; const k = Math.round(el.scrollLeft / Math.max(1, el.clientWidth)); idxRef.current = k; setIdx(k) }}
-          onTouchStart={() => setAuto(false)} onWheel={() => setAuto(false)}
-          className="flex aspect-[16/10] snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          onTouchStart={() => setAuto(false)} onWheel={() => setAuto(false)} onFocus={() => setAuto(false)}
+          tabIndex={0} role="region" aria-label="Home photos - use the arrow keys to browse"
+          className="focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#C9A24D] flex aspect-[16/10] snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {(n ? photos : ['']).map((p, i) => (
             <div key={i} className="relative h-full w-full shrink-0 snap-center" style={{ background: soft(t) }}>
               {p && <img src={sizedImage(resolveMediaUrl(p), 1080, 75)} alt={i === 0 ? street : ''} loading={i < 2 ? 'eager' : 'lazy'} className="h-full w-full object-cover" />}

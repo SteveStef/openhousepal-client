@@ -122,7 +122,8 @@ export default function CardPhotoSwiper({ photos, alt, sizes, priority = false, 
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         data-card-photos
-        className="flex h-full w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden"
+        tabIndex={0} role="region" aria-label="Photos of this home - use the arrow keys to browse"
+        className="focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#C9A24D] flex h-full w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden"
       >
         {photos.map((src, k) => (
           <div key={k} className="relative h-full w-full shrink-0 snap-center snap-always overflow-hidden">
