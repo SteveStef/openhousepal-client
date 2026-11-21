@@ -830,6 +830,8 @@ class ApiService {
     setTestCopy: (userId: string, sourceUserId: string) =>
       this.request<{ success: boolean; test_copy_of_user_id: string | null; mls_id: string | null }>(
         `/admin/users/${userId}/test-copy?source_user_id=${encodeURIComponent(sourceUserId)}`, { method: 'PATCH' }),
+    resetAiUsage: (userId: string) =>
+      this.request<{ success: boolean; user_id: string; ai_usage_reset_at: string }>(`/admin/users/${userId}/reset-ai-usage`, { method: 'POST' }),
 
     getAIOverview: () => this.request<AIAdminOverview>('/admin/ai/overview'),
     // every paid provider vs its free monthly allowance / our cap (owner 11/13)

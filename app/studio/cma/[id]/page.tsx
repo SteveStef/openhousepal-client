@@ -59,6 +59,7 @@ import PhotoMapPane, { CmaMapRefContext } from '@/components/cma/PhotoMapPane'
 import { cmaQaBlocking, cmaQaReview, isStaleArtifactOnly } from '@/lib/cmaQa'
 import { CMA_ROOM_FILTERS, CmaRoomFilter, CmaRoomView, cmaHomeHasRooms, cmaNoRoomPhotoText, cmaRoomPhotos } from '@/lib/cmaPhotoRooms'
 import { CmaFigureKey, cmaAdoptSavedRatings, cmaCompsLocked, cmaDefaultFigure, cmaFigure, cmaFigureEdited, cmaFigurePatch } from '@/lib/cmaReport'
+import { US_STATE_NAMES } from '@/lib/cmaDisclosure'
 
 type StepId = 'subject' | 'comps' | 'compare' | 'analysis' | 'pricing' | 'summary'
 
@@ -3343,6 +3344,11 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
   updatingAnswers?: boolean,
 }) {
   const { showToast } = useToast()
+  const { user: agentUser } = useAuth()
+  const _homeState = String(report.subject?.state || '').trim().toUpperCase()
+  const _agentState = String(agentUser?.state || '').trim().toUpperCase()
+  const outOfState = _homeState && _agentState && _homeState !== _agentState ? (US_STATE_NAMES[_homeState] || _homeState) : null
+  const agentStateName = US_STATE_NAMES[_agentState] || _agentState
   const updatingRef = useRef(updatingAnswers)
   updatingRef.current = updatingAnswers
   const [comparables, setComparables] = useState<CmaComparable[]>(() => normalizeAnalysisComparables(report.comparables))
@@ -3925,6 +3931,14 @@ function AnalysisStep({ report, visible = true, onSave, onReportUpdated, onNext,
             <p data-cma-lock-warning className="relative mt-3 flex items-start gap-2 rounded-xl border border-[#C9A24D]/35 bg-white/70 px-3 py-2 text-xs font-bold leading-snug text-[#111827] dark:bg-black/25 dark:text-white">
               <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#C9A24D]" />
               <span>Check your comps and ratings first. They lock once the AI writes the report.{onBack && <> <button type="button" onClick={onBack} className="font-black text-[#8b7355] underline underline-offset-2 hover:text-[#111827] dark:text-[#d7b974] dark:hover:text-white">Back to comps</button></>}</span>
+            </p>
+          )}
+          {/* A home in another state (11/20 audit: a Pennsylvania agent's name on Maryland, Delaware and New Jersey
+              reports). Only the agent sees this - the client's report is unchanged. */}
+          {!generating && outOfState && (
+            <p data-cma-out-of-state className="relative mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold leading-snug text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>This home is in {outOfState}, and your account says you work in {agentStateName}. A CMA is professional work under that state&apos;s rules - send it only if you&apos;re licensed in {outOfState}, or pass the client to an agent who is.</span>
             </p>
           )}
           {genError && !generating && (

@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import {
-  Activity, Building2, Calendar, ChevronDown, FlaskConical, Hash, Mail, MapPin, RefreshCw, Search, ShieldAlert, ShieldCheck, Users,
+  Activity, Building2, Calendar, ChevronDown, FlaskConical, Gauge, Hash, Mail, MapPin, RefreshCw, Search, ShieldAlert, ShieldCheck, Users,
 } from 'lucide-react'
 import api from '@/lib/api-service'
 import type { BillingGroup, User } from '@/types'
@@ -52,6 +52,7 @@ export default function AgentControlPanel({ users, setUsers, groups, onToast, on
   const [planChange, setPlanChange] = useState<{ u: User; tier: string } | null>(null)
   const [groupChange, setGroupChange] = useState<{ u: User; groupId: string } | null>(null)
   const [testCopy, setTestCopy] = useState<{ u: User; sourceId: string } | null>(null)
+  const [aiReset, setAiReset] = useState<User | null>(null)
   const [busy, setBusy] = useState(false)
 
   const groupsById = useMemo(() => Object.fromEntries(groups.map(g => [g.id, g])), [groups])
@@ -142,6 +143,19 @@ export default function AgentControlPanel({ users, setUsers, groups, onToast, on
       onToast(sourceId ? `${name(u)} is now a test copy of ${name(usersById[sourceId])}` : `${name(u)} is no longer a test copy`, 'success')
       setTestCopy(null)
     } else onToast(r.error || "Couldn't change the test copy", 'error')
+    setBusy(false)
+  }
+
+  const confirmAiReset = async () => {
+    if (!aiReset) return
+    setBusy(true)
+    const u = aiReset
+    const r = await api.admin.resetAiUsage(u.id)
+    if (r.success) {
+      setUsers(users.map(x => x.id === u.id ? { ...x, ai_usage_reset_at: r.data?.ai_usage_reset_at ?? null } : x))
+      onToast(`${name(u)}'s AI usage starts over at 0%`, 'success')
+      setAiReset(null)
+    } else onToast(r.error || "Couldn't reset their AI usage", 'error')
     setBusy(false)
   }
 
@@ -242,8 +256,12 @@ export default function AgentControlPanel({ users, setUsers, groups, onToast, on
                   className="inline-flex items-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-black text-gray-600 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-300 max-sm:min-h-[44px] max-sm:justify-center">
                   <Activity className="h-3.5 w-3.5" /> Activity
                 </button>
+                <button onClick={() => setAiReset(u)} title="Start their AI usage bar over at 0%"
+                  className="inline-flex items-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-[11px] font-black text-gray-600 hover:border-[#C9A24D] hover:text-[#8b7355] dark:border-gray-700 dark:text-gray-300 max-sm:min-h-[44px] max-sm:justify-center">
+                  <Gauge className="h-3.5 w-3.5" /> Reset AI usage
+                </button>
                 <button onClick={() => setAuthChange(u)}
-                  className={`group/a inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-black transition max-sm:min-h-[44px] max-sm:justify-center ${(u.test_copy_of_user_id || !u.mls_id) ? 'max-sm:col-span-2' : ''} ${u.broker_authorized
+                  className={`group/a inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-black transition max-sm:min-h-[44px] max-sm:justify-center ${(u.test_copy_of_user_id || !u.mls_id) ? '' : 'max-sm:col-span-2'} ${u.broker_authorized
                     ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300'
                     : 'bg-[#111827] text-white hover:bg-[#C9A24D] dark:bg-white dark:text-[#111827]'}`}>
                   {u.broker_authorized ? (
@@ -309,6 +327,15 @@ export default function AgentControlPanel({ users, setUsers, groups, onToast, on
           </label>
         )}
       </ConfirmationModal>
+      <ConfirmationModal
+        isOpen={!!aiReset}
+        onClose={() => setAiReset(null)}
+        onConfirm={confirmAiReset}
+        title={aiReset ? `Reset ${name(aiReset)}'s AI usage?` : ''}
+        message={`Their AI usage bar starts over at 0% right now, so they get their full monthly AI allowance again until it renews on the usual day. Nothing they made is deleted, and their plan and billing don't change.${aiReset?.ai_usage_reset_at ? ` Last reset ${new Date(aiReset.ai_usage_reset_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.` : ''}`}
+        confirmText="Yes, reset to 0%"
+        isLoading={busy}
+      />
       <AnimatePresence>{activityFor && <AgentDrawer id={activityFor} onClose={() => setActivityFor(null)} />}</AnimatePresence>
     </div>
   )

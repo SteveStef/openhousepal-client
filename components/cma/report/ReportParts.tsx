@@ -9,7 +9,7 @@ import {
   AREA_TIERS, COMP_STATUS_BADGE_STYLE, COMP_STATUS_HEX, COMP_STATUS_LABEL, CmaGuidanceSection, QUALITY_LABELS, QUALITY_TIER_STYLES,
   STRENGTH_LABEL, STRENGTH_SCALE_STYLES, STRENGTH_STYLES, basementDisplay, bathsText, buildCompLocationMapUrl, cleanUtilityList,
   clientCompStrength, compDisplayPrice, compPriceCaption, compPricePerSqft, compSoldDate, compStatusBadgeText, formatAcresFromSqft,
-  formatDate, formatMlsStatusLabel, formatMoney, formatNumber, materialIssuesText, subjectPricePerSqft,
+  formatDate, formatMlsStatusLabel, formatMoney, formatNumber, materialIssuesText, realTaxes, subjectPricePerSqft,
 } from '@/lib/cma'
 import { googleMapsLoader } from '@/lib/googleMapsLoader'
 import { HomeAreaOverlay } from '@/components/maps/HomeAreaMap'
@@ -325,7 +325,7 @@ export function HomeDetailsPopup({ kind, home, subject, mapRef, note, startIndex
             <PopupFact icon={LandPlot} label="Acres" value={formatAcresFromSqft(home.lot_size)} />
             <PopupFact icon={Building2} label="Built" value={home.year_built ?? '-'} />
             <PopupFact icon={Calendar} label="DOM" value={home.days_on_market ?? '-'} />
-            <PopupFact icon={DollarSign} label="Taxes" value={home.annual_taxes ? formatMoney(home.annual_taxes) : '-'} />
+            <PopupFact icon={DollarSign} label="Taxes" value={realTaxes(home.annual_taxes) ? formatMoney(home.annual_taxes) : '-'} />
             {comp
               ? <PopupFact icon={MapPin} label="Distance" value={comp.distance_miles != null ? `${comp.distance_miles} Miles` : '-'} />
               : <PopupFact icon={Car} label="Garage" value={home.garage || '-'} />}
@@ -548,7 +548,7 @@ export function ComparableSection({ comp, index, note, onOpen, mapRef, edit, bar
               <MiniFact icon={Car} label="Garage" value={comp.garage || '-'} />
               <MiniFact icon={Droplets} label="Water / Sewer" value={`${formatUtilityValue(comp.water_source)} / ${formatUtilityValue(comp.sewer)}`} className="order-1 col-span-4 sm:hidden" />
               <MiniFact icon={Droplets} label="Water" value={formatUtilityValue(comp.water_source)} className="hidden sm:flex" />
-              <MiniFact icon={DollarSign} label="Taxes" value={comp.annual_taxes ? formatMoney(comp.annual_taxes) : '-'} className="max-sm:col-span-2" />
+              <MiniFact icon={DollarSign} label="Taxes" value={realTaxes(comp.annual_taxes) ? formatMoney(comp.annual_taxes) : '-'} className="max-sm:col-span-2" />
               <MiniFact icon={Waves} label="Sewer" value={formatUtilityValue(comp.sewer)} className="hidden sm:flex" />
             </div>
             <div className="mt-2 flex flex-1 flex-col gap-2">

@@ -32,10 +32,11 @@ function pdfImageUrl(url?: string | null): string {
   if (typeof window === 'undefined') return normalized;
   return `${window.location.origin}/api/pdf-image?url=${encodeURIComponent(normalized)}`;
 }
-import { bathsText, bathsTile, cleanUtilityList, cmaCompetitionView, buildReviewSheet, reviewSheetOn, CMA_ENGINE_TESTS, CMA_LAST_STEP_TEST, CMA_MISS_SPREAD, CMA_WARNING_SIGNS, CMA_WARNING_SIGNS_NOTE, CMA_ASKING_STATS, CMA_TESTED_NOT_ADOPTED, CMA_KNOWN_LIMITS } from '@/lib/cma';
+import { bathsText, bathsTile, cleanUtilityList, realTaxes, cmaCompetitionView, buildReviewSheet, reviewSheetOn, CMA_ENGINE_TESTS, CMA_LAST_STEP_TEST, CMA_MISS_SPREAD, CMA_WARNING_SIGNS, CMA_WARNING_SIGNS_NOTE, CMA_ASKING_STATS, CMA_TESTED_NOT_ADOPTED, CMA_KNOWN_LIMITS } from '@/lib/cma';
 import { CMA_FEE_LABEL, CmaPricingPart, cmaCompNote, cmaFeeRow, cmaFigure, cmaHeadline, cmaIsHidden, cmaLabel, cmaListingHistory, cmaNoteHasContent, cmaNotes, cmaSectionOrder, cmaShownComparables, cmaShownMetrics, cmaShownSubject, cmaSubjectFeeText, cmaTextSections, isNoteKey } from './cmaReport';
 import { CmaGuidanceSection, buildCmaStaticMapUrl, clientCompStrength, cmaGuidanceSections, resolveCmaMarketMetrics, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, buyerOfferFigures, buyerOfferLabels, AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_HEX, STRENGTH_LABEL, STRENGTH_TIER_HEX, compDisplayPrice, effectiveCompPrice, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft, basementDisplay, materialIssuesText } from '@/lib/cma';
 import { qrPdfSrc } from '@/lib/qr';
+import { cmaStateDisclosure } from '@/lib/cmaDisclosure';
 import { salesAreRecent, salesWords } from '@/lib/salesWording'
 
 // 1. Register Fonts
@@ -2351,7 +2352,10 @@ function CmaCoverPage({ report, agent, showSubject = true }: { report: CmaReport
   // The "Prepared for ..." line (16pt gap + one line) comes off the photo too - without it a named client pushed
   // the cover ~28pt past the letter page (Day 12 audit: covers came out 817-821pt tall).
   const clientLineHeight = cleanCmaText(report.client_name) ? 28 : 0;
-  const coverPhotoHeight = Math.max(118, 200 - historyHeight - clientLineHeight - Math.max(0, tileRows - 3) * 40);
+  // The home's state may require its own CMA statement on the first page (lib/cmaDisclosure) - room comes off the photo.
+  const stateNote = cmaStateDisclosure(subject.state);
+  const firstPageNote = stateNote?.where === 'first_page' ? stateNote : null;
+  const coverPhotoHeight = Math.max(118, 200 - historyHeight - clientLineHeight - Math.max(0, tileRows - 3) * 40 - (firstPageNote ? 52 : 0));
   const subjectLocation = cmaCityStateZip(subject);
   return (
     <Page size="LETTER" style={cma.coverPage} wrap={false}>
@@ -2425,6 +2429,12 @@ function CmaCoverPage({ report, agent, showSubject = true }: { report: CmaReport
         <Text style={cma.coverDate}>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>
       </View>
 
+      {firstPageNote ? (
+        <View style={{ marginTop: 10, padding: 8, borderRadius: 6, border: `1 solid ${COLORS.border}`, backgroundColor: '#faf7f0' }}>
+          {firstPageNote.heading ? <Text style={{ fontSize: 8, fontWeight: 900, color: COLORS.text, marginBottom: 2 }}>{firstPageNote.heading}</Text> : null}
+          <Text style={{ fontSize: 8, fontWeight: 700, color: COLORS.text, lineHeight: 1.35 }}>{firstPageNote.text}</Text>
+        </View>
+      ) : null}
       <Text style={cma.coverDisclaimer}>
         This is a comparative market analysis (CMA), not a formal appraisal. It is an opinion of value
         based on comparable market data, prepared by a licensed real estate agent for informational
@@ -2621,7 +2631,7 @@ function CmaComparisonTablePage({ report, comparables, agent }: { report: CmaRep
     { label: 'Year Built', subject: String(s.year_built ?? '—'), comp: c => String(c.year_built ?? '—') },
     { label: 'Garage', subject: s.garage || '—', comp: c => c.garage || '—' },
     { label: 'Basement', subject: basementDisplay(s), comp: c => basementDisplay(c) },
-    { label: 'Annual Taxes', subject: s.annual_taxes ? formatMoney(s.annual_taxes) : '—', comp: c => c.annual_taxes ? formatMoney(c.annual_taxes) : '—' },
+    { label: 'Annual Taxes', subject: realTaxes(s.annual_taxes) ? formatMoney(s.annual_taxes) : '—', comp: c => realTaxes(c.annual_taxes) ? formatMoney(c.annual_taxes) : '—' },
     // Association fees, when there is something to compare (lib/cmaReport cmaFeeRow - the same row as the client page)
     ...(feeRow ? [{ label: CMA_FEE_LABEL, subject: feeRow.subject, comp: feeRow.comp }] : []),
     { label: 'Days on Market', subject: String(s.days_on_market ?? '—'), comp: c => String(c.days_on_market ?? '—') },
@@ -2772,7 +2782,7 @@ function CmaComparablePage({ comp, index, agent, note: shownNote }: { comp: CmaC
     { label: 'School District', value: pdfDistrict(comp.school_district) },
     { label: 'Water Source', value: comp.water_source ? formatCmaUtilityValue(comp.water_source) : null },
     { label: 'Sewer / Septic', value: comp.sewer ? formatCmaUtilityValue(comp.sewer) : null },
-    { label: 'Annual Taxes', value: comp.annual_taxes ? formatMoney(comp.annual_taxes) : null },
+    { label: 'Annual Taxes', value: realTaxes(comp.annual_taxes) ? formatMoney(comp.annual_taxes) : null },
     { label: 'Days on Market', value: comp.days_on_market },
     { label: 'Distance', value: comp.distance_miles != null ? `${comp.distance_miles} mi` : null },
   ].filter(Boolean).filter(fact => {
@@ -2984,6 +2994,8 @@ function CmaPricingPage({ report, agent }: { report: CmaReport; comparables?: Cm
   const isBuyer = report.mode === 'buyer';
   const headline = cmaHeadline(report);
   const money = (key: Parameters<typeof cmaFigure>[1]) => { const v = cmaFigure(report, key); return v != null ? formatMoney(v) : null; };
+  const _stateNote = cmaStateDisclosure(report.subject?.state);
+  const afterValueNote = _stateNote?.where === 'after_value' ? _stateNote : null;
   // (The "From the Sales to the Value" page that followed this one - the per-sale adjustment table and the
   // step-by-step from the sales to the value - is gone from the report, owner 11/16. The same steps written as
   // sentences in the notes are left out by lib/cmaReport, for this page and the client page alike.)
@@ -3018,6 +3030,10 @@ function CmaPricingPage({ report, agent }: { report: CmaReport; comparables?: Cm
           )}
         </View>
         </View>
+        {afterValueNote ? (
+          // 24 Del. C. § 2931: at least 12-point bold, immediately following the estimated market price
+          <Text style={{ marginTop: 10, fontSize: 12, fontWeight: 700, color: COLORS.text, lineHeight: 1.3 }}>{afterValueNote.text}</Text>
+        ) : null}
       </View>
 
       {commentarySections.length > 0 && (

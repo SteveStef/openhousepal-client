@@ -11,13 +11,14 @@ import { CmaComparable, CmaPublicResponse, CmaReport } from '@/types'
 import {
   CmaCompetitionCard, belowGradeDisplay, bathsText, buildCmaStaticMapUrl, buyerOfferLabels, compDisplayPrice, compPricePerSqft,
   compSoldDate, compSoldToAsking, competitionHomeAsComparable, effectiveCompPrice, formatAcresFromSqft, formatMoney, formatNumber,
-  formatSoldToAsking, subjectPricePerSqft,
+  formatSoldToAsking, realTaxes, subjectPricePerSqft,
 } from '@/lib/cma'
 import {
   CMA_FEE_LABEL, CMA_SECTIONS, CmaFigureKey, CmaPricingPart, CmaTextKey, cmaCompNote, cmaEditorComparables, cmaFeeRow, cmaFigure, cmaHeadline, cmaIsHidden, cmaLabel,
   cmaNoteHasContent, cmaNotes, cmaSectionOrder, cmaShownComparables, cmaShownMetrics, cmaShownSubject, cmaSubjectFeeText, cmaTextSections, isNoteKey,
 } from '@/lib/cmaReport'
 import { normalizeImageUrl } from '@/lib/utils'
+import { cmaStateDisclosure } from '@/lib/cmaDisclosure'
 import { EditableMoney, EditableText } from './Editable'
 import CompetitionSection, { hasCompetition } from './Competition'
 import {
@@ -55,6 +56,8 @@ export default function CmaReportView({ data, edit }: {
   const editorComps = useMemo(() => (edit ? cmaEditorComparables(data).filter(c => !(compsLocked && c._removed)) : null), [data, edit, compsLocked])
   const order = cmaSectionOrder(data)
   const isBuyer = data.mode === 'buyer'
+  // The home's state may require its own CMA statement (lib/cmaDisclosure): on the first screen, or right after the value.
+  const stateNote = cmaStateDisclosure(subject.state)
   const authoritativeDom = pricing.ai_estimate?.status?.active_market_days ?? subject.days_on_market
   const metrics = cmaShownMetrics(data, comparables)
   const mapUrl = buildCmaStaticMapUrl(subject, comparables, '1200x420', data.map_ref)
@@ -214,7 +217,7 @@ export default function CmaReportView({ data, edit }: {
                 <OverviewRow index={4} label="Beds" subjectValue={String(subject.beds ?? '—')} comparables={comparables} get={c => String(c.beds ?? '—')} />
                 <OverviewRow index={5} label="Baths" subjectValue={bathsText(subject)} comparables={comparables} get={c => bathsText(c)} />
                 <OverviewRow index={6} label="Year Built" subjectValue={String(subject.year_built ?? '—')} comparables={comparables} get={c => String(c.year_built ?? '—')} />
-                <OverviewRow index={7} label="Annual Taxes" subjectValue={subject.annual_taxes ? formatMoney(subject.annual_taxes) : '—'} comparables={comparables} get={c => c.annual_taxes ? formatMoney(c.annual_taxes) : '—'} />
+                <OverviewRow index={7} label="Annual Taxes" subjectValue={realTaxes(subject.annual_taxes) ? formatMoney(subject.annual_taxes) : '—'} comparables={comparables} get={c => realTaxes(c.annual_taxes) ? formatMoney(c.annual_taxes) : '—'} />
                 {feeRow && <OverviewRow index={8} label={CMA_FEE_LABEL} subjectValue={feeRow.subject} comparables={comparables} get={feeRow.comp} />}
                 <OverviewRow index={feeRow ? 9 : 8} label="Distance" subjectValue="—" comparables={comparables} get={c => c.distance_miles != null ? `${c.distance_miles} miles` : '—'} />
                 <OverviewRow index={10} label="Days on Market" subjectValue={String(authoritativeDom ?? '—')} comparables={comparables} get={c => String(c.days_on_market ?? '—')} />
@@ -331,6 +334,10 @@ export default function CmaReportView({ data, edit }: {
             ? <>{figureTile('offer_min', offerLabels.min)}{figureTile('offer_max', offerLabels.max)}{figureTile('strong_offer', offerLabels.strong)}</>
             : <>{figureTile('most_likely_value', 'Most Likely Value')}{figureTile('recommended_list_price', 'Recommended List Price')}</>}
         </div>
+        {stateNote?.where === 'after_value' && (
+          // 24 Del. C. § 2931: at least 12-point bold, immediately following the estimated market price
+          <p className="mt-6 text-base font-bold leading-relaxed text-white print:text-black">{stateNote.text}</p>
+        )}
 
         {parts.map(part => {
           const off = cmaIsHidden(data, part.key)
@@ -445,6 +452,12 @@ export default function CmaReportView({ data, edit }: {
             {agent.brokerage && <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 print:text-gray-500">{agent.brokerage}</p>}
             <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
           </div>
+          {stateNote?.where === 'first_page' && (
+            <div className="mt-5 max-w-3xl rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-left print:border-gray-300 print:bg-white">
+              {stateNote.heading && <p className="text-[11px] font-black uppercase tracking-wide text-white print:text-black">{stateNote.heading}</p>}
+              <p className="text-xs font-semibold leading-relaxed text-gray-200 print:text-black">{stateNote.text}</p>
+            </div>
+          )}
         </div>
       </header>
 

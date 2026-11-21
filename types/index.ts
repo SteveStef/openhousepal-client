@@ -913,6 +913,7 @@ export interface User {
   idx_domain_migration_agreed_at?: string;  // null = IDX agent hasn't seen/agreed to the domain-migration prompt yet
   billing_group_id?: string | null;  // paid for by a brokerage group (admin)
   test_copy_of_user_id?: string | null;  // an admin-made test copy of this agent (shares their MLS ID)
+  ai_usage_reset_at?: string | null;  // admin "Reset AI usage": spend before this stops counting this period
   last_seen_at?: string | null;
   terms_accepted_at?: string | null; // ticked "I agree" at sign-up (null = before this was recorded)
   terms_version?: string | null;

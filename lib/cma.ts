@@ -18,6 +18,11 @@ export function formatMoney(value?: number | null, opts: { compact?: boolean } =
   return value.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 }
 
+/** A yearly tax bill worth showing: under $100 is a stand-in on the listing (new builds list "$1"), shown as no figure (11/20). */
+export function realTaxes(value?: number | null): number | null {
+  return value != null && Number(value) >= 100 ? Number(value) : null
+}
+
 export function formatMoneyRange(min?: number | null, max?: number | null): string {
   if (min == null && max == null) return '—'
   if (min != null && max != null) return `${formatMoney(min)} – ${formatMoney(max)}`

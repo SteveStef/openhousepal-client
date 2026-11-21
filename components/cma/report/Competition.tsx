@@ -8,7 +8,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, MapPin, TrendingDown, Check } from 'lucide-react'
 import { CmaReport } from '@/types'
-import { CmaCompetitionCard, CmaCompetitionGroup, CmaGuidanceSection, cmaCompetitionView, formatMoney, totalFinishedSqft, formatAcresFromSqft, bathsText } from '@/lib/cma'
+import { CmaCompetitionCard, CmaCompetitionGroup, CmaGuidanceSection, cmaCompetitionView, formatMoney, realTaxes, totalFinishedSqft, formatAcresFromSqft, bathsText } from '@/lib/cma'
 import { sameDistrict } from '@/lib/matchScore'
 import PhotoFlip, { usePhotoList } from './PhotoFlip'
 import { EditableSections, GuidanceSections } from './ReportParts'
@@ -110,7 +110,7 @@ function ThisHome({ report, priceLabel }: { report: CmaReport, priceLabel: strin
     ['Built', s.year_built ? String(s.year_built) : ''],
     ['Lot', s.lot_size ? formatAcresFromSqft(s.lot_size) : ''],
     ['Days on market', s.days_on_market != null ? String(s.days_on_market) : ''],
-    ['Taxes', s.annual_taxes ? formatMoney(s.annual_taxes) : ''],
+    ['Taxes', realTaxes(s.annual_taxes) ? formatMoney(s.annual_taxes) : ''],
   ] as [string, string][]).filter(f => f[1])
   return (
     <div className="mt-5 grid overflow-hidden rounded-3xl bg-[#111827] text-white shadow-[0_14px_36px_-20px_rgba(17,24,39,0.7)] ring-1 ring-[#C9A24D]/50 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] print:shadow-none">
