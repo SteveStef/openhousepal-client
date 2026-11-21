@@ -440,7 +440,8 @@ function ComparableQualitySection({ comp, edit }: { comp: CmaComparable, edit?: 
   return (
     <div className="mt-5 rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-[#151517] print:border-gray-300">
       <p className="mb-0.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] dark:text-[#d7b974]">Compared With the Subject</p>
-      <p className="mb-3 text-[10px] font-semibold text-gray-400">Each row describes this comp relative to the subject — &ldquo;Comp Superior&rdquo; means the comp is the better one; &ldquo;Comp Inferior&rdquo; means the subject is. These ratings are weighed in the final value review; they are not separate dollar adjustments.{(q.kitchen || q.bathrooms || canRate) ? ' Kitchen and Bathrooms describe those rooms only and are not part of the value.' : ''}</p>
+      {/* one short line (owner 11/21: the long explanation repeated under every comp) */}
+      <p className="mb-3 text-[10px] font-semibold text-gray-400">&ldquo;Comp Superior&rdquo; means that sale is the better home; &ldquo;Comp Inferior&rdquo; means this home is.</p>
       {/* Comp Weight asks how much weight this comp carries overall, not how one attribute compares - so it
           gets its own bracketed callout instead of sitting in the same divided list. */}
       {(displayedStrength || canRate) && (

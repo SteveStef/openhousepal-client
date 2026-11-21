@@ -259,8 +259,13 @@ export function stripBridgeSentences(text?: string | null): string | null | unde
   // (a paragraph break around the passage stays a paragraph break)
   // (the wording pass sometimes bolds the lead-in - "**How the value was reached:**" - and the two stars in
   // front of it were left behind as a line of their own, 701 Great Oak Ln 11/14)
-  const out = text.replace(/\s*\**How the value was reached:[\s\S]*?Together[^.$]{0,24}\$[\d,]+\.\**\s*/,
+  let out = text.replace(/\s*\**How the value was reached:?\**[\s\S]*?Together[^.$]{0,24}\$[\d,]+\.\**\s*/i,
     (m) => (m.includes('\n') ? '\n\n' : ' '))
+  // Reworded by the polish (11/20, 101 Watkins Pond Blvd: "...takes off $1,000, for a final value of $423,000." - no
+  // "Together", so the passage reached the client's PDF): the lead-in to the end of its own paragraph goes instead.
+  // (it stops where the next fact starts, for a write-up that came back as one paragraph - 17 Foxtrail Rd, 11/20)
+  out = out.replace(/\s*\**How the value was reached:?\**[\s\S]*?(?=\n\n|\**Homes under contract|\**Homes for sale now|This home last sold|It was listed for sale again|$)/i,
+    (m) => (m.startsWith('\n') ? '\n\n' : ' '))
   return out.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
 }
 

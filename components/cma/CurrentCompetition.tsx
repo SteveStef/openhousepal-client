@@ -62,6 +62,9 @@ function SubjectStrip({ subject, priceLabel = 'List price' }: { subject: CmaSubj
   )
 }
 
+// The agent-only "homes under contract" box (list -> adjusted to this home) is off the screen (owner 11/21).
+const SHOW_AGENT_PENDING_BOX: boolean = false
+
 export default function CurrentCompetition({ report, agentView = false, onOpenHome }: {
   report: CmaReport, agentView?: boolean
   /** Opens a card's details sheet (the page owns the sheet, as it does for comps). */
@@ -151,7 +154,9 @@ export default function CurrentCompetition({ report, agentView = false, onOpenHo
         </>
       )}
 
-      {agentView && comp && ((comp.pendings_used?.length || 0) > 0 || (comp.fee_mismatch?.length || 0) > 0 || comp.review) && (
+      {/* The agent-only "homes under contract" box (list → adjusted to this home) is off the agent's screen (owner 11/21):
+          its one warning already shows in Review before sending. */}
+      {agentView && comp && SHOW_AGENT_PENDING_BOX && ((comp.pendings_used?.length || 0) > 0 || (comp.fee_mismatch?.length || 0) > 0 || comp.review) && (
         <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50/70 p-3 text-xs dark:border-gray-800 dark:bg-white/[0.03]">
           <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">Agent only - homes under contract</p>
           {comp.nudged_from ? (

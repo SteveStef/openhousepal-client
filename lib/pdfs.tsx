@@ -2755,7 +2755,7 @@ function CmaComparableQualitySection({ comp }: { comp: CmaComparable }) {
       <CmaQualityScaleRow label="Layout" tiers={CMA_QUALITY_TIERS} tier={q.layout} hexMap={QUALITY_TIER_HEX} />
       <CmaQualityScaleRow label="Area" tiers={AREA_TIERS} tier={q.area} hexMap={QUALITY_TIER_HEX} />
       <CmaQualityScaleRow label="Street" tiers={CMA_QUALITY_TIERS} tier={q.street_context} hexMap={QUALITY_TIER_HEX} divider={false} />
-      <Text style={{ marginTop: 3, fontSize: 5.6, color: COLORS.subtext }}>{`These ratings are weighed in the final value review. They are not separate dollar adjustments.${q.kitchen || q.bathrooms ? ' Kitchen and Bathrooms describe those rooms only and are not part of the value.' : ''}`}</Text>
+      <Text style={{ marginTop: 3, fontSize: 5.6, color: COLORS.subtext }}>{`"Comp Superior" means that sale is the better home; "Comp Inferior" means this home is.`}</Text>
     </View>
   );
 }

@@ -1015,9 +1015,7 @@ export function cmaCompetitionView(report: CmaReport): CmaCompetitionView | null
         ? `${k$(diff)} ${diff < 0 ? 'less' : 'more'} than this home`
         : `${k$(diff)} ${diff < 0 ? 'below' : 'above'} our suggested price`
     }
-    if (!buyer && ourPsf && h.price_per_sqft) {
-      highlight = `${highlight ? highlight + ' · ' : ''}$${h.price_per_sqft}/sq ft vs our $${Math.round(ourPsf)}`
-    }
+    // (no "$347/sq ft vs our $317" after it - owner 11/21: the price gap says it, the per-foot sum only complicates)
     return {
       ...h,
       statusLabel: h.status === 'pending' ? (buyer ? 'Recently went under contract' : 'Under contract') : 'For sale',

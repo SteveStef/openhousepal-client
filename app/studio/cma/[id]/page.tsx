@@ -117,7 +117,11 @@ function cmaWhyBullets(report: CmaReport): string[] {
     const rangePhrase = (rangeMin != null && rangeMax != null) ? `, supported by a range of ${formatMoney(rangeMin)}-${formatMoney(rangeMax)}` : ''
     bullets.push(`The analysis lands on ${formatMoney(finalValue)}${confPhrase}${rangePhrase}.`)
   }
-  const drivers = (estimate?.value_drivers || []).slice(0, 5).map(driver => {
+  // A line that only describes the comps as a group ("The comparables range from 0.23 to 0.40 acres.") says nothing
+  // about why this home is worth what it is - left off (owner 11/21).
+  const groupOnly = (s: string) => /^(?:the\s+)?(?:comparables?|comps?|sales|comparable sales)\b[^.]*\b(?:range|ranged|span|spans|vary|varies)\b/i.test(s)
+    && !/\b(?:this home|the home|the subject|your home)\b/i.test(s)
+  const drivers = (estimate?.value_drivers || []).slice(0, 5).filter(driver => !groupOnly(String(driver.note || '').trim())).map(driver => {
     const label = /^\d{7,}$/.test((driver.comp_label || '').trim()) ? 'A key comparable' : (driver.comp_label || 'A key comparable')
     const note = withDollarSigns(String(driver.note || '').trim())
     if (note && !technical.test(note)) return shortReadableSentence(note)
@@ -1565,7 +1569,9 @@ function CompsStep({ report, visible = true, onSave, onReportUpdated, onNext, on
     // for a listed home, puts each sale's price level inside the Match % from the asking price - so a search the
     // agent changes must send what the automatic one sends, or the same home shows two different scores (it did:
     // a changed search left these four out and "same area" scored lower, 11/17).
-    const searchSubject = { ...scoreSubject, state: report.subject.state, list_price: report.subject.list_price, street_address: report.subject.street_address, zipcode: report.subject.zipcode }
+    // mls_status goes with list_price (11/20): without it the server can't tell a sold / off-market home's old list price
+    // from a real asking price, and every comp's Match % was scored against it ("this home asks $326" on a sold home).
+    const searchSubject = { ...scoreSubject, state: report.subject.state, list_price: report.subject.list_price, mls_status: report.subject.mls_status, street_address: report.subject.street_address, zipcode: report.subject.zipcode }
     if (autoRadiusRef.current && autoSoldDaysRef.current && statuses.length === 1 && statuses[0] === 'sold') {
       api.cma.autoSearchComparables({
         listing_key: report.subject.listing_key || undefined,
@@ -4849,8 +4855,7 @@ function SideBySidePanel({ subject, comp, comps, onSelectIndex, index, total, on
           </div>
           <span aria-hidden className="hidden sm:block" />
         </div>
-        <p className="mb-3 mt-1 hidden text-[11px] font-semibold text-gray-500 dark:text-gray-400 sm:block">Each row describes this comp relative to the subject — "Comp Superior" means Comp #{index + 1} is the better one in that category; "Comp Inferior" means the subject is. Ratings are weighed in the final value review, not added as dollar lines. Kitchen and Bathrooms describe those rooms only: optional, and never part of the value.</p>
-        <p className="mb-3 mt-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 sm:hidden">How Comp #{index + 1} compares — "Superior" means the comp is the better one.</p>
+        <p className="mb-3 mt-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400">How Comp #{index + 1} compares — &quot;Superior&quot; means the comp is the better one.</p>
         {/* Comp Weight is a different kind of question from everything below it - it's asking how
             much analytical weight to give this comp overall, not how one attribute compares to
             the subject - so it gets its own bracketed "bubble" (bolder gold border + gradient +
