@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { notFound, useSearchParams } from 'next/navigation'
 import { FEATURE_TABS } from '@/components/home/featureTabsData'
 
 // Development only: mounts ONE homepage tool demo by its tab key (?tab=idx) at the homepage's
@@ -22,6 +22,6 @@ function Stage() {
 }
 
 export default function DevDemosPage() {
-  if (process.env.NODE_ENV === 'production') return null
+  if (process.env.NODE_ENV === 'production') notFound()   // like every /dev page: 'not found' on the live site, not a blank page
   return <Suspense fallback={null}><Stage /></Suspense>
 }

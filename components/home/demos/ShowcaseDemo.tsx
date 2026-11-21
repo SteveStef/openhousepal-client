@@ -24,7 +24,8 @@ const SEED = REAL_SHOWCASE.originalProperty
 // Illustrative match scores in the real badge style (the live page computes them with
 // computeMatchScore vs. the seed home); the price drop and tour time below are illustrative too.
 const MATCH = [94, 91, 88, 86, 83, 79]
-const CLIENT_URL = `openhousepal.com/showcase/${REAL_SHOWCASE.shareToken}`
+// A sample address on purpose (audit 11/20): the real one opened a real client's live Showcase for anyone who typed it in.
+const CLIENT_URL = 'openhousepal.com/showcase/donna-sample'
 
 const CRITERIA = [
   { icon: MapPin, label: 'Area', value: `${PREFS.radiusMiles} mi around ${SEED.city}` },

@@ -321,7 +321,7 @@ export default function CmaDemo() {
 
   return (
     <BrowserFrame
-      url={isReport ? `openhousepal.com/cma/${REAL_CMA.shareSlug}` : 'app.openhousepal.com/studio/cma/new'}
+      url={isReport ? 'openhousepal.com/cma/sample-report' : 'app.openhousepal.com/studio/cma/new'}
       progress={{ pages: CMA_TOTAL_PAGES, ...cmaPage(beat) }}
     >
       <style>{DEMO_NOTE_CSS}</style>
