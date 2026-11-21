@@ -54,14 +54,14 @@ function useUpload(onDone: (url: string) => void) {
   const [busy, setBusy] = useState(false)
   const pick = () => ref.current?.click()
   const field = (
-    <input ref={ref} type="file" accept="image/jpeg" className="hidden" onChange={async e => {
+    <input ref={ref} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={async e => {
       const file = e.target.files?.[0]
       e.target.value = ''
       if (!file) return
       setBusy(true)
       const res = await api.studio.uploadMedia(file)
       if (res.success && res.data) onDone(res.data.url)
-      else notify(res.error || "That photo couldn't be uploaded - use a JPG under 10MB.")
+      else notify(res.error || "That photo couldn't be uploaded - try a JPG, PNG or iPhone photo under 25MB.")
       setBusy(false)
     }} />
   )
@@ -154,7 +154,7 @@ function ImageSettings({ data, set }: { data: any; set: (k: string, v: any) => v
       ) : (
         <button type="button" onClick={up.pick} disabled={up.busy} className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#C9A24D]/50 text-[#8b7355] transition hover:border-[#C9A24D] dark:text-[#e8c97a]">
           {up.busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
-          <span className="text-xs font-black">Choose a photo (JPG)</span>
+          <span className="text-xs font-black">Choose a photo</span>
         </button>
       )}
       {up.field}
@@ -180,7 +180,7 @@ function GallerySettings({ images, onChange }: { images: string[]; onChange: (im
         </button>
       </div>
       {up.field}
-      <p className={`mt-2 ${note}`}>JPG photos. They show as a tidy grid.</p>
+      <p className={`mt-2 ${note}`}>Any photos - JPG, PNG or iPhone. They show as a tidy grid.</p>
     </div>
   )
 }

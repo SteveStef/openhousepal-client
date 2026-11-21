@@ -2054,7 +2054,7 @@ function ManualDetailsStep({ draft, onDraftChange, onBack, onComplete }: {
                   <Upload className="h-5 w-5" />
                   <span className="text-[11px] font-black uppercase tracking-widest">{photos.length ? 'Add more' : 'Add photos'}</span>
                   {!photos.length && <span className="text-[11px] font-semibold text-gray-400">JPG or PNG · pick several at once</span>}
-                  <input type="file" accept="image/jpeg,image/png" multiple className="hidden" onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
+                  <input type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
                 </label>
               )}
             </div>

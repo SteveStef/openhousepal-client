@@ -6,49 +6,70 @@ import api from '@/lib/api-service'
 import { CheckCircle2, AlertCircle, Mail, Loader2 } from 'lucide-react'
 import OhpLoader from '@/components/brand/OhpLoader'
 
+// The footer link of every client email. It stops only THAT agent's automatic emails (owner, 11/16), and only
+// with the link's own code (a=... / t=..., owner 11/19) - a link without one can't unsubscribe anybody, so nobody
+// can stop someone else's emails just by knowing their address. The page names the agent before and after.
+const joinNames = (names: string[]) =>
+  names.length <= 1 ? (names[0] || 'your agent') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+
 function UnsubscribeContent() {
   const searchParams = useSearchParams()
-  const [email, setEmail] = useState<string | null>(null)
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const email = (searchParams.get('email') || '').trim()
+  const t = searchParams.get('t')
+  const a = searchParams.get('a')
+  const [status, setStatus] = useState<'checking' | 'idle' | 'loading' | 'success' | 'error' | 'nocode'>('checking')
+  const [who, setWho] = useState('your agent')
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    const emailParam = searchParams.get('email')
-    if (emailParam) {
-      setEmail(emailParam)
-    }
-  }, [searchParams])
+    if (!email) return
+    let alive = true
+    api.public.unsubscribeWho(email, t, a).then(({ success, data }) => {
+      if (!alive) return
+      if (success && data?.ok) {
+        setWho(data.scope === 'agents' ? joinNames(data.agent_names || []) : (data.agent_name || 'your agent'))
+        setStatus('idle')
+      } else if (success && data) {
+        setMessage(data.message || '')
+        setStatus('nocode')
+      } else {
+        setStatus('idle')   // couldn't check - Confirm still gives the real answer
+      }
+    })
+    return () => { alive = false }
+  }, [email, t, a])
 
   const handleUnsubscribe = async () => {
-    if (!email) return
-
+    if (!email || status === 'loading') return
     setStatus('loading')
-    const { success, error, data } = await api.public.unsubscribe(email, searchParams.get('t'), searchParams.get('a'))
-
+    const { success, error, data } = await api.public.unsubscribe(email, t, a)
     if (success) {
+      const name = data?.scope === 'agents' ? joinNames(data.agent_names || []) : (data?.agent_name || who)
+      setMessage(`Done - ${email} won't get any more automatic emails from ${name}.`)
       setStatus('success')
-      setMessage(data?.scope === 'agent'
-        ? `Done - ${email} won't get any more automatic emails from ${data.agent_name || 'this agent'}.`
-        : `Successfully unsubscribed ${email}. You will no longer receive property update notifications.`)
     } else {
+      setMessage(error || 'Could not unsubscribe right now. Please try again in a minute.')
       setStatus('error')
-      setMessage(error || 'Failed to unsubscribe. Please try again later.')
     }
   }
 
-  if (!email) {
+  if (!email || status === 'nocode') {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
         <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-6">
           <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Invalid Unsubscribe Link</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">This link can&apos;t unsubscribe you</h1>
         <p className="text-gray-600 dark:text-gray-400 max-w-md">
-          This unsubscribe link is invalid or has expired. If you're still receiving unwanted emails, please contact support.
+          {email
+            ? (message || 'This unsubscribe link is missing its security code. Use the Unsubscribe link at the bottom of your newest email from your agent - it stops their emails straight away.')
+            : 'This unsubscribe link is missing its email address. Use the Unsubscribe link at the bottom of your newest email from your agent.'}
         </p>
       </div>
     )
   }
+
+  if (status === 'checking') return <OhpLoader guest fullScreen={false} />
 
   return (
     <div className="max-w-md mx-auto py-12 px-4">
@@ -60,9 +81,7 @@ function UnsubscribeContent() {
                 <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
               </div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Unsubscribed</h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                {message}
-              </p>
+              <p className="text-gray-600 dark:text-gray-400 break-words">{message}</p>
             </div>
           ) : (
             <>
@@ -70,9 +89,9 @@ function UnsubscribeContent() {
                 <div className="w-16 h-16 bg-[#C9A24D]/10 rounded-full flex items-center justify-center mx-auto mb-6">
                   <Mail className="w-8 h-8 text-[#C9A24D]" />
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Unsubscribe</h1>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Stop emails from {who}?</h1>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Are you sure you want to stop receiving property updates?
+                  You won&apos;t get any more automatic emails from {who} - new homes, updates and reminders.
                 </p>
               </div>
 
@@ -96,15 +115,13 @@ function UnsubscribeContent() {
                     'Confirm Unsubscribe'
                   )}
                 </button>
-                
+
                 {status === 'error' && (
-                  <p className="text-red-600 dark:text-red-400 text-sm text-center font-medium">
-                    {message}
-                  </p>
+                  <p className="text-red-600 dark:text-red-400 text-sm text-center font-medium">{message}</p>
                 )}
 
                 <p className="text-center text-sm text-gray-500 dark:text-gray-500 px-4">
-                  By unsubscribing, you will no longer receive notifications when new properties match your collection search criteria.
+                  If {who} writes to you personally, that can still reach you.
                 </p>
               </div>
             </>

@@ -41,7 +41,7 @@ interface DetailViewProps {
   sortOrder: 'asc' | 'desc';
   setSortOrder: (order: 'asc' | 'desc') => void;
   onBack: () => void;
-  onEditShowcase: () => void;
+  onEditShowcase: (focus?: 'wants') => void;
   /** The smart filter finished reading - reload the homes so its stars show */
   onSmartDone?: () => void;
   /** No public link yet: open the share window (it turns the link on). */
@@ -483,7 +483,7 @@ export const DetailView = memo(function DetailView({
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <button
-                    onClick={onEditShowcase}
+                    onClick={() => onEditShowcase()}
                     className="rounded-full border border-[#C9A24D]/40 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[#8b7355] transition hover:bg-[#C9A24D]/15 dark:border-[#C9A24D]/30 dark:bg-transparent dark:text-[#e8cf8a]"
                   >
                     Edit Search
@@ -537,7 +537,7 @@ export const DetailView = memo(function DetailView({
                   {shared ? 'Copied' : 'Share'}
                 </motion.button>
                 <button
-                  onClick={onEditShowcase}
+                  onClick={() => onEditShowcase()}
                   className="inline-flex flex-col items-center justify-center gap-1 rounded-xl border border-[#C9A24D]/30 bg-[#C9A24D]/10 px-1 py-2 text-[9.5px] font-black uppercase tracking-wider text-[#8b7355] transition-all hover:border-[#C9A24D] hover:bg-[#C9A24D]/15 dark:text-[#e8cf8a] sm:flex-row sm:gap-2 sm:rounded-lg sm:px-4 sm:py-2.5 sm:text-xs sm:tracking-widest"
                 >
                   <SlidersHorizontal size={13} className="sm:h-3.5 sm:w-3.5" />
@@ -624,7 +624,7 @@ export const DetailView = memo(function DetailView({
         {/* Holding the most homes a Showcase can (lib/showcaseLimit): ask for a tighter search. */}
         <ShowcaseLimitNote show={activeTab === 'all' && !!selectedCollection.stats?.atLimit} className="mb-4" />
         {/* Smart filter (owner, 11/09): its must-haves and where the reading is */}
-        <SmartFilterBar collectionId={selectedCollection.id} onEdit={onEditShowcase} onDone={onSmartDone}
+        <SmartFilterBar collectionId={selectedCollection.id} onEdit={() => onEditShowcase('wants')} onDone={onSmartDone}
           initial={(() => { const w = (selectedCollection.preferences as any)?.ai_wants; return w && !Array.isArray(w) ? w : null })()} />
 
         {/* Professional Separator */}

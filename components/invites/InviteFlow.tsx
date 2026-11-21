@@ -599,7 +599,7 @@ function CoverTools({ draft, set, card, width, dark = false }: { draft: InviteDr
     const r = await api.studio.uploadMedia(file)
     setUploading(false)
     if (r.success && r.data) { set({ cover_image_url: r.data.url, cover_position: null, linked_property: draft.linked_property ? { ...draft.linked_property, no_cover: false } : null }); setPicker(false) }
-    else setErr(r.error || 'That photo could not be uploaded - try a JPG under 10 MB.')
+    else setErr(r.error || 'That photo could not be uploaded - try a JPG, PNG or iPhone photo under 25MB.')
   }
   const pickPhoto = (p: string | null) => {
     if (p) set({ cover_image_url: p, cover_position: null, linked_property: draft.linked_property ? { ...draft.linked_property, no_cover: false } : null })

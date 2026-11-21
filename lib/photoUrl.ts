@@ -8,5 +8,8 @@
 // resizing itself is unchanged (WebP when the browser takes it, the photo's own format if not -
 // Cloudflare doesn't care what the extension says, it only uses it to decide to keep the file).
 export function pimg(src: string, width: number, quality = 75): string {
+  // A picture that's already inside the page (data: / blob:) has nothing to fetch or shrink - the resizer
+  // refuses those (400) and the slot stayed empty (Day 10 audit: the design editor's blank placeholder).
+  if (/^(data|blob):/i.test(src)) return src
   return `/pimg/${width}/${quality}/p.webp?u=${encodeURIComponent(src)}`
 }

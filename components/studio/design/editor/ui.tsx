@@ -138,14 +138,15 @@ export function PhotoTile({ src, selected, onClick, starred, onStar, label, star
   )
 }
 
-// Upload straight into the agent's own Studio media. JPG/PNG/WebP; the server keeps the original.
+// Upload straight into the agent's own Studio media. Any photo (JPG, PNG, WebP, iPhone); the server stores it as an upright JPG.
 export function UploadTile({ onUploaded, label = 'Upload a photo', compact = false }: { onUploaded: (url: string) => void; label?: string; compact?: boolean }) {
   const ref = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const pick = async (file: File) => {
     setError('')
-    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { setError('Please choose a JPG, PNG or WebP photo.'); return }
+    // iPhone photos often arrive with no type at all - the server checks the photo itself
+    if (file.type && !/^image\//.test(file.type)) { setError('Please choose a photo.'); return }
     setBusy(true)
     const res = await api.studio.uploadMedia(file, 'design')
     setBusy(false)
@@ -161,7 +162,7 @@ export function UploadTile({ onUploaded, label = 'Upload a photo', compact = fal
         {busy ? 'Uploading…' : label}
       </button>
       {error && <p className="mt-1.5 text-[11px] font-bold text-red-500">{error}</p>}
-      <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) pick(f) }} />
+      <input ref={ref} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) pick(f) }} />
     </div>
   )
 }

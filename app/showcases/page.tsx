@@ -75,6 +75,7 @@ function ShowcaseContent() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [selectedCollectionForShare, setSelectedCollectionForShare] = useState<Collection | null>(null)
   const [isEditPreferencesModalOpen, setIsEditPreferencesModalOpen] = useState(false)
+  const [editFocus, setEditFocus] = useState<'wants' | null>(null)   // the MUST-HAVES box opens the editor at Must-haves
   const [selectedCollectionForEdit, setSelectedCollectionForEdit] = useState<Collection | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   // Create flow: the wizard (client + about them), then the map editor for the search area.
@@ -1119,7 +1120,7 @@ function ShowcaseContent() {
           sortOrder={sortOrder}
           setSortOrder={setSortOrder}
           onBack={() => router.push('/showcases', { scroll: false })}
-          onEditShowcase={() => { setSelectedCollectionForEdit(selectedCollection); setIsEditPreferencesModalOpen(true); }}
+          onEditShowcase={(focus) => { setSelectedCollectionForEdit(selectedCollection); setEditFocus(focus ?? null); setIsEditPreferencesModalOpen(true); }}
           onSmartDone={() => { fetchPropertiesFromCollection(selectedCollection.id); fetchCollections() }}
           onShare={() => { setSelectedCollectionForShare(selectedCollection); setIsShareModalOpen(true); }}
           onQuickSave={async (prefs) => {
@@ -1237,6 +1238,7 @@ function ShowcaseContent() {
 
       <ShowcaseMapEditor
         collection={selectedCollectionForEdit}
+        focus={editFocus ?? undefined}
         isOpen={isEditPreferencesModalOpen}
         onClose={() => setIsEditPreferencesModalOpen(false)}
         onSave={handleSavePreferences}

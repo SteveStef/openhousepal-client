@@ -310,7 +310,7 @@ function BlogEditorPageInner() {
     setUploadingCover(true)
     const response = await api.studio.uploadMedia(file)
     if (response.success && response.data) persist({ ...blog, cover_image_url: response.data.url })
-    else notify(response.error || "That photo couldn't be uploaded - use a JPG under 10MB.")
+    else notify(response.error || "That photo couldn't be uploaded - try a JPG, PNG or iPhone photo under 25MB.")
     setUploadingCover(false)
   }
 
@@ -567,7 +567,7 @@ function BlogEditorPageInner() {
           >
             {uploadingCover ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />} {blog.cover_image_url ? 'Replace cover' : 'Add cover image'}
           </button>
-          <input ref={coverInputRef} type="file" accept="image/jpeg" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleCoverUpload(f) }} />
+          <input ref={coverInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleCoverUpload(f) }} />
         </div>
             <AiCoverMaker blogId={blog.id} idea={(blog.ai_review as any)?.cover_image_idea || blog.title} coverUrl={blog.cover_image_url}
               last={(blog.ai_review as any)?.cover_ai ? { url: (blog.ai_review as any).cover_ai.last_url, revisions: (blog.ai_review as any).cover_ai.revisions } : null}
@@ -826,7 +826,7 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
     setUploadingSocial(true)
     const response = await api.studio.uploadMedia(file)
     if (response.success && response.data) onChange({ ...blog, social_image_url: response.data.url })
-    else notify(response.error || "That photo couldn't be uploaded - use a JPG under 10MB.")
+    else notify(response.error || "That photo couldn't be uploaded - try a JPG, PNG or iPhone photo under 25MB.")
     setUploadingSocial(false)
   }
 
@@ -1024,7 +1024,7 @@ function PublishScreen({ blog, busy, onChange, onStatusChange, onPreview, onClos
                   {uploadingSocial ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImagePlus className="h-3 w-3" />} Replace
                 </motion.button>
               )}
-              <input ref={socialInputRef} type="file" accept="image/jpeg" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleSocialUpload(f) }} />
+              <input ref={socialInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleSocialUpload(f) }} />
             </div>
             <label className="mt-4 block"><span className={labelClass}>Share title</span>
               <input value={blog.social_title || ''} onChange={e => onChange({ ...blog, social_title: e.target.value })} placeholder={blog.title} className={inputClass} />

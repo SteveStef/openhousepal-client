@@ -499,7 +499,8 @@ export default function DesignCreateFlow({ onClose, onCreated, initialSituationI
 
   const uploadPhoto = async (file: File) => {
     setUploadError('')
-    if (file.type !== 'image/jpeg') { setUploadError('Please choose a JPG photo.'); return }
+    // Any photo - the server turns PNG / WebP / iPhone photos into a JPG (iPhone photos may arrive with no type)
+    if (file.type && !/^image\//.test(file.type)) { setUploadError('Please choose a photo.'); return }
     setUploading(true)
     const res = await api.studio.uploadMedia(file, 'design')
     setUploading(false)
@@ -1300,7 +1301,7 @@ function PhotoPicker({ title, hint, photos, selected, onSelect, onUpload, upload
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg"
+        accept="image/*,.heic,.heif"
         className="hidden"
         onChange={e => {
           const file = e.target.files?.[0]

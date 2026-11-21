@@ -130,6 +130,8 @@ interface ShowcaseMapEditorProps {
   // Creating a new showcase: this is the last step of the create flow. Back returns to the
   // client steps (keeping what's set here) and Save creates the showcase.
   create?: { clientName: string; onBack: (draft: Partial<CollectionPreferences>) => void }
+  // Opened from the MUST-HAVES box (audit 11/20): start with the Must-haves section in view, not the top.
+  focus?: 'wants'
 }
 
 // Opens and closes with motion (fresh each time it opens). Rendered at the end of <body> so an
@@ -141,9 +143,16 @@ export default function ShowcaseMapEditor(props: ShowcaseMapEditorProps) {
   return createPortal(<AnimatePresence>{props.isOpen && <ShowcaseMapEditorWindow key="showcase-editor" {...props} />}</AnimatePresence>, host)
 }
 
-function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentState, create }: ShowcaseMapEditorProps) {
+function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentState, create, focus }: ShowcaseMapEditorProps) {
   const googleAutocompleteRef = useRef<GooglePlacesAutocompleteRef>(null)
   const locationSectionRef = useRef<HTMLElement>(null)
+  const wantsSectionRef = useRef<HTMLElement>(null)
+  // the sections spring in one after another; once they've settled, bring Must-haves into view
+  useEffect(() => {
+    if (!isOpen || focus !== 'wants') return
+    const t = setTimeout(() => wantsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 650)
+    return () => clearTimeout(t)
+  }, [isOpen, focus])
   const mapDivRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const circleRef = useRef<google.maps.Circle | null>(null)
@@ -1452,7 +1461,7 @@ function ShowcaseMapEditorWindow({ collection, isOpen, onClose, onSave, agentSta
           {/* Last on purpose (owner, 11/09): the AI reads the homes the search above finds, so it's the
               final thing set - with the chat's own limits (300 homes, room in the AI usage) and its cost. */}
           {card({
-            i: 6, icon: <Sparkles className="h-4 w-4" />, title: 'Must-haves (AI)', hint: 'optional · set last', set: wants.length > 0,
+            i: 6, icon: <Sparkles className="h-4 w-4" />, title: 'Must-haves (AI)', hint: 'optional · set last', set: wants.length > 0, sectionRef: wantsSectionRef,
             children: <SmartWantsInput wants={wants} onChange={setWants} atLimit={atLimit}
               // the Showcase keeps at most SHOWCASE_MAX_HOMES - those are the homes the AI reads
               count={geoMode === 'none' || isLoadingPreview ? null : Math.min(previewCount, SHOWCASE_MAX_HOMES)}

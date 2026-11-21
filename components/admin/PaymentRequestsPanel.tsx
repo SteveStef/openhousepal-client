@@ -363,6 +363,9 @@ function RequestDrawer({ req, existing, users, groups, onClose, onSaved, onToast
     setSaving(send ? 'email' : 'link')
     const body: PaymentRequestInput = {
       ...f, total_payments: f.cycle === 'once' ? null : f.total_payments,
+      // Someone else (no group, no agent): nobody gets a plan, so none is saved - the pay page used to tell the
+      // payer "Covers OpenHousePal Premium" from the picker's default (Day 15 audit).
+      ...(!req && who === 'other' ? { plan_tier: null } : {}),
       ...(req ? {} : {
         billing_group_id: who === 'group' && groupId !== 'new' ? groupId : null,
         new_group_name: who === 'group' && groupId === 'new' ? newGroup.trim() : null,
@@ -481,9 +484,11 @@ function RequestDrawer({ req, existing, users, groups, onClose, onSaved, onToast
           </Box>
 
           <Box title="3 · What they get once paid">
+            {who !== 'other' && (
             <L label="Plan">
               <Sel value={f.plan_tier || ''} onChange={v => set('plan_tier', v)} options={[['', 'No plan change'], ...['NO_MLS', 'PRO_NO_MLS', 'BASIC', 'PREMIUM', 'IDX'].map(t => [t, PLAN_LABEL[t]])]} />
             </L>
+            )}
             <p className="mt-2 text-[11px] font-semibold text-gray-400">
               {who === 'group' ? 'Everyone in the group gets this plan, paid by the deal, as soon as the first payment goes through.' : who === 'agent' ? 'The agent gets this plan, paid by the deal, as soon as the first payment goes through.' : 'Nobody’s plan changes - put them in a group or pick an agent to give a plan.'}
             </p>

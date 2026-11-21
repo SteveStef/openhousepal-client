@@ -705,7 +705,7 @@ export default function CinematicEditor({ id, embedded = false }: { id: string; 
   // guess); the old rule of thumb only if it hasn't answered.
   const makeSecs = speed?.sec_per_frame
     ? (speed.wait_seconds || 0) + (speed.start_seconds || 15) + length * 30 * speed.sec_per_frame + (speed.save_seconds || 20)
-      + (needsSharpen ? 20 : 0)
+      + (needsSharpen ? (est?.prep_seconds ?? 20) : 0)   // getting the photos ready: our Amazon graphics machine (~2.5 min to start + ~11 s a photo)
     : null
   const makeMinutes = makeSecs != null ? (makeSecs < 90 ? `~${Math.max(1, Math.round(makeSecs / 60))}m` : `~${Math.round(makeSecs / 60)}m`) : `~${Math.max(2, Math.round(length / 6))}m`
   // A Fast Cut: 30 or 57 seconds, about 22 / 50 photos (its own order when the agent set one), ready on the

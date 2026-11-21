@@ -163,6 +163,8 @@ const getStreetOnly = (address?: string) => {
   return firstLine.replace(/\s+(#|apt\.?|unit|suite|ste\.?|fl\.?|floor)\s*[\w-]+.*$/i, '').trim() || firstLine
 }
 
+const HOME_SALES_CARDS = 24
+
 const getSalesSummary = (sales: AgentSale[]) => {
   const eligibleSales = getEligibleSales(sales)
   const totalSold = eligibleSales.length
@@ -583,7 +585,9 @@ export default function PublicAgentHubPage() {
 
   const renderSection = (id: string) => {
     if (id === 'sales') {
-      const eligibleSales = displayedSales
+      // The home row shows the newest 24 (View All has every one, paged); the Sold / Volume / Avg
+      // numbers above still count every sale (owner 11/19 - a busy agent can have 150+).
+      const eligibleSales = displayedSales.slice(0, HOME_SALES_CARDS)
       if (salesCarousel && isMobileViewport && eligibleSales.length !== 1) {
         return (
           <section key={id} className="mt-4">

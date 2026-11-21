@@ -297,7 +297,12 @@ export default function RecentSalesPanel({ reLicenseNumber, agentSales, setAgent
     // Manual entries are never re-fetched from anywhere - preserve them across every refresh.
     const manualSales = getEligibleSales(agentSales).filter(sale => sale.source === 'manual')
 
-    const nextSales = [...manualSales, ...mergedFetched].sort((a, b) => String(b.sold_date || '').localeCompare(String(a.sold_date || '')))
+    // The refresh only brings back the newest MLS sales - older ones already on the list (the Hub
+    // now keeps every sale, owner 11/19) stay, with the agent's own show / hide choice.
+    const fetchedIds = new Set(mergedFetched.map(sale => sale.id))
+    const olderSales = getEligibleSales(agentSales).filter(sale => sale.source !== 'manual' && !fetchedIds.has(sale.id))
+
+    const nextSales = [...manualSales, ...mergedFetched, ...olderSales].sort((a, b) => String(b.sold_date || '').localeCompare(String(a.sold_date || '')))
     setAgentSales(nextSales)
     onSave({ recentSales: nextSales })
     setPage(1)

@@ -115,7 +115,7 @@ export default function PropertyLinkPicker({ value, onChange }: { value: LinkedP
     if (response.success && response.data) {
       updateManualDraft('image_url', resolveMediaUrl(response.data.url))
     } else {
-      setManualError(response.error || 'Unable to upload photo. Please try a JPG under 10MB.')
+      setManualError(response.error || 'Unable to upload photo. Please try a JPG, PNG or iPhone photo under 25MB.')
     }
     setManualPhotoUploading(false)
   }
@@ -312,7 +312,7 @@ export default function PropertyLinkPicker({ value, onChange }: { value: LinkedP
               <input
                 ref={manualFileInputRef}
                 type="file"
-                accept="image/jpeg"
+                accept="image/*,.heic,.heif"
                 disabled={manualPhotoUploading}
                 onChange={(event) => handleManualPhoto(event.target.files?.[0])}
                 className="hidden"

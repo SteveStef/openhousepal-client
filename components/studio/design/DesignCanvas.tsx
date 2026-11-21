@@ -7563,7 +7563,8 @@ function ArchWindow({ c, t, sel, w, h, gold }: { c: Content; t: DesignTheme; sel
   const g = Math.max(1.2, w * 0.03) // the outline's offset from the photo
   return (
     <div style={{ position: 'relative', width: u(w), height: u(h), flexShrink: 0 }}>
-      <div style={{ position: 'absolute', left: u(-g), right: u(-g), top: u(-g), bottom: u(-g), borderRadius: `${u(w / 2 + g)} ${u(w / 2 + g)} 0 0`, border: `${hair} solid ${hexA(gold, 0.85)}`, borderBottom: 'none', pointerEvents: 'none' }} />
+      {/* three sides, not border + borderBottom: none - React re-set the shorthand on a look change and the bottom line came back (Day 10 audit) */}
+      <div style={{ position: 'absolute', left: u(-g), right: u(-g), top: u(-g), bottom: u(-g), borderRadius: `${u(w / 2 + g)} ${u(w / 2 + g)} 0 0`, borderTop: `${hair} solid ${hexA(gold, 0.85)}`, borderLeft: `${hair} solid ${hexA(gold, 0.85)}`, borderRight: `${hair} solid ${hexA(gold, 0.85)}`, pointerEvents: 'none' }} />
       <span style={{ position: 'absolute', left: '50%', top: u(-g), width: u(Math.max(1.3, w * 0.035)), height: u(Math.max(1.3, w * 0.035)), background: gold, transform: 'translate(-50%, -50%) rotate(45deg)' }} />
       <span style={{ position: 'absolute', left: u(-g * 2.6), right: u(-g * 2.6), bottom: u(-g), height: u(0.32), background: gold }} />
       <div style={{ position: 'absolute', inset: 0, borderRadius: `${u(w / 2)} ${u(w / 2)} 0 0`, overflow: 'hidden', boxShadow: '0 1.4cqmin 4cqmin rgba(0,0,0,0.2)' }}>

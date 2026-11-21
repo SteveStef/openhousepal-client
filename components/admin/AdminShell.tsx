@@ -79,7 +79,9 @@ export default function AdminShell({ sectionKey, tabKey }: { sectionKey: string;
 
   if (isAuthenticating || isLoading) return <OhpLoader label="Loading admin" />
 
-  const agents = users.filter(u => !u.is_admin)
+  // Same rule as the Overview's Agents card: an admin-made test copy of an agent isn't an agent (the top
+  // strip said 31 while the card under it said 29 - Day 14 audit).
+  const agents = users.filter(u => !u.is_admin && !u.test_copy_of_user_id)
   const pending = agents.filter(u => !u.broker_authorized).length
   const count = (k: string) => k === 'support' ? supportUnread : k === 'questions' ? questionsUnread : k === 'agents' ? pending : 0
   const k = tab.key

@@ -1792,7 +1792,7 @@ class ApiService {
       fastPreview: (assetId: string, motion: Record<string, unknown>) =>
         this.request<{ props: import('@/motion-video/FastFilm').FastProps; exact: boolean }>(`/studio/media-lab/motion/${assetId}/fast-preview`, { method: 'POST', body: JSON.stringify({ motion }) }),
       estimate: (photos: number, sharpen: boolean, seconds = 30, fast = false) =>
-        this.request<{ speed_save_percent?: number | null; speed_save_percent_max?: number | null; speed_now_percent?: number | null; speed_save_cap_minutes?: number; speed_save_ready_minutes?: number | null; speed_now_ready_minutes?: number | null; speed_save_ahead?: number; speed_now_ahead?: number; fast_edit_usd?: number; fast_edit_percent?: number | null; photos: number; analyze_usd: number; sharpen_usd: number; analyze_percent: number | null; sharpen_percent: number | null; month_percent: number | null; soft_capped: boolean; sharpen_paused?: boolean; render_usd?: number; render_percent?: number | null; render_paid?: boolean; render_paused?: boolean; render_usd_low?: number; render_percent_low?: number | null; overnight_available?: boolean; overnight_ready_at?: string | null; overnight_held?: boolean; overnight_saves_usd?: number; overnight_saves_percent?: number | null }>(
+        this.request<{ prep_seconds?: number; speed_save_percent?: number | null; speed_save_percent_max?: number | null; speed_now_percent?: number | null; speed_save_cap_minutes?: number; speed_save_ready_minutes?: number | null; speed_now_ready_minutes?: number | null; speed_save_ahead?: number; speed_now_ahead?: number; fast_edit_usd?: number; fast_edit_percent?: number | null; photos: number; analyze_usd: number; sharpen_usd: number; analyze_percent: number | null; sharpen_percent: number | null; month_percent: number | null; soft_capped: boolean; sharpen_paused?: boolean; render_usd?: number; render_percent?: number | null; render_paid?: boolean; render_paused?: boolean; render_usd_low?: number; render_percent_low?: number | null; overnight_available?: boolean; overnight_ready_at?: string | null; overnight_held?: boolean; overnight_saves_usd?: number; overnight_saves_percent?: number | null }>(
           `/studio/media-lab/motion/estimate?photos=${photos}&sharpen=${sharpen ? 'true' : 'false'}&seconds=${Math.min(120, Math.max(5, Math.round(seconds || 30)))}${fast ? '&fast=true' : ''}`),
       health: () => this.request<{ worker: boolean; wait_seconds?: number; sec_per_frame?: number; start_seconds?: number; save_seconds?: number; queued?: number; busy?: boolean }>('/studio/media-lab/motion/health'),
     },
@@ -2836,9 +2836,11 @@ class ApiService {
       }, false),
 
     // a / t = which agent's email the link was on: only that agent's emails stop (11/16)
-    unsubscribe: (email: string, t?: string | null, a?: string | null) => this.request<{ scope?: 'agent'; agent_name?: string; message?: string }>(`/collections/unsubscribe?email=${encodeURIComponent(email)}${t ? `&t=${encodeURIComponent(t)}` : ''}${a ? `&a=${encodeURIComponent(a)}` : ''}`, {
+    unsubscribe: (email: string, t?: string | null, a?: string | null) => this.request<{ scope?: 'agent' | 'agents'; agent_name?: string; agent_names?: string[]; message?: string }>(`/collections/unsubscribe?email=${encodeURIComponent(email)}${t ? `&t=${encodeURIComponent(t)}` : ''}${a ? `&a=${encodeURIComponent(a)}` : ''}`, {
       method: 'POST',
     }, false),
+    // Before Confirm: whose emails this link stops - or that it has no valid code (stops nothing). Changes nothing.
+    unsubscribeWho: (email: string, t?: string | null, a?: string | null) => this.request<{ ok: boolean; scope?: 'agent' | 'agents'; agent_name?: string; agent_names?: string[]; message?: string }>(`/collections/unsubscribe/who?email=${encodeURIComponent(email)}${t ? `&t=${encodeURIComponent(t)}` : ''}${a ? `&a=${encodeURIComponent(a)}` : ''}`, {}, false),
 
     // embedded: shown inside the agent's own IDX website (?idx_light) - an Agent Hub that's switched off still
     // shows there, as part of the website's About / Sales pages (backend _resolve_public_hub).

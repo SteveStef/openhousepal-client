@@ -2348,7 +2348,10 @@ function CmaCoverPage({ report, agent, showSubject = true }: { report: CmaReport
   const history = showSubject ? cmaListingHistory(report) : [];   // three lines at most
   const historyHeight = history.length ? 24 + history.reduce((t, ln) => t + Math.ceil(ln.length / 118) * 10.4, 0) : 0;
   const tileRows = Math.ceil(Math.max(0, subjectStats.length - 6) / 3);
-  const coverPhotoHeight = Math.max(118, 200 - historyHeight - Math.max(0, tileRows - 3) * 40);
+  // The "Prepared for ..." line (16pt gap + one line) comes off the photo too - without it a named client pushed
+  // the cover ~28pt past the letter page (Day 12 audit: covers came out 817-821pt tall).
+  const clientLineHeight = cleanCmaText(report.client_name) ? 28 : 0;
+  const coverPhotoHeight = Math.max(118, 200 - historyHeight - clientLineHeight - Math.max(0, tileRows - 3) * 40);
   const subjectLocation = cmaCityStateZip(subject);
   return (
     <Page size="LETTER" style={cma.coverPage} wrap={false}>
@@ -2357,7 +2360,9 @@ function CmaCoverPage({ report, agent, showSubject = true }: { report: CmaReport
       {/* wrap={false} guarantees the whole cover stays one page - it can never spill a sliver
           (or the footer) onto a blank page 2. flexGrow + space-between fills the page and pins
           the meta row to the bottom without a fixed reserve padding or an auto margin. */}
-      <View wrap={false} style={{ flexGrow: 1, justifyContent: 'space-between' }}>
+      {/* A fixed height (letter 792 - 2 x 42 padding): a page that never wraps takes its content's height, so the
+          cover came out 789-821pt tall depending on what was on it (Day 12 audit) - now it is always a letter page. */}
+      <View wrap={false} style={{ height: 708, justifyContent: 'space-between' }}>
       <View>
         <View style={cma.coverIntroRow}>
           <CmaAgentAvatar agent={agent} size={64} />

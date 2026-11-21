@@ -414,8 +414,10 @@ function CreateMediaPage() {
         {mode && !sourceOpen && (step === 1 || !canUseListings || usingUploads) ? (
           <div className="mt-5 flex flex-wrap items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-[#151517]">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#111827] text-white dark:bg-white dark:text-[#111827]"><Check className="h-3.5 w-3.5" strokeWidth={3.5} /></span>
-            <div className="min-w-0 flex-1">
-              <p className="font-serif text-base font-black text-[#111827] dark:text-white">Choose photos</p>
+            {/* min width: on a phone the two buttons drop to their own line instead of squeezing
+                this to "Choose / photos" over "Your ..." (Day 11 audit). */}
+            <div className="min-w-[12rem] flex-1">
+              <p className="whitespace-nowrap font-serif text-base font-black text-[#111827] dark:text-white">Choose photos</p>
               <p className="truncate text-[11px] font-semibold text-gray-500">{usingUploads ? `Your uploads · ${uploadPhotos.length} ${uploadPhotos.length === 1 ? 'photo' : 'photos'}` : property?.address || 'Listing photos'} · drag more photos onto the page anytime</p>
             </div>
             <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
@@ -723,6 +725,15 @@ function CreateMediaPage() {
                 Estimated: about <span className="font-black text-[#8b7355] dark:text-[#d7b974]">{estUsage.pct}%</span> of this month's AI usage
                 {typeof usage?.month_ai_percent === 'number' ? ` (you're at ${usage.month_ai_percent}% now)` : ''}.
                 {estUsage.wouldExhaust ? ' This may use up the rest of your monthly allowance.' : ''}
+              </p>
+            )}
+            {/* Generate is grey until the edit is complete - say what's missing (Day 11 paid test: Virtual Stage with a
+                room type but no style left Generate grey with no reason given). */}
+            {photoPicked && !busy && !optionsValid && !isVideo && (
+              <p className="mt-4 text-xs font-bold text-[#8b7355] dark:text-[#d7b974]">
+                {effects.length === 0 ? 'Pick at least one effect to make this edit.'
+                  : !options.room_type && !options.style ? 'Pick a room type and a style for Virtual Stage.'
+                  : !options.room_type ? 'Pick a room type for Virtual Stage.' : 'Pick a style for Virtual Stage.'}
               </p>
             )}
             {error && (
