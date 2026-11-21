@@ -630,11 +630,21 @@ export default function WebsiteEditorShell({ onActionsChange, onBarEndChange, ta
         const serverHome = res.success ? res.data?.draft_data?.pages?.find(p => p.is_home) : null
         if (!serverHome) return
         const picked = new Map((serverHome.blocks || []).filter(b => b.type === 'communities').map(b => [b.id, b.data?.selected_ids]))
-        setHomePage(prev => ({
-          ...prev,
-          blocks: (prev.blocks || []).map(b => b.type === 'communities' && picked.has(b.id) && b.data?.source_mode === 'selected'
-            ? { ...b, data: { ...b.data, selected_ids: picked.get(b.id) } } : b),
-        }))
+        setHomePage(prev => {
+          let blocks = (prev.blocks || []).map(b => b.type === 'communities' && picked.has(b.id) && b.data?.source_mode === 'selected'
+            ? { ...b, data: { ...b.data, selected_ids: picked.get(b.id) } } : b)
+          // Their first town also put a Neighborhoods section on the home page (server, audit 11/21)
+          // - bring it into the open editor too, in the same place, or the next Save drops it.
+          const serverBlocks = serverHome.blocks || []
+          const added = serverBlocks.find(b => b.type === 'communities')
+          if (added && !blocks.some(b => b.type === 'communities')) {
+            const at = serverBlocks.indexOf(added)
+            const before = at > 0 ? serverBlocks[at - 1]?.id : null
+            const i = before ? blocks.findIndex(b => b.id === before) + 1 : 0
+            blocks = [...blocks.slice(0, Math.max(i, 0)), added, ...blocks.slice(Math.max(i, 0))]
+          }
+          return { ...prev, blocks }
+        })
       }).catch(() => {})
     }
     const find = either(blockOfType('communities'), inPreview('[data-ohp-spot="nav-neighborhoods"]'))
@@ -707,6 +717,7 @@ export default function WebsiteEditorShell({ onActionsChange, onBarEndChange, ta
   // Leaving with unsaved edits: the browser's own "leave site?" for a reload / closed tab, and our
   // window for any link inside the app - save it as a draft, publish it, or leave it (user, 10/27).
   const router = useRouter()
+  const LEAVE_BACK = '__back__'
   const [leaveTo, setLeaveTo] = useState<string | null>(null)
   const [leaveBusy, setLeaveBusy] = useState<'' | 'save' | 'publish'>('')
   const dirtyRef = useRef(false)
@@ -725,6 +736,31 @@ export default function WebsiteEditorShell({ onActionsChange, onBarEndChange, ta
     window.addEventListener('beforeunload', onUnload)
     document.addEventListener('click', onClick, true)
     return () => { window.removeEventListener('beforeunload', onUnload); document.removeEventListener('click', onClick, true) }
+  }, [])
+  // The browser's Back button too (it left with no warning - audit 11/21): while there are unsaved
+  // edits, one extra copy of this page sits in the history, so Back lands here and opens the same
+  // window. Back with nothing unsaved just keeps going back.
+  const backGuardRef = useRef(false)
+  useEffect(() => {
+    if (dirty && !backGuardRef.current) {
+      window.history.pushState(window.history.state, '', window.location.href)
+      backGuardRef.current = true
+    }
+  }, [dirty])
+  useEffect(() => {
+    const onPop = () => {
+      if (!backGuardRef.current) return
+      backGuardRef.current = false
+      if (dirtyRef.current) {
+        window.history.pushState(window.history.state, '', window.location.href)
+        backGuardRef.current = true
+        setLeaveTo(LEAVE_BACK)
+      } else {
+        window.history.back()
+      }
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
   }, [])
 
   const saveDraft = async (): Promise<boolean> => {
@@ -759,6 +795,7 @@ Your website is built from your Agent Hub, so these parts will show up blank. Pu
       const res = await api.sites.publish()
       if (res.success && res.data) {
         setSite(res.data)
+        await api.sites.refreshLive()  // the live site shows it on the very next visit
         showToast('Your website is live.', 'success')
         live = true
       } else {
@@ -921,6 +958,11 @@ Your website is built from your Agent Hub, so these parts will show up blank. Pu
     }
     dirtyRef.current = false
     setLeaveTo(null)
+    if (to === LEAVE_BACK) {
+      backGuardRef.current = false
+      window.history.go(-2)   // past the extra copy, to the page they came from
+      return
+    }
     router.push(to)
   }
 
@@ -1039,7 +1081,7 @@ Your website is built from your Agent Hub, so these parts will show up blank. Pu
           >
             <style>{PREVIEW_FX_CSS}</style>
             <div className="ohp-zoom" style={zoom < 1 ? ({ width: DESKTOP_W, zoom, '--z': zoom } as React.CSSProperties) : undefined}>
-              <SiteHeader theme={viewTheme} pages={[homePage]} siteName={homePage.title || site.subdomain_slug} preview hasDarkHero={hasDarkHero} hasReviews={shownReviews} agentProfile={chromeProfile} hasCommunities={areaCount > 0} />
+              <SiteHeader theme={viewTheme} pages={[homePage, ...((site.draft_data?.pages || []).filter(p => !p.is_home))]} siteName={homePage.title || site.subdomain_slug} preview hasDarkHero={hasDarkHero} hasReviews={shownReviews} agentProfile={chromeProfile} hasCommunities={areaCount > 0} />
               <SitePageRenderer
                 page={{ ...homePage, blocks: liveBlocks }}
                 theme={viewTheme}

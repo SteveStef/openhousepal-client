@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
@@ -36,6 +36,8 @@ export type HomeView = {
   city: string
   fullAddress: string
   price: number | null
+  /** A rental (Residential Lease) - `price` is a month's rent. */
+  isRental?: boolean
   /** Sold, but Bright never sent what it sold for - `price` is its last asking price. */
   priceIsAsking?: boolean
   originalPrice: number | null
@@ -169,6 +171,7 @@ export function homeFromIdx(p: HomeRecord, opts: { photo?: (url: string) => stri
     fullAddress: [street, place].filter(Boolean).join(', '),
     price: (/closed|sold/i.test(String(p.status || r.MlsStatus || '')) && nz(r.ClosePrice)) || nz(p.price),
     priceIsAsking: /closed|sold/i.test(String(p.status || r.MlsStatus || '')) && !nz(r.ClosePrice),
+    isRental: p.is_rental === true || /lease/i.test(String(r.PropertyType || '')),
     originalPrice: nz(p.original_list_price) ?? nz(r.OriginalListPrice),
     priceChangedAt: p.price_change_timestamp || r.PriceChangeTimestamp || null,
     listedAt: p.mls_list_date || r.MLSListDate || null,
@@ -179,7 +182,8 @@ export function homeFromIdx(p: HomeRecord, opts: { photo?: (url: string) => stri
     acres: nz(p.lot_size_acres),
     lotSqft: nz(p.lot_size),
     yearBuilt: nz(p.year_built),
-    pricePerSqft: nz(p.price_per_sqft) ?? (p.price && p.living_area ? p.price / p.living_area : null),
+    // a month's rent over the square feet means nothing (rentals read "$0 / sq ft")
+    pricePerSqft: (p.is_rental === true || /lease/i.test(String(r.PropertyType || ''))) ? null : (nz(p.price_per_sqft) ?? (p.price && p.living_area ? p.price / p.living_area : null)),
     dom: nz(p.days_on_market),
     mlsNumber: p.mls_number || r.ListingId || null,
     photos: raw.map(u => fix(u)),
@@ -348,7 +352,6 @@ function StatusPill({ status, small }: { status: string | null; small?: boolean 
 /** "12 days on market" / "Listed today" - nothing for a sold home or when the feed has no count. */
 // The filmstrip's thumbnail width (the cells stretch a little to fill the row exactly).
 const THUMB_W = 76
-const VIEWER_THUMB_W = 96
 
 function domText(home: HomeView): string | null {
   if (home.dom == null || /closed|sold/i.test(home.status || '')) return null
@@ -575,104 +578,182 @@ function PhoneStrip({ home, photos, extraBadges, onOpen, className = '' }: {
   )
 }
 
-/** Full-screen photos. Portaled to <body> so a transformed window (Showcase, quick look) can't trap it. */
+/** Full-screen photos, edge to edge (owner 11/21: "full screen it like Zillow"). One slim pill floats
+ *  over the bottom of the photo: < 3 / 24 > with a thin progress line. Swipe / drag follows the finger
+ *  with the next photo sliding in beside it; the arrows and arrow keys slide the same way, and quick
+ *  repeated presses jump straight on. A tap on the photo hides / shows the controls. Only transforms +
+ *  opacity move (no blur), and the photos either side are already loaded, so it keeps up with a thumb.
+ *  Portaled to <body> so a transformed window (Showcase, quick look) can't trap it. */
 export function PhotoViewer({ photos, title, index, onChange }: { photos: string[]; title: string; index: number | null; onChange: (i: number | null) => void }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
-  const touchX = useRef<number | null>(null)
-  // Same strip as the page under the photo: the current photo first, then what's next, so it always
-  // shows where you are. As many whole thumbnails as fit beside the arrows.
-  const [fit, setFit] = useState(8)
-  const stripRef = useRef<HTMLDivElement | null>(null)
-  const roRef = useRef<ResizeObserver | null>(null)
-  const measure = useCallback((el: HTMLDivElement | null) => {
-    roRef.current?.disconnect()
-    stripRef.current = el
-    if (!el) return
-    const ro = new ResizeObserver(([e]) => { const w = e.contentRect.width; if (w > 0) setFit(Math.max(3, Math.floor((w + 8) / (VIEWER_THUMB_W + 8)))) })
-    ro.observe(el)
-    roRef.current = ro
-  }, [])
-  useEffect(() => () => roRef.current?.disconnect(), [])
+  const reduce = useReducedMotion()
+  const n = photos.length
+  const open = index !== null && !!photos[index]
+  // Closing fades out with no clicks taken, then a timer takes it off the page - never AnimatePresence's
+  // hand-off, which a re-render during the exit can lose and leave an invisible layer on top.
+  const last = useRef(0)
+  if (open) last.current = index as number
+  const at = open ? (index as number) : last.current
+  const [gone, setGone] = useState(!open)
   useEffect(() => {
-    if (index === null) return
+    if (open) { setGone(false); return }
+    const t = setTimeout(() => setGone(true), 200)
+    return () => clearTimeout(t)
+  }, [open])
+  const [chrome, setChrome] = useState(true)
+  useEffect(() => { if (open) setChrome(true) }, [open])
+
+  const trackRef = useRef<HTMLDivElement | null>(null)
+  const idxRef = useRef(at)
+  idxRef.current = at
+  const pending = useRef(0)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const drag = useRef<{ id: number; x: number; t: number; dx: number; moved: boolean } | null>(null)
+  const SLIDE_MS = reduce ? 0 : 210
+  const setTrack = (transform: string, ms = 0) => {
+    const el = trackRef.current
+    if (!el) return
+    el.style.transition = ms ? `transform ${ms}ms cubic-bezier(.22,.8,.24,1)` : 'none'
+    el.style.transform = transform
+  }
+  // The new photo is in the middle slot before the frame paints - put the track back under it.
+  useLayoutEffect(() => { setTrack('translate3d(0,0,0)') }, [at])
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
+
+  const finish = useCallback(() => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null }
+    const d = pending.current
+    if (!d) return
+    pending.current = 0
+    onChange((idxRef.current + d + n) % n)
+  }, [n, onChange])
+  const slide = useCallback((d: 1 | -1) => {
+    if (n < 2) return
+    if (pending.current) {
+      // Pressed again mid-slide: go straight to where both presses land, no waiting.
+      const total = pending.current + d
+      pending.current = 0
+      if (timer.current) { clearTimeout(timer.current); timer.current = null }
+      onChange((idxRef.current + total + n * 2) % n)
+      return
+    }
+    pending.current = d
+    setTrack(`translate3d(${-d * 100}%,0,0)`, SLIDE_MS)
+    timer.current = setTimeout(finish, SLIDE_MS + 10)
+  }, [n, onChange, finish, SLIDE_MS])
+
+  useEffect(() => {
+    if (!open) return
     // Capture phase + stopImmediatePropagation: Escape closes the photos, not the window under them.
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.stopImmediatePropagation(); onChange(null) }
-      if (e.key === 'ArrowRight') { e.stopImmediatePropagation(); onChange((index + 1) % photos.length) }
-      if (e.key === 'ArrowLeft') { e.stopImmediatePropagation(); onChange((index - 1 + photos.length) % photos.length) }
+      if (e.key === 'ArrowRight') { e.stopImmediatePropagation(); e.preventDefault(); slide(1) }
+      if (e.key === 'ArrowLeft') { e.stopImmediatePropagation(); e.preventDefault(); slide(-1) }
     }
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     window.addEventListener('keydown', onKey, true)
     return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey, true) }
-  }, [index, photos.length, onChange])
-  if (!mounted) return null
-  const go = (d: number) => index !== null && onChange((index + d + photos.length) % photos.length)
+  }, [open, onChange, slide])
+  // Two more each way warm in the cache (the next and previous are already on the page).
+  useEffect(() => {
+    if (!open || n < 4) return
+    for (const k of [2, -2]) { const im = new Image(); im.decoding = 'async'; im.src = photos[(at + k + n) % n] }
+  }, [open, at, n, photos])
+
+  const onDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return
+    finish()
+    drag.current = { id: e.pointerId, x: e.clientX, t: performance.now(), dx: 0, moved: false }
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setTrack('translate3d(0,0,0)')
+  }
+  const onMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const g = drag.current
+    if (!g || g.id !== e.pointerId) return
+    g.dx = e.clientX - g.x
+    if (!g.moved && Math.abs(g.dx) > 6) g.moved = true
+    if (g.moved) setTrack(`translate3d(${n < 2 ? g.dx * 0.25 : g.dx}px,0,0)`)
+  }
+  const onUp = (e: ReactPointerEvent<HTMLDivElement>, cancel = false) => {
+    const g = drag.current
+    if (!g || g.id !== e.pointerId) return
+    drag.current = null
+    if (!g.moved) { if (!cancel) setChrome(c => !c); return }
+    const w = e.currentTarget.clientWidth || 1
+    const fast = Math.abs(g.dx) / Math.max(1, performance.now() - g.t) > 0.45
+    if (!cancel && n > 1 && (Math.abs(g.dx) > w * 0.18 || (fast && Math.abs(g.dx) > 24))) {
+      const d = g.dx < 0 ? 1 : -1
+      pending.current = d
+      setTrack(`translate3d(${-d * 100}%,0,0)`, reduce ? 0 : 180)
+      timer.current = setTimeout(finish, (reduce ? 0 : 180) + 10)
+    } else {
+      setTrack('translate3d(0,0,0)', reduce ? 0 : 180)
+    }
+  }
+
+  if (!mounted || (gone && !open) || !n) return null
+  const slots = n > 1 ? [-1, 0, 1] : [0]
+  const fade = `transition-opacity duration-150 ${chrome ? 'opacity-100' : 'pointer-events-none opacity-0'}`
+  const btn = 'grid h-10 w-10 shrink-0 place-items-center rounded-full text-white transition hover:bg-white/15 active:scale-90'
   return createPortal(
-    <AnimatePresence>
-      {index !== null && photos[index] && (
-        <motion.div role="dialog" aria-modal="true" aria-label={title ? `Photos of ${title}` : 'Photos'} className="fixed inset-0 z-[400] flex flex-col bg-black" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <div className="flex items-center justify-between gap-4 px-5 py-4 text-white">
-            <p className="truncate text-sm font-bold text-white/80">{title}</p>
-            <div className="flex shrink-0 items-center gap-3">
-              <span className="text-xs font-black text-white/60">{index + 1} / {photos.length}</span>
-              <button type="button" onClick={() => onChange(null)} aria-label="Close photos" className="rounded-full bg-white/10 p-2 transition hover:bg-white/20"><X className="h-5 w-5" /></button>
-            </div>
-          </div>
-          <div
-            className="relative flex min-h-0 flex-1 items-center justify-center px-4"
-            onTouchStart={e => { touchX.current = e.touches[0].clientX }}
-            onTouchEnd={e => { if (touchX.current === null) return; const d = e.changedTouches[0].clientX - touchX.current; touchX.current = null; if (Math.abs(d) > 40) go(d < 0 ? 1 : -1) }}
-          >
-            <div className="relative h-full w-full">
-              <AnimatePresence initial={false}>
-                <motion.img key={index} src={photos[index]} alt="" className="absolute inset-0 m-auto max-h-full max-w-full rounded-xl object-contain" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2, ease: 'easeOut' }} />
-              </AnimatePresence>
-            </div>
-            {photos.length > 1 && (
-              <>
-                <button type="button" onClick={() => go(-1)} aria-label="Previous photo" className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/25 sm:left-6"><ChevronLeft className="h-6 w-6" /></button>
-                <button type="button" onClick={() => go(1)} aria-label="Next photo" className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/25 sm:right-6"><ChevronRight className="h-6 w-6" /></button>
-              </>
-            )}
-          </div>
-          {photos.length > 1 && (() => {
-            const n = photos.length
-            const shown = Math.min(n, fit)
-            const next = Array.from({ length: shown }, (_, k) => (n <= fit ? k : (index + k) % n))
-            const nav = 'grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/25 active:scale-95'
-            return (
-              <div className="flex items-center gap-2 px-3 pb-[max(1rem,var(--ohp-sab,env(safe-area-inset-bottom)))] pt-3 sm:px-5">
-                <button type="button" onClick={() => go(-1)} aria-label="Previous photo" className={nav}><ChevronLeft className="h-5 w-5" /></button>
-                <div ref={measure} className="grid min-w-0 flex-1 gap-2" style={{ gridTemplateColumns: `repeat(${fit}, minmax(0, 1fr))` }}>
-                  <AnimatePresence initial={false} mode="popLayout">
-                    {next.map((i, k) => (
-                      <motion.button
-                        key={i}
-                        layout
-                        initial={{ opacity: 0, x: 16 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -16, transition: { duration: 0.15 } }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 34 }}
-                        type="button"
-                        onClick={() => onChange(i)}
-                        aria-label={`Photo ${i + 1}`}
-                        aria-current={i === index ? 'true' : undefined}
-                        className={`relative aspect-[4/3] overflow-hidden rounded-lg bg-white/5 ${i === index ? 'ring-2 ring-[#e8c97a] ring-offset-2 ring-offset-black' : ''}`}
-                      >
-                        <img src={sizedImage(photos[i], 256)} alt="" className={`h-full w-full object-cover object-left-bottom transition duration-300 ${i === index ? '' : 'opacity-50 hover:opacity-90'}`} loading={k < 10 ? 'eager' : 'lazy'} />
-                      </motion.button>
-                    ))}
-                  </AnimatePresence>
+    <motion.div
+      role="dialog" aria-modal="true" aria-label={title ? `Photos of ${title}` : 'Photos'}
+      className="fixed inset-0 z-[400] select-none overflow-hidden bg-black"
+      style={{ pointerEvents: open ? 'auto' : 'none' }}
+      initial={{ opacity: 0 }} animate={{ opacity: open ? 1 : 0 }}
+      transition={{ duration: reduce ? 0 : open ? 0.16 : 0.14, ease: 'easeOut' }}
+    >
+      <motion.div
+        className="absolute inset-0"
+        initial={{ scale: reduce ? 1 : 0.965 }} animate={{ scale: open || reduce ? 1 : 0.985 }}
+        transition={{ duration: reduce ? 0 : 0.2, ease: [0.22, 0.8, 0.24, 1] }}
+      >
+        <div
+          className="absolute inset-0 cursor-grab touch-none active:cursor-grabbing"
+          style={{ touchAction: 'none' }}
+          onPointerDown={onDown} onPointerMove={onMove} onPointerUp={e => onUp(e)} onPointerCancel={e => onUp(e, true)}
+        >
+          <div ref={trackRef} className="absolute inset-0 will-change-transform">
+            {slots.map(k => {
+              const i = (at + k + n) % n
+              return (
+                <div key={`${k}:${i}`} className="absolute inset-0 flex items-center justify-center" style={{ transform: `translate3d(${k * 100}%,0,0)` }}>
+                  <img
+                    src={photos[i]} alt={k === 0 ? `Photo ${at + 1} of ${n}` : ''} draggable={false}
+                    decoding="async" fetchPriority={k === 0 ? 'high' : 'low'}
+                    className="pointer-events-none h-full w-full object-contain"
+                  />
                 </div>
-                <button type="button" onClick={() => go(1)} aria-label="Next photo" className={nav}><ChevronRight className="h-5 w-5" /></button>
-              </div>
-            )
-          })()}
-        </motion.div>
+              )
+            })}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Top: the address and Close, on a soft shade so they read over a bright sky. */}
+      <div className={`pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-4 bg-gradient-to-b from-black/55 via-black/20 to-transparent px-4 pb-10 pt-[max(.75rem,env(safe-area-inset-top))] text-white sm:px-6 ${fade}`}>
+        <p className="min-w-0 truncate pt-2.5 text-sm font-bold text-white/85 [text-shadow:0_1px_3px_rgba(0,0,0,.6)]">{title}</p>
+        <button type="button" onClick={() => onChange(null)} aria-label="Close photos" className={`pointer-events-auto bg-black/45 ring-1 ring-white/15 ${btn}`}><X className="h-5 w-5" /></button>
+      </div>
+
+      {/* Bottom: the one pill - arrows, where you are, and a thin line of how far through. */}
+      {n > 1 && (
+        <div className={`pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-4 pb-[max(1rem,var(--ohp-sab,env(safe-area-inset-bottom)))] ${fade}`}>
+          <div className="pointer-events-auto flex w-full max-w-[18rem] items-center gap-1 rounded-full bg-black/60 p-1 text-white shadow-[0_12px_32px_-12px_rgba(0,0,0,.8)] ring-1 ring-white/15">
+            <button type="button" onClick={() => slide(-1)} aria-label="Previous photo" className={btn}><ChevronLeft className="h-5 w-5" /></button>
+            <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+              <span aria-live="polite" className="text-[13px] font-black leading-none tabular-nums">{at + 1}<span className="font-bold text-white/50"> / {n}</span></span>
+              <span aria-hidden className="h-[3px] w-full max-w-[8.5rem] overflow-hidden rounded-full bg-white/15">
+                <span className="block h-full origin-left rounded-full bg-[#e8c97a] transition-transform duration-200 ease-out" style={{ transform: `scaleX(${(at + 1) / n})` }} />
+              </span>
+            </div>
+            <button type="button" onClick={() => slide(1)} aria-label="Next photo" className={btn}><ChevronRight className="h-5 w-5" /></button>
+          </div>
+        </div>
       )}
-    </AnimatePresence>,
+    </motion.div>,
     document.body,
   )
 }
@@ -738,7 +819,7 @@ function HeroPanel({ home, actions, split = 'lg' }: { home: HomeView; actions?: 
       <div className={`pp-rise mt-1 ${split === 'md' ? 'md:hidden' : 'lg:hidden'}`} style={rise(1)}>
         <p className={`ohp-site-heading text-[2.1rem] font-black leading-none tracking-[-0.025em] ${pp.heading} ${serif}`}>
           {sold && home.price != null && <span className={`mr-1.5 align-middle text-[11px] font-black uppercase tracking-[0.2em] ${pp.faint}`}>{home.priceIsAsking ? 'Last asked' : 'Sold'}</span>}
-          {home.price != null ? money(home.price) : 'Price on request'}
+          {home.price != null ? `${money(home.price)}${home.isRental ? '/month' : ''}` : 'Price on request'}
         </p>
         {facts.some(f => STAT_LINE.has(f.label)) && (
           <p className={`mt-2 text-[12px] font-semibold min-[360px]:text-[13px] ${pp.muted}`}>
@@ -755,7 +836,7 @@ function HeroPanel({ home, actions, split = 'lg' }: { home: HomeView; actions?: 
       <div className={`pp-rise mt-4 hidden ${split === 'md' ? 'md:block' : 'lg:block'}`} style={rise(1)}>
         <p className={`text-[10px] font-black uppercase tracking-[0.28em] ${pp.faint}`}>{sold ? (home.priceIsAsking ? 'Last asking price' : 'Sold for') : 'Offered at'}</p>
         <p className={`ohp-site-heading mt-1 text-[2.5rem] font-black leading-none tracking-[-0.025em] ${pp.heading} ${serif}`}>
-          {home.price != null ? money(home.price) : 'Price on request'}
+          {home.price != null ? `${money(home.price)}${home.isRental ? '/month' : ''}` : 'Price on request'}
         </p>
       </div>
       {cut > 0 && (
@@ -1018,7 +1099,7 @@ export function PriceHistory({ home, events: given }: { home: HomeView; events?:
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className={pp.kicker}>Current price</p>
-          {home.price != null && <p className={`mt-2 text-3xl font-black leading-none ${pp.heading} ${serif}`}>{money(home.price)}</p>}
+          {home.price != null && <p className={`mt-2 text-3xl font-black leading-none ${pp.heading} ${serif}`}>{money(home.price)}{home.isRental ? '/month' : ''}</p>}
         </div>
         {sinceListed !== 0 && (
           <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black ${sinceListed < 0 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}`}>
@@ -1063,7 +1144,7 @@ function PriceHistoryFromListing({ home }: { home: HomeView }) {
   // A change date with no earlier price at all (and no difference we can see).
   const unknownChange = !delta && start == null && !!home.priceChangedAt
   const steps: { when: string; what: string; amount: string; tone?: 'down' | 'up' }[] = []
-  if (home.listedAt || start != null) steps.push({ when: shortDate(home.listedAt) || 'Listed', what: 'Listed for sale', amount: start != null ? money(start) : unknownChange ? '' : money(home.price) })
+  if (home.listedAt || start != null) steps.push({ when: shortDate(home.listedAt) || 'Listed', what: home.isRental ? 'Listed for rent' : 'Listed for sale', amount: start != null ? money(start) : unknownChange ? '' : money(home.price) })
   if (delta && prev != null && prev !== start && prev !== home.price) steps.push({ when: 'Earlier', what: prev > (start ?? 0) ? 'Price increased' : 'Price reduced', amount: money(prev) })
   if (delta) steps.push({ when: shortDate(home.priceChangedAt) || 'Recently', what: delta < 0 ? 'Price reduced' : 'Price increased', amount: money(home.price), tone: delta < 0 ? 'down' : 'up' })
   else if (unknownChange) steps.push({ when: shortDate(home.priceChangedAt), what: 'Price changed to', amount: money(home.price) })

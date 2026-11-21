@@ -45,8 +45,16 @@ export default function MarketTrendsSection({ trends, theme, areaName, bare = fa
     trends.median_sold_price ? { icon: Home, label: 'Median sold price', value: formatCompactPrice(trends.median_sold_price), sub: 'last 12 months' } : null,
     yoy != null ? { icon: yoyUp ? ArrowUpRight : ArrowDownRight, label: 'Year over year', value: `${yoyUp ? '+' : ''}${yoy}%`, sub: trends.prior_median_sold_price ? `was ${formatCompactPrice(trends.prior_median_sold_price)}` : 'median sold price', tone: yoyUp ? '#16a34a' : 'var(--site-trend-down)' } : null,
     trends.closed_count ? { icon: TrendingUp, label: 'Homes sold', value: String(trends.closed_count), sub: 'last 12 months' } : null,
-    trends.median_sale_to_list_pct ? { icon: Percent, label: 'Sale to list', value: `${trends.median_sale_to_list_pct}%`, sub: trends.median_sale_to_list_pct >= 100 ? 'homes sell over asking' : 'of asking price' } : null,
-    trends.median_sold_dom != null ? { icon: CalendarClock, label: 'Days to sell', value: String(trends.median_sold_dom), sub: 'median, sold homes' } : null,
+    trends.median_sale_to_list_pct ? ((pct: number) => {
+      const diff = Math.round((pct - 100) * 10) / 10
+      return {
+        icon: Percent,
+        label: diff > 0 ? 'Over asking' : diff < 0 ? 'Under asking' : 'At asking',
+        value: diff === 0 ? 'At asking' : `${Math.abs(diff)}% ${diff > 0 ? 'over' : 'under'}`,
+        sub: `the typical home sells for ${pct}% of its list price`,
+      }
+    })(trends.median_sale_to_list_pct) : null,
+    trends.median_sold_dom != null ? { icon: CalendarClock, label: 'Days to sell', value: String(trends.median_sold_dom), sub: 'typical time from listed to sold' } : null,
     trends.median_sold_price_per_sqft ? { icon: Gauge, label: 'Sold $ / sq ft', value: `$${trends.median_sold_price_per_sqft.toLocaleString()}`, sub: 'median' } : null,
   ].filter(Boolean) as { icon: any; label: string; value: string; sub: string; tone?: string }[]
   const bands = (trends.price_bands || []).filter(b => b.count > 0)

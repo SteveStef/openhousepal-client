@@ -58,8 +58,6 @@ export default function TownInsights({ data, town, luxe }: { data?: TownInsights
             {([
               g.months_of_supply != null ? ['Months of supply', String(g.months_of_supply)] : null,
               g.over_asking_pct != null ? ['Sold over asking', `${g.over_asking_pct}%`] : null,
-              g.median_sale_to_list_pct != null ? ['Sale-to-list', `${g.median_sale_to_list_pct}%`] : null,
-              g.median_days_on_market != null ? ['Days on market', String(g.median_days_on_market)] : null,
             ].filter(Boolean) as [string, string][]).map(([k, v]) => (
               <div key={k} className="px-4 py-3" style={{ backgroundColor: 'var(--site-surface)' }}>
                 <dd className="text-xl font-black" style={{ color: 'var(--site-heading)' }}>{v}</dd>

@@ -119,7 +119,7 @@ function Field({ field, data, options, onChange }: { field: BlockField; data: Re
       control = <ImageField value={value} onChange={onChange} />
       break
     case 'number':
-      control = <NumberInput value={value} onChange={onChange} placeholder={field.placeholder} className={inputCls} />
+      control = <NumberInput value={value} onChange={onChange} placeholder={field.placeholder} className={inputCls} max={field.max} />
       break
     default:
       control = <input value={value} onChange={e => onChange(e.target.value)} placeholder={field.placeholder} className={inputCls} />

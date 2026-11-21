@@ -12,6 +12,8 @@ export interface BlockField {
   defaultChecked?: boolean
   /** Only show this field when the section's data says so (e.g. the upload box only in manual photo mode). */
   showWhen?: (data: Record<string, any>) => boolean
+  /** number fields: the most it can be - typing more keeps the max (audit 11/21). */
+  max?: number
 }
 
 // Friendly names for every section type (the catalogue is the source of truth).
@@ -24,7 +26,7 @@ export const BLOCK_TYPE_LABELS: Record<SiteBlockType, string> = Object.fromEntri
 // The placeholder is what a blank box really gives (backend content_adapters._DEFAULT_LIMITS), and
 // `max` is the most the section can lay out - higher numbers used to do nothing (10/27 audit).
 const LIMIT_FIELD = (what: string, placeholder = '6', max?: number): BlockField => ({
-  key: 'limit', label: `How many ${what} to show`, kind: 'number', placeholder,
+  key: 'limit', label: `How many ${what} to show`, kind: 'number', placeholder, max,
   hint: `Leave blank for ${placeholder}.${max ? ` Up to ${max}.` : ''}`,
 })
 
@@ -34,7 +36,7 @@ export const BLOCK_FIELD_SCHEMA: Record<SiteBlockType, BlockField[]> = {
     // The eyebrow is filled automatically with the agent's own market line (see
     // content_adapters.hydrate_page_blocks) - this only overrides it.
     { key: 'eyebrow', label: 'Small line above the headline', kind: 'text', placeholder: 'Filled in from your market line', hint: 'Leave blank to use the market line from your profile.' },
-    { key: 'subheadline', label: 'Team or brand name (optional)', kind: 'text', placeholder: 'The Stefanatos Group' },
+    { key: 'subheadline', label: 'A line under the headline (optional)', kind: 'text', placeholder: 'e.g. The Rivera Team, Center City specialists', hint: 'Shows right under the headline - your team name or a short tagline.' },
     // 'auto' searches the full regional MLS across the agent's served areas and rotates up to 5
     // real photos (content_adapters.get_hero_photos); 'manual' uses one uploaded photo.
     { key: 'photo_source_mode', label: 'Background photos', kind: 'select', options: [
@@ -60,10 +62,10 @@ export const BLOCK_FIELD_SCHEMA: Record<SiteBlockType, BlockField[]> = {
   about_agent: [
     // Real profile data comes in automatically (content_adapters.get_agent_profile). These are
     // optional website-only overrides layered on top.
-    { key: 'overrides.bio', label: 'A different bio just for the website (optional)', kind: 'textarea', placeholder: 'Leave blank to use your profile bio' },
-    { key: 'overrides.photo_url', label: 'A different photo (optional)', kind: 'image' },
-    { key: 'overrides.phone', label: 'Different phone (optional)', kind: 'text' },
-    { key: 'overrides.email', label: 'Different email (optional)', kind: 'text' },
+    { key: 'overrides.bio', label: 'A different bio for this section (optional)', kind: 'textarea', placeholder: 'Leave blank to use your Agent Hub bio', hint: 'Only changes this home-page section. Your About page always shows your Agent Hub.' },
+    { key: 'overrides.photo_url', label: 'A different photo for this section (optional)', kind: 'image' },
+    { key: 'overrides.phone', label: 'A different phone for this section (optional)', kind: 'text' },
+    { key: 'overrides.email', label: 'A different email for this section (optional)', kind: 'text' },
   ],
   contact_cta: [
     { key: 'headline', label: 'Headline', kind: 'text', placeholder: "Let's Talk" },

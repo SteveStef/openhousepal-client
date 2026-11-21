@@ -68,7 +68,7 @@ async function resolveSite(host: string, path: string): Promise<ResolveResponse 
   // soft=1: "not found" comes back as a 200 so it's cached too - Next never replaces a cached
   // answer with a 404, which kept a switched-off site showing until the next deploy.
   const res = await fetch(`${INTERNAL_API_URL}/public/sites/resolve?host=${encodeURIComponent(host)}&path=${encodeURIComponent(path)}&soft=1`, {
-    next: { revalidate: 30 },
+    next: { revalidate: 30, tags: ['idx-sites'] },  // dropped on publish: app/api/website-sites/revalidate
   })
   if (!res.ok) return null
   const data = await res.json()
@@ -236,7 +236,11 @@ async function baseMetadata({
     return { title: 'Search Homes', alternates: canonical ? { canonical } : undefined }
   }
   if (path?.[0] === 'communities' || path?.[0] === 'neighborhoods') {
-    return { title: path[1] === 'compare' ? 'Neighborhood Compare' : 'Neighborhoods', alternates: canonicalWithQuery ? { canonical: canonicalWithQuery } : undefined }
+    return {
+      title: path[1] === 'compare' ? 'Neighborhood Compare' : 'Neighborhoods',
+      ...(path[1] === 'compare' ? { description: 'Two neighborhoods side by side - homes for sale and what they cost, schools, commute and everyday life.' } : {}),
+      alternates: canonicalWithQuery ? { canonical: canonicalWithQuery } : undefined,
+    }
   }
   if (path?.[0] === 'forms') {
     if (path[1]) {
@@ -320,11 +324,13 @@ async function baseMetadata({
   }
   if (path?.[0] === 'hub' || path?.[0] === 'agent-hub') {
     // The agent's Hub on their own website is theirs to be found by (owner, 10/30) - listable,
-    // with this site's /hub as its main copy (openhousepal.com/<slug> stays off Google).
+    // with this site's copy as the main one (openhousepal.com/<slug> stays off Google). /hub and
+    // /about show the very same Hub, so Google is pointed at /about - the menu's link - instead of
+    // seeing two copies (audit 11/21).
     const hubSlug = await resolveAgentHubSlug(resolved.site_id)
     return ownPageMetadata(
       'Agent Hub',
-      resolved.canonical_hostname ? `https://${resolved.canonical_hostname}/hub` : undefined,
+      resolved.canonical_hostname ? `https://${resolved.canonical_hostname}/about` : undefined,
       { ogImage: hubSlug ? ogCard('hub', { agent: hubSlug }) : undefined },
     )
   }
@@ -545,7 +551,7 @@ function agentJsonLd(origin: string, siteName: string, profile: any, opts: { log
     ...(profile?.email ? { email: profile.email } : {}),
     ...(opts.description ? { description: opts.description } : {}),
     ...(profile?.market ? { areaServed: profile.market } : {}),
-    ...(profile?.brokerage ? { parentOrganization: { '@type': 'RealEstateAgent', name: profile.brokerage } } : {}),
+    ...(profile?.brokerage ? { parentOrganization: { '@type': 'Organization', name: profile.brokerage } } : {}),
     ...(socials.length ? { sameAs: socials } : {}),
     ...(rating?.count && rating?.average ? { aggregateRating: { '@type': 'AggregateRating', ratingValue: Number(rating.average).toFixed(2), reviewCount: rating.count, bestRating: 5, worstRating: 1 } } : {}),
     ...(rating && opts.reviews?.length ? {
@@ -635,7 +641,9 @@ async function pageStructuredData(resolved: ResolveResponse, host: string, path:
         ...(photos.length ? { image: photos } : {}),
         ...(p.description ? { description: seoClip(String(p.description), 300) } : {}),
         ...(p.price && !status.startsWith('closed') ? {
-          offers: { '@type': 'Offer', price: Math.round(p.price), priceCurrency: 'USD', availability: status.includes('contract') || status.startsWith('pending') ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/InStock', url },
+          offers: { '@type': 'Offer', price: Math.round(p.price), priceCurrency: 'USD', availability: status.includes('contract') || status.startsWith('pending') ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/InStock', url,
+            // a rental: the price is a month's rent (audit 11/21)
+            ...(p.is_rental ? { businessFunction: 'http://purl.org/goodrelations/v1#LeaseOut', priceSpecification: { '@type': 'UnitPriceSpecification', price: Math.round(p.price), priceCurrency: 'USD', unitCode: 'MON' } } : {}) },
         } : {}),
         about: {
           '@type': /condo/i.test(p.property_type || '') ? 'Apartment' : 'SingleFamilyResidence',
@@ -654,7 +662,7 @@ async function pageStructuredData(resolved: ResolveResponse, host: string, path:
 // tags: town pages are tagged so an admin edit (Neighborhoods tab) can expire them at once -
 // app/api/website-areas/revalidate.
 async function fetchJson(url: string, tags?: string[]) {
-  const res = await fetch(url, { next: { revalidate: 30, ...(tags ? { tags } : {}) } })
+  const res = await fetch(url, { next: { revalidate: 30, tags: ['idx-sites', ...(tags || [])] } })
   if (!res.ok) return null
   return res.json()
 }
@@ -1375,24 +1383,27 @@ function compareText(area: any) {
   }).toLowerCase()
 }
 
-function isPhiladelphiaNeighborhood(area: any) {
+// A neighborhood inside one of the region's cities reads as city living - not only Philadelphia's
+// (a Baltimore or D.C. neighborhood used to come out "suburban" - audit 11/21).
+const BIG_CITIES = /\b(philadelphia|baltimore|washington|pittsburgh|wilmington|richmond|norfolk|alexandria|arlington|newark|jersey city|camden|trenton|allentown|reading|lancaster|harrisburg|annapolis)\b/
+function isCityNeighborhood(area: any) {
   const text = `${area.name || ''} ${area.slug || ''} ${area.parent_area_name || ''}`.toLowerCase()
-  return area.area_type === 'neighborhood' && /philadelphia|center city|rittenhouse|fishtown|south philly|south philadelphia/.test(text)
+  return area.area_type === 'neighborhood' && (BIG_CITIES.test((area.parent_area_name || '').toLowerCase()) || /center city|rittenhouse|fishtown|south philly/.test(text))
 }
 
 function primaryAreaFeel(area: any) {
   const text = compareText(area)
-  if (isPhiladelphiaNeighborhood(area)) return 'urban'
+  if (isCityNeighborhood(area)) return 'urban'
   if (/suburban|main line|estate|larger propert|acre|township|residential|campus/.test(text)) {
-    if (/walkab|downtown|commercial center|town center|village|septa|train|rail/.test(text)) return 'walkable_town'
+    if (/walkab|downtown|commercial center|town center|village|septa|marc|metro|train|rail/.test(text)) return 'walkable_town'
     return 'suburban'
   }
-  if (/urban|city|walkab|downtown|center city|commercial center|septa|train|rail|transit/.test(text)) return 'walkable_town'
+  if (/urban|city|walkab|downtown|center city|commercial center|septa|marc|metro|train|rail|transit/.test(text)) return 'walkable_town'
   return 'mixed'
 }
 
 function feelPhrase(feel: string) {
-  if (feel === 'urban') return 'more urban and Center City-oriented'
+  if (feel === 'urban') return 'more urban, close to the city center'
   if (feel === 'walkable_town') return 'more walkable or town-center oriented'
   if (feel === 'suburban') return 'more suburban or residential'
   return 'more mixed'
@@ -1469,8 +1480,8 @@ function bestForItems(a: any, b: any) {
   const inv = inventoryWinner(a, b)
   if (inv) items.push({ label: 'More inventory right now', winner: inv })
   if (aFeel !== bFeel) {
-    if (aFeel === 'urban') items.push({ label: 'More urban or Center City feel', winner: a })
-    else if (bFeel === 'urban') items.push({ label: 'More urban or Center City feel', winner: b })
+    if (aFeel === 'urban') items.push({ label: 'More urban, city-center feel', winner: a })
+    else if (bFeel === 'urban') items.push({ label: 'More urban, city-center feel', winner: b })
     if (aFeel === 'walkable_town') items.push({ label: 'More walkable town-center feel', winner: a })
     else if (bFeel === 'walkable_town') items.push({ label: 'More walkable town-center feel', winner: b })
     if (aFeel === 'suburban') items.push({ label: 'More suburban or residential feel', winner: a })

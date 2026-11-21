@@ -211,7 +211,8 @@ export default function ThemePanel({ theme, onChange, kitLogo = null }: { theme:
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {CLASSIC_ACCENTS.map(s => {
-            const on = vars.accent.toLowerCase() === s.color.toLowerCase()
+            // the swatch the agent picked - Pink / Orange / Light Red are darkened a little on the site so text stays readable, and the check mark went missing (audit 11/21)
+            const on = (theme.secondary_color || vars.accent).toLowerCase() === s.color.toLowerCase()
             return (
               <button
                 key={s.color} type="button" title={s.label} aria-label={s.label} onClick={() => set({ secondary_color: s.color })}

@@ -32,7 +32,15 @@ function emptyNote(block: SiteBlock): string | null {
 export default function SitePageRenderer({ page, theme, siteId, basePrefix = '', homeExperience = false, afterCommunitiesContent = null, editor }: { page: SitePage; theme: SiteTheme; siteId?: string; basePrefix?: string; homeExperience?: boolean; afterCommunitiesContent?: ReactNode; editor?: { focusId?: string | null; focusTag?: string } }) {
   // The home page never shows a Contact Band - the footer's "Let's talk about your next move"
   // band closes it instead (owner's call, 10/07); the route turns that footer band on for it.
-  const visibleBlocks = page.blocks.filter(block => !block.hidden && !(page.is_home && block.type === 'contact_cta'))
+  const shown = page.blocks.filter(block => !block.hidden && !(page.is_home && block.type === 'contact_cta'))
+  // A Recently Sold section right under a page heading with the same words (the Sold page:
+  // "Recently Sold" / "Recently Sold") drops its own repeat of it - keeps its sold numbers line.
+  const same = (a: unknown, b: unknown) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase()
+  const visibleBlocks = shown.map((block, i) => {
+    const prev = shown[i - 1]
+    return block.type === 'recent_sales' && prev?.type === 'heading_text' && same(prev.data?.text, block.data?.headline || 'Recently Sold')
+      ? { ...block, data: { ...block.data, _hide_headline: true } } : block
+  })
   const hasCommunitiesBlock = visibleBlocks.some(block => block.type === 'communities')
 
   return (

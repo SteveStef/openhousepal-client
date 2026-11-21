@@ -48,14 +48,14 @@ export default function ReviewsSettingsPanel({ onShowingChange, onMinRatingChang
       setShowOnIdx(next)
       const r = await api.agentHub.updateReviewSettings({ show_on_idx: next })
       if (!r.success) { setShowOnIdx(!next); setError(r.error || 'That did not save - please try again.') }
-      else onSwitch?.(next, shown.length > 0)
+      else { api.sites.refreshLive(); onSwitch?.(next, shown.length > 0) }
     } else {
       const next = minRating >= 4 ? 1 : 4
       const prev = minRating
       setMinRating(next)
       const r = await api.agentHub.updateReviewSettings({ min_rating: next })
       if (!r.success) { setMinRating(prev); setError(r.error || 'That did not save - please try again.') }
-      else onMinRatingChange?.(next >= 4)
+      else { api.sites.refreshLive(); onMinRatingChange?.(next >= 4) }
     }
     setSaving('')
   }

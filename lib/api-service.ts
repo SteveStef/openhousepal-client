@@ -1909,6 +1909,9 @@ class ApiService {
 
     publish: () => this.request<Site>('/studio/sites/me/publish', { method: 'POST' }),
 
+    /** Drops the live site's 30-second copy so a publish (or a town / reviews change) shows on the next visit. */
+    refreshLive: async () => { try { await fetch('/api/website-sites/revalidate', { method: 'POST' }) } catch { /* the site catches up within 30 s anyway */ } },
+
     getDomains: () => this.request<SiteDomain[]>('/studio/sites/me/domains'),
 
     // Old pages from the agent's previous website on their domain (backend old_links_service)

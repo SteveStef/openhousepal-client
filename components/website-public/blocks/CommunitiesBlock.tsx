@@ -88,8 +88,11 @@ export default function CommunitiesBlock({ data, theme, basePrefix = '' }: { dat
 
   if (!areas.length) return null
 
-  const eyebrow = neighborhoodsLabel(data.eyebrow, 'Neighborhoods We Serve')
   const headline = neighborhoodsLabel(data.headline, 'Explore Neighborhoods')
+  // A section added from the catalogue used to start with the headline "Neighborhoods We Serve" -
+  // the same words as the small line above it, so the site said it twice (audit 11/21).
+  const eyebrowRaw = neighborhoodsLabel(data.eyebrow, 'Neighborhoods We Serve')
+  const eyebrow = eyebrowRaw.trim().toLowerCase() === headline.trim().toLowerCase() ? 'Local Guides' : eyebrowRaw
   const subtext = neighborhoodsLabel(data.subtext, 'Live inventory, price ranges, schools and local context at a glance.')
   const move = (pages: number) => setIndex(i => (i + pages * per + areas.length * per) % areas.length)
   if (!luxe) {

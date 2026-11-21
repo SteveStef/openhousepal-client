@@ -182,6 +182,9 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
   const mapDivRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<google.maps.Map | null>(null)
   const pinsRef = useRef<PinLayer | null>(null)
+  // The card under the mouse lights up its pin WITHOUT a re-render: hover state redrew all 120 cards
+  // on every card the pointer crossed while scrolling - half-second stutters (audit 11/21).
+  const listHoverRef = useRef<string | null>(null)
   const fittedRef = useRef<string | null>(null)
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -402,8 +405,9 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
     const street = cleanStreet(l.address, l.city)
     return (
       <div key={l.listing_key} ref={el => { if (el) cardRefs.current.set(l.listing_key, el) }}
-        onMouseEnter={() => setHoverKey(l.listing_key)} onMouseLeave={() => setHoverKey(k => (k === l.listing_key ? null : k))}
-        className={`ohp-home-card group relative overflow-hidden border transition duration-300 ${luxe ? 'rounded-[22px]' : 'rounded-2xl'} ${on ? '-translate-y-0.5' : ''}`}
+        onMouseEnter={() => { listHoverRef.current = l.listing_key; pinsRef.current?.setState({ active: activeKey, hover: l.listing_key, seen: viewed }) }}
+        onMouseLeave={() => { if (listHoverRef.current === l.listing_key) { listHoverRef.current = null; pinsRef.current?.setState({ active: activeKey, hover: hoverKey, seen: viewed }) } }}
+        className={`ohp-home-card group relative overflow-hidden border transition duration-300 hover:-translate-y-0.5 hover:!border-[color:var(--site-accent)] ${luxe ? 'rounded-[22px]' : 'rounded-2xl'} ${on ? '-translate-y-0.5' : ''}`}
         style={{ backgroundColor: 'var(--site-surface)', borderColor: on ? 'var(--site-accent)' : 'var(--site-line)', boxShadow: on ? '0 0 0 2px rgba(var(--site-accent-rgb),.35), var(--site-shadow)' : 'var(--site-shadow)' }}>
         <a href={href(l)} onClick={() => markViewed(l.listing_key)} className="block">
           <div className={`relative overflow-hidden ${compact ? 'h-40' : 'h-48'}`} style={{ backgroundColor: 'var(--site-bg-alt)' }}>
@@ -415,7 +419,7 @@ export default function PropertyMapSearch({ listings, theme, basePrefix = '', fi
               {isNewListing(l.days_on_market, l.status) && <span className="rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest shadow" style={{ backgroundColor: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>New</span>}
               {viewed.has(l.listing_key) && <span className="rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-white">Seen</span>}
             </div>
-            <p className="absolute bottom-2.5 left-3 text-xl font-black text-white drop-shadow">{l.price ? `$${l.price.toLocaleString()}` : 'Price on request'}</p>
+            <p className="absolute bottom-2.5 left-3 text-xl font-black text-white drop-shadow">{l.price ? `$${l.price.toLocaleString()}${(l as any).is_rental ? '/mo' : ''}` : 'Price on request'}</p>
           </div>
           <div className="p-3.5">
             <p className="truncate text-sm font-bold" style={{ color: 'var(--site-heading)' }}>{street}</p>

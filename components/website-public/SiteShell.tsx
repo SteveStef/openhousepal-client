@@ -15,11 +15,13 @@ export default function SiteShell({ theme, siteKey, agentName, brandLogo, childr
   const allowToggle = theme.allow_mode_toggle !== false
   const key = siteModeStorageKey(siteKey)
   return (
-    <div id="ohp-site-shell" className="ohp-site min-h-screen" data-template={vars.template} data-mode={vars.mode} data-ohp-initials={initialsOf(agentName) || undefined} data-ohp-loader-logo={theme.loader_logo_url || brandLogo || undefined} style={vars.style} suppressHydrationWarning>
+    <div id="ohp-site-shell" className="ohp-site min-h-screen" data-template={vars.template} data-mode={vars.mode} data-default-mode={vars.mode} data-ohp-initials={initialsOf(agentName) || undefined} data-ohp-loader-logo={theme.loader_logo_url || brandLogo || undefined} style={vars.style} suppressHydrationWarning>
       {allowToggle && (
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var m=localStorage.getItem(${JSON.stringify(key)});if(m==='light'||m==='dark'){var el=document.currentScript&&document.currentScript.parentElement;if(el){el.setAttribute('data-mode',m)}}}catch(e){}})();`,
+            // Stored as "<choice>:<the site's default when chosen>" - once the agent changes the default
+            // mode, an older choice no longer wins (agents saw their new default "not save" - 11/21).
+            __html: `(function(){try{var v=(localStorage.getItem(${JSON.stringify(key)})||'').split(':');if((v[0]==='light'||v[0]==='dark')&&v[1]===${JSON.stringify(vars.mode)}){var el=document.currentScript&&document.currentScript.parentElement;if(el){el.setAttribute('data-mode',v[0])}}}catch(e){}})();`,
           }}
         />
       )}

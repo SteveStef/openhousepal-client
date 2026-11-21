@@ -38,9 +38,11 @@ export default function RecentSalesBlock({ data, theme, siteId, basePrefix = '' 
   return (
     <section className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
       <div className="text-center">
-        <h2 className={`text-3xl font-black sm:text-4xl ${fontClass(theme.heading_font, 'font-serif')}`} style={{ color: 'var(--site-heading)' }}>
-          {data.headline || 'Recently Sold'}
-        </h2>
+        {!data._hide_headline && (
+          <h2 className={`text-3xl font-black sm:text-4xl ${fontClass(theme.heading_font, 'font-serif')}`} style={{ color: 'var(--site-heading)' }}>
+            {data.headline || 'Recently Sold'}
+          </h2>
+        )}
         {/* Hidden when the agent turned off "Show my sold stats" (setup Sales step). */}
         {data.show_stats !== false && (
           <div className="mt-4 flex flex-wrap items-center justify-center gap-6 text-sm">

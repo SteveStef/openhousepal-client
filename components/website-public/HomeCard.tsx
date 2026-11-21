@@ -84,6 +84,13 @@ export default function HomeCard({ listing, theme, basePrefix = '', onQuickView,
             className={`ohp-mls-crop absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-700 ${k === i ? 'opacity-100' : 'opacity-0'} ${hover ? 'scale-[1.05]' : 'scale-100'}`}
             style={{ transitionDuration: '1000ms, 6000ms' }} />
         ))}
+        {/* A brand-new listing can arrive before its photos do - an empty black box looked broken (audit 11/21). */}
+        {!photos.length && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2" style={{ color: 'var(--site-muted)' }}>
+            <Camera className="h-8 w-8 opacity-60" />
+            <span className="text-[11px] font-black uppercase tracking-[0.18em] opacity-80">Photos coming soon</span>
+          </div>
+        )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-black/25" />
         {luxe && <span aria-hidden className="ohp-card-sheen pointer-events-none absolute inset-0" />}
 
@@ -105,7 +112,7 @@ export default function HomeCard({ listing, theme, basePrefix = '', onQuickView,
 
         <div className="absolute inset-x-4 bottom-3.5 flex items-end justify-between gap-3">
           {listing.price != null && (
-            <p className={`text-[26px] leading-none text-white drop-shadow-lg ${luxe ? `font-black ${serif} ohp-price-glint` : 'font-extrabold tracking-tight'}`}>${listing.price.toLocaleString()}</p>
+            <p className={`text-[26px] leading-none text-white drop-shadow-lg ${luxe ? `font-black ${serif} ohp-price-glint` : 'font-extrabold tracking-tight'}`}>${listing.price.toLocaleString()}{(listing as any).is_rental ? <span className="text-base font-bold">/mo</span> : null}</p>
           )}
           {photos.length > 1 && (
             <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-[10px] font-bold text-white ">

@@ -36,8 +36,11 @@ export function ModeToggle({ siteKey, initialMode = 'light', className = '', lig
     if (inert) return
     const next = mode === 'dark' ? 'light' : 'dark'
     setMode(next)
-    ref.current?.closest<HTMLElement>('.ohp-site')?.setAttribute('data-mode', next)
-    if (siteKey) { try { window.localStorage.setItem(siteModeStorageKey(siteKey), next) } catch {} }
+    const root = ref.current?.closest<HTMLElement>('.ohp-site')
+    root?.setAttribute('data-mode', next)
+    // remembered with the site's default at the time, so a later default change by the agent wins (SiteShell)
+    const siteDefault = ref.current?.closest<HTMLElement>('[data-default-mode]')?.getAttribute('data-default-mode') || ''
+    if (siteKey) { try { window.localStorage.setItem(siteModeStorageKey(siteKey), `${next}:${siteDefault}`) } catch {} }
   }
   return (
     <button ref={ref} type="button" onClick={toggle} aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} title={inert ? 'Visitors switch light / dark here' : mode === 'dark' ? 'Light mode' : 'Dark mode'}

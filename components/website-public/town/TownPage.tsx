@@ -498,13 +498,9 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
   // the home numbers as a 2x2 grid, the local governments as share bars, then the place facts.
   const municipalities = ((area.municipalities || []) as { name: string; share: number }[]).filter(m => m?.name)
   const glanceGovLabel = municipalities.length && municipalities.every(m => /township$/i.test(m.name)) ? (municipalities.length > 1 ? 'Townships' : 'Township') : 'Local government'
-  const glanceStats = ([
-    marketStats?.median_price != null ? ['Median list price', formatCompactPrice(marketStats.median_price)] : null,
-    inventoryTotal > 0 ? ['For sale now', String(inventoryTotal)] : null,
-    trends.median_sold_price ? ['Median sold · 1 yr', formatCompactPrice(trends.median_sold_price)] : null,
-    // Shorter label for the small grid tile
-    ((dom) => dom && [/listed/i.test(dom[0]) ? 'Days listed (now)' : 'Days on market', dom[1]])(daysOnMarketStat(marketStats, trends)),
-  ].filter(Boolean) as [string, string][])
+  // The home numbers live once in the top box and the Market section - At a glance kept a third
+  // copy of them (owner 11/21: "repetitive... less scrolling"), so it holds the place facts only.
+  const glanceStats: [string, string][] = []
   const glance = ([
     // Says which area the count is for - "Malvern borough" is far smaller than the Malvern mailing area this page covers.
     // A city neighborhood isn't a town of its own (grader 10/27: the Philadelphia pages read as towns).
@@ -544,9 +540,9 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
           photos={heroPhotos}
           breadcrumb={<><a href={`${basePrefix}/`} className="hover:underline">Home</a> / <a href={`${basePrefix}/neighborhoods`} className="hover:underline">Neighborhoods</a> / <span style={{ color: 'var(--site-ink-soft)' }}>{area.name}</span></>}
           stats={([
-            marketStats?.median_price != null ? ['Median list price', `$${Math.round(marketStats.median_price).toLocaleString()}`] : null,
             inventoryTotal > 0 ? ['Homes for sale', String(inventoryTotal)] : null,
-            daysOnMarketStat(marketStats, trends),
+            marketStats?.median_price != null ? ['Median list price', `$${Math.round(marketStats.median_price).toLocaleString()}`] : null,
+            trends.median_sold_price ? ['Median sold (12 mo)', `$${Math.round(trends.median_sold_price).toLocaleString()}`] : null,
             schoolCount > 0 ? ['Schools', String(schoolCount)] : null,
           ].filter(Boolean) as [string, string][]).map(([label, value]) => ({ label, value }))}
         >
@@ -591,9 +587,9 @@ export function TownPageView({ area, listingsRes, profile, areaList, siteId, slu
           {glance.length > 0 && (
             <dl className="mt-10 grid grid-cols-2 overflow-hidden rounded-[22px] border border-white/15 bg-white/[0.07] sm:flex sm:divide-x sm:divide-white/10">
               {([
-                marketStats?.median_price != null ? ['Median list price', `$${Math.round(marketStats.median_price).toLocaleString()}`] : null,
                 inventoryTotal > 0 ? ['Homes for sale', String(inventoryTotal)] : null,
-                daysOnMarketStat(marketStats, trends),
+                marketStats?.median_price != null ? ['Median list price', `$${Math.round(marketStats.median_price).toLocaleString()}`] : null,
+                trends.median_sold_price ? ['Median sold (12 mo)', `$${Math.round(trends.median_sold_price).toLocaleString()}`] : null,
                 schoolCount > 0 ? ['Schools', String(schoolCount)] : null,
               ].filter(Boolean) as [string, string][]).map(([label, value]) => (
                 <div key={label} className="flex-1 px-5 py-4">

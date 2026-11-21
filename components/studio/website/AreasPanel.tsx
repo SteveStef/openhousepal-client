@@ -148,6 +148,7 @@ export default function AreasPanel({ onChange }: { onChange?: (what?: { added?: 
       setName('')
       setState('')
       load()
+      api.sites.refreshLive()
       onChange?.({ added: trimmedName })
     } else {
       setError(res.error || 'Could not add that area.')
@@ -163,6 +164,7 @@ export default function AreasPanel({ onChange }: { onChange?: (what?: { added?: 
     const res = await api.sites.removeArea(linkId)
     if (!res.success) { setError(res.error || 'Could not remove that area.'); load(); return }
     load()
+    api.sites.refreshLive()
     onChange?.({ removed: gone || 'that area' })
   }
 
@@ -183,7 +185,11 @@ export default function AreasPanel({ onChange }: { onChange?: (what?: { added?: 
     next.splice(index + by, 0, link)
     setAreas(next)
     // the editor preview's town list follows the new order too (it kept the old one - 10/27 audit)
-    api.sites.reorderAreas(next.map(a => a.id)).then(res => { if (!res.success) load(); else onChange?.() })
+    api.sites.reorderAreas(next.map(a => a.id)).then(res => {
+      if (!res.success) { setError(res.error || "Couldn't save the new order - please try again."); load(); return }
+      api.sites.refreshLive()
+      onChange?.()
+    })
   }
 
   return (
@@ -283,6 +289,7 @@ export default function AreasPanel({ onChange }: { onChange?: (what?: { added?: 
             value={name}
             onChange={e => { setName(e.target.value); setShowSuggestions(true) }}
             onFocus={() => setShowSuggestions(true)}
+            onKeyDown={e => { if (e.key === 'Enter' && !adding) { e.preventDefault(); setShowSuggestions(false); handleAdd() } }}
             placeholder={mode === 'city' ? 'Town name' : 'Rittenhouse Square, Main Line...'}
             autoComplete="off"
             disabled={atAreaLimit}
@@ -311,6 +318,7 @@ export default function AreasPanel({ onChange }: { onChange?: (what?: { added?: 
         <input
           value={state}
           onChange={e => setState(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !adding) { e.preventDefault(); handleAdd() } }}
           placeholder="PA"
           maxLength={2}
           disabled={atAreaLimit}

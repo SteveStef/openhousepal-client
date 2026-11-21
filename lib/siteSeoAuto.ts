@@ -237,15 +237,16 @@ export function withSiteName(title: string, siteName: string): string {
  *  seller withheld the address is named by its town only. */
 export function autoListingMeta(p: any): SeoMeta {
   const place = [tidyAllCaps(p.city), [p.state, p.zipcode].filter(Boolean).join(' ')].filter(Boolean).join(', ')
-  const name = p.address_withheld ? `Home for sale in ${place}` : [tidyAllCaps(p.address), place].filter(Boolean).join(', ')
-  const price = typeof p.price === 'number' && p.price > 0 ? `$${Math.round(p.price).toLocaleString('en-US')}` : ''
+  const rental = p.is_rental === true
+  const name = p.address_withheld ? `Home for ${rental ? 'rent' : 'sale'} in ${place}` : [tidyAllCaps(p.address), place].filter(Boolean).join(', ')
+  const price = typeof p.price === 'number' && p.price > 0 ? `$${Math.round(p.price).toLocaleString('en-US')}${rental ? '/month' : ''}` : ''
   const facts = [
     p.bedrooms ? `${p.bedrooms} bed` : '',
     p.bathrooms ? `${p.bathrooms} bath` : '',
     p.living_area ? `${Math.round(p.living_area).toLocaleString('en-US')} sq ft` : '',
   ].filter(Boolean).join(', ')
   const status = String(p.status || '').replace(/-BRIGHT$/i, '').toLowerCase()
-  const lead = status.startsWith('closed') ? 'Sold' : status.startsWith('coming soon') ? 'Coming soon' : status.includes('under contract') || status.startsWith('pending') ? 'Under contract' : 'For sale'
+  const lead = status.startsWith('closed') ? 'Sold' : status.startsWith('coming soon') ? 'Coming soon' : status.includes('under contract') || status.startsWith('pending') ? 'Under contract' : rental ? 'For rent' : 'For sale'
   return {
     title: [name, price].filter(Boolean).join(' - '),
     description: seoClip([`${lead}${place ? ` in ${place}` : ''}${price && lead !== 'Sold' ? ` for ${price}` : ''}.`, facts ? `${facts}.` : '', p.list_office_name ? `Listing courtesy of ${p.list_office_name}.` : ''].filter(Boolean).join(' ')),

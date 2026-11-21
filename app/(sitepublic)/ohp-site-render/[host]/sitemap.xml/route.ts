@@ -28,7 +28,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ host: s
     json(`${INTERNAL_API_URL}/public/sites/${resolved.site_id}/properties?limit=48`),
   ])
   const urls: { loc: string; lastmod?: string; priority: string }[] = [{ loc: origin, priority: '1.0' }]
-  for (const slug of ['search', 'properties', 'neighborhoods', 'blog', 'home-value', 'about', 'contact', 'hub', 'sales']) urls.push({ loc: `${origin}/${slug}`, priority: '0.8' })
+  // /hub is the same Hub as /about (its canonical points there), and /sales repeats the Sold page
+  // when the site has one - listing both made Google see two copies (audit 11/21).
+  const hasSoldPage = (snapshot.pages || []).some((p: any) => p?.slug === 'sold')
+  for (const slug of ['search', 'properties', 'neighborhoods', 'blog', 'home-value', 'about', 'contact', ...(hasSoldPage ? [] : ['sales'])]) urls.push({ loc: `${origin}/${slug}`, priority: '0.8' })
   if (reviews?.show) urls.push({ loc: `${origin}/testimonials`, priority: '0.7' })
   for (const p of snapshot.pages || []) if (!p.is_home && p.slug) urls.push({ loc: `${origin}/${p.slug}`, priority: '0.7' })
   for (const a of Array.isArray(areas) ? areas : []) if (a?.slug) urls.push({ loc: `${origin}/${a.slug}`, priority: '0.7' })

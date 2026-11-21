@@ -93,7 +93,7 @@ export const SECTIONS: Record<SiteBlockType, SectionDef> = {
     type: 'communities', label: 'Neighborhoods', icon: MapPin, group: 'neighborhoods', single: true,
     blurb: 'Photo tiles for every town on your Areas tab with live homes-for-sale counts and median prices - each opens its full neighborhood page.',
     powered: 'Pulls from your Areas tab and live MLS stats.',
-    defaults: { headline: 'Neighborhoods We Serve' },
+    defaults: { headline: 'Explore Neighborhoods' },
     manage: { label: 'Choose your areas', tab: 'areas' },
   },
   about_agent: {

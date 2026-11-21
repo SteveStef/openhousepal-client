@@ -158,7 +158,7 @@ export default function IdxPropertyPage({ p, theme, basePrefix, siteId, agent, s
                 </section>
               )}
 
-              {home.price != null && home.price > 0 && !/closed|sold/i.test(home.status || '') && (
+              {home.price != null && home.price > 0 && !home.isRental && !/closed|sold/i.test(home.status || '') && (
                 <section id="payment" className="scroll-mt-40">
                   <SectionDivider />
                   <SectionTitle kicker="Affordability" title="Your monthly payment" sub="Move the sliders - taxes are this home's real numbers." />
