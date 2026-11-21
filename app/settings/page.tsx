@@ -687,6 +687,7 @@ export default function SettingsPage() {
                         />
                       </div>
                       <textarea
+                        aria-label="About you"
                         value={profile.about}
                         onChange={event => updateProfileField('about', event.target.value)}
                         maxLength={Math.max(BIO_MAX_CHARS, profile.about.length)}
@@ -883,6 +884,7 @@ function Field({ label, value, onChange, placeholder, required = false, hint }: 
         {label}{required && <span className="text-red-500"> *</span>}
       </label>
       <input
+        aria-label={label}
         value={value}
         onChange={event => onChange(event.target.value)}
         placeholder={placeholder}
@@ -1040,16 +1042,16 @@ function PasswordSection() {
       <div className="grid gap-3">
         <div>
           <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Current password</label>
-          <input type="password" autoComplete="current-password" value={current} onChange={e => setCurrent(e.target.value)} className={inputCls} />
+          <input type="password" aria-label="Current password" autoComplete="current-password" value={current} onChange={e => setCurrent(e.target.value)} className={inputCls} />
         </div>
         <div>
           <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">New password</label>
-          <input type="password" autoComplete="new-password" value={next} onChange={e => setNext(e.target.value)} className={inputCls} />
+          <input type="password" aria-label="New password" autoComplete="new-password" value={next} onChange={e => setNext(e.target.value)} className={inputCls} />
           {tooShort && <p className="mt-1 text-xs font-bold text-red-600 dark:text-red-400">Use at least 8 characters.</p>}
         </div>
         <div>
           <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Confirm new password</label>
-          <input type="password" autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)} className={inputCls} />
+          <input type="password" aria-label="Confirm new password" autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)} className={inputCls} />
           {mismatch && <p className="mt-1 text-xs font-bold text-red-600 dark:text-red-400">The new passwords don&apos;t match.</p>}
         </div>
         {error && (

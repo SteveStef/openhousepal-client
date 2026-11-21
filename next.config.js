@@ -63,7 +63,21 @@ const nextConfig = {
   // never appear in Google Images under OpenHousePal (owner, 10/30). Every other path on
   // openhousepal.com gets its noindex from proxy.ts, but /_next/image skips the proxy.
   async headers() {
+    // Browser safety settings (Day 24, 11/21). Private app pages can only be framed by our own pages (clickjacking);
+    // public pages stay frameable - agents' own sites embed the Hub, forms and the Google one-tap box.
+    const PRIVATE = ['dash', 'leads', 'settings', 'admin', 'studio', 'showcases', 'open-houses', 'activity', 'assistant',
+      'discovery', 'checkout', 'setup', 'agent-hub', 'upgrade-required', 'broker-authorization']
+    const noFraming = [
+      { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+      { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+    ]
     return [
+      { source: '/:path*', headers: [
+        { key: 'Strict-Transport-Security', value: 'max-age=15552000' },
+        { key: 'X-Content-Type-Options', value: 'nosniff' },
+        { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+      ] },
+      ...PRIVATE.flatMap(p => [{ source: `/${p}`, headers: noFraming }, { source: `/${p}/:path*`, headers: noFraming }]),
       { source: '/_next/image', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }] },
       { source: '/pimg/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }] },
       // AI Media Cinematic Video's built-in files (example video, music, sample photos): let
@@ -85,6 +99,8 @@ const nextConfig = {
   },
   // Enable standalone output for Docker
   output: 'standalone',
+  // Don't announce the framework to every visitor (Day 24).
+  poweredByHeader: false,
   // Dev-only: keep compiled routes in memory. Next's default (5 pages, disposed after 60s idle)
   // made every tab recompile (5-10s with webpack) even after `npm run warm` pre-compiled it.
   onDemandEntries: {

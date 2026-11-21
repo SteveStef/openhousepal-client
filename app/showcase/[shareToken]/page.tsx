@@ -1009,6 +1009,7 @@ function ShowcaseContent() {
           <ArrowUpDown size={14} />
         </div>
         <select
+          aria-label="Sort homes"
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as any)}
           className="w-full pl-9 pr-8 py-2 sm:py-2.5 bg-gray-50/50 dark:bg-[#0B0B0B] border border-gray-200 dark:border-gray-800 rounded-xl text-[#0B0B0B] dark:text-white text-sm font-medium focus:outline-none focus:border-[#C9A24D] focus:ring-4 focus:ring-[#C9A24D]/5 transition-all appearance-none cursor-pointer"

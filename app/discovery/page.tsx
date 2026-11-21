@@ -1179,6 +1179,7 @@ export default function OpenHouseDiscovery() {
                       <input
                         type="text"
                         inputMode="decimal"
+                        aria-label="Search radius in miles"
                         className="w-8 sm:w-10 bg-transparent text-sm font-black text-[#C9A24D] outline-none placeholder:text-[#C9A24D]/50 text-center"
                         value={miles}
                         onChange={(e) => setMiles(e.target.value)}
