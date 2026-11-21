@@ -11,7 +11,7 @@ import DemoCursor, { useCursorCues, type CursorCue } from './DemoCursor'
 import { AGENT, REAL_CMA } from './realData'
 
 // A literal, unhurried recreation of the real agent-facing CMA tool (app/studio/cma/[id]/page.tsx)
-// using the user's own real, AI-generated, publicly-shared report (openhousepal.com/cma/npggb91tvk -
+// using the user's own real, AI-generated, publicly-shared report (its real link is never shipped -
 // buyer-mode, subject 847 Lesley Rd, Villanova) instead of an invented example: "New CMA" intake ->
 // the 5-step stepper -> Property Selection with the exact real CompCandidateCard markup (big
 // photo, pill match-score/status badges, white school pill, fact-chip grid, Add/Added button) ->

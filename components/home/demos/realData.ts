@@ -77,9 +77,9 @@ export const REAL_FORM = {
   ],
 }
 
-// Real, live-shared CMA report (openhousepal.com/cma/npggb91tvk) - buyer-mode, AI-generated.
+// Real, live-shared CMA report (a real report - its link is never shipped) - buyer-mode, AI-generated.
 export const REAL_CMA = {
-  shareSlug: 'npggb91tvk',
+  shareSlug: 'sample-report',   // a sample, never the real link (audit 11/20)
   clientName: 'Gabby',
   mode: 'buyer' as const,
   subject: {
@@ -99,11 +99,11 @@ export const REAL_CMA = {
   fairValue: 3200000,
 }
 
-// Real showcase (openhousepal.com/showcase/coll-gCAHhqrJkVDw) for a real buyer client. Only the
+// Real showcase (a real one - its link is never shipped: it opened her live page) for a real buyer client. Only the
 // client's first name is used here (not the full name/email/phone on file) - real enough to be
 // authentic without publishing a real person's private contact details on a marketing page.
 export const REAL_SHOWCASE = {
-  shareToken: 'coll-gCAHhqrJkVDw',
+  shareToken: 'donna-sample',   // a sample, never the real link (audit 11/20)
   clientFirstName: 'Donna',
   originalProperty: { address: '840 Harriton Rd', city: 'Bryn Mawr', price: 3995000 },
   preferences: { minPrice: 3196000, maxPrice: 4794000, minBeds: 4, radiusMiles: 6 },

@@ -12,7 +12,7 @@ import { DemoCaption, DemoNote, DEMO_NOTE_CSS, STAGE_BG } from './DemoNote'
 import { AGENT, REAL_SHOWCASE } from './realData'
 
 // The real Showcase flow on the user's own client (Donna, seeded from 840 Harriton Rd, Bryn Mawr -
-// openhousepal.com/showcase/coll-gCAHhqrJkVDw), told the same way as the Agent Hub demo: a note
+// its real link is never shipped), told the same way as the Agent Hub demo: a note
 // beside the stage explains one thing at a time, and that exact part of the screen is outlined in
 // gold while everything else dims. Order: created automatically at an open house -> or built by
 // hand -> criteria -> Donna's own page (match scores vs. the home she loved) -> like / pass ->
