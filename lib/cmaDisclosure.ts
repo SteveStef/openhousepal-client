@@ -4,11 +4,14 @@
 //   MD  COMAR 09.11.02.02F(1)       - "printed conspicuously and without change on the first page"
 //   DE  24 Del. C. § 2931            - "at least a 12-point bold face type font and located immediately following
 //                                       the estimated market price"
-// Checked and found no prescribed wording: NJ (Real Estate Commission BPO notice), VA (Code § 54.1-2100, 2101.1).
+//   NJ  N.J.A.C. 11:5-6.1(m)(1)(i)    - a statement that the CMA "is not an appraisal and should not be considered the
+//                                       equivalent of an appraisal", in print as large as the predominant print (no fixed words)
+// Checked and found no prescribed wording: VA (Code § 54.1-2100, 2142.1; 18VAC135-20-190), DC (Code 47-28 titles).
+// First-page statements print at the report's body-text size or larger (NJ's rule; PA / MD "conspicuously").
 // The home's state decides (the CMA is about a property there). Every CMA - buyer and seller - carries it.
 
 export type CmaStateDisclosure = {
-  state: 'PA' | 'MD' | 'DE'
+  state: 'PA' | 'MD' | 'DE' | 'NJ'
   heading: string | null
   text: string
   /** first_page: on the cover; after_value: right under the headline value, 12-point bold */
@@ -42,6 +45,12 @@ const DISCLOSURES: Record<CmaStateDisclosure['state'], CmaStateDisclosure> = {
       + 'the services of a licensed or certified appraiser must be obtained.',
     where: 'after_value',
   },
+  NJ: {
+    state: 'NJ',
+    heading: null,
+    text: 'This comparative market analysis is not an appraisal and should not be considered the equivalent of an appraisal.',
+    where: 'first_page',
+  },
 }
 
 /** Plain names for the states our agents work in (Bright MLS and neighbours), for messages to the agent. */
@@ -51,7 +60,7 @@ export const US_STATE_NAMES: Record<string, string> = {
 }
 
 const STATE_NAMES: Record<string, CmaStateDisclosure['state']> = {
-  PA: 'PA', PENNSYLVANIA: 'PA', MD: 'MD', MARYLAND: 'MD', DE: 'DE', DELAWARE: 'DE',
+  PA: 'PA', PENNSYLVANIA: 'PA', MD: 'MD', MARYLAND: 'MD', DE: 'DE', DELAWARE: 'DE', NJ: 'NJ', 'NEW JERSEY': 'NJ',
 }
 
 /** The disclosure the home's state requires, or null when it prescribes none. */

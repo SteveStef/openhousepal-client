@@ -23,6 +23,15 @@ export function realTaxes(value?: number | null): number | null {
   return value != null && Number(value) >= 100 ? Number(value) : null
 }
 
+/** The home's own tax bill, with its year when it isn't this year's or last year's (11/21: a 2024 bill on a home
+ *  sold in 2025 read as today's taxes in a Nov 2026 report). */
+export function subjectTaxesText(amount?: number | null, taxYear?: number | null): string | null {
+  const v = realTaxes(amount)
+  if (v == null) return null
+  const y = Number(taxYear) || 0
+  return y > 0 && y < new Date().getFullYear() - 1 ? `${formatMoney(v)} (${y} taxes)` : formatMoney(v)
+}
+
 export function formatMoneyRange(min?: number | null, max?: number | null): string {
   if (min == null && max == null) return '—'
   if (min != null && max != null) return `${formatMoney(min)} – ${formatMoney(max)}`

@@ -3018,6 +3018,7 @@ export interface CmaSubjectProperty {
   last_sale_price?: number | null;
   school_district?: string | null;
   annual_taxes?: number | null;
+  tax_year?: number | null;   // the year that tax bill is for - an old one is labelled (11/21)
   water_source?: string[] | string | null;
   sewer?: string[] | string | null;
   public_remarks?: string | null;

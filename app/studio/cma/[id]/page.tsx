@@ -1088,6 +1088,7 @@ function mapPropertyToSubject(p: any): CmaSubjectProperty {
     last_sale_price: null,
     school_district: p.SchoolDistrictName || null,
     annual_taxes: p.TaxAnnualAmount ?? null,
+    tax_year: p.TaxYear ?? null,
     water_source: p.WaterSource ?? p.water_source ?? null,
     sewer: p.Sewer ?? p.sewer ?? null,
     public_remarks: p.PublicRemarks || null,

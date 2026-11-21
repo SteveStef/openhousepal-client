@@ -32,7 +32,7 @@ function pdfImageUrl(url?: string | null): string {
   if (typeof window === 'undefined') return normalized;
   return `${window.location.origin}/api/pdf-image?url=${encodeURIComponent(normalized)}`;
 }
-import { bathsText, bathsTile, cleanUtilityList, realTaxes, cmaCompetitionView, buildReviewSheet, reviewSheetOn, CMA_ENGINE_TESTS, CMA_LAST_STEP_TEST, CMA_MISS_SPREAD, CMA_WARNING_SIGNS, CMA_WARNING_SIGNS_NOTE, CMA_ASKING_STATS, CMA_TESTED_NOT_ADOPTED, CMA_KNOWN_LIMITS } from '@/lib/cma';
+import { bathsText, bathsTile, cleanUtilityList, realTaxes, subjectTaxesText, cmaCompetitionView, buildReviewSheet, reviewSheetOn, CMA_ENGINE_TESTS, CMA_LAST_STEP_TEST, CMA_MISS_SPREAD, CMA_WARNING_SIGNS, CMA_WARNING_SIGNS_NOTE, CMA_ASKING_STATS, CMA_TESTED_NOT_ADOPTED, CMA_KNOWN_LIMITS } from '@/lib/cma';
 import { CMA_FEE_LABEL, CmaPricingPart, cmaCompNote, cmaFeeRow, cmaFigure, cmaHeadline, cmaIsHidden, cmaLabel, cmaListingHistory, cmaNoteHasContent, cmaNotes, cmaSectionOrder, cmaShownComparables, cmaShownMetrics, cmaShownSubject, cmaSubjectFeeText, cmaTextSections, isNoteKey } from './cmaReport';
 import { CmaGuidanceSection, buildCmaStaticMapUrl, clientCompStrength, cmaGuidanceSections, resolveCmaMarketMetrics, formatAcresFromSqft, formatCompactMoneyRange, formatDate, formatMlsStatusLabel, formatMoney, formatMoneyRange, formatNumber, pricePerSqft, sortComparables, splitCmaBuyerGuidance, buyerOfferFigures, buyerOfferLabels, AREA_TIERS, COMP_STATUS_HEX, COMP_STATUS_LABEL, QUALITY_LABELS, QUALITY_TIER_HEX, STRENGTH_LABEL, STRENGTH_TIER_HEX, compDisplayPrice, effectiveCompPrice, belowGradeDisplay, compPriceCaption, compPricePerSqft, compSoldDate, compSoldToAsking, compStatusBadgeText, formatSoldToAsking, subjectPricePerSqft, basementDisplay, materialIssuesText } from '@/lib/cma';
 import { qrPdfSrc } from '@/lib/qr';
@@ -2249,7 +2249,7 @@ function getCmaSubjectStats(s: CmaSubjectProperty, authoritativeStatus?: CmaFina
     s.sewer ? { label: 'Sewer / Septic', value: formatCmaUtilityValue(s.sewer) } : null,
     statusValue ? { label: 'Current Status', value: statusValue } : null,
     activeMarketDays != null ? { label: 'Days on Market', value: String(activeMarketDays) } : null,
-    s.annual_taxes ? { label: 'Annual Taxes', value: formatMoney(s.annual_taxes) } : null,   // 0 = not assessed yet, not a $0 bill
+    subjectTaxesText(s.annual_taxes, s.tax_year) ? { label: 'Annual Taxes', value: subjectTaxesText(s.annual_taxes, s.tax_year) as string } : null,   // 0 = not assessed yet, not a $0 bill
     monthlyFee ? { label: CMA_FEE_LABEL, value: monthlyFee } : null,
     s.last_sale_date ? { label: 'Last Sale Date', value: formatDate(s.last_sale_date) } : null,
     s.last_sale_price != null ? { label: 'Last Sale Price', value: formatMoney(s.last_sale_price) } : null,
@@ -2355,7 +2355,10 @@ function CmaCoverPage({ report, agent, showSubject = true }: { report: CmaReport
   // The home's state may require its own CMA statement on the first page (lib/cmaDisclosure) - room comes off the photo.
   const stateNote = cmaStateDisclosure(subject.state);
   const firstPageNote = stateNote?.where === 'first_page' ? stateNote : null;
-  const coverPhotoHeight = Math.max(118, 200 - historyHeight - clientLineHeight - Math.max(0, tileRows - 3) * 40 - (firstPageNote ? 52 : 0));
+  // NJ: as large as the report's body text (10 pt, N.J.A.C. 11:5-6.1(m)(1)(i)); PA / MD: 9 pt bold in its box (11/21)
+  const firstPageNotePt = firstPageNote?.state === 'NJ' ? 10 : 9;
+  const firstPageNoteHeight = firstPageNote ? 18 + (firstPageNote.heading ? firstPageNotePt + 4 : 0) + Math.ceil(firstPageNote.text.length / (firstPageNotePt === 10 ? 100 : 112)) * firstPageNotePt * 1.4 : 0;
+  const coverPhotoHeight = Math.max(118, 200 - historyHeight - clientLineHeight - Math.max(0, tileRows - 3) * 40 - firstPageNoteHeight);
   const subjectLocation = cmaCityStateZip(subject);
   return (
     <Page size="LETTER" style={cma.coverPage} wrap={false}>
@@ -2431,8 +2434,8 @@ function CmaCoverPage({ report, agent, showSubject = true }: { report: CmaReport
 
       {firstPageNote ? (
         <View style={{ marginTop: 10, padding: 8, borderRadius: 6, border: `1 solid ${COLORS.border}`, backgroundColor: '#faf7f0' }}>
-          {firstPageNote.heading ? <Text style={{ fontSize: 8, fontWeight: 900, color: COLORS.text, marginBottom: 2 }}>{firstPageNote.heading}</Text> : null}
-          <Text style={{ fontSize: 8, fontWeight: 700, color: COLORS.text, lineHeight: 1.35 }}>{firstPageNote.text}</Text>
+          {firstPageNote.heading ? <Text style={{ fontSize: firstPageNotePt, fontWeight: 900, color: COLORS.text, marginBottom: 2 }}>{firstPageNote.heading}</Text> : null}
+          <Text style={{ fontSize: firstPageNotePt, fontWeight: 700, color: COLORS.text, lineHeight: 1.35 }}>{firstPageNote.text}</Text>
         </View>
       ) : null}
       <Text style={cma.coverDisclaimer}>
@@ -2463,7 +2466,7 @@ function CmaSubjectPage({ report, agent }: { report: CmaReport; agent: CmaPdfAge
     s.water_source ? { label: 'Water Source', value: formatCmaUtilityValue(s.water_source) } : null,
     s.sewer ? { label: 'Sewer / Septic', value: formatCmaUtilityValue(s.sewer) } : null,
     statusValue ? { label: 'Current Status', value: statusValue } : null,
-    s.annual_taxes ? { label: 'Annual Taxes', value: formatMoney(s.annual_taxes) } : null,   // 0 = not assessed yet, not a $0 bill
+    subjectTaxesText(s.annual_taxes, s.tax_year) ? { label: 'Annual Taxes', value: subjectTaxesText(s.annual_taxes, s.tax_year) as string } : null,   // 0 = not assessed yet, not a $0 bill
     s.last_sale_date ? { label: 'Last Sale Date', value: formatDate(s.last_sale_date) } : null,
     s.last_sale_price != null ? { label: 'Last Sale Price', value: formatMoney(s.last_sale_price) } : null,
   ].filter(Boolean) as { label: string; value: string }[];
@@ -2631,7 +2634,7 @@ function CmaComparisonTablePage({ report, comparables, agent }: { report: CmaRep
     { label: 'Year Built', subject: String(s.year_built ?? '—'), comp: c => String(c.year_built ?? '—') },
     { label: 'Garage', subject: s.garage || '—', comp: c => c.garage || '—' },
     { label: 'Basement', subject: basementDisplay(s), comp: c => basementDisplay(c) },
-    { label: 'Annual Taxes', subject: realTaxes(s.annual_taxes) ? formatMoney(s.annual_taxes) : '—', comp: c => realTaxes(c.annual_taxes) ? formatMoney(c.annual_taxes) : '—' },
+    { label: 'Annual Taxes', subject: subjectTaxesText(s.annual_taxes, s.tax_year) || '—', comp: c => realTaxes(c.annual_taxes) ? formatMoney(c.annual_taxes) : '—' },
     // Association fees, when there is something to compare (lib/cmaReport cmaFeeRow - the same row as the client page)
     ...(feeRow ? [{ label: CMA_FEE_LABEL, subject: feeRow.subject, comp: feeRow.comp }] : []),
     { label: 'Days on Market', subject: String(s.days_on_market ?? '—'), comp: c => String(c.days_on_market ?? '—') },

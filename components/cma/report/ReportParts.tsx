@@ -9,7 +9,7 @@ import {
   AREA_TIERS, COMP_STATUS_BADGE_STYLE, COMP_STATUS_HEX, COMP_STATUS_LABEL, CmaGuidanceSection, QUALITY_LABELS, QUALITY_TIER_STYLES,
   STRENGTH_LABEL, STRENGTH_SCALE_STYLES, STRENGTH_STYLES, basementDisplay, bathsText, buildCompLocationMapUrl, cleanUtilityList,
   clientCompStrength, compDisplayPrice, compPriceCaption, compPricePerSqft, compSoldDate, compStatusBadgeText, formatAcresFromSqft,
-  formatDate, formatMlsStatusLabel, formatMoney, formatNumber, materialIssuesText, realTaxes, subjectPricePerSqft,
+  formatDate, formatMlsStatusLabel, formatMoney, formatNumber, materialIssuesText, realTaxes, subjectPricePerSqft, subjectTaxesText,
 } from '@/lib/cma'
 import { googleMapsLoader } from '@/lib/googleMapsLoader'
 import { HomeAreaOverlay } from '@/components/maps/HomeAreaMap'
@@ -193,7 +193,7 @@ export function SubjectShowcaseCard({ subject, onPickPhoto, days, fee }: {
     subject.year_built != null ? { icon: Calendar, label: 'Built', value: String(subject.year_built) } : null,
     dom != null ? { icon: Calendar, label: 'Days on market', value: String(dom) } : null,
     subject.lot_size != null ? { icon: LandPlot, label: 'Acres', value: formatAcresFromSqft(subject.lot_size).replace(' ac', '') } : null,
-    subject.annual_taxes ? { icon: DollarSign, label: 'Annual Taxes', value: formatMoney(subject.annual_taxes) } : null,   // 0 = not assessed yet
+    subjectTaxesText(subject.annual_taxes, subject.tax_year) ? { icon: DollarSign, label: 'Annual Taxes', value: subjectTaxesText(subject.annual_taxes, subject.tax_year) as string } : null,   // 0 = not assessed yet
   ].filter(Boolean) as { icon: any, label: string, value: string }[]
   // The facts that used to sit only inside "View details" - on the card now, so the home's whole picture is up front.
   const more = [

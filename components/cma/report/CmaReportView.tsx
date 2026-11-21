@@ -11,7 +11,7 @@ import { CmaComparable, CmaPublicResponse, CmaReport } from '@/types'
 import {
   CmaCompetitionCard, belowGradeDisplay, bathsText, buildCmaStaticMapUrl, buyerOfferLabels, compDisplayPrice, compPricePerSqft,
   compSoldDate, compSoldToAsking, competitionHomeAsComparable, effectiveCompPrice, formatAcresFromSqft, formatMoney, formatNumber,
-  formatSoldToAsking, realTaxes, subjectPricePerSqft,
+  formatSoldToAsking, realTaxes, subjectPricePerSqft, subjectTaxesText,
 } from '@/lib/cma'
 import {
   CMA_FEE_LABEL, CMA_SECTIONS, CmaFigureKey, CmaPricingPart, CmaTextKey, cmaCompNote, cmaEditorComparables, cmaFeeRow, cmaFigure, cmaHeadline, cmaIsHidden, cmaLabel,
@@ -217,7 +217,7 @@ export default function CmaReportView({ data, edit }: {
                 <OverviewRow index={4} label="Beds" subjectValue={String(subject.beds ?? '—')} comparables={comparables} get={c => String(c.beds ?? '—')} />
                 <OverviewRow index={5} label="Baths" subjectValue={bathsText(subject)} comparables={comparables} get={c => bathsText(c)} />
                 <OverviewRow index={6} label="Year Built" subjectValue={String(subject.year_built ?? '—')} comparables={comparables} get={c => String(c.year_built ?? '—')} />
-                <OverviewRow index={7} label="Annual Taxes" subjectValue={realTaxes(subject.annual_taxes) ? formatMoney(subject.annual_taxes) : '—'} comparables={comparables} get={c => realTaxes(c.annual_taxes) ? formatMoney(c.annual_taxes) : '—'} />
+                <OverviewRow index={7} label="Annual Taxes" subjectValue={subjectTaxesText(subject.annual_taxes, subject.tax_year) || '—'} comparables={comparables} get={c => realTaxes(c.annual_taxes) ? formatMoney(c.annual_taxes) : '—'} />
                 {feeRow && <OverviewRow index={8} label={CMA_FEE_LABEL} subjectValue={feeRow.subject} comparables={comparables} get={feeRow.comp} />}
                 <OverviewRow index={feeRow ? 9 : 8} label="Distance" subjectValue="—" comparables={comparables} get={c => c.distance_miles != null ? `${c.distance_miles} miles` : '—'} />
                 <OverviewRow index={10} label="Days on Market" subjectValue={String(authoritativeDom ?? '—')} comparables={comparables} get={c => String(c.days_on_market ?? '—')} />
@@ -455,7 +455,7 @@ export default function CmaReportView({ data, edit }: {
           {stateNote?.where === 'first_page' && (
             <div className="mt-5 max-w-3xl rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-left print:border-gray-300 print:bg-white">
               {stateNote.heading && <p className="text-[11px] font-black uppercase tracking-wide text-white print:text-black">{stateNote.heading}</p>}
-              <p className="text-xs font-semibold leading-relaxed text-gray-200 print:text-black">{stateNote.text}</p>
+              <p className="text-sm font-semibold leading-relaxed text-gray-100 sm:text-base print:text-black">{stateNote.text}</p>
             </div>
           )}
         </div>
