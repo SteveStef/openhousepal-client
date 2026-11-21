@@ -44,7 +44,6 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { OhpWordmark } from '@/components/brand/OhpBrand'
-import { IdxNotice } from '@/components/MLSComplianceFooter'
 import { publicWebUrl } from '@/lib/webUrl'
 import { LeaveReviewButton, orderReviews, ProfileRatingChip, ProfileReviewButton, ReviewsBigCarousel, ReviewsDeskCard, ReviewsSummary, ReviewsTwoUp, useHubReviews } from '@/components/agent-hub/HubReviews'
 import useHubColorMode, { useHubLookChanged } from '@/components/agent-hub/useHubColorMode'
@@ -1000,10 +999,6 @@ export default function PublicAgentHubPage() {
           className="hub-enter mt-6 border-t border-gray-200 py-5 text-center text-xs font-semibold text-gray-500 dark:border-gray-700 dark:text-gray-400"
           style={{ animationDelay: `${0.15 + Math.min(visibleOrderedSections.length, 4) * 0.12 + 0.24}s` }}
         >
-          {/* Bright's IDX notice whenever this Hub shows MLS homes (sales or listings) - owner 11/21 */}
-          {[...recentSales, ...myListings].some(s => s.source !== 'manual') && (
-            <IdxNotice brokerage={profile.brokerage} className="mb-4 text-left font-normal" />
-          )}
           Powered by <Link href="/" className="inline-flex align-[-0.15em] text-[#111827] dark:text-white"><OhpWordmark className="text-[1.15em]" /></Link>
         </footer>
         </div>
